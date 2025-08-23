@@ -35,7 +35,9 @@ export function CategoryTable({ categories, onEdit, onDelete, onToggleActive, on
       return <Badge variant="outline">No types</Badge>;
     }
 
-    return <div className="flex flex-wrap gap-1">{category.categoryTypes.map((categoryType: CategoryTypeEntity) => getTypeBadge(categoryType.type))}</div>;
+    return <div className="flex flex-wrap gap-1">{category.categoryTypes.map((categoryType: CategoryTypeEntity) => (
+      <div key={categoryType.id || categoryType.type}>{getTypeBadge(categoryType.type)}</div>
+    ))}</div>;
   };
 
   // Helper function to get the primary type icon (first type)

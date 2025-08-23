@@ -2,9 +2,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { MenuPage } from "./components/menu/TabMenu";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { getCategoriesByType } from "@/api/categories.api";
-import { Category } from "@/types/categories";
-import { useEffect, useState } from "react";
 import { employeeFormModeAtom, employeeFormOpenAtom, employeesAtom, selectedEmployeeAtom } from "@/store/employeeAtoms";
 import { PERMISSIONS } from "@/types/auth";
 import { InventoryManagementPanelProps } from "@/types/inventory";
@@ -40,27 +37,11 @@ const PlaceholderPage = lazy(() => import("./components/common/PlaceholderPage")
 const queryClient = new QueryClient();
 
 export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps = {}) {
-  const { materialsWithStock, stockEntries, sections, sectionAssignments, menuItems, handleCreateMenuItem: storeCreateMenuItem, handleUpdateMenuItem: storeUpdateMenuItem, handleDeleteMenuItem: storeDeleteMenuItem } = useInventoryStore();
+  const { materialsWithStock, stockEntries, sections, menuItems, handleCreateMenuItem: storeCreateMenuItem, handleUpdateMenuItem: storeUpdateMenuItem, handleDeleteMenuItem: storeDeleteMenuItem } = useInventoryStore();
   const [employees] = useAtom(employeesAtom);
   const [, setFormOpen] = useAtom(employeeFormOpenAtom);
   const [, setFormMode] = useAtom(employeeFormModeAtom);
   const [, setSelectedEmployee] = useAtom(selectedEmployeeAtom);
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  // // Fetch categories for menu items and beverages
-  // useEffect(() => {
-  //   const fetchCategories = async () => {
-  //     try {
-  //       // Fetch both menu_items and beverages categories
-  //       const [menuResponse, beverageResponse] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("beverages")]);
-  //       console.log("Fetched Menu categories:", menuResponse.totalItems);
-  //       console.log("Fetched Beverages categories:", beverageResponse.totalItems);
-  //     } catch (error) {
-  //       console.error("Failed to fetch categories:", error);
-  //     }
-  //   };
-  //   fetchCategories();
-  // }, []);
 
   const handleCreateMenuItem = onCreateMenuItem || storeCreateMenuItem;
   const handleUpdateMenuItem = onUpdateMenuItem || storeUpdateMenuItem;
@@ -185,7 +166,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
                         <AuthenticatedLayout>
-                          <MenuPage stockEntries={stockEntries} materials={materialsWithStock} menuItems={menuItems} categories={categories} sections={sections} onCreateMenuItem={handleCreateMenuItemAsync} onUpdateMenuItem={handleUpdateMenuItemAsync} onDeleteMenuItem={handleDeleteMenuItemAsync} />
+                          <MenuPage onCreateMenuItem={handleCreateMenuItemAsync} onUpdateMenuItem={handleUpdateMenuItemAsync} onDeleteMenuItem={handleDeleteMenuItemAsync} />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
                     }

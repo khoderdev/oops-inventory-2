@@ -14,12 +14,11 @@ interface MenuItemCardViewProps {
   selectedItems?: Set<string>;
   bulkSelectionMode?: boolean;
   highlightSearchTerm?: (text: string) => React.ReactNode;
-  getMaterialName: (id: string | number) => string;
   categories: { value: string; name: string }[];
   calculateMenuItemCost?: (ingredients: MenuItemIngredient[]) => number;
 }
 
-const MenuItemCardView: React.FC<MenuItemCardViewProps> = ({ items, onEdit, onDelete, onTogglePosVisibility, onPrinterAssignment, onSelect, selectedItems = new Set(), bulkSelectionMode = false, highlightSearchTerm, getMaterialName, categories, calculateMenuItemCost }) => {
+const MenuItemCardView: React.FC<MenuItemCardViewProps> = ({ items, onEdit, onDelete, onTogglePosVisibility, onPrinterAssignment, onSelect, selectedItems = new Set(), bulkSelectionMode = false, highlightSearchTerm, categories, calculateMenuItemCost }) => {
   return (
     <div className="grid grid-cols-1 gap-4 pb-4 overflow-y-auto">
       {items.map(item => {
@@ -124,7 +123,7 @@ const MenuItemCardView: React.FC<MenuItemCardViewProps> = ({ items, onEdit, onDe
                 <div className="flex flex-wrap gap-1">
                   {item.ingredients.slice(0, 3).map(ing => (
                     <span key={ing.materialId} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
-                      {getMaterialName(ing.materialId)}
+                      {ing.materialId}
                     </span>
                   ))}
                   {item.ingredients.length > 3 && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">+{item.ingredients.length - 3} more</span>}

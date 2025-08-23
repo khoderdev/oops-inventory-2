@@ -8,7 +8,6 @@ import { getCategoriesByType } from "@/api/categories.api";
 import { menuAPI } from "@/api/menu.api.ts";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { toast } from "../ui/use-toast";
-import { Loader2 } from "lucide-react";
 
 interface TabMenuProps {
   categories?: Category[];
@@ -25,8 +24,40 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
   const [beverageCategories, setBeverageCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
-  const [menuItemsLoading, setMenuItemsLoading] = useState(true);
-  const [menuItemsError, setMenuItemsError] = useState<string | null>(null);
+  const [, setMenuItemsLoading] = useState(true);
+  const [, setMenuItemsError] = useState<string | null>(null);
+
+  const fetchMenuItems = useCallback(async () => {
+    try {
+      setMenuItemsLoading(true);
+      setMenuItemsError(null);
+
+      console.log("🔄 TabMenu: Fetching menu items...");
+
+      // Always fetch food menu items
+      const foodItems = await menuAPI.getFoodMenuItems(true);
+      console.log("📋 TabMenu: Fetched food menu items:", foodItems.length);
+      setFoodMenuItems(foodItems);
+
+      // Only fetch beverage items when the beverages tab is active
+      if (activeTab === "beverages") {
+        const beverageItems = await menuAPI.getBeverageMenuItems(true);
+        console.log("🥤 TabMenu: Fetched beverage menu items:", beverageItems.length);
+        setBeverageMenuItems(beverageItems);
+      }
+    } catch (error) {
+      console.error("Failed to fetch menu items:", error);
+      setMenuItemsError("Failed to load menu items");
+      toast({
+        title: "Error",
+        description: "Failed to load menu items. Please try again.",
+        variant: "destructive",
+        duration: 5000
+      });
+    } finally {
+      setMenuItemsLoading(false);
+    }
+  }, [activeTab]);
 
   // Handle tab change to fetch data only when needed
   const handleTabChange = useCallback(
@@ -35,35 +66,11 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
 
       // If switching to beverages tab and we don't have beverage data yet, fetch it
       if (value === "beverages" && beverageMenuItems.length === 0) {
-        fetchBeverageItems();
+        fetchMenuItems();
       }
     },
-    [beverageMenuItems.length]
+    [beverageMenuItems.length, fetchMenuItems]
   );
-
-  // Separate function to fetch only beverage items
-  const fetchBeverageItems = useCallback(async () => {
-    try {
-      setMenuItemsLoading(true);
-      setMenuItemsError(null);
-
-      console.log("🥤 TabMenu: Fetching beverage menu items...");
-      const beverageItems = await menuAPI.getBeverageMenuItems(true);
-      console.log("🥤 TabMenu: Fetched beverage menu items:", beverageItems.length);
-      setBeverageMenuItems(beverageItems);
-    } catch (error) {
-      console.error("Failed to fetch beverage items:", error);
-      setMenuItemsError("Failed to load beverage items");
-      toast({
-        title: "Error",
-        description: "Failed to load beverage items. Please try again.",
-        variant: "destructive",
-        duration: 5000
-      });
-    } finally {
-      setMenuItemsLoading(false);
-    }
-  }, []);
 
   // Fetch categories by type for forms and filtering
   const fetchCategories = useCallback(async () => {
@@ -105,38 +112,6 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
     }
   }, [externalCategories]);
 
-  const fetchMenuItems = useCallback(async () => {
-    try {
-      setMenuItemsLoading(true);
-      setMenuItemsError(null);
-
-      console.log("🔄 TabMenu: Fetching menu items...");
-
-      // Only fetch food menu items when needed for the food tab
-      const foodItems = await menuAPI.getFoodMenuItems(true);
-      console.log("📋 TabMenu: Fetched food menu items:", foodItems.length);
-      setFoodMenuItems(foodItems);
-
-      // Only fetch beverage items when the beverages tab is active
-      if (activeTab === "beverages") {
-        const beverageItems = await menuAPI.getBeverageMenuItems(true);
-        console.log("🥤 TabMenu: Fetched beverage menu items:", beverageItems.length);
-        setBeverageMenuItems(beverageItems);
-      }
-    } catch (error) {
-      console.error("Failed to fetch menu items:", error);
-      setMenuItemsError("Failed to load menu items");
-      toast({
-        title: "Error",
-        description: "Failed to load menu items. Please try again.",
-        variant: "destructive",
-        duration: 5000
-      });
-    } finally {
-      setMenuItemsLoading(false);
-    }
-  }, [activeTab]);
-
   useEffect(() => {
     // Only fetch food menu items on initial load
     fetchMenuItems();
@@ -147,48 +122,30 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
     async (menuItem: CreateMenuItemData, imageFile?: File) => {
       await onCreateMenuItem(menuItem, imageFile);
 
-      // Only refresh the appropriate tab data
-      if (menuItem.isBeverage) {
-        if (activeTab === "beverages") {
-          fetchBeverageItems();
-        }
-      } else {
-        fetchMenuItems();
-      }
+      // Refresh the appropriate data based on current tab
+      fetchMenuItems();
     },
-    [onCreateMenuItem, fetchMenuItems, fetchBeverageItems, activeTab]
+    [onCreateMenuItem, fetchMenuItems]
   );
 
   const handleUpdateMenuItem = useCallback(
     async (id: string, menuItem: Partial<MenuItem>) => {
       await onUpdateMenuItem(id, menuItem);
 
-      // Only refresh the appropriate tab data
-      if (menuItem.isBeverage) {
-        if (activeTab === "beverages") {
-          fetchBeverageItems();
-        }
-      } else {
-        fetchMenuItems();
-      }
+      // Refresh the appropriate data based on current tab
+      fetchMenuItems();
     },
-    [onUpdateMenuItem, fetchMenuItems, fetchBeverageItems, activeTab]
+    [onUpdateMenuItem, fetchMenuItems]
   );
 
   const handleDeleteMenuItem = useCallback(
     async (id: string, isBeverage: boolean = false) => {
       await onDeleteMenuItem(id);
 
-      // Only refresh the appropriate tab data
-      if (isBeverage) {
-        if (activeTab === "beverages") {
-          fetchBeverageItems();
-        }
-      } else {
-        fetchMenuItems();
-      }
+      // Refresh the appropriate data based on current tab
+      fetchMenuItems();
     },
-    [onDeleteMenuItem, fetchMenuItems, fetchBeverageItems, activeTab]
+    [onDeleteMenuItem, fetchMenuItems]
   );
 
   const isMobile = useMediaQuery("(max-width: 640px)");

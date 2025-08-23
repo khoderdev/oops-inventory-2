@@ -30,7 +30,6 @@ export interface MenuBuilderLayoutProps {
   selectedMenuItems: Set<string>;
   bulkSelectionMode: boolean;
   highlightSearchTerm: (text: string) => React.ReactNode;
-  getMaterialName: (id: string | number) => string;
   categoriesFiltered: { id?: number; value: string; name: string }[];
   calculateMenuItemCost: (ingredients: MenuItemIngredient[]) => number;
   table: Table<MenuItem>;

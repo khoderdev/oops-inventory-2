@@ -180,127 +180,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
       if (!ingredients || !Array.isArray(ingredients)) {
         return 0;
       }
-      return ingredients.reduce((sum, ingredient) => {
-        // If the ingredient already has a cost value, use it directly
-        if (ingredient.cost && parseFloat(String(ingredient.cost)) > 0) {
-          return sum + parseFloat(String(ingredient.cost));
-        }
-
-        // Try to find the material in currentMenuItems
-        const material = currentMenuItems.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
-
-        // If not found in currentMenuItems, try to find it in the inventory store
-        if (!material) {
-          // Find material in the inventory store materials
-          const storeMaterial = materials?.find(m => String(m.id) === String(ingredient.materialId));
-
-          if (!storeMaterial) {
-            console.warn(`Material not found for ID: ${ingredient.materialId}`);
-            return sum;
-          }
-
-          // Create a proper Material object for calculation
-          const materialForCalculation: Material = {
-            id: storeMaterial.id,
-            name: storeMaterial.name,
-            category: storeMaterial.category,
-            baseUnit: storeMaterial.baseUnit,
-            unitType: storeMaterial.unitType,
-            costPerUnit: storeMaterial.costPerUnit || 0
-          };
-
-          validateIngredientData(ingredient, materialForCalculation);
-
-          // Get stock entries for this material if available
-          const materialStockEntries = inventoryStore.stockEntries?.filter(se => String(se.materialId) === String(ingredient.materialId)) || [];
-
-          // Calculate cost per unit
-          const costPerUnit = calculateMaterialCostPerUnit(materialForCalculation, materialStockEntries);
-
-          let conversionFactor = 1;
-          try {
-            conversionFactor = getConversionFactor(ingredient.unit, materialForCalculation.baseUnit, materialForCalculation.unitType, materialForCalculation);
-          } catch (error) {
-            console.warn(`Unit conversion error for ingredient in material "${materialForCalculation.name}": ${ingredient.unit} to ${materialForCalculation.baseUnit}`, error);
-            conversionFactor = 1;
-          }
-
-          const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
-          return sum + ingredientCost;
-        }
-
-        // If material was found in currentMenuItems
-        // Create a temporary Material object for validation
-        const materialForValidation: Material = {
-          id: material.id,
-          name: material.name,
-          category: "other",
-          baseUnit: "piece",
-          unitType: "piece",
-          costPerUnit: material.costPerUnit || 0
-        };
-
-        validateIngredientData(ingredient, materialForValidation);
-
-        // Since we don't have actual StockEntry objects, we'll use an empty array
-        const materialStockEntries: StockEntry[] = [];
-
-        // Create a proper Material object from MenuItem properties
-        const materialForCalculation: Material = {
-          id: material.id,
-          name: material.name,
-          category: "other", // Use a valid MaterialCategory value
-          baseUnit: "piece", // Default baseUnit for MenuItems
-          unitType: "piece", // Default unitType for MenuItems
-          costPerUnit: material.costPerUnit || 0
-        };
-
-        // Calculate cost per unit with proper arguments
-        const costPerUnit = calculateMaterialCostPerUnit(materialForCalculation, materialStockEntries);
-
-        let conversionFactor = 1;
-        try {
-          // Ensure all required parameters are provided to getConversionFactor
-          conversionFactor = getConversionFactor(
-            ingredient.unit,
-            "piece", // Default baseUnit for MenuItems
-            "piece" as UnitType, // Default unitType for MenuItems
-            materialForCalculation
-          );
-        } catch (error) {
-          console.warn(`Unit conversion error for ingredient in material "${material.name}": ${ingredient.unit} to piece`, error);
-          conversionFactor = 1;
-        }
-        const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
-        return sum + ingredientCost;
-      }, 0);
+      return 0;
     },
-    [calculateMaterialCostPerUnit, validateIngredientData]
-  );
-
-  // Get materials from the inventory store
-  const inventoryStore = useInventoryStore();
-  const materials = inventoryStore.materialsWithStock;
-
-  const getMaterialName = useCallback(
-    (id: string | number) => {
-      // First try to find the material in the current menu items
-      const material = currentMenuItems.find(m => m.id === String(id) || String(m.id) === String(id));
-      if (material?.name) {
-        return material.name;
-      }
-
-      // If not found, check in the materials from inventory store
-      if (materials && materials.length > 0) {
-        const material = materials.find(m => String(m.id) === String(id));
-        if (material?.name) {
-          return material.name;
-        }
-      }
-
-      return "Unknown";
-    },
-    [currentMenuItems, materials]
+    []
   );
 
   const handleDeleteMenuItem = useCallback(
@@ -375,7 +257,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
     searchTerm,
     categories,
     calculateMenuItemCost,
-    getMaterialName,
     handleTogglePOSVisibility,
     handleOpenPrinterDialog,
     handleDeleteMenuItem,
@@ -387,6 +268,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
   const filteredMenuItems = useMemo(() => {
     // Debug log all items before filtering
     console.log("🔍 MenuBuilder: All menu items before filtering:", currentMenuItems.length);
+    console.log("🔍 MenuBuilder: Data source:", storeMenuItems && storeMenuItems.length > 0 ? "useInventoryStore" : "props");
+    console.log("🔍 MenuBuilder: First few items:", currentMenuItems.slice(0, 3));
 
     // Find any suspicious items that might be beverages but don't have beverageStockId
     const suspiciousBeverageItems = currentMenuItems.filter(item => {
@@ -442,14 +325,16 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         // First check the ingredients array
         if (item.ingredients && Array.isArray(item.ingredients)) {
           return item.ingredients.some(ingredient => {
-            const materialName = getMaterialName(ingredient.materialId);
+            // Convert materialId to string to ensure toLowerCase() works
+            const materialName = String(ingredient.materialId);
             return materialName.toLowerCase().includes(searchLower);
           });
         }
         // Then check the menuItemIngredients array if ingredients is not available
         if (item.menuItemIngredients && Array.isArray(item.menuItemIngredients)) {
           return item.menuItemIngredients.some(ingredient => {
-            const materialName = getMaterialName(ingredient.materialId);
+            // Convert materialId to string to ensure toLowerCase() works
+            const materialName = String(ingredient.materialId);
             return materialName.toLowerCase().includes(searchLower);
           });
         }
@@ -477,39 +362,43 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         })();
       return matchesSearch && matchesCategory;
     });
-  }, [currentMenuItems, searchTerm, selectedCategory, getMaterialName, categories]);
+  }, [currentMenuItems, searchTerm, selectedCategory, categories]);
 
   // Prepare table configuration options - memoized to prevent unnecessary re-renders
   const tableOptions = useMemo(
-    () => ({
-      data: filteredMenuItems,
-      columns: bulkSelectionMode ? columns : columns.filter(col => col.id !== "select"),
-      state: {
-        sorting,
-        columnFilters,
-        columnVisibility,
-        rowSelection: Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))
-      },
-      enableRowSelection: bulkSelectionMode,
-      onSortingChange: setSorting,
-      onColumnFiltersChange: setColumnFilters,
-      onColumnVisibilityChange: setColumnVisibility,
-      onRowSelectionChange: updater => {
-        const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))) : updater;
-        const newSelectedIds = new Set(
-          Object.entries(newSelection)
-            .filter(([_, selected]) => selected)
-            .map(([index]) => filteredMenuItems[parseInt(index)]?.id)
-            .filter(Boolean)
-        );
-        setSelectedMenuItems(newSelectedIds);
-      },
-      getCoreRowModel: getCoreRowModel(),
-      getFilteredRowModel: getFilteredRowModel(),
-      getSortedRowModel: getSortedRowModel()
-    }),
+    () => {
+      console.log("📊 MenuBuilder: Table data source:", filteredMenuItems.length, "items");
+      console.log("📊 MenuBuilder: API endpoint source: /api/menu-items");
+      return {
+        data: filteredMenuItems,
+        columns: bulkSelectionMode ? columns : columns.filter(col => col.id !== "select"),
+        state: {
+          sorting,
+          columnFilters,
+          columnVisibility,
+          rowSelection: Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))
+        },
+        enableRowSelection: bulkSelectionMode,
+        onSortingChange: setSorting,
+        onColumnFiltersChange: setColumnFilters,
+        onColumnVisibilityChange: setColumnVisibility,
+        onRowSelectionChange: updater => {
+          const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))) : updater;
+          const newSelectedIds = new Set(
+            Object.entries(newSelection)
+              .filter(([_, selected]) => selected)
+              .map(([index]) => filteredMenuItems[parseInt(index)]?.id)
+              .filter(Boolean)
+          );
+          setSelectedMenuItems(newSelectedIds);
+        },
+        getCoreRowModel: getCoreRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        getSortedRowModel: getSortedRowModel()
+      };
+    },
     [filteredMenuItems, bulkSelectionMode, columns, sorting, columnFilters, columnVisibility, selectedMenuItems]
-  );
+  ); 
 
   // Initialize table with the memoized options
   const table = useReactTable(tableOptions);
@@ -531,7 +420,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
 
         // Call the callback first
         if (onCreateMenuItem) {
-          onCreateMenuItem(createdMenuItem);
+          onCreateMenuItem(createdMenuItem.data);
         }
 
         // Close the form before fetching data to prevent UI flicker
@@ -794,7 +683,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         selectedMenuItems={selectedMenuItems}
         bulkSelectionMode={bulkSelectionMode}
         highlightSearchTerm={highlightSearchTerm}
-        getMaterialName={getMaterialName}
         categoriesFiltered={categoriesFiltered}
         calculateMenuItemCost={calculateMenuItemCost}
         table={table}

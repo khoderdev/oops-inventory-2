@@ -40,7 +40,6 @@ const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
   selectedMenuItems,
   bulkSelectionMode,
   highlightSearchTerm,
-  getMaterialName,
   categoriesFiltered,
   calculateMenuItemCost,
   table
@@ -176,7 +175,6 @@ const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
                 selectedItems={selectedMenuItems}
                 bulkSelectionMode={bulkSelectionMode}
                 highlightSearchTerm={highlightSearchTerm}
-                getMaterialName={getMaterialName}
                 categories={categoriesFiltered}
                 calculateMenuItemCost={calculateMenuItemCost}
               />

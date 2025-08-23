@@ -8,7 +8,7 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { highlightText } from "@/utils/highlightText";
 import { MenuItemColumnsProps } from "@/types/menuItems";
 
-export const useMenuItemColumns = ({ searchTerm, categories, calculateMenuItemCost, getMaterialName, handleTogglePOSVisibility, handleOpenPrinterDialog, handleDeleteMenuItem, setEditingMenuItem, setShowMenuItemForm }: MenuItemColumnsProps): ColumnDef<MenuItem>[] => {
+export const useMenuItemColumns = ({ searchTerm, categories, calculateMenuItemCost, handleTogglePOSVisibility, handleOpenPrinterDialog, handleDeleteMenuItem, setEditingMenuItem, setShowMenuItemForm }: MenuItemColumnsProps): ColumnDef<MenuItem>[] => {
   const columnHelper = createColumnHelper<MenuItem>();
 
   return [
