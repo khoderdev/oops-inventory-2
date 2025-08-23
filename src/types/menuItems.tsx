@@ -91,6 +91,8 @@ export interface BeverageDetailsDialogProps {
 export interface MenuItemFormProps {
   menuItem?: MenuItem;
   categories: Category[];
+  materials: Material[];
+  stockEntries?: StockEntry[];
   onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;
   onCancel: () => void;
 }
