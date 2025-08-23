@@ -93,13 +93,55 @@ export const MenuPage: React.FC<TabMenuProps> = ({ stockEntries, materials, sect
       setMenuItemsLoading(true);
       setMenuItemsError(null);
       
+      console.log('🔄 TabMenu: Fetching food and beverage menu items...');
+      
       const [foodItems, beverageItems] = await Promise.all([
         menuAPI.getFoodMenuItems(true),
         menuAPI.getBeverageMenuItems(true)
       ]);
       
-      console.log('📋 Fetched food menu items:', foodItems.length);
-      console.log('🥤 Fetched beverage menu items:', beverageItems.length);
+      console.log('📋 TabMenu: Fetched food menu items:', foodItems.length);
+      console.log('🥤 TabMenu: Fetched beverage menu items:', beverageItems.length);
+      
+      // Debug log for any suspicious items (beverages in food items)
+      const suspiciousFoodItems = foodItems.filter(item => {
+        const nameLower = item.name.toLowerCase();
+        return nameLower.includes('beer') || 
+               nameLower.includes('wine') || 
+               nameLower.includes('alcohol') || 
+               (typeof item.category === 'string' && item.category.toLowerCase() === 'alcohol') ||
+               (typeof item.category === 'object' && item.category !== null && 
+                'name' in item.category && (item.category as { name: string }).name.toLowerCase() === 'alcohol');
+      });
+      
+      if (suspiciousFoodItems.length > 0) {
+        console.warn('⚠️ TabMenu: Found suspicious beverage items in food items array:', 
+          suspiciousFoodItems.map(item => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            isBeverage: item.isBeverage, // Check if this field exists
+            beverageStockId: item.beverageStockId
+          }))
+        );
+      }
+      
+      // Check for any food items in beverage items
+      const suspiciousBeverageItems = beverageItems.filter(item => {
+        return !item.beverageStockId;
+      });
+      
+      if (suspiciousBeverageItems.length > 0) {
+        console.warn('⚠️ TabMenu: Found beverage items without beverageStockId:', 
+          suspiciousBeverageItems.map(item => ({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            isBeverage: item.isBeverage, // Check if this field exists
+            beverageStockId: item.beverageStockId
+          }))
+        );
+      }
       
       setFoodMenuItems(foodItems);
       setBeverageMenuItems(beverageItems);

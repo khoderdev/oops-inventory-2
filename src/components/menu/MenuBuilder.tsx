@@ -311,9 +311,55 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   // Filter menu items by search term, selected category, and exclude items with beverageStockId
   const filteredMenuItems = useMemo(() => {
+    // Debug log all items before filtering
+    console.log("🔍 MenuBuilder: All menu items before filtering:", currentMenuItems.length);
+
+    // Find any suspicious items that might be beverages but don't have beverageStockId
+    const suspiciousBeverageItems = currentMenuItems.filter(item => {
+      // Check for beverage-related names or categories
+      const nameLower = item.name.toLowerCase();
+      const isBeverageName = nameLower.includes("beer") || nameLower.includes("wine") || nameLower.includes("drink") || nameLower.includes("beverage");
+
+      // Check for beverage categories
+      let isBeverageCategory = false;
+      if (typeof item.category === "string") {
+        isBeverageCategory = item.category.toLowerCase() === "alcohol" || item.category.toLowerCase() === "cold" || item.category.toLowerCase() === "hot" || item.category.toLowerCase() === "beverages";
+      } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
+        const categoryName = (item.category as { name: string }).name.toLowerCase();
+        isBeverageCategory = categoryName === "alcohol" || categoryName === "cold" || categoryName === "hot" || categoryName === "beverages";
+      }
+
+      // Check if it's a suspicious beverage item but doesn't have beverageStockId
+      return (isBeverageName || isBeverageCategory) && !item.isBeverage;
+    });
+
+    if (suspiciousBeverageItems.length > 0) {
+      console.warn(
+        "⚠️ MenuBuilder: Found suspicious beverage items without beverageStockId:",
+        suspiciousBeverageItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          isBeverage: item.isBeverage,
+        }))
+      );
+    }
+
     return currentMenuItems.filter(item => {
+      // Debug log for Mexican Beer or any alcohol category items
+      if (item.name.toLowerCase().includes("mexican beer") || (typeof item.category === "string" && item.category.toLowerCase() === "alcohol") || (typeof item.category === "object" && item.category !== null && "name" in item.category && (item.category as { name: string }).name.toLowerCase() === "alcohol")) {
+        console.log("🍺 Found item with name/category of interest:", {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          isBeverage: item.isBeverage,
+          excluded: !!item.isBeverage
+        });
+      }
+
       // Exclude items with beverageStockId (these are beverage items)
-      if (item.beverageStockId) return false;
+      if (item.isBeverage) return false;
+
       const searchLower = searchTerm.toLowerCase();
       const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
       const matchesIngredients =
@@ -739,13 +785,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </Tooltip>
         </div>
       </div>
-    {/* Printer Assignment */}
+      {/* Printer Assignment */}
       <PrinterAssignmentDialog open={showPrinterDialog} onOpenChange={handleClosePrinterDialog} item={selectedMenuItemForPrinter} itemType="menu" onAssignmentChange={handlePrinterAssignmentComplete} />
 
-    {/* Bulk Printer Assignment */}
+      {/* Bulk Printer Assignment */}
       <BulkPrinterAssignmentDialog open={showBulkPrinterDialog} onOpenChange={handleCloseBulkPrinterDialog} selectedItems={selectedMenuItems} itemType="menu" onAssignmentChange={handleBulkPrinterAssignmentComplete} />
 
-    {/* Bulk Category Assignment */}
+      {/* Bulk Category Assignment */}
       <AlertDialog open={showBulkCategoryDialog} onOpenChange={handleCloseBulkCategoryDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

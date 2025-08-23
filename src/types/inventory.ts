@@ -767,6 +767,7 @@ export type BeverageItemCategory = "beverages" | "cold" | "hot" | "alcohol";
 export type BeverageItemCategoryType = BeverageItemCategory | Category | number | { id: number; name: string; value: string };
 
 export interface MenuItem {
+
   id: string;
   name: string;
   description?: string;
@@ -784,8 +785,7 @@ export interface MenuItem {
     type: string;
     status: string;
   };
-  // Beverage-specific fields (optional to match backend)
-  beverageStockId?: string | null;
+  isBeverage?: boolean;
   unit?: string | null;
   availableQuantity?: number | null;
   costPerUnit?: number | null;
