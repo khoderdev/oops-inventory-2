@@ -65,10 +65,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
     validateData();
   }, [lastValidationTime, dataValidationEnabled]);
 
-  // useEffect(() => {
-  //   const data = fetchTabData("menu");
-  //   console.log("Fetching menu items...", data);
-  // }, [fetchTabData]);
+  useEffect(() => {
+    const data = fetchTabData("menu");
+  }, [fetchTabData]);
 
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
     if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
