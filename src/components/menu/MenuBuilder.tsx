@@ -20,7 +20,7 @@ import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterA
 import { menuAPI } from "@/api/menu.api.ts";
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, categories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
-  const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
+  const { menuItems: storeMenuItems } = useInventoryStore();
   const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems || [];
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
   const menuItemCategories = categories || [];
@@ -185,20 +185,20 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         if (ingredient.cost && parseFloat(String(ingredient.cost)) > 0) {
           return sum + parseFloat(String(ingredient.cost));
         }
-        
+
         // Try to find the material in currentMenuItems
         const material = currentMenuItems.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
-        
+
         // If not found in currentMenuItems, try to find it in the inventory store
         if (!material) {
           // Find material in the inventory store materials
           const storeMaterial = materials?.find(m => String(m.id) === String(ingredient.materialId));
-          
+
           if (!storeMaterial) {
             console.warn(`Material not found for ID: ${ingredient.materialId}`);
             return sum;
           }
-          
+
           // Create a proper Material object for calculation
           const materialForCalculation: Material = {
             id: storeMaterial.id,
@@ -208,32 +208,27 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
             unitType: storeMaterial.unitType,
             costPerUnit: storeMaterial.costPerUnit || 0
           };
-          
+
           validateIngredientData(ingredient, materialForCalculation);
-          
+
           // Get stock entries for this material if available
           const materialStockEntries = inventoryStore.stockEntries?.filter(se => String(se.materialId) === String(ingredient.materialId)) || [];
-          
+
           // Calculate cost per unit
           const costPerUnit = calculateMaterialCostPerUnit(materialForCalculation, materialStockEntries);
-          
+
           let conversionFactor = 1;
           try {
-            conversionFactor = getConversionFactor(
-              ingredient.unit,
-              materialForCalculation.baseUnit,
-              materialForCalculation.unitType,
-              materialForCalculation
-            );
+            conversionFactor = getConversionFactor(ingredient.unit, materialForCalculation.baseUnit, materialForCalculation.unitType, materialForCalculation);
           } catch (error) {
             console.warn(`Unit conversion error for ingredient in material "${materialForCalculation.name}": ${ingredient.unit} to ${materialForCalculation.baseUnit}`, error);
             conversionFactor = 1;
           }
-          
+
           const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
           return sum + ingredientCost;
         }
-        
+
         // If material was found in currentMenuItems
         // Create a temporary Material object for validation
         const materialForValidation: Material = {
@@ -244,9 +239,9 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           unitType: "piece",
           costPerUnit: material.costPerUnit || 0
         };
-        
+
         validateIngredientData(ingredient, materialForValidation);
-        
+
         // Since we don't have actual StockEntry objects, we'll use an empty array
         const materialStockEntries: StockEntry[] = [];
 
@@ -286,7 +281,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
   // Get materials from the inventory store
   const inventoryStore = useInventoryStore();
   const materials = inventoryStore.materialsWithStock;
-  
+
   const getMaterialName = useCallback(
     (id: string | number) => {
       // First try to find the material in the current menu items
@@ -294,7 +289,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
       if (material?.name) {
         return material.name;
       }
-      
+
       // If not found, check in the materials from inventory store
       if (materials && materials.length > 0) {
         const material = materials.find(m => String(m.id) === String(id));
@@ -302,7 +297,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           return material.name;
         }
       }
-      
+
       return "Unknown";
     },
     [currentMenuItems, materials]
@@ -313,21 +308,20 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
       try {
         // Delete via API
         await menuAPI.deleteMenuItem(id);
-        
+
         // Call the callback first
         if (onDeleteMenuItem) {
           await onDeleteMenuItem(id);
         }
-        
+
         toast({
           title: "Success",
           description: "Menu item deleted successfully",
           variant: "default",
           duration: 1000
         });
-        
+
         // Fetch data after the toast is shown to prevent UI flicker
-        await fetchTabData("menu");
       } catch (error) {
         console.error("❌ [MenuBuilder] Error deleting menu item:", error);
         toast({
@@ -338,7 +332,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         });
       }
     },
-    [onDeleteMenuItem, fetchTabData]
+    [onDeleteMenuItem]
   );
 
   const handleTogglePOSVisibility = useCallback(
@@ -347,14 +341,14 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         const newPOSStatus = !item.isPOSItem;
         const updatedItem = { ...item, isPOSItem: newPOSStatus };
         await menuAPI.updateMenuItem(item.id, updatedItem);
-        
+
         toast({
           title: `Menu item ${newPOSStatus ? "added to" : "removed from"} POS`,
           description: `${item.name} is now ${newPOSStatus ? "visible" : "hidden"} in POS`,
           variant: "default",
           duration: 1000
         });
-        
+
         // Only fetch data after the toast is shown to avoid UI flicker
         if (onUpdateMenuItem) {
           onUpdateMenuItem(item.id, updatedItem);
@@ -442,7 +436,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
 
       const searchLower = searchTerm.toLowerCase();
       const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
-      
+
       // Check both ingredients and menuItemIngredients arrays for search matches
       const matchesIngredients = (() => {
         // First check the ingredients array
@@ -461,7 +455,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         }
         return false;
       })();
-      
+
       const matchesSearch = matchesNameOrDescription || matchesIngredients;
       const matchesCategory =
         selectedCategory === "all" ||
@@ -486,34 +480,37 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
   }, [currentMenuItems, searchTerm, selectedCategory, getMaterialName, categories]);
 
   // Prepare table configuration options - memoized to prevent unnecessary re-renders
-  const tableOptions = useMemo(() => ({
-    data: filteredMenuItems,
-    columns: bulkSelectionMode ? columns : columns.filter(col => col.id !== "select"),
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection: Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))
-    },
-    enableRowSelection: bulkSelectionMode,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: updater => {
-      const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))) : updater;
-      const newSelectedIds = new Set(
-        Object.entries(newSelection)
-          .filter(([_, selected]) => selected)
-          .map(([index]) => filteredMenuItems[parseInt(index)]?.id)
-          .filter(Boolean)
-      );
-      setSelectedMenuItems(newSelectedIds);
-    },
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel()
-  }), [filteredMenuItems, bulkSelectionMode, columns, sorting, columnFilters, columnVisibility, selectedMenuItems]);
-  
+  const tableOptions = useMemo(
+    () => ({
+      data: filteredMenuItems,
+      columns: bulkSelectionMode ? columns : columns.filter(col => col.id !== "select"),
+      state: {
+        sorting,
+        columnFilters,
+        columnVisibility,
+        rowSelection: Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))
+      },
+      enableRowSelection: bulkSelectionMode,
+      onSortingChange: setSorting,
+      onColumnFiltersChange: setColumnFilters,
+      onColumnVisibilityChange: setColumnVisibility,
+      onRowSelectionChange: updater => {
+        const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedMenuItems).map(id => [filteredMenuItems.findIndex(item => item.id === id), true]))) : updater;
+        const newSelectedIds = new Set(
+          Object.entries(newSelection)
+            .filter(([_, selected]) => selected)
+            .map(([index]) => filteredMenuItems[parseInt(index)]?.id)
+            .filter(Boolean)
+        );
+        setSelectedMenuItems(newSelectedIds);
+      },
+      getCoreRowModel: getCoreRowModel(),
+      getFilteredRowModel: getFilteredRowModel(),
+      getSortedRowModel: getSortedRowModel()
+    }),
+    [filteredMenuItems, bulkSelectionMode, columns, sorting, columnFilters, columnVisibility, selectedMenuItems]
+  );
+
   // Initialize table with the memoized options
   const table = useReactTable(tableOptions);
 
@@ -528,28 +525,27 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           createdAt: new Date(),
           updatedAt: new Date()
         };
-        
+
         // Create via API
         const createdMenuItem = await menuAPI.createMenuItem(menuItemToCreate);
-        
+
         // Call the callback first
         if (onCreateMenuItem) {
           onCreateMenuItem(createdMenuItem);
         }
-        
+
         // Close the form before fetching data to prevent UI flicker
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
-        
+
         toast({
           title: "Success",
           description: "Menu item created successfully",
           variant: "default",
           duration: 1000
         });
-        
+
         // Fetch data after the toast is shown and form is closed
-        await fetchTabData("menu");
       } catch (error) {
         console.error("Error creating menu item:", error);
         toast({
@@ -560,7 +556,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         });
       }
     },
-    [onCreateMenuItem, fetchTabData]
+    [onCreateMenuItem]
   );
 
   const handleUpdateMenuItem = useCallback(
@@ -577,28 +573,27 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           ingredients: ingredientsWithCosts,
           updatedAt: new Date()
         };
-        
+
         // Update via API
         await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
-        
+
         // Call the callback first
         if (onUpdateMenuItem) {
           onUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
         }
-        
+
         // Close the form before fetching data to prevent UI flicker
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
-        
+
         toast({
           title: "Success",
           description: "Menu item updated successfully",
           variant: "default",
           duration: 1000
         });
-        
+
         // Fetch data after the toast is shown and form is closed
-        await fetchTabData("menu");
       } catch (error) {
         console.error("Error updating menu item:", error);
         setShowMenuItemForm(false);
@@ -611,7 +606,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         });
       }
     },
-    [editingMenuItem, onUpdateMenuItem, fetchTabData]
+    [editingMenuItem, onUpdateMenuItem]
   );
 
   const handleCloseModal = useCallback((open: boolean) => {
@@ -643,9 +638,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
   );
 
   const handlePrinterAssignmentComplete = useCallback(async () => {
-    await fetchTabData("menu");
     handleClosePrinterDialog();
-  }, [fetchTabData, handleClosePrinterDialog]);
+  }, [handleClosePrinterDialog]);
 
   const handleToggleBulkSelection = useCallback(() => {
     setBulkSelectionMode(prev => !prev);
@@ -671,11 +665,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
   }, []);
 
   const handleBulkPrinterAssignmentComplete = useCallback(async () => {
-    await fetchTabData("menu");
     setSelectedMenuItems(new Set());
     setBulkSelectionMode(false);
     handleCloseBulkPrinterDialog();
-  }, [fetchTabData, handleCloseBulkPrinterDialog]);
+  }, [handleCloseBulkPrinterDialog]);
 
   const handleOpenBulkCategoryDialog = useCallback(() => {
     if (selectedMenuItems.size > 0) {
@@ -720,8 +713,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         variant: "default",
         duration: 1000
       });
-      console.log("🔄 MenuBuilder: Fetching fresh menu data after bulk category update");
-      await fetchTabData("menu");
       setSelectedMenuItems(new Set());
       setBulkSelectionMode(false);
       handleCloseBulkCategoryDialog();
@@ -734,7 +725,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         duration: 1000
       });
     }
-  }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, categories, fetchTabData, handleCloseBulkCategoryDialog]);
+  }, [bulkCategoryValue, selectedMenuItems, onUpdateMenuItem, categories, handleCloseBulkCategoryDialog]);
 
   const isMobile = useMediaQuery("(max-width: 640px)");
 
@@ -919,7 +910,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
               </SelectTrigger>
               <SelectContent>
                 {menuItemCategories.map(category => (
-                  <SelectItem key={category.id || category.value} value={category.value || category.id?.toString() || ''}>
+                  <SelectItem key={category.id || category.value} value={category.value || category.id?.toString() || ""}>
                     {category.name}
                   </SelectItem>
                 ))}
