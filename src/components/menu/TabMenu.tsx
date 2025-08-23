@@ -121,24 +121,6 @@ export const MenuPage: React.FC<TabMenuProps> = ({ stockEntries, materials, sect
             name: item.name,
             category: item.category,
             isBeverage: item.isBeverage, // Check if this field exists
-            beverageStockId: item.beverageStockId
-          }))
-        );
-      }
-      
-      // Check for any food items in beverage items
-      const suspiciousBeverageItems = beverageItems.filter(item => {
-        return !item.beverageStockId;
-      });
-      
-      if (suspiciousBeverageItems.length > 0) {
-        console.warn('⚠️ TabMenu: Found beverage items without beverageStockId:', 
-          suspiciousBeverageItems.map(item => ({
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            isBeverage: item.isBeverage, // Check if this field exists
-            beverageStockId: item.beverageStockId
           }))
         );
       }
