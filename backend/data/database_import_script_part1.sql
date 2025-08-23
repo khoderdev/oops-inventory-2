@@ -222,6 +222,9 @@ VALUES
     ('cheese balls', 'piece', 'package', 'pack', 12, dairy_cat_id, NOW(), NOW()),
     ('coleslaw', 'g', 'mass', 'kg', NULL, dairy_cat_id, NOW(), NOW()),
     ('croutons', 'g', 'mass', 'kg', NULL, dairy_cat_id, NOW(), NOW()),
+    ('icecream vanille', 'g', 'mass', 'kg', NULL, dairy_cat_id, NOW(), NOW()),
+    ('icecream strawberry', 'g', 'mass', 'kg', NULL, dairy_cat_id, NOW(), NOW()),
+    ('icecream chocolate', 'g', 'mass', 'kg', NULL, dairy_cat_id, NOW(), NOW()),
     
     -- Sauces
     ('chocolate sauce', 'ml', 'volume', 'l', NULL, sauces_cat_id, NOW(), NOW()),
@@ -256,7 +259,35 @@ VALUES
     ('red sauce', 'ml', 'volume', 'l', NULL, sauces_cat_id, NOW(), NOW()),
     ('salmon sauce', 'ml', 'volume', 'l', NULL, sauces_cat_id, NOW(), NOW()),
     ('mushroom sauce', 'g', 'mass', 'kg', NULL, sauces_cat_id, NOW(), NOW()),
-    ('honey mustard', 'ml', 'volume', 'l', NULL, sauces_cat_id, NOW(), NOW())
+    ('honey mustard', 'ml', 'volume', 'l', NULL, sauces_cat_id, NOW(), NOW()),
+
+    -- Proteins
+    ('chicken roulade', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW()),
+    ('marinated grilled chicken', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('breaded chicken', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('beef patty', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('chicken breast', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('grilled marinated chicken', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('grilled chicken', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('chicken crispy', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW()),
+    ('crispy chicken', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('chicken wings', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW()),
+    ('bacon', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('ham jonbon', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('salami', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW()),
+    ('pepperoni', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('taouk', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('salmon', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('smoked salmon', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('grilled beef filet', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('marinate beef filet', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('shrimps large', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW()),
+    ('shrimp', 'g', 'mass', 'kg', NULL, proteins_cat_id, NOW(), NOW()),
+    ('crab sticks', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW()),
+    ('crab mix', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW()),
+    ('fish fingers', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW()),
+    ('calamari rings', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW()),
+    ('tuna', 'piece', 'piece', 'piece', NULL, proteins_cat_id, NOW(), NOW())
 ON CONFLICT (name) DO NOTHING;
 END $$;
 
