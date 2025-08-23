@@ -106,7 +106,7 @@ const menuItemsController = {
         image,
         imageBase64,
         ingredients,
-        beverageStockId,
+        isBeverage,
         unit,
         availableQuantity,
         costPerUnit,
@@ -195,13 +195,8 @@ const menuItemsController = {
       const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
       const requiresIngredients = !noIngredientsCategories.includes(categoryValue?.toLowerCase());
       let beverageData = {};
-      if (beverageStockId !== undefined) {
-        const stockId = typeof beverageStockId === "string" ? parseInt(beverageStockId) : beverageStockId;
-        if (isNaN(stockId)) {
-          await transaction.rollback();
-          return res.status(400).json({ error: "Beverage stock ID must be a valid number" });
-        }
-        beverageData.beverageStockId = stockId;
+      if (isBeverage !== undefined) {
+        beverageData.isBeverage = Boolean(isBeverage);
       }
       if (unit !== undefined) {
         beverageData.unit = unit;
@@ -371,7 +366,7 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
-      const { name, price, category, description, ingredients, isPOSItem, image, imageBase64 } = req.body;
+      const { name, price, category, description, ingredients, isPOSItem, image, imageBase64, isBeverage, unit, availableQuantity, costPerUnit } = req.body;
       const menuItem = await MenuItem.findByPk(id, { transaction });
       if (!menuItem) {
         await transaction.rollback();
@@ -503,6 +498,31 @@ const menuItemsController = {
           imageUrl = image;
         }
       }
+      // Handle beverage-specific fields
+      let beverageData = {};
+      if (isBeverage !== undefined) {
+        beverageData.isBeverage = Boolean(isBeverage);
+      }
+      if (unit !== undefined) {
+        beverageData.unit = unit;
+      }
+      if (availableQuantity !== undefined) {
+        const quantity = typeof availableQuantity === "string" ? parseFloat(availableQuantity) : availableQuantity;
+        if (isNaN(quantity) || quantity < 0) {
+          await transaction.rollback();
+          return res.status(400).json({ error: "Available quantity must be a non-negative number" });
+        }
+        beverageData.availableQuantity = quantity;
+      }
+      if (costPerUnit !== undefined) {
+        const cost = typeof costPerUnit === "string" ? parseFloat(costPerUnit) : costPerUnit;
+        if (isNaN(cost) || cost < 0) {
+          await transaction.rollback();
+          return res.status(400).json({ error: "Cost per unit must be a non-negative number" });
+        }
+        beverageData.costPerUnit = cost;
+      }
+      
       await menuItem.update(
         {
           name: name !== undefined ? name : menuItem.name,
@@ -510,7 +530,8 @@ const menuItemsController = {
           categoryId: categoryId !== undefined ? categoryId : menuItem.categoryId,
           description: description !== undefined ? description : menuItem.description,
           isPOSItem: isPOSItem !== undefined ? isPOSItem : menuItem.isPOSItem,
-          image: imageUrl
+          image: imageUrl,
+          ...beverageData
         },
         { transaction }
       );
@@ -692,6 +713,74 @@ const menuItemsController = {
   },
 
   // Bulk update category for multiple menu items
+  // Get menu items by type (food or beverage)
+  getMenuItemsByType: async (req, res, next) => {
+    try {
+      const { type } = req.params;
+      const { isActive } = req.query;
+      
+      // Validate type parameter
+      if (!['food', 'beverage'].includes(type)) {
+        return res.status(400).json({ error: "Type must be either 'food' or 'beverage'" });
+      }
+      
+      // Build where clause
+      const whereClause = {
+        isBeverage: type === 'beverage'
+      };
+      
+      // Add isActive filter if provided
+      if (isActive !== undefined) {
+        whereClause.isActive = isActive === 'true';
+      }
+      
+      // Log the request for debugging
+      console.log(`Getting ${type} menu items. Query params:`, req.query);
+      console.log('Where clause:', whereClause);
+      
+      const menuItems = await MenuItem.findAll({
+        where: whereClause,
+        include: [
+          {
+            model: Category,
+            as: "category",
+            attributes: ["id", "name", "value"],
+            required: false
+          },
+          {
+            model: MenuItemIngredient,
+            as: "menuItemIngredients",
+            include: [{ model: Material, as: "material" }]
+          },
+          {
+            model: Variants,
+            as: "variants",
+            attributes: ["id", "name", "volume", "unit", "price", "isActive", "sortOrder"],
+            where: { isActive: true },
+            required: false,
+            order: [["sortOrder", "ASC"], ["name", "ASC"]]
+          }
+        ]
+      });
+      
+      const formattedMenuItems = menuItems.map(item => ({
+        ...item.get(),
+        ingredients: item.menuItemIngredients.map(ingredient => ({
+          materialId: ingredient.materialId,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          cost: ingredient.cost,
+          material: ingredient.material
+        })),
+        variants: item.variants || []
+      }));
+      
+      res.status(200).json(formattedMenuItems);
+    } catch (error) {
+      next(error);
+    }
+  },
+
   bulkUpdateCategory: async (req, res, next) => {
     try {
       const { menuItemIds, category } = req.body;

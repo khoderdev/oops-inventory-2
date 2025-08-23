@@ -236,11 +236,13 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       imageFile?: File;
     } = {
       name,
-      category: selectedCategoryObj ? {
-        id: typeof selectedCategoryObj.id === 'string' ? parseInt(selectedCategoryObj.id) : selectedCategoryObj.id,
-        name: selectedCategoryObj.name,
-        value: selectedCategoryObj.value
-      } : null,
+      category: selectedCategoryObj
+        ? {
+            id: typeof selectedCategoryObj.id === "string" ? parseInt(selectedCategoryObj.id) : selectedCategoryObj.id,
+            name: selectedCategoryObj.name,
+            value: selectedCategoryObj.value
+          }
+        : null,
       price: parseFloat(price),
       description: "",
       ingredients: ingredients.length > 0 ? ingredients : [],
@@ -252,19 +254,20 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       availableQuantity: selectedBeverageStock?.purchasedQuantity ? parseFloat(selectedBeverageStock.purchasedQuantity.toString()) : undefined,
       costPerUnit: selectedBeverageStock?.costPerPurchasedUnit ? parseFloat(selectedBeverageStock.costPerPurchasedUnit.toString()) : undefined,
       // Convert variants to the expected format
-      variants: showVariantsSection && variantData.selectedVariants.length > 0
-        ? {
-            selectedVariants: variantData.selectedVariants,
-            variantVolumes: variantData.variantVolumes,
-            variantVolumeUnits: variantData.variantVolumeUnits,
-            variantPrices: variantData.variantPrices
-          }
-        : undefined
+      variants:
+        showVariantsSection && variantData.selectedVariants.length > 0
+          ? {
+              selectedVariants: variantData.selectedVariants,
+              variantVolumes: variantData.variantVolumes,
+              variantVolumeUnits: variantData.variantVolumeUnits,
+              variantPrices: variantData.variantPrices
+            }
+          : undefined
     };
 
     // Pass the properly typed form data
     onSubmit(formData);
-    
+
     setName("");
     setCategoryId("");
     setPrice("");
@@ -381,13 +384,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       {/* Ingredients Toggle Button */}
       {materials && stockEntries && materials.length > 0 && stockEntries.length > 0 && (
         <div className="border-t pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowIngredientsSection(!showIngredientsSection)}
-            className="mb-4"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => setShowIngredientsSection(!showIngredientsSection)} className="mb-4">
             {showIngredientsSection ? "Hide" : "Add"} Ingredients
           </Button>
         </div>
@@ -407,7 +404,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           }))}
           stockEntries={stockEntries.map(entry => ({
             ...entry,
-            material: (entry as StockEntryWithMaterial).material || { id: '', name: '', unitType: 'piece', packageQuantity: 1 }
+            material: (entry as StockEntryWithMaterial).material || { id: "", name: "", unitType: "piece", packageQuantity: 1 }
           }))}
           menuItem={menuItem}
           category={categories.find(cat => cat.id === categoryId)?.name || ""}

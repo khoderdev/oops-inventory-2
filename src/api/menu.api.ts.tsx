@@ -10,6 +10,7 @@ interface MenuItemsQueryParams {
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
   _t?: number; // Cache-busting timestamp
+  isActive?: boolean; // Active status filter
 }
 
 // Interface for beverage variant creation request
@@ -111,5 +112,29 @@ export const menuAPI = {
     api.post<{ message: string; variants: BeverageItem[] }, CreateBeverageVariantsRequest>(
       "/menu-items/beverage-variants", 
       variantData
-    )
+    ),
+    
+  // Get beverage menu items
+  getBeverageMenuItems: async (isActive: boolean = true): Promise<MenuItem[]> => {
+    const params = new URLSearchParams({
+      isActive: isActive.toString(),
+      _t: Date.now().toString()
+    });
+    console.log('🍹 Fetching beverage menu items with params:', Object.fromEntries(params));
+    const response = await api.get<MenuItem[]>(`/menu-items/type/beverage?${params.toString()}`);
+    return response.data;
+  },
+  
+  // Get food menu items
+  getFoodMenuItems: async (isActive: boolean = true): Promise<MenuItem[]> => {
+    const params = new URLSearchParams({
+      isActive: isActive.toString(),
+      _t: Date.now().toString()
+    });
+    console.log('🍔 Fetching food menu items with params:', Object.fromEntries(params));
+    const response = await api.get<MenuItem[]>(`/menu-items/type/food?${params.toString()}`);
+    return response.data;
+  }
 };
+
+

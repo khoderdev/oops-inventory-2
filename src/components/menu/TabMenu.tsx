@@ -5,11 +5,12 @@ import { Category } from "@/types/categories";
 import { MenuItemBuilder } from "./MenuBuilder";
 import BeveragesMenuBuilder from "./BeveragesMenuBuilder";
 import { getCategoriesByType } from "@/api/categories.api";
+import { menuAPI } from "@/api/menu.api.ts";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { toast } from "../ui/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface TabMenuProps {
-  menuItems: MenuItem[];
   stockEntries: StockEntry[];
   materials: Material[];
   sections: Section[];
@@ -19,45 +20,56 @@ interface TabMenuProps {
   onDeleteMenuItem: (id: string) => Promise<void>;
 }
 
-export const MenuPage: React.FC<TabMenuProps> = ({ menuItems, stockEntries, materials, sections, categories: externalCategories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
+export const MenuPage: React.FC<TabMenuProps> = ({ stockEntries, materials, sections, categories: externalCategories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const [activeTab, setActiveTab] = useState("menu-items");
+  const [foodMenuItems, setFoodMenuItems] = useState<MenuItem[]>([]);
+  const [beverageMenuItems, setBeverageMenuItems] = useState<MenuItem[]>([]);
   const [menuItemCategories, setMenuItemCategories] = useState<Category[]>([]);
   const [beverageCategories, setBeverageCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [menuItemsLoading, setMenuItemsLoading] = useState(true);
+  const [menuItemsError, setMenuItemsError] = useState<string | null>(null);
 
+  // Fetch categories by type for forms and filtering
   const fetchCategories = useCallback(async () => {
     try {
       setCategoriesLoading(true);
       setCategoriesError(null);
+      
       if (externalCategories && externalCategories.length > 0) {
-        const menuItemCategories = [];
-        const beverageCategories = [];
-        for (const category of externalCategories) {
-          if (category.categoryTypes && category.categoryTypes.length > 0) {
-            if (category.categoryTypes.some(type => type.type === "menu_items")) {
-              menuItemCategories.push(category);
-            }
-            if (category.categoryTypes.some(type => type.type === "beverages")) {
-              beverageCategories.push(category);
-            }
-          } else if (category.value && typeof category.value === "string") {
-            const lowerValue = category.value.toLowerCase();
-            const lowerName = category.name.toLowerCase();
-            if (lowerValue.includes("menu") || lowerName.includes("menu") || lowerValue.includes("food") || lowerName.includes("food")) {
-              menuItemCategories.push(category);
-            } else if (lowerValue.includes("beverage") || lowerName.includes("beverage") || lowerValue.includes("drink") || lowerName.includes("drink")) {
-              beverageCategories.push(category);
-            }
-          }
-        }
+        // If external categories are provided, use them
+        const menuItemCategories = externalCategories.filter(category => 
+          (category.categoryTypes && category.categoryTypes.some(type => type.type === "menu_items")) ||
+          (category.value && typeof category.value === "string" && 
+            (category.value.toLowerCase().includes("menu") || 
+             category.name.toLowerCase().includes("menu") ||
+             category.value.toLowerCase().includes("food") || 
+             category.name.toLowerCase().includes("food")))
+        );
+        
+        const beverageCategories = externalCategories.filter(category => 
+          (category.categoryTypes && category.categoryTypes.some(type => type.type === "beverages")) ||
+          (category.value && typeof category.value === "string" && 
+            (category.value.toLowerCase().includes("beverage") || 
+             category.name.toLowerCase().includes("beverage") ||
+             category.value.toLowerCase().includes("drink") || 
+             category.name.toLowerCase().includes("drink")))
+        );
+        
         setMenuItemCategories(menuItemCategories);
         setBeverageCategories(beverageCategories);
       } else {
-        const [menuItemsResponse, beveragesResponse] = await Promise.all([getCategoriesByType("menu_items", true), getCategoriesByType("beverages", true)]);
+        // Fetch categories from API by type
+        const [menuItemsResponse, beveragesResponse] = await Promise.all([
+          getCategoriesByType("menu_items", true),
+          getCategoriesByType("beverages", true)
+        ]);
+        
         if (menuItemsResponse.totalItems) {
           setMenuItemCategories(menuItemsResponse.totalItems);
         }
+        
         if (beveragesResponse.totalItems) {
           setBeverageCategories(beveragesResponse.totalItems);
         }
@@ -75,33 +87,63 @@ export const MenuPage: React.FC<TabMenuProps> = ({ menuItems, stockEntries, mate
       setCategoriesLoading(false);
     }
   }, [externalCategories]);
+  
+  const fetchMenuItems = useCallback(async () => {
+    try {
+      setMenuItemsLoading(true);
+      setMenuItemsError(null);
+      
+      const [foodItems, beverageItems] = await Promise.all([
+        menuAPI.getFoodMenuItems(true),
+        menuAPI.getBeverageMenuItems(true)
+      ]);
+      
+      console.log('📋 Fetched food menu items:', foodItems.length);
+      console.log('🥤 Fetched beverage menu items:', beverageItems.length);
+      
+      setFoodMenuItems(foodItems);
+      setBeverageMenuItems(beverageItems);
+    } catch (error) {
+      console.error("Failed to fetch menu items:", error);
+      setMenuItemsError("Failed to load menu items");
+      toast({
+        title: "Error",
+        description: "Failed to load menu items. Please try again.",
+        variant: "destructive",
+        duration: 5000
+      });
+    } finally {
+      setMenuItemsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    fetchMenuItems();
+    fetchCategories(); // Fetch categories directly for forms
+  }, [fetchMenuItems, fetchCategories]);
 
   const handleCreateMenuItem = useCallback(
     async (menuItem: CreateMenuItemData, imageFile?: File) => {
       await onCreateMenuItem(menuItem, imageFile);
-      fetchCategories();
+      fetchMenuItems();
     },
-    [onCreateMenuItem, fetchCategories]
+    [onCreateMenuItem, fetchMenuItems]
   );
 
   const handleUpdateMenuItem = useCallback(
     async (id: string, menuItem: Partial<MenuItem>) => {
       await onUpdateMenuItem(id, menuItem);
-      fetchCategories();
+      fetchMenuItems();
     },
-    [onUpdateMenuItem, fetchCategories]
+    [onUpdateMenuItem, fetchMenuItems]
   );
 
   const handleDeleteMenuItem = useCallback(
     async (id: string) => {
       await onDeleteMenuItem(id);
-      fetchCategories();
+      fetchMenuItems();
     },
-    [onDeleteMenuItem, fetchCategories]
+    [onDeleteMenuItem, fetchMenuItems]
   );
 
   const isMobile = useMediaQuery("(max-width: 640px)");
@@ -120,13 +162,54 @@ export const MenuPage: React.FC<TabMenuProps> = ({ menuItems, stockEntries, mate
       </div>
 
       <div className="px-2 sm:px-4 md:px-6">
-        <TabsContent value="menu-items" className="w-full mt-0">
-          <MenuItemBuilder menuItems={menuItems} stockEntries={stockEntries} materials={materials} categories={menuItemCategories} sections={sections} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} categoriesLoading={categoriesLoading} categoriesError={categoriesError} />
-        </TabsContent>
+        {menuItemsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="ml-2 text-lg">Loading menu items...</span>
+          </div>
+        ) : menuItemsError ? (
+          <div className="p-4 text-center text-red-500">
+            <p>{menuItemsError}</p>
+            <button 
+              onClick={fetchMenuItems} 
+              className="mt-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <>
+            <TabsContent value="menu-items" className="w-full mt-0">
+              <MenuItemBuilder 
+                menuItems={foodMenuItems} 
+                stockEntries={stockEntries} 
+                materials={materials} 
+                categories={menuItemCategories} 
+                sections={sections} 
+                onCreateMenuItem={handleCreateMenuItem} 
+                onUpdateMenuItem={handleUpdateMenuItem} 
+                onDeleteMenuItem={handleDeleteMenuItem} 
+                categoriesLoading={categoriesLoading} 
+                categoriesError={categoriesError} 
+              />
+            </TabsContent>
 
-        <TabsContent value="beverages" className="w-full mt-0">
-          <BeveragesMenuBuilder menuItems={menuItems} stockEntries={stockEntries} materials={materials} categories={beverageCategories} sections={sections} onCreateBeverageItem={handleCreateMenuItem} onUpdateBeverageItem={handleUpdateMenuItem} onDeleteBeverageItem={handleDeleteMenuItem} categoriesLoading={categoriesLoading} categoriesError={categoriesError} />
-        </TabsContent>
+            <TabsContent value="beverages" className="w-full mt-0">
+              <BeveragesMenuBuilder 
+                menuItems={beverageMenuItems} 
+                stockEntries={stockEntries} 
+                materials={materials} 
+                categories={beverageCategories} 
+                sections={sections} 
+                onCreateBeverageItem={handleCreateMenuItem} 
+                onUpdateBeverageItem={handleUpdateMenuItem} 
+                onDeleteBeverageItem={handleDeleteMenuItem} 
+                categoriesLoading={categoriesLoading} 
+                categoriesError={categoriesError} 
+              />
+            </TabsContent>
+          </>
+        )}
       </div>
     </Tabs>
   );

@@ -34,24 +34,10 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
     return converted;
   }, [categories]);
 
-  // Filter menu items for beverages
+  // Use the menuItems directly as they are already filtered by the backend API
   const beverageBeverageItems = useMemo(() => {
-    return menuItems.filter(item => {
-      const isBeverageCategory = (() => {
-        if (typeof item.category === "string") {
-          return ["cold", "hot", "alcohol", "beverages"].includes(item.category.toLowerCase());
-        } else if (typeof item.category === "object" && item.category?.name) {
-          return ["cold", "hot", "alcohol", "beverages"].includes(item.category.name.toLowerCase());
-        } else if (typeof item.category === "number") {
-          const categoryObj = categories.find(c => c.id === item.category);
-          return categoryObj && ["cold", "hot", "alcohol", "beverages"].includes(categoryObj.value.toLowerCase());
-        }
-        return false;
-      })();
-
-      return isBeverageCategory;
-    });
-  }, [menuItems, categories]);
+    return menuItems;
+  }, [menuItems]);
 
   const filteredBeverageItems = useMemo(() => {
     return beverageBeverageItems.filter(item => {

@@ -59,11 +59,12 @@ const MenuItem = sequelize.define(
       },
       comment: "Assigned printer for this menu item when ordered in POS"
     },
-    // Beverage-specific fields
-    beverageStockId: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      comment: "Reference to beverage stock entry for beverage items"
+    // Type flag to differentiate between food and beverage items
+    isBeverage: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Flag to identify if the item is a beverage"
     },
     unit: {
       type: DataTypes.STRING,
@@ -79,6 +80,12 @@ const MenuItem = sequelize.define(
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,
       comment: "Cost per unit for the item"
+    },
+    isActive: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      comment: "Flag to determine if the menu item is active/available"
     },
     createdAt: {
       type: DataTypes.DATE,
