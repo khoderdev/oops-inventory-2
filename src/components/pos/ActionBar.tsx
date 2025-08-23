@@ -53,6 +53,7 @@ export interface LegacyActionBarProps {
   onShowPrinterSettings?: () => void;
   hasSavedPrinter?: boolean;
   savedPrinterName?: string;
+  isDayOpen?: boolean;
 }
 
 export interface FlexibleActionBarProps {
@@ -91,15 +92,15 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
   let columns: number;
   let className: string;
 
-  // Check if user has access to Back Office (Admin or Manager only)
-  const canAccessBackOffice = hasRole(["admin", "manager"]);
+  // Check if user has access to Back Office (Admin only)
+  const canAccessBackOffice = hasRole(["admin"]);
   const canAccessReports = hasRole(["admin", "manager"]);
 
   const navigate = useNavigate();
 
   if (isLegacyProps(props)) {
     // Legacy mode - convert old props to new format
-    const { onPrintReceipt, onVoidOrder, onShowReports, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, onShowPrinterSettings, hasSavedPrinter = false, savedPrinterName } = props;
+    const { onPrintReceipt, onVoidOrder, onShowReports, canPrintReceipt = false, canVoidOrder = false, onCancelOrder = () => {}, onShowPrinterSettings, hasSavedPrinter = false, savedPrinterName, isDayOpen = true } = props;
 
     buttons = [
       {
@@ -140,8 +141,9 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         label: "Back Office",
         active: false,
         disabled: !canAccessBackOffice,
-        requiredRole: ["admin", "manager"],
-        onClick: canAccessBackOffice ? () => navigate("/") : undefined
+        requiredRole: ["admin"],
+        onClick: canAccessBackOffice ? () => navigate("/") : undefined,
+        className: ""
       }
     ];
     columns = 7;

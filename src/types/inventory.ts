@@ -555,6 +555,7 @@ export interface POSClientProps {
   selectedOrderForPOS?: Order | null;
   onOrderProcessed?: () => void;
   refreshCountsRef?: React.MutableRefObject<(() => Promise<void>) | null>;
+  isDayOpen?: boolean;
 }
 
 export interface PaymentDialogProps {

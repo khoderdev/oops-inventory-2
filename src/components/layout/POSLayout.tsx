@@ -16,12 +16,13 @@ import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { formatCurrency } from "@/utils/dayOperationsFormattings";
 import { AlertCircle, CheckCircle, GripVertical, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
   const { user, logout } = useAuth();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, hasRole } = usePermissions();
   const canAccessPOS = hasPermission(PERMISSIONS.POS_ACCESS);
   const canOpenDay = hasPermission(PERMISSIONS.DAY_OPERATIONS_CREATE);
   const canCloseDayPerm = hasPermission(PERMISSIONS.DAY_OPERATIONS_CLOSE);
@@ -36,7 +37,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [isResizing, setIsResizing] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [, setShowDayOperationsModal] = useState(false);
-  const [userDayOpen, setUserDayOpen] = useState<boolean | null>(null); // null = unknown, true = open, false = closed
+  const [userDayOpen, setUserDayOpen] = useState<boolean | null>(null); 
+
   const [, setDayOperationType] = useState<"open" | "close">("open");
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
   const [showLockOverlay, setShowLockOverlay] = useState(false); // Don't show until we know the status
@@ -55,6 +57,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [actionLoading, setActionLoading] = useState(false);
   const [, setRecentDays] = useState<DayOperation[]>([]);
   const [, setActivities] = useState<ActivityLog[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
@@ -550,15 +553,27 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
           {/* Right Panel - Main Content */}
           <div className="flex-1 relative overflow-hidden">
-            <div className="h-full w-full pointer-events-auto">{children}</div>
+            <div className="h-full w-full pointer-events-auto">
+              {React.cloneElement(children as React.ReactElement, { isDayOpen: userDayOpen })}
+            </div>
             {canAccessPOS && isLocked && showLockOverlay && (
               <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
                   <div className="mb-3 text-slate-900 dark:text-slate-100 font-semibold">Day is not open</div>
                   <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">Please open the day to start taking orders.</p>
-                  <button onClick={handleShowOpenModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
-                    Open Day
-                  </button>
+                  <div className="flex justify-center gap-2">
+                    <button onClick={handleShowOpenModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                      Open Day
+                    </button>
+                    {hasRole(["admin", "manager"]) && (
+                      <button 
+                        onClick={() => navigate("/")} 
+                        className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                      >
+                        Back Office
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

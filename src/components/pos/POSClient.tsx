@@ -35,7 +35,7 @@ import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 import { Category } from "@/types/categories";
 
-export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef }) => {
+export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   const [stock, setStock] = useState<StockEntryWithMaterial[]>([]);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -2417,6 +2417,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 onShowPrinterSettings={handleShowPrinterSettings}
                 hasSavedPrinter={hasSavedPrinter()}
                 savedPrinterName={getSavedPrinter()?.name}
+                isDayOpen={isDayOpen}
               />
             </div>
           </div>

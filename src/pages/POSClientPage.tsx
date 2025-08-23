@@ -10,7 +10,11 @@ import { Order, OrderSummary } from "@/types/orders";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const POSClientPage: React.FC = () => {
+interface POSClientPageProps {
+  isDayOpen?: boolean;
+}
+
+const POSClientPage: React.FC<POSClientPageProps> = ({ isDayOpen = true }) => {
   const navigate = useNavigate();
   const { user, hasPermission, logout, isAuthenticated, isLoading } = useAuth();
   const { sectionAssignments, fetchTabData } = useInventoryStore();
@@ -149,6 +153,7 @@ const POSClientPage: React.FC = () => {
         selectedOrderForPOS={selectedOrderForPOS}
         onOrderProcessed={undefined}
         refreshCountsRef={refreshCountsRef}
+        isDayOpen={isDayOpen}
       />
     </POSLayout>
   );
