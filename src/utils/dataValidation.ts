@@ -300,8 +300,8 @@ export class DataValidator {
   }
 
   // Comprehensive validation
-  validateData(materials: Material[], stockEntries: StockEntry[], ingredients?: MenuItemIngredient[]): ValidationResult {
-    const cacheKey = `${materials.length}-${stockEntries.length}-${ingredients?.length || 0}`;
+  validateData(stockEntries: StockEntry[], ingredients?: MenuItemIngredient[]): ValidationResult {
+    const cacheKey = `${stockEntries.length}-${ingredients?.length || 0}`;
     const now = Date.now();
 
     // Check cache
@@ -311,21 +311,10 @@ export class DataValidator {
 
     const allIssues: ValidationIssue[] = [];
 
-    // Validate materials
-    materials.forEach(material => {
-      const materialIssues = this.validateMaterial(material);
-      allIssues.push(...materialIssues);
-
-      // Validate stock entries for this material
-      const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
-      const stockIssues = this.validateStockEntries(material, materialStockEntries);
-      allIssues.push(...stockIssues);
-    });
-
     // Validate ingredients if provided
     if (ingredients) {
       ingredients.forEach(ingredient => {
-        const material = materials.find(m => m.id === ingredient.materialId);
+        const material = stockEntries.find(entry => entry.materialId === ingredient.materialId);
         if (material) {
           const ingredientIssues = this.validateIngredient(ingredient, material);
           allIssues.push(...ingredientIssues);

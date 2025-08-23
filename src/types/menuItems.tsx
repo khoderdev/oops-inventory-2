@@ -65,7 +65,6 @@ export interface MenuItemColumnsProps {
 
 export interface BeveragesMenuBuilderProps {
   stockEntries: StockEntry[];
-  materials: Material[];
   menuItems: MenuItem[];
   categories: Category[];
   categoriesLoading?: boolean;
@@ -81,7 +80,6 @@ export interface BeverageItemFormDialogProps {
   onOpenChange: (open: boolean) => void;
   editingBeverageItem: MenuItem | null;
   categories: { id: string; name: string; value: string }[];
-  materials: any[];
   stockEntries: any[];
   onSubmit: (data: any) => void;
   onCancel: () => void;
@@ -97,7 +95,6 @@ export interface BeverageDetailsDialogProps {
 
 export interface MenuItemFormProps {
   menuItem?: MenuItem;
-  materials: Material[];
   stockEntries: StockEntry[];
   categories: Category[];
   onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;

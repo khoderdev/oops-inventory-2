@@ -19,7 +19,7 @@ import { dataValidationEnabledAtom } from "@/store/settingsStore";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 
-export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, materials, menuItems, categories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
+export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, menuItems, categories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
   const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems || [];
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
@@ -49,11 +49,11 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         setValidationResults(null);
         return;
       }
-      if (!materials || !stockEntries || materials.length === 0) return;
+      if (!stockEntries || stockEntries.length === 0) return;
       const now = Date.now();
       if (now - lastValidationTime < 30000) return;
       try {
-        const result = dataValidator.validateData(materials, stockEntries);
+        const result = dataValidator.validateData(stockEntries);
         setValidationResults(result);
         setLastValidationTime(now);
         if (!result.isValid || result.summary.warnings > 0) {
@@ -64,7 +64,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       }
     };
     validateData();
-  }, [materials, stockEntries, lastValidationTime, dataValidationEnabled]);
+  }, [stockEntries, lastValidationTime, dataValidationEnabled]);
 
   useEffect(() => {
     fetchTabData("menu");
@@ -105,13 +105,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       });
       return;
     }
-    if (!materials || !stockEntries) return;
-    const result = dataValidator.validateData(materials, stockEntries);
+    if (!stockEntries) return;
+    const result = dataValidator.validateData(stockEntries);
     setValidationResults(result);
     setLastValidationTime(Date.now());
     dataValidator.showValidationResults(result, "Manual Data Validation");
     setShowValidationPanel(true);
-  }, [materials, stockEntries, dataValidationEnabled]);
+  }, [stockEntries, dataValidationEnabled]);
 
   const calculateMaterialCostPerUnit = useCallback((material: Material | undefined, materialStockEntries: StockEntry[]): number => {
     if (!material || !materialStockEntries.length) {
@@ -182,9 +182,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
   }, []);
 
   const availableMaterials = useMemo(() => {
-    if (materials && materials.length > 0) {
-      return materials;
-    }
     const materialMap = new Map<string, Material>();
     stockEntries.forEach(entry => {
       if (entry.material && entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
@@ -192,7 +189,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       }
     });
     return Array.from(materialMap.values());
-  }, [materials, stockEntries]);
+  }, [stockEntries]);
 
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {

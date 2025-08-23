@@ -12,7 +12,6 @@ import { Loader2 } from "lucide-react";
 
 interface TabMenuProps {
   stockEntries: StockEntry[];
-  materials: Material[];
   sections: Section[];
   categories?: Category[];
   onCreateMenuItem: (menuItem: CreateMenuItemData, imageFile?: File) => Promise<void>;
@@ -20,7 +19,7 @@ interface TabMenuProps {
   onDeleteMenuItem: (id: string) => Promise<void>;
 }
 
-export const MenuPage: React.FC<TabMenuProps> = ({ stockEntries, materials, sections, categories: externalCategories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
+export const MenuPage: React.FC<TabMenuProps> = ({ stockEntries, sections, categories: externalCategories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const [activeTab, setActiveTab] = useState("menu-items");
   const [foodMenuItems, setFoodMenuItems] = useState<MenuItem[]>([]);
   const [beverageMenuItems, setBeverageMenuItems] = useState<MenuItem[]>([]);
@@ -207,7 +206,6 @@ export const MenuPage: React.FC<TabMenuProps> = ({ stockEntries, materials, sect
               <MenuItemBuilder 
                 menuItems={foodMenuItems} 
                 stockEntries={stockEntries} 
-                materials={materials} 
                 categories={menuItemCategories} 
                 sections={sections} 
                 onCreateMenuItem={handleCreateMenuItem} 
@@ -222,7 +220,6 @@ export const MenuPage: React.FC<TabMenuProps> = ({ stockEntries, materials, sect
               <BeveragesMenuBuilder 
                 menuItems={beverageMenuItems} 
                 stockEntries={stockEntries} 
-                materials={materials} 
                 categories={beverageCategories} 
                 sections={sections} 
                 onCreateBeverageItem={handleCreateMenuItem} 
