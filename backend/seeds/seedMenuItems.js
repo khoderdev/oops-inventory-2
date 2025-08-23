@@ -2083,970 +2083,970 @@ export async function seedMenuItems() {
     // =============================================================================
     // COLD DRINKS - 32 ITEMS
     // =============================================================================
-    {
-      name: "Vanilla Shake",
-      description: "Classic vanilla shake",
-      category: "cold",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vanilla Ice Cream", quantity: 200, unit: "g", cost: 2.40 },
-        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
-        { materialName: "Vanilla Extract", quantity: 5, unit: "ml", cost: 0.15 },
-        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
-      ]
-    },
-    {
-      name: "Strawberry Shake",
-      description: "Fresh strawberry shake",
-      category: "cold",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
-        { materialName: "Strawberry", quantity: 100, unit: "g", cost: 2.00 },
-        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
-        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
-      ]
-    },
-    {
-      name: "Oreo Shake",
-      description: "Oreo cookies shake",
-      category: "cold",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
-        { materialName: "Oreo Cookies", quantity: 60, unit: "g", cost: 1.20 },
-        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
-        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
-      ]
-    },
-    {
-      name: "Chocolate Shake",
-      description: "Classic chocolate shake",
-      category: "cold",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Chocolate Ice Cream", quantity: 200, unit: "g", cost: 2.60 },
-        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
-        { materialName: "Chocolate Syrup", quantity: 30, unit: "ml", cost: 0.36 },
-        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
-      ]
-    },
-    {
-      name: "Lotus Shake",
-      description: "Lotus biscuit shake",
-      category: "cold",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
-        { materialName: "Lotus Biscuits", quantity: 50, unit: "g", cost: 1.25 },
-        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
-        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
-      ]
-    },
-    {
-      name: "Bounty Shake",
-      description: "Bounty chocolate shake",
-      category: "cold",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
-        { materialName: "Bounty Bars", quantity: 60, unit: "g", cost: 1.50 },
-        { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
-        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
-      ]
-    },
-    {
-      name: "Minted Lemonade",
-      description: "Fresh lemonade with mint",
-      category: "cold",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Fresh Lemon Juice", quantity: 100, unit: "ml", cost: 1.20 },
-        { materialName: "Sugar Syrup", quantity: 50, unit: "ml", cost: 0.25 },
-        { materialName: "Fresh Mint", quantity: 20, unit: "g", cost: 0.40 },
-        { materialName: "Sparkling Water", quantity: 250, unit: "ml", cost: 0.50 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Lemonade",
-      description: "Fresh lemonade",
-      category: "cold",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Fresh Lemon Juice", quantity: 80, unit: "ml", cost: 0.96 },
-        { materialName: "Sugar Syrup", quantity: 40, unit: "ml", cost: 0.20 },
-        { materialName: "Water", quantity: 250, unit: "ml", cost: 0.25 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Fresh Orange Juice",
-      description: "Freshly squeezed orange juice",
-      category: "cold",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Fresh Orange Juice", quantity: 300, unit: "ml", cost: 1.80 }
-      ]
-    },
-    {
-      name: "Peach Mango Smoothie",
-      description: "Peach and mango smoothie",
-      category: "cold",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Peach", quantity: 150, unit: "g", cost: 1.80 },
-        { materialName: "Mango", quantity: 100, unit: "g", cost: 1.50 },
-        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
-        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
-        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
-      ]
-    },
-    {
-      name: "Passion Strawberry Smoothie",
-      description: "Passion fruit and strawberry smoothie",
-      category: "cold",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Passion Fruit", quantity: 100, unit: "g", cost: 2.50 },
-        { materialName: "Strawberry", quantity: 150, unit: "g", cost: 3.00 },
-        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
-        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
-        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
-      ]
-    },
-    {
-      name: "Peach Passion Smoothie",
-      description: "Peach and passion fruit smoothie",
-      category: "cold",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Peach", quantity: 150, unit: "g", cost: 1.80 },
-        { materialName: "Passion Fruit", quantity: 100, unit: "g", cost: 2.50 },
-        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
-        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
-        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
-      ]
-    },
-    {
-      name: "Peach Smoothie",
-      description: "Fresh peach smoothie",
-      category: "cold",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Peach", quantity: 200, unit: "g", cost: 2.40 },
-        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
-        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
-        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
-      ]
-    },
-    {
-      name: "Mixed Berries Smoothie",
-      description: "Mixed berries smoothie",
-      category: "cold",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Mixed Berries", quantity: 200, unit: "g", cost: 4.00 },
-        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
-        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
-        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
-      ]
-    },
-    {
-      name: "Strawberry Smoothie",
-      description: "Fresh strawberry smoothie",
-      category: "cold",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Strawberry", quantity: 200, unit: "g", cost: 4.00 },
-        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
-        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
-        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
-      ]
-    },
-    {
-      name: "Mango Smoothie",
-      description: "Fresh mango smoothie",
-      category: "cold",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Mango", quantity: 200, unit: "g", cost: 3.00 },
-        { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
-        { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
-        { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
-      ]
-    },
-    {
-      name: "Energy Drink",
-      description: "Energy drink",
-      category: "cold",
-      price: 4.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Energy Drink Can", quantity: 1, unit: "piece", cost: 2.00 }
-      ]
-    },
-    {
-      name: "Bzurat",
-      description: "Traditional Lebanese drink",
-      category: "cold",
-      price: 2.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Bzurat Seeds", quantity: 20, unit: "g", cost: 0.40 },
-        { materialName: "Water", quantity: 250, unit: "ml", cost: 0.25 },
-        { materialName: "Sugar", quantity: 30, unit: "g", cost: 0.15 }
-      ]
-    },
-    {
-      name: "Sparkling Water",
-      description: "Sparkling water",
-      category: "cold",
-      price: 4.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Sparkling Water Bottle", quantity: 1, unit: "piece", cost: 2.00 }
-      ]
-    },
-    {
-      name: "7up Grenadine",
-      description: "7up with grenadine",
-      category: "cold",
-      price: 3.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "7up", quantity: 250, unit: "ml", cost: 1.25 },
-        { materialName: "Grenadine Syrup", quantity: 30, unit: "ml", cost: 0.45 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Soft Drinks",
-      description: "Assorted soft drinks",
-      category: "cold",
-      price: 3.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Soft Drink Can", quantity: 1, unit: "piece", cost: 1.50 }
-      ]
-    },
-    {
-      name: "Water Large",
-      description: "Large water bottle",
-      category: "cold",
-      price: 3.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Water Bottle Large", quantity: 1, unit: "piece", cost: 1.50 }
-      ]
-    },
-    {
-      name: "Water Small",
-      description: "Small water bottle",
-      category: "cold",
-      price: 1.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Water Bottle Small", quantity: 1, unit: "piece", cost: 0.75 }
-      ]
-    },
-    {
-      name: "Red Bull",
-      description: "Red Bull energy drink",
-      category: "cold",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Red Bull Can", quantity: 1, unit: "piece", cost: 2.50 }
-      ]
-    },
-    {
-      name: "Ice Tea Passion Fruit",
-      description: "Passion fruit flavored iced tea",
-      category: "cold",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
-        { materialName: "Passion Fruit Syrup", quantity: 50, unit: "ml", cost: 1.25 },
-        { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Ice Tea Blueberry",
-      description: "Blueberry flavored iced tea",
-      category: "cold",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
-        { materialName: "Blueberry Syrup", quantity: 40, unit: "ml", cost: 0.80 },
-        { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Ice Tea Mango",
-      description: "Mango flavored iced tea",
-      category: "cold",
-      price: 4.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
-        { materialName: "Mango Syrup", quantity: 40, unit: "ml", cost: 0.60 },
-        { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Ice Tea Peach",
-      description: "Peach flavored iced tea",
-      category: "cold",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
-        { materialName: "Peach Syrup", quantity: 40, unit: "ml", cost: 0.80 },
-        { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Toffee Caramel",
-      description: "Toffee caramel drink",
-      category: "cold",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Milk", quantity: 250, unit: "ml", cost: 0.50 },
-        { materialName: "Toffee Syrup", quantity: 50, unit: "ml", cost: 1.50 },
-        { materialName: "Caramel Syrup", quantity: 30, unit: "ml", cost: 0.90 },
-        { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Iced Coffee",
-      description: "Classic iced coffee",
-      category: "cold",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Coffee Beans", quantity: 20, unit: "g", cost: 0.80 },
-        { materialName: "Water", quantity: 200, unit: "ml", cost: 0.20 },
-        { materialName: "Sugar Syrup", quantity: 30, unit: "ml", cost: 0.15 },
-        { materialName: "Milk", quantity: 100, unit: "ml", cost: 0.20 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Iced Coffee Vanilla",
-      description: "Iced coffee with vanilla flavor",
-      category: "cold",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Coffee Beans", quantity: 20, unit: "g", cost: 0.80 },
-        { materialName: "Water", quantity: 200, unit: "ml", cost: 0.20 },
-        { materialName: "Vanilla Syrup", quantity: 40, unit: "ml", cost: 0.80 },
-        { materialName: "Milk", quantity: 100, unit: "ml", cost: 0.20 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
-    {
-      name: "Iced Coffee Caramel",
-      description: "Iced coffee with caramel flavor",
-      category: "cold",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Coffee Beans", quantity: 20, unit: "g", cost: 0.80 },
-        { materialName: "Water", quantity: 200, unit: "ml", cost: 0.20 },
-        { materialName: "Caramel Syrup", quantity: 40, unit: "ml", cost: 1.20 },
-        { materialName: "Milk", quantity: 100, unit: "ml", cost: 0.20 },
-        { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
-      ]
-    },
+    // {
+    //   name: "Vanilla Shake",
+    //   description: "Classic vanilla shake",
+    //   category: "cold",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vanilla Ice Cream", quantity: 200, unit: "g", cost: 2.40 },
+    //     { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+    //     { materialName: "Vanilla Extract", quantity: 5, unit: "ml", cost: 0.15 },
+    //     { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+    //   ]
+    // },
+    // {
+    //   name: "Strawberry Shake",
+    //   description: "Fresh strawberry shake",
+    //   category: "cold",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
+    //     { materialName: "Strawberry", quantity: 100, unit: "g", cost: 2.00 },
+    //     { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+    //     { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+    //   ]
+    // },
+    // {
+    //   name: "Oreo Shake",
+    //   description: "Oreo cookies shake",
+    //   category: "cold",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
+    //     { materialName: "Oreo Cookies", quantity: 60, unit: "g", cost: 1.20 },
+    //     { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+    //     { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+    //   ]
+    // },
+    // {
+    //   name: "Chocolate Shake",
+    //   description: "Classic chocolate shake",
+    //   category: "cold",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Chocolate Ice Cream", quantity: 200, unit: "g", cost: 2.60 },
+    //     { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+    //     { materialName: "Chocolate Syrup", quantity: 30, unit: "ml", cost: 0.36 },
+    //     { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+    //   ]
+    // },
+    // {
+    //   name: "Lotus Shake",
+    //   description: "Lotus biscuit shake",
+    //   category: "cold",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
+    //     { materialName: "Lotus Biscuits", quantity: 50, unit: "g", cost: 1.25 },
+    //     { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+    //     { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+    //   ]
+    // },
+    // {
+    //   name: "Bounty Shake",
+    //   description: "Bounty chocolate shake",
+    //   category: "cold",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vanilla Ice Cream", quantity: 180, unit: "g", cost: 2.16 },
+    //     { materialName: "Bounty Bars", quantity: 60, unit: "g", cost: 1.50 },
+    //     { materialName: "Milk", quantity: 150, unit: "ml", cost: 0.30 },
+    //     { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 }
+    //   ]
+    // },
+    // {
+    //   name: "Minted Lemonade",
+    //   description: "Fresh lemonade with mint",
+    //   category: "cold",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Fresh Lemon Juice", quantity: 100, unit: "ml", cost: 1.20 },
+    //     { materialName: "Sugar Syrup", quantity: 50, unit: "ml", cost: 0.25 },
+    //     { materialName: "Fresh Mint", quantity: 20, unit: "g", cost: 0.40 },
+    //     { materialName: "Sparkling Water", quantity: 250, unit: "ml", cost: 0.50 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Lemonade",
+    //   description: "Fresh lemonade",
+    //   category: "cold",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Fresh Lemon Juice", quantity: 80, unit: "ml", cost: 0.96 },
+    //     { materialName: "Sugar Syrup", quantity: 40, unit: "ml", cost: 0.20 },
+    //     { materialName: "Water", quantity: 250, unit: "ml", cost: 0.25 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Fresh Orange Juice",
+    //   description: "Freshly squeezed orange juice",
+    //   category: "cold",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Fresh Orange Juice", quantity: 300, unit: "ml", cost: 1.80 }
+    //   ]
+    // },
+    // {
+    //   name: "Peach Mango Smoothie",
+    //   description: "Peach and mango smoothie",
+    //   category: "cold",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Peach", quantity: 150, unit: "g", cost: 1.80 },
+    //     { materialName: "Mango", quantity: 100, unit: "g", cost: 1.50 },
+    //     { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+    //     { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+    //     { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+    //   ]
+    // },
+    // {
+    //   name: "Passion Strawberry Smoothie",
+    //   description: "Passion fruit and strawberry smoothie",
+    //   category: "cold",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Passion Fruit", quantity: 100, unit: "g", cost: 2.50 },
+    //     { materialName: "Strawberry", quantity: 150, unit: "g", cost: 3.00 },
+    //     { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+    //     { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+    //     { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+    //   ]
+    // },
+    // {
+    //   name: "Peach Passion Smoothie",
+    //   description: "Peach and passion fruit smoothie",
+    //   category: "cold",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Peach", quantity: 150, unit: "g", cost: 1.80 },
+    //     { materialName: "Passion Fruit", quantity: 100, unit: "g", cost: 2.50 },
+    //     { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+    //     { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+    //     { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+    //   ]
+    // },
+    // {
+    //   name: "Peach Smoothie",
+    //   description: "Fresh peach smoothie",
+    //   category: "cold",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Peach", quantity: 200, unit: "g", cost: 2.40 },
+    //     { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+    //     { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+    //     { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+    //   ]
+    // },
+    // {
+    //   name: "Mixed Berries Smoothie",
+    //   description: "Mixed berries smoothie",
+    //   category: "cold",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Mixed Berries", quantity: 200, unit: "g", cost: 4.00 },
+    //     { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+    //     { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+    //     { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+    //   ]
+    // },
+    // {
+    //   name: "Strawberry Smoothie",
+    //   description: "Fresh strawberry smoothie",
+    //   category: "cold",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Strawberry", quantity: 200, unit: "g", cost: 4.00 },
+    //     { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+    //     { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+    //     { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+    //   ]
+    // },
+    // {
+    //   name: "Mango Smoothie",
+    //   description: "Fresh mango smoothie",
+    //   category: "cold",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Mango", quantity: 200, unit: "g", cost: 3.00 },
+    //     { materialName: "Yogurt", quantity: 100, unit: "g", cost: 0.60 },
+    //     { materialName: "Honey", quantity: 20, unit: "ml", cost: 0.40 },
+    //     { materialName: "Ice Cubes", quantity: 50, unit: "g", cost: 0.05 }
+    //   ]
+    // },
+    // {
+    //   name: "Energy Drink",
+    //   description: "Energy drink",
+    //   category: "cold",
+    //   price: 4.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Energy Drink Can", quantity: 1, unit: "piece", cost: 2.00 }
+    //   ]
+    // },
+    // {
+    //   name: "Bzurat",
+    //   description: "Traditional Lebanese drink",
+    //   category: "cold",
+    //   price: 2.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Bzurat Seeds", quantity: 20, unit: "g", cost: 0.40 },
+    //     { materialName: "Water", quantity: 250, unit: "ml", cost: 0.25 },
+    //     { materialName: "Sugar", quantity: 30, unit: "g", cost: 0.15 }
+    //   ]
+    // },
+    // {
+    //   name: "Sparkling Water",
+    //   description: "Sparkling water",
+    //   category: "cold",
+    //   price: 4.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Sparkling Water Bottle", quantity: 1, unit: "piece", cost: 2.00 }
+    //   ]
+    // },
+    // {
+    //   name: "7up Grenadine",
+    //   description: "7up with grenadine",
+    //   category: "cold",
+    //   price: 3.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "7up", quantity: 250, unit: "ml", cost: 1.25 },
+    //     { materialName: "Grenadine Syrup", quantity: 30, unit: "ml", cost: 0.45 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Soft Drinks",
+    //   description: "Assorted soft drinks",
+    //   category: "cold",
+    //   price: 3.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Soft Drink Can", quantity: 1, unit: "piece", cost: 1.50 }
+    //   ]
+    // },
+    // {
+    //   name: "Water Large",
+    //   description: "Large water bottle",
+    //   category: "cold",
+    //   price: 3.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Water Bottle Large", quantity: 1, unit: "piece", cost: 1.50 }
+    //   ]
+    // },
+    // {
+    //   name: "Water Small",
+    //   description: "Small water bottle",
+    //   category: "cold",
+    //   price: 1.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Water Bottle Small", quantity: 1, unit: "piece", cost: 0.75 }
+    //   ]
+    // },
+    // {
+    //   name: "Red Bull",
+    //   description: "Red Bull energy drink",
+    //   category: "cold",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Red Bull Can", quantity: 1, unit: "piece", cost: 2.50 }
+    //   ]
+    // },
+    // {
+    //   name: "Ice Tea Passion Fruit",
+    //   description: "Passion fruit flavored iced tea",
+    //   category: "cold",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
+    //     { materialName: "Passion Fruit Syrup", quantity: 50, unit: "ml", cost: 1.25 },
+    //     { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Ice Tea Blueberry",
+    //   description: "Blueberry flavored iced tea",
+    //   category: "cold",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
+    //     { materialName: "Blueberry Syrup", quantity: 40, unit: "ml", cost: 0.80 },
+    //     { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Ice Tea Mango",
+    //   description: "Mango flavored iced tea",
+    //   category: "cold",
+    //   price: 4.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
+    //     { materialName: "Mango Syrup", quantity: 40, unit: "ml", cost: 0.60 },
+    //     { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Ice Tea Peach",
+    //   description: "Peach flavored iced tea",
+    //   category: "cold",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Black Tea", quantity: 10, unit: "g", cost: 0.20 },
+    //     { materialName: "Peach Syrup", quantity: 40, unit: "ml", cost: 0.80 },
+    //     { materialName: "Water", quantity: 300, unit: "ml", cost: 0.30 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Toffee Caramel",
+    //   description: "Toffee caramel drink",
+    //   category: "cold",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Milk", quantity: 250, unit: "ml", cost: 0.50 },
+    //     { materialName: "Toffee Syrup", quantity: 50, unit: "ml", cost: 1.50 },
+    //     { materialName: "Caramel Syrup", quantity: 30, unit: "ml", cost: 0.90 },
+    //     { materialName: "Whipped Cream", quantity: 30, unit: "g", cost: 0.45 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Iced Coffee",
+    //   description: "Classic iced coffee",
+    //   category: "cold",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Coffee Beans", quantity: 20, unit: "g", cost: 0.80 },
+    //     { materialName: "Water", quantity: 200, unit: "ml", cost: 0.20 },
+    //     { materialName: "Sugar Syrup", quantity: 30, unit: "ml", cost: 0.15 },
+    //     { materialName: "Milk", quantity: 100, unit: "ml", cost: 0.20 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Iced Coffee Vanilla",
+    //   description: "Iced coffee with vanilla flavor",
+    //   category: "cold",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Coffee Beans", quantity: 20, unit: "g", cost: 0.80 },
+    //     { materialName: "Water", quantity: 200, unit: "ml", cost: 0.20 },
+    //     { materialName: "Vanilla Syrup", quantity: 40, unit: "ml", cost: 0.80 },
+    //     { materialName: "Milk", quantity: 100, unit: "ml", cost: 0.20 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Iced Coffee Caramel",
+    //   description: "Iced coffee with caramel flavor",
+    //   category: "cold",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Coffee Beans", quantity: 20, unit: "g", cost: 0.80 },
+    //     { materialName: "Water", quantity: 200, unit: "ml", cost: 0.20 },
+    //     { materialName: "Caramel Syrup", quantity: 40, unit: "ml", cost: 1.20 },
+    //     { materialName: "Milk", quantity: 100, unit: "ml", cost: 0.20 },
+    //     { materialName: "Ice Cubes", quantity: 100, unit: "g", cost: 0.10 }
+    //   ]
+    // },
 
-    // =============================================================================
-    // ALCOHOLIC BEVERAGES - 85 ITEMS
-    // =============================================================================
+    // // =============================================================================
+    // // beveragesIC BEVERAGES - 85 ITEMS
+    // // =============================================================================
     
-    // COCKTAILS - 18 ITEMS
-    {
-      name: "Jager Bomb",
-      description: "Jager and red bull",
-      category: "alcohol",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Jagermeister", quantity: 30, unit: "ml", cost: 2.40 },
-        { materialName: "Red Bull Can", quantity: 1, unit: "piece", cost: 2.50 }
-      ]
-    },
-    {
-      name: "Black Russian",
-      description: "Vodka and kahlua",
-      category: "alcohol",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
-        { materialName: "Kahlua", quantity: 25, unit: "ml", cost: 1.50 }
-      ]
-    },
-    {
-      name: "White Russian",
-      description: "Vodka and bailey's",
-      category: "alcohol",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
-        { materialName: "Baileys", quantity: 25, unit: "ml", cost: 1.75 },
-        { materialName: "Heavy Cream", quantity: 25, unit: "ml", cost: 0.35 }
-      ]
-    },
-    {
-      name: "Jamaica",
-      description: "Vodka, pineapple juice, orange juice and grenadine",
-      category: "alcohol",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 40, unit: "ml", cost: 1.60 },
-        { materialName: "Pineapple Juice", quantity: 60, unit: "ml", cost: 0.60 },
-        { materialName: "Orange Juice", quantity: 60, unit: "ml", cost: 0.36 },
-        { materialName: "Grenadine Syrup", quantity: 15, unit: "ml", cost: 0.23 }
-      ]
-    },
-    {
-      name: "Tequila Sunrise",
-      description: "White tequila, orange juice and grenadine",
-      category: "alcohol",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "White Tequila", quantity: 50, unit: "ml", cost: 2.50 },
-        { materialName: "Orange Juice", quantity: 120, unit: "ml", cost: 0.72 },
-        { materialName: "Grenadine Syrup", quantity: 15, unit: "ml", cost: 0.23 }
-      ]
-    },
-    {
-      name: "Mojito",
-      description: "Rum, simple syrup, lime juice, 7up and fresh mint",
-      category: "alcohol",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "White Rum", quantity: 50, unit: "ml", cost: 2.00 },
-        { materialName: "Sugar Syrup", quantity: 20, unit: "ml", cost: 0.10 },
-        { materialName: "Lime Juice", quantity: 30, unit: "ml", cost: 0.36 },
-        { materialName: "7up", quantity: 100, unit: "ml", cost: 0.50 },
-        { materialName: "Fresh Mint", quantity: 15, unit: "g", cost: 0.30 }
-      ]
-    },
-    {
-      name: "Espresso Martini",
-      description: "Vodka, kahlua, simple syrup and shot espresso",
-      category: "alcohol",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
-        { materialName: "Kahlua", quantity: 25, unit: "ml", cost: 1.50 },
-        { materialName: "Sugar Syrup", quantity: 15, unit: "ml", cost: 0.08 },
-        { materialName: "Espresso Shot", quantity: 30, unit: "ml", cost: 0.60 }
-      ]
-    },
-    {
-      name: "Passion Fruit Martini",
-      description: "Vodka, lime juice, orange juice and passion syrup",
-      category: "alcohol",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
-        { materialName: "Lime Juice", quantity: 20, unit: "ml", cost: 0.24 },
-        { materialName: "Orange Juice", quantity: 30, unit: "ml", cost: 0.18 },
-        { materialName: "Passion Fruit Syrup", quantity: 25, unit: "ml", cost: 0.63 }
-      ]
-    },
-    {
-      name: "Cosmopolitan",
-      description: "Vodka, lime juice, cranberry juice and triple sec",
-      category: "alcohol",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 45, unit: "ml", cost: 1.80 },
-        { materialName: "Lime Juice", quantity: 15, unit: "ml", cost: 0.18 },
-        { materialName: "Cranberry Juice", quantity: 30, unit: "ml", cost: 0.36 },
-        { materialName: "Triple Sec", quantity: 15, unit: "ml", cost: 0.75 }
-      ]
-    },
-    {
-      name: "Sex on the Beach",
-      description: "Vodka, archer, orange juice and cranberry juice",
-      category: "alcohol",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 30, unit: "ml", cost: 1.20 },
-        { materialName: "Peach Schnapps", quantity: 30, unit: "ml", cost: 1.50 },
-        { materialName: "Orange Juice", quantity: 60, unit: "ml", cost: 0.36 },
-        { materialName: "Cranberry Juice", quantity: 60, unit: "ml", cost: 0.72 }
-      ]
-    },
-    {
-      name: "Midori Sour",
-      description: "Vodka, midori, lime juice, orange juice and 7up",
-      category: "alcohol",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 30, unit: "ml", cost: 1.20 },
-        { materialName: "Midori Melon Liqueur", quantity: 30, unit: "ml", cost: 1.80 },
-        { materialName: "Lime Juice", quantity: 20, unit: "ml", cost: 0.24 },
-        { materialName: "Orange Juice", quantity: 30, unit: "ml", cost: 0.18 },
-        { materialName: "7up", quantity: 60, unit: "ml", cost: 0.30 }
-      ]
-    },
-    {
-      name: "London Mule",
-      description: "Gin, lime juice and ginger beer",
-      category: "alcohol",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Gin", quantity: 50, unit: "ml", cost: 2.50 },
-        { materialName: "Lime Juice", quantity: 25, unit: "ml", cost: 0.30 },
-        { materialName: "Ginger Beer", quantity: 150, unit: "ml", cost: 0.90 }
-      ]
-    },
-    {
-      name: "Moscow Mule",
-      description: "Vodka, lime juice and ginger beer",
-      category: "alcohol",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
-        { materialName: "Lime Juice", quantity: 25, unit: "ml", cost: 0.30 },
-        { materialName: "Ginger Beer", quantity: 150, unit: "ml", cost: 0.90 }
-      ]
-    },
-    {
-      name: "Pina Colada",
-      description: "Rum, coconut syrup, pineapple juice, milk and malibu",
-      category: "alcohol",
-      price: 7.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "White Rum", quantity: 40, unit: "ml", cost: 1.60 },
-        { materialName: "Coconut Syrup", quantity: 30, unit: "ml", cost: 0.60 },
-        { materialName: "Pineapple Juice", quantity: 90, unit: "ml", cost: 0.90 },
-        { materialName: "Milk", quantity: 60, unit: "ml", cost: 0.12 },
-        { materialName: "Malibu Rum", quantity: 20, unit: "ml", cost: 1.00 }
-      ]
-    },
-    {
-      name: "Gin Basil",
-      description: "Gin, simple syrup, lime juice and fresh basil",
-      category: "alcohol",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Gin", quantity: 50, unit: "ml", cost: 2.50 },
-        { materialName: "Sugar Syrup", quantity: 20, unit: "ml", cost: 0.10 },
-        { materialName: "Lime Juice", quantity: 25, unit: "ml", cost: 0.30 },
-        { materialName: "Fresh Basil", quantity: 10, unit: "g", cost: 0.20 }
-      ]
-    },
-    {
-      name: "Negroni",
-      description: "Gin, campari and sweet vermouth",
-      category: "alcohol",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Gin", quantity: 30, unit: "ml", cost: 1.50 },
-        { materialName: "Campari", quantity: 30, unit: "ml", cost: 2.10 },
-        { materialName: "Sweet Vermouth", quantity: 30, unit: "ml", cost: 1.80 }
-      ]
-    },
-    {
-      name: "Old Fashioned",
-      description: "Whiskey, sugar syrup and bitters",
-      category: "alcohol",
-      price: 9.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Whiskey", quantity: 60, unit: "ml", cost: 4.20 },
-        { materialName: "Sugar Syrup", quantity: 15, unit: "ml", cost: 0.08 },
-        { materialName: "Angostura Bitters", quantity: 3, unit: "ml", cost: 0.30 }
-      ]
-    },
+    // // COCKTAILS - 18 ITEMS
+    // {
+    //   name: "Jager Bomb",
+    //   description: "Jager and red bull",
+    //   category: "beverages",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Jagermeister", quantity: 30, unit: "ml", cost: 2.40 },
+    //     { materialName: "Red Bull Can", quantity: 1, unit: "piece", cost: 2.50 }
+    //   ]
+    // },
+    // {
+    //   name: "Black Russian",
+    //   description: "Vodka and kahlua",
+    //   category: "beverages",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+    //     { materialName: "Kahlua", quantity: 25, unit: "ml", cost: 1.50 }
+    //   ]
+    // },
+    // {
+    //   name: "White Russian",
+    //   description: "Vodka and bailey's",
+    //   category: "beverages",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+    //     { materialName: "Baileys", quantity: 25, unit: "ml", cost: 1.75 },
+    //     { materialName: "Heavy Cream", quantity: 25, unit: "ml", cost: 0.35 }
+    //   ]
+    // },
+    // {
+    //   name: "Jamaica",
+    //   description: "Vodka, pineapple juice, orange juice and grenadine",
+    //   category: "beverages",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 40, unit: "ml", cost: 1.60 },
+    //     { materialName: "Pineapple Juice", quantity: 60, unit: "ml", cost: 0.60 },
+    //     { materialName: "Orange Juice", quantity: 60, unit: "ml", cost: 0.36 },
+    //     { materialName: "Grenadine Syrup", quantity: 15, unit: "ml", cost: 0.23 }
+    //   ]
+    // },
+    // {
+    //   name: "Tequila Sunrise",
+    //   description: "White tequila, orange juice and grenadine",
+    //   category: "beverages",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "White Tequila", quantity: 50, unit: "ml", cost: 2.50 },
+    //     { materialName: "Orange Juice", quantity: 120, unit: "ml", cost: 0.72 },
+    //     { materialName: "Grenadine Syrup", quantity: 15, unit: "ml", cost: 0.23 }
+    //   ]
+    // },
+    // {
+    //   name: "Mojito",
+    //   description: "Rum, simple syrup, lime juice, 7up and fresh mint",
+    //   category: "beverages",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "White Rum", quantity: 50, unit: "ml", cost: 2.00 },
+    //     { materialName: "Sugar Syrup", quantity: 20, unit: "ml", cost: 0.10 },
+    //     { materialName: "Lime Juice", quantity: 30, unit: "ml", cost: 0.36 },
+    //     { materialName: "7up", quantity: 100, unit: "ml", cost: 0.50 },
+    //     { materialName: "Fresh Mint", quantity: 15, unit: "g", cost: 0.30 }
+    //   ]
+    // },
+    // {
+    //   name: "Espresso Martini",
+    //   description: "Vodka, kahlua, simple syrup and shot espresso",
+    //   category: "beverages",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+    //     { materialName: "Kahlua", quantity: 25, unit: "ml", cost: 1.50 },
+    //     { materialName: "Sugar Syrup", quantity: 15, unit: "ml", cost: 0.08 },
+    //     { materialName: "Espresso Shot", quantity: 30, unit: "ml", cost: 0.60 }
+    //   ]
+    // },
+    // {
+    //   name: "Passion Fruit Martini",
+    //   description: "Vodka, lime juice, orange juice and passion syrup",
+    //   category: "beverages",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+    //     { materialName: "Lime Juice", quantity: 20, unit: "ml", cost: 0.24 },
+    //     { materialName: "Orange Juice", quantity: 30, unit: "ml", cost: 0.18 },
+    //     { materialName: "Passion Fruit Syrup", quantity: 25, unit: "ml", cost: 0.63 }
+    //   ]
+    // },
+    // {
+    //   name: "Cosmopolitan",
+    //   description: "Vodka, lime juice, cranberry juice and triple sec",
+    //   category: "beverages",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 45, unit: "ml", cost: 1.80 },
+    //     { materialName: "Lime Juice", quantity: 15, unit: "ml", cost: 0.18 },
+    //     { materialName: "Cranberry Juice", quantity: 30, unit: "ml", cost: 0.36 },
+    //     { materialName: "Triple Sec", quantity: 15, unit: "ml", cost: 0.75 }
+    //   ]
+    // },
+    // {
+    //   name: "Sex on the Beach",
+    //   description: "Vodka, archer, orange juice and cranberry juice",
+    //   category: "beverages",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 30, unit: "ml", cost: 1.20 },
+    //     { materialName: "Peach Schnapps", quantity: 30, unit: "ml", cost: 1.50 },
+    //     { materialName: "Orange Juice", quantity: 60, unit: "ml", cost: 0.36 },
+    //     { materialName: "Cranberry Juice", quantity: 60, unit: "ml", cost: 0.72 }
+    //   ]
+    // },
+    // {
+    //   name: "Midori Sour",
+    //   description: "Vodka, midori, lime juice, orange juice and 7up",
+    //   category: "beverages",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 30, unit: "ml", cost: 1.20 },
+    //     { materialName: "Midori Melon Liqueur", quantity: 30, unit: "ml", cost: 1.80 },
+    //     { materialName: "Lime Juice", quantity: 20, unit: "ml", cost: 0.24 },
+    //     { materialName: "Orange Juice", quantity: 30, unit: "ml", cost: 0.18 },
+    //     { materialName: "7up", quantity: 60, unit: "ml", cost: 0.30 }
+    //   ]
+    // },
+    // {
+    //   name: "London Mule",
+    //   description: "Gin, lime juice and ginger beer",
+    //   category: "beverages",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Gin", quantity: 50, unit: "ml", cost: 2.50 },
+    //     { materialName: "Lime Juice", quantity: 25, unit: "ml", cost: 0.30 },
+    //     { materialName: "Ginger Beer", quantity: 150, unit: "ml", cost: 0.90 }
+    //   ]
+    // },
+    // {
+    //   name: "Moscow Mule",
+    //   description: "Vodka, lime juice and ginger beer",
+    //   category: "beverages",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 50, unit: "ml", cost: 2.00 },
+    //     { materialName: "Lime Juice", quantity: 25, unit: "ml", cost: 0.30 },
+    //     { materialName: "Ginger Beer", quantity: 150, unit: "ml", cost: 0.90 }
+    //   ]
+    // },
+    // {
+    //   name: "Pina Colada",
+    //   description: "Rum, coconut syrup, pineapple juice, milk and malibu",
+    //   category: "beverages",
+    //   price: 7.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "White Rum", quantity: 40, unit: "ml", cost: 1.60 },
+    //     { materialName: "Coconut Syrup", quantity: 30, unit: "ml", cost: 0.60 },
+    //     { materialName: "Pineapple Juice", quantity: 90, unit: "ml", cost: 0.90 },
+    //     { materialName: "Milk", quantity: 60, unit: "ml", cost: 0.12 },
+    //     { materialName: "Malibu Rum", quantity: 20, unit: "ml", cost: 1.00 }
+    //   ]
+    // },
+    // {
+    //   name: "Gin Basil",
+    //   description: "Gin, simple syrup, lime juice and fresh basil",
+    //   category: "beverages",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Gin", quantity: 50, unit: "ml", cost: 2.50 },
+    //     { materialName: "Sugar Syrup", quantity: 20, unit: "ml", cost: 0.10 },
+    //     { materialName: "Lime Juice", quantity: 25, unit: "ml", cost: 0.30 },
+    //     { materialName: "Fresh Basil", quantity: 10, unit: "g", cost: 0.20 }
+    //   ]
+    // },
+    // {
+    //   name: "Negroni",
+    //   description: "Gin, campari and sweet vermouth",
+    //   category: "beverages",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Gin", quantity: 30, unit: "ml", cost: 1.50 },
+    //     { materialName: "Campari", quantity: 30, unit: "ml", cost: 2.10 },
+    //     { materialName: "Sweet Vermouth", quantity: 30, unit: "ml", cost: 1.80 }
+    //   ]
+    // },
+    // {
+    //   name: "Old Fashioned",
+    //   description: "Whiskey, sugar syrup and bitters",
+    //   category: "beverages",
+    //   price: 9.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Whiskey", quantity: 60, unit: "ml", cost: 4.20 },
+    //     { materialName: "Sugar Syrup", quantity: 15, unit: "ml", cost: 0.08 },
+    //     { materialName: "Angostura Bitters", quantity: 3, unit: "ml", cost: 0.30 }
+    //   ]
+    // },
 
-    // SPIRITS & SHOTS - 25 ITEMS
-    {
-      name: "Vodka Shot",
-      description: "Premium vodka shot",
-      category: "alcohol",
-      price: 4.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Vodka", quantity: 30, unit: "ml", cost: 1.20 }
-      ]
-    },
-    {
-      name: "Tequila Shot",
-      description: "Premium tequila shot",
-      category: "alcohol",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "White Tequila", quantity: 30, unit: "ml", cost: 1.50 }
-      ]
-    },
-    {
-      name: "Whiskey Shot",
-      description: "Premium whiskey shot",
-      category: "alcohol",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Whiskey", quantity: 30, unit: "ml", cost: 2.10 }
-      ]
-    },
-    {
-      name: "Rum Shot",
-      description: "Premium rum shot",
-      category: "alcohol",
-      price: 4.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "White Rum", quantity: 30, unit: "ml", cost: 1.20 }
-      ]
-    },
-    {
-      name: "Gin Shot",
-      description: "Premium gin shot",
-      category: "alcohol",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Gin", quantity: 30, unit: "ml", cost: 1.50 }
-      ]
-    },
-    {
-      name: "Jagermeister Shot",
-      description: "Jagermeister herbal liqueur shot",
-      category: "alcohol",
-      price: 5.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Jagermeister", quantity: 30, unit: "ml", cost: 2.40 }
-      ]
-    },
-    {
-      name: "Sambuca Shot",
-      description: "Sambuca anise liqueur shot",
-      category: "alcohol",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Sambuca", quantity: 30, unit: "ml", cost: 2.10 }
-      ]
-    },
-    {
-      name: "Baileys Shot",
-      description: "Baileys Irish cream shot",
-      category: "alcohol",
-      price: 5.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Baileys", quantity: 30, unit: "ml", cost: 2.10 }
-      ]
-    },
-    {
-      name: "Kahlua Shot",
-      description: "Kahlua coffee liqueur shot",
-      category: "alcohol",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Kahlua", quantity: 30, unit: "ml", cost: 1.80 }
-      ]
-    },
-    {
-      name: "Limoncello Shot",
-      description: "Italian lemon liqueur shot",
-      category: "alcohol",
-      price: 5.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Limoncello", quantity: 30, unit: "ml", cost: 2.40 }
-      ]
-    },
+    // // SPIRITS & SHOTS - 25 ITEMS
+    // {
+    //   name: "Vodka Shot",
+    //   description: "Premium vodka shot",
+    //   category: "beverages",
+    //   price: 4.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Vodka", quantity: 30, unit: "ml", cost: 1.20 }
+    //   ]
+    // },
+    // {
+    //   name: "Tequila Shot",
+    //   description: "Premium tequila shot",
+    //   category: "beverages",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "White Tequila", quantity: 30, unit: "ml", cost: 1.50 }
+    //   ]
+    // },
+    // {
+    //   name: "Whiskey Shot",
+    //   description: "Premium whiskey shot",
+    //   category: "beverages",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Whiskey", quantity: 30, unit: "ml", cost: 2.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Rum Shot",
+    //   description: "Premium rum shot",
+    //   category: "beverages",
+    //   price: 4.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "White Rum", quantity: 30, unit: "ml", cost: 1.20 }
+    //   ]
+    // },
+    // {
+    //   name: "Gin Shot",
+    //   description: "Premium gin shot",
+    //   category: "beverages",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Gin", quantity: 30, unit: "ml", cost: 1.50 }
+    //   ]
+    // },
+    // {
+    //   name: "Jagermeister Shot",
+    //   description: "Jagermeister herbal liqueur shot",
+    //   category: "beverages",
+    //   price: 5.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Jagermeister", quantity: 30, unit: "ml", cost: 2.40 }
+    //   ]
+    // },
+    // {
+    //   name: "Sambuca Shot",
+    //   description: "Sambuca anise liqueur shot",
+    //   category: "beverages",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Sambuca", quantity: 30, unit: "ml", cost: 2.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Baileys Shot",
+    //   description: "Baileys Irish cream shot",
+    //   category: "beverages",
+    //   price: 5.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Baileys", quantity: 30, unit: "ml", cost: 2.10 }
+    //   ]
+    // },
+    // {
+    //   name: "Kahlua Shot",
+    //   description: "Kahlua coffee liqueur shot",
+    //   category: "beverages",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Kahlua", quantity: 30, unit: "ml", cost: 1.80 }
+    //   ]
+    // },
+    // {
+    //   name: "Limoncello Shot",
+    //   description: "Italian lemon liqueur shot",
+    //   category: "beverages",
+    //   price: 5.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Limoncello", quantity: 30, unit: "ml", cost: 2.40 }
+    //   ]
+    // },
 
-    // BEERS - 15 ITEMS
-    {
-      name: "Heineken",
-      description: "Heineken beer bottle",
-      category: "alcohol",
-      price: 4.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Heineken Beer", quantity: 1, unit: "bottle", cost: 2.25 }
-      ]
-    },
-    {
-      name: "Corona",
-      description: "Corona beer bottle",
-      category: "alcohol",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Corona Beer", quantity: 1, unit: "bottle", cost: 2.50 }
-      ]
-    },
-    {
-      name: "Stella Artois",
-      description: "Stella Artois beer bottle",
-      category: "alcohol",
-      price: 5.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Stella Artois Beer", quantity: 1, unit: "bottle", cost: 2.50 }
-      ]
-    },
-    {
-      name: "Budweiser",
-      description: "Budweiser beer bottle",
-      category: "alcohol",
-      price: 4.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Budweiser Beer", quantity: 1, unit: "bottle", cost: 2.00 }
-      ]
-    },
-    {
-      name: "Carlsberg",
-      description: "Carlsberg beer bottle",
-      category: "alcohol",
-      price: 4.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Carlsberg Beer", quantity: 1, unit: "bottle", cost: 2.25 }
-      ]
-    },
-    {
-      name: "Guinness",
-      description: "Guinness stout bottle",
-      category: "alcohol",
-      price: 5.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Guinness Beer", quantity: 1, unit: "bottle", cost: 2.75 }
-      ]
-    },
-    {
-      name: "Local Draft Beer",
-      description: "Local draft beer on tap",
-      category: "alcohol",
-      price: 3.50,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Draft Beer", quantity: 500, unit: "ml", cost: 1.75 }
-      ]
-    },
+    // // BEERS - 15 ITEMS
+    // {
+    //   name: "Heineken",
+    //   description: "Heineken beer bottle",
+    //   category: "beverages",
+    //   price: 4.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Heineken Beer", quantity: 1, unit: "bottle", cost: 2.25 }
+    //   ]
+    // },
+    // {
+    //   name: "Corona",
+    //   description: "Corona beer bottle",
+    //   category: "beverages",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Corona Beer", quantity: 1, unit: "bottle", cost: 2.50 }
+    //   ]
+    // },
+    // {
+    //   name: "Stella Artois",
+    //   description: "Stella Artois beer bottle",
+    //   category: "beverages",
+    //   price: 5.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Stella Artois Beer", quantity: 1, unit: "bottle", cost: 2.50 }
+    //   ]
+    // },
+    // {
+    //   name: "Budweiser",
+    //   description: "Budweiser beer bottle",
+    //   category: "beverages",
+    //   price: 4.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Budweiser Beer", quantity: 1, unit: "bottle", cost: 2.00 }
+    //   ]
+    // },
+    // {
+    //   name: "Carlsberg",
+    //   description: "Carlsberg beer bottle",
+    //   category: "beverages",
+    //   price: 4.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Carlsberg Beer", quantity: 1, unit: "bottle", cost: 2.25 }
+    //   ]
+    // },
+    // {
+    //   name: "Guinness",
+    //   description: "Guinness stout bottle",
+    //   category: "beverages",
+    //   price: 5.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Guinness Beer", quantity: 1, unit: "bottle", cost: 2.75 }
+    //   ]
+    // },
+    // {
+    //   name: "Local Draft Beer",
+    //   description: "Local draft beer on tap",
+    //   category: "beverages",
+    //   price: 3.50,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Draft Beer", quantity: 500, unit: "ml", cost: 1.75 }
+    //   ]
+    // },
 
-    // WINES - 12 ITEMS
-    {
-      name: "House Red Wine",
-      description: "House red wine glass",
-      category: "alcohol",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Red Wine", quantity: 150, unit: "ml", cost: 3.00 }
-      ]
-    },
-    {
-      name: "House White Wine",
-      description: "House white wine glass",
-      category: "alcohol",
-      price: 6.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "White Wine", quantity: 150, unit: "ml", cost: 3.00 }
-      ]
-    },
-    {
-      name: "Prosecco",
-      description: "Prosecco sparkling wine glass",
-      category: "alcohol",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Prosecco", quantity: 150, unit: "ml", cost: 4.50 }
-      ]
-    },
-    {
-      name: "Champagne",
-      description: "Premium champagne glass",
-      category: "alcohol",
-      price: 12.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Champagne", quantity: 150, unit: "ml", cost: 8.00 }
-      ]
-    },
+    // // WINES - 12 ITEMS
+    // {
+    //   name: "House Red Wine",
+    //   description: "House red wine glass",
+    //   category: "beverages",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Red Wine", quantity: 150, unit: "ml", cost: 3.00 }
+    //   ]
+    // },
+    // {
+    //   name: "House White Wine",
+    //   description: "House white wine glass",
+    //   category: "beverages",
+    //   price: 6.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "White Wine", quantity: 150, unit: "ml", cost: 3.00 }
+    //   ]
+    // },
+    // {
+    //   name: "Prosecco",
+    //   description: "Prosecco sparkling wine glass",
+    //   category: "beverages",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Prosecco", quantity: 150, unit: "ml", cost: 4.50 }
+    //   ]
+    // },
+    // {
+    //   name: "Champagne",
+    //   description: "Premium champagne glass",
+    //   category: "beverages",
+    //   price: 12.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Champagne", quantity: 150, unit: "ml", cost: 8.00 }
+    //   ]
+    // },
 
-    // PREMIUM SPIRITS - 15 ITEMS
-    {
-      name: "Grey Goose Vodka",
-      description: "Premium Grey Goose vodka shot",
-      category: "alcohol",
-      price: 8.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Grey Goose Vodka", quantity: 30, unit: "ml", cost: 4.20 }
-      ]
-    },
-    {
-      name: "Johnnie Walker Black",
-      description: "Johnnie Walker Black Label whiskey",
-      category: "alcohol",
-      price: 10.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Johnnie Walker Black", quantity: 30, unit: "ml", cost: 5.40 }
-      ]
-    },
-    {
-      name: "Macallan 12",
-      description: "Macallan 12 year old single malt",
-      category: "alcohol",
-      price: 15.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Macallan 12", quantity: 30, unit: "ml", cost: 9.00 }
-      ]
-    },
-    {
-      name: "Hennessy VS",
-      description: "Hennessy VS cognac",
-      category: "alcohol",
-      price: 12.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Hennessy VS", quantity: 30, unit: "ml", cost: 7.20 }
-      ]
-    },
-    {
-      name: "Don Julio Blanco",
-      description: "Don Julio Blanco tequila",
-      category: "alcohol",
-      price: 9.00,
-      isPOSItem: true,
-      printerId: 2,
-      ingredients: [
-        { materialName: "Don Julio Blanco", quantity: 30, unit: "ml", cost: 5.40 }
-      ]
-    },
+    // // PREMIUM SPIRITS - 15 ITEMS
+    // {
+    //   name: "Grey Goose Vodka",
+    //   description: "Premium Grey Goose vodka shot",
+    //   category: "beverages",
+    //   price: 8.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Grey Goose Vodka", quantity: 30, unit: "ml", cost: 4.20 }
+    //   ]
+    // },
+    // {
+    //   name: "Johnnie Walker Black",
+    //   description: "Johnnie Walker Black Label whiskey",
+    //   category: "beverages",
+    //   price: 10.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Johnnie Walker Black", quantity: 30, unit: "ml", cost: 5.40 }
+    //   ]
+    // },
+    // {
+    //   name: "Macallan 12",
+    //   description: "Macallan 12 year old single malt",
+    //   category: "beverages",
+    //   price: 15.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Macallan 12", quantity: 30, unit: "ml", cost: 9.00 }
+    //   ]
+    // },
+    // {
+    //   name: "Hennessy VS",
+    //   description: "Hennessy VS cognac",
+    //   category: "beverages",
+    //   price: 12.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Hennessy VS", quantity: 30, unit: "ml", cost: 7.20 }
+    //   ]
+    // },
+    // {
+    //   name: "Don Julio Blanco",
+    //   description: "Don Julio Blanco tequila",
+    //   category: "beverages",
+    //   price: 9.00,
+    //   isPOSItem: true,
+    //   printerId: 2,
+    //   ingredients: [
+    //     { materialName: "Don Julio Blanco", quantity: 30, unit: "ml", cost: 5.40 }
+    //   ]
+    // },
 
     // =============================================================================
     // DESSERTS - 14 ITEMS

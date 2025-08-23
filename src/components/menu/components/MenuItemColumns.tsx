@@ -71,7 +71,7 @@ export const useMenuItemColumns = ({ searchTerm, categories, calculateMenuItemCo
     columnHelper.display({
       id: "ingredients",
       header: "Ingredients",
-      cell: ({ row }) => <div className="text-center font-medium">{row.original.ingredients?.length || 0}</div>,
+      cell: ({ row }) => <div className="text-left font-medium">{row.original.ingredients?.length || 0}</div>,
       enableSorting: false,
       size: 100
     }),
@@ -83,7 +83,7 @@ export const useMenuItemColumns = ({ searchTerm, categories, calculateMenuItemCo
       cell: ({ row }) => {
         const ingredients = row.original.ingredients || [];
         const totalCost = calculateMenuItemCost(ingredients);
-        return <div className="text-right font-medium">{formatCurrency(totalCost)}</div>;
+        return <div className="text-left font-medium">{formatCurrency(totalCost)}</div>;
       },
       size: 96
     }),
@@ -91,7 +91,7 @@ export const useMenuItemColumns = ({ searchTerm, categories, calculateMenuItemCo
     // Price column
     columnHelper.accessor("price", {
       header: "Price",
-      cell: ({ getValue }) => <div className="text-right font-medium">{formatCurrency(getValue())}</div>,
+      cell: ({ getValue }) => <div className="text-left font-medium">{formatCurrency(getValue())}</div>,
       size: 96
     }),
 
@@ -104,7 +104,7 @@ export const useMenuItemColumns = ({ searchTerm, categories, calculateMenuItemCo
         const profit = row.original.price - totalCost;
         const profitMargin = row.original.price && row.original.price > 0 ? (profit / row.original.price) * 100 : 0;
         return (
-          <div className={`text-right font-medium ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
+          <div className={`text-left font-medium ${profit >= 0 ? "text-teal-600" : "text-red-600"}`}>
             <div>{formatCurrency(profit)}</div>
             <div className="text-xs">({formatNumber(isNaN(profitMargin) ? 0 : profitMargin)}%)</div>
           </div>
@@ -118,7 +118,7 @@ export const useMenuItemColumns = ({ searchTerm, categories, calculateMenuItemCo
       id: "actions",
       header: "Actions",
       cell: ({ row }) => (
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-2 justify-start">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
