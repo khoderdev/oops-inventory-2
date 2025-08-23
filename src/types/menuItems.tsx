@@ -52,7 +52,7 @@ export interface MenuItemColumnsProps {
   searchTerm: string;
   categories: { id?: number; value: string; name: string }[];
   calculateMenuItemCost: (ingredients: MenuItemIngredient[]) => number;
-  getMaterialName: (id: string | number) => string;
+  getMaterialName?: (id: string | number) => string; // Made optional with '?'
   handleTogglePOSVisibility: (item: MenuItem) => void;
   handleOpenPrinterDialog: (menuItem: MenuItem) => void;
   handleDeleteMenuItem: (id: string) => void;
@@ -90,7 +90,6 @@ export interface BeverageDetailsDialogProps {
 export interface MenuItemFormProps {
   menuItem?: MenuItem;
   categories: Category[];
-  materials: Material[];
   stockEntries?: StockEntry[];
   onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;
   onCancel: () => void;
@@ -98,7 +97,6 @@ export interface MenuItemFormProps {
 
 export interface IngredientsProps {
   ingredients: MenuItemIngredient[];
-  materials: Material[];
   stockEntries: StockEntry[];
   menuItem?: MenuItem;
   category: string;

@@ -2,10 +2,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
-// No longer need useInventoryStore
-import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
-import { getConversionFactor } from "@/utils/getConversionFactor";
-import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataValidation";
+import { MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient } from "@/types/inventory";
+import { dataValidator, ValidationResult } from "@/utils/dataValidation";
 import { Check, Plus, Printer, Tag, AlertTriangle, CheckCircle, X, CheckSquare, Square } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useMemo, useCallback, useEffect } from "react";
@@ -21,9 +19,7 @@ import { menuAPI } from "@/api/menu.api.ts";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: propCategories, onCreateMenuItem: propCreateMenuItem, onUpdateMenuItem: propUpdateMenuItem, onDeleteMenuItem: propDeleteMenuItem }) => {
-  // Get menu items and categories from context
   const { foodMenuItems, menuItemCategories, handleCreateMenuItem, handleUpdateMenuItem, handleDeleteMenuItem } = useMenuItems();
-  // Use food menu items directly from context
   const currentMenuItems = foodMenuItems;
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
   const categories = menuItemCategories.length > 0 ? menuItemCategories : propCategories || [];
@@ -68,30 +64,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
     validateData();
   }, [lastValidationTime, dataValidationEnabled]);
 
-  const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
-    if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
-    const issues: ValidationIssue[] = [];
-    const ingredientUnitType = dataValidator.getUnitTypeFromUnit(ingredient.unit);
-    const materialUnitType = dataValidator.getUnitTypeFromUnit(material.baseUnit);
-    if (ingredientUnitType !== "unknown" && materialUnitType !== "unknown" && ingredientUnitType !== materialUnitType) {
-      issues.push({
-        type: "warning",
-        category: "unit_mismatch",
-        materialId: material.id,
-        materialName: material.name,
-        ingredientUnit: ingredient.unit,
-        message: `Unit type mismatch: ingredient uses ${ingredient.unit} (${ingredientUnitType}) but material base unit is ${material.baseUnit} (${materialUnitType})`,
-        suggestion: `Consider using ${materialUnitType} units for this ingredient`,
-        impact: "medium",
-        autoFixable: false
-      });
-    }
-    if (issues.length > 0) {
-      console.group(`🔍 Ingredient Validation Issues for ${material.name}`);
-      issues.forEach(issue => {});
-      console.groupEnd();
-    }
-  }, []);
 
   const runValidation = useCallback(() => {
     if (!dataValidationEnabled) {
@@ -109,74 +81,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
     dataValidator.showValidationResults(result, "Manual Data Validation");
     setShowValidationPanel(true);
   }, [dataValidationEnabled]);
-
-  const calculateMaterialCostPerUnit = useCallback((material: Material | undefined, materialStockEntries: StockEntry[]): number => {
-    if (!material || !materialStockEntries.length) {
-      return 0;
-    }
-    const materialIssues = dataValidator.validateMaterial(material);
-    if (materialIssues.length > 0) {
-      console.group(`🔍 Material Issues for ${material.name}`);
-      materialIssues.forEach(issue => {});
-      console.groupEnd();
-    }
-    let totalCost = 0;
-    let totalQuantity = 0;
-    let validEntries = 0;
-    for (const entry of materialStockEntries) {
-      if (materialStockEntries.indexOf(entry) === 0) {
-        const entryIssues = dataValidator.validateStockEntries(material, materialStockEntries);
-        if (entryIssues.length > 0) {
-          console.group(`🔍 Stock Entry Issues for ${material.name}`);
-          entryIssues.forEach(issue => {});
-          console.groupEnd();
-        }
-      }
-      let entryCost = 0;
-      let entryQuantity = 0;
-      try {
-        if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
-          entryCost = entry.costPerBaseUnit;
-          entryQuantity = 1;
-        } else if (entry.totalCost && entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
-          entryCost = entry.totalCost / entry.purchasedIndividualQuantity;
-          entryQuantity = entry.purchasedIndividualQuantity;
-        } else if (entry.totalCost && entry.purchasedQuantity && entry.purchasedQuantity > 0) {
-          try {
-            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-            const convertedQuantity = entry.purchasedQuantity * conversionFactor;
-            if (convertedQuantity > 0) {
-              entryCost = entry.totalCost / convertedQuantity;
-              entryQuantity = convertedQuantity;
-            }
-          } catch (conversionError) {
-            console.warn(`⚠️ Unit conversion failed for ${material.name}:`, conversionError);
-          }
-        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          try {
-            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-            entryCost = entry.costPerPurchasedUnit / conversionFactor;
-            entryQuantity = 1;
-          } catch (conversionError) {
-            console.warn(`⚠️ Unit conversion failed for costPerPurchasedUnit ${material.name}:`, conversionError);
-          }
-        }
-        if (entryCost > 0 && entryQuantity > 0) {
-          totalCost += entryCost * entryQuantity;
-          totalQuantity += entryQuantity;
-          validEntries++;
-        }
-      } catch (error) {
-        console.error(`❌ Error processing stock entry for ${material.name}:`, error);
-      }
-    }
-    if (validEntries === 0) {
-      console.warn(`⚠️ No valid cost data found for material: ${material.name}`);
-      return 0;
-    }
-    const weightedAverageCost = totalCost / totalQuantity;
-    return parseFloat(weightedAverageCost.toFixed(8));
-  }, []);
 
   const calculateMenuItemCost = useCallback((ingredients: MenuItemIngredient[]) => {
     if (!ingredients || !Array.isArray(ingredients)) {
@@ -224,18 +128,14 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
       try {
         const newPOSStatus = !item.isPOSItem;
         const updatedItem = { ...item, isPOSItem: newPOSStatus };
-
-        // Use context method if available, otherwise use prop callback
         if (handleUpdateMenuItem) {
           await handleUpdateMenuItem(item.id, updatedItem);
         } else if (propUpdateMenuItem) {
           await menuAPI.updateMenuItem(item.id, updatedItem);
           await propUpdateMenuItem(item.id, updatedItem);
         } else {
-          // Fallback to direct API call
           await menuAPI.updateMenuItem(item.id, updatedItem);
         }
-
         toast({
           title: `Menu item ${newPOSStatus ? "added to" : "removed from"} POS`,
           description: `${item.name} is now ${newPOSStatus ? "visible" : "hidden"} in POS`,
@@ -271,76 +171,20 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
     setShowMenuItemForm
   });
 
-  // Filter menu items by search term, selected category, and exclude items with beverageStockId
   const filteredMenuItems = useMemo(() => {
-    // Debug log all items before filtering
-    console.log("🔍 MenuBuilder: All menu items before filtering:", currentMenuItems.length);
-    console.log("🔍 MenuBuilder: Data source: MenuItemsContext");
-    console.log("🔍 MenuBuilder: First few items:", currentMenuItems.slice(0, 3));
-
-    // Find any suspicious items that might be beverages but don't have beverageStockId
-    const suspiciousBeverageItems = currentMenuItems.filter(item => {
-      // Check for beverage-related names or categories
-      const nameLower = item.name.toLowerCase();
-      const isBeverageName = nameLower.includes("beer") || nameLower.includes("wine") || nameLower.includes("drink") || nameLower.includes("beverage");
-
-      // Check for beverage categories
-      let isBeverageCategory = false;
-      if (typeof item.category === "string") {
-        isBeverageCategory = item.category.toLowerCase() === "alcohol" || item.category.toLowerCase() === "cold" || item.category.toLowerCase() === "hot" || item.category.toLowerCase() === "beverages";
-      } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
-        const categoryName = (item.category as { name: string }).name.toLowerCase();
-        isBeverageCategory = categoryName === "alcohol" || categoryName === "cold" || categoryName === "hot" || categoryName === "beverages";
-      }
-
-      // Check if it's a suspicious beverage item but doesn't have beverageStockId
-      return (isBeverageName || isBeverageCategory) && !item.isBeverage;
-    });
-
-    if (suspiciousBeverageItems.length > 0) {
-      console.warn(
-        "⚠️ MenuBuilder: Found suspicious beverage items without beverageStockId:",
-        suspiciousBeverageItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          isBeverage: item.isBeverage
-        }))
-      );
-    }
-
     return currentMenuItems.filter(item => {
-      // Debug log for Mexican Beer or any alcohol category items
-      if (item.name.toLowerCase().includes("mexican beer") || (typeof item.category === "string" && item.category.toLowerCase() === "alcohol") || (typeof item.category === "object" && item.category !== null && "name" in item.category && (item.category as { name: string }).name.toLowerCase() === "alcohol")) {
-        console.log("🍺 Found item with name/category of interest:", {
-          id: item.id,
-          name: item.name,
-          category: item.category,
-          isBeverage: item.isBeverage,
-          excluded: !!item.isBeverage
-        });
-      }
-
-      // Exclude items with beverageStockId (these are beverage items)
       if (item.isBeverage) return false;
-
       const searchLower = searchTerm.toLowerCase();
       const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
-
-      // Check both ingredients and menuItemIngredients arrays for search matches
       const matchesIngredients = (() => {
-        // First check the ingredients array
         if (item.ingredients && Array.isArray(item.ingredients)) {
           return item.ingredients.some(ingredient => {
-            // Convert materialId to string to ensure toLowerCase() works
             const materialName = String(ingredient.materialId);
             return materialName.toLowerCase().includes(searchLower);
           });
         }
-        // Then check the menuItemIngredients array if ingredients is not available
         if (item.menuItemIngredients && Array.isArray(item.menuItemIngredients)) {
           return item.menuItemIngredients.some(ingredient => {
-            // Convert materialId to string to ensure toLowerCase() works
             const materialName = String(ingredient.materialId);
             return materialName.toLowerCase().includes(searchLower);
           });
@@ -371,10 +215,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
     });
   }, [currentMenuItems, searchTerm, selectedCategory, categories]);
 
-  // Prepare table configuration options - memoized to prevent unnecessary re-renders
   const tableOptions = useMemo(() => {
-    console.log("📊 MenuBuilder: Table data source:", filteredMenuItems.length, "items");
-    console.log("📊 MenuBuilder: API endpoint source: /api/menu-items");
     return {
       data: filteredMenuItems,
       columns: bulkSelectionMode ? columns : columns.filter(col => col.id !== "select"),
@@ -404,7 +245,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
     };
   }, [filteredMenuItems, bulkSelectionMode, columns, sorting, columnFilters, columnVisibility, selectedMenuItems]);
 
-  // Initialize table with the memoized options
   const table = useReactTable(tableOptions);
 
   const handleAddMenuItem = useCallback(
@@ -418,31 +258,22 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
           createdAt: new Date(),
           updatedAt: new Date()
         };
-
-        // Use context method if available, otherwise use prop callback
         if (handleCreateMenuItem) {
           await handleCreateMenuItem(menuItemToCreate);
         } else if (propCreateMenuItem) {
-          // Create via API
           const createdMenuItem = await menuAPI.createMenuItem(menuItemToCreate);
           await propCreateMenuItem(createdMenuItem.data);
         } else {
-          // Fallback to direct API call
           await menuAPI.createMenuItem(menuItemToCreate);
         }
-
-        // Close the form before fetching data to prevent UI flicker
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
-
         toast({
           title: "Success",
           description: "Menu item created successfully",
           variant: "default",
           duration: 1000
         });
-
-        // Fetch data after the toast is shown and form is closed
       } catch (error) {
         console.error("Error creating menu item:", error);
         toast({
@@ -470,23 +301,16 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
           ingredients: ingredientsWithCosts,
           updatedAt: new Date()
         };
-
-        // Use context method if available, otherwise use prop callback
         if (handleUpdateMenuItem) {
           await handleUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
         } else if (propUpdateMenuItem) {
-          // Update via API
           await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
           await propUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
         } else {
-          // Fallback to direct API call
           await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
         }
-
-        // Close the form before fetching data to prevent UI flicker
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
-
         toast({
           title: "Success",
           description: "Menu item updated successfully",
@@ -598,24 +422,18 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
       if (!response || !response.data) {
         throw new Error("Failed to update menu items");
       }
-
-      // Update items using context or props
       if (response.data.menuItems) {
         if (handleUpdateMenuItem) {
-          // Use context method for each item
           for (const updatedItem of response.data.menuItems) {
             await handleUpdateMenuItem(updatedItem.id, updatedItem);
           }
         } else if (propUpdateMenuItem) {
-          // Use prop callback for each item
           for (const updatedItem of response.data.menuItems) {
             await propUpdateMenuItem(updatedItem.id, updatedItem);
           }
         }
       }
-
       const categoryLabel = categories.find(c => c.value === bulkCategoryValue)?.name || bulkCategoryValue;
-
       toast({
         title: "Success",
         description: `Updated ${response.data.updatedCount} menu items to ${categoryLabel} category`,

@@ -8,7 +8,8 @@ import { toast } from "../ui/use-toast";
 import { Ingredients } from "./components/Ingredients";
 import { MenuItemFormProps } from "@/types/menuItems";
 
-export function MenuItemForm({ menuItem, materials, stockEntries, categories, onSubmit, onCancel }: MenuItemFormProps) {
+export function MenuItemForm({ menuItem, stockEntries, categories, onSubmit, onCancel }: MenuItemFormProps) {
+  // Get materials from context
   const [name, setName] = useState(menuItem?.name || "");
   const [category, setCategory] = useState<MenuItemCategory | "">("");
   const [price, setPrice] = useState(menuItem?.price.toString() || "");
@@ -274,7 +275,6 @@ export function MenuItemForm({ menuItem, materials, stockEntries, categories, on
 
       <Ingredients
         ingredients={ingredients}
-        materials={materials}
         stockEntries={stockEntries}
         menuItem={menuItem}
         category={category}

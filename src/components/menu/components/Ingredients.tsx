@@ -4,6 +4,7 @@ import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Plus, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useMenuItems } from "@/contexts/MenuItemsContext";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
 import { Button } from "../../ui/button";
@@ -12,7 +13,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Selection } from "../../ui/Selection";
 import { IngredientsProps } from "@/types/menuItems";
 
-export function Ingredients({ ingredients = [], materials = [], stockEntries = [], menuItem, category = '', price = '0', onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
+export function Ingredients({ ingredients = [], stockEntries = [], menuItem, category = '', price = '0', onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
+  // Get materials from context
+  const { materialsWithStock: materials } = useMenuItems();
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
@@ -351,7 +354,9 @@ interface TanStackVirtualizedIngredientsTableProps {
   price: string;
 }
 
-const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ ingredients = [], materials = [], menuItem, calculateIngredientCost, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = '0' }) => {
+const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ ingredients = [], menuItem, calculateIngredientCost, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = '0' }) => {
+  // Get materials from context
+  const { materialsWithStock: materials } = useMenuItems();
   const parentRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnHelper = createColumnHelper<MenuItemIngredient & { index: number }>();

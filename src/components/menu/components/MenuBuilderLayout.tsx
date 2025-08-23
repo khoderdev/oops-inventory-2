@@ -147,7 +147,6 @@ const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
                   categories={mapToCategory(menuItemCategories)} 
                   onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} 
                   onCancel={handleCancel} 
-                  materials={materialsWithStock || []} 
                 />
               </DialogContent>
             </Dialog>
