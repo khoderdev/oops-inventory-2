@@ -15,7 +15,7 @@ import { BeveragesMenuBuilderProps } from "@/types/menuItems";
 import { BeverageItemFormDialog, BeverageDetailsDialog } from "./components/BeveragesMenuDialogs";
 import { useBeveragesMenuColumns } from "./components/BeveragesMenuColumns";
 
-const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, stockEntries, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
+const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const { fetchTabData } = useInventoryStore();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
@@ -263,7 +263,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
               onOpenChange={handleCloseModal}
               editingBeverageItem={editingBeverageItem}
               categories={beverageCategories}
-              stockEntries={stockEntries}
               onSubmit={
                 editingBeverageItem
                   ? data => {

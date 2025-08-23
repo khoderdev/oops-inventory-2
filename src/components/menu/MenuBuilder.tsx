@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
-import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient, StockEntry } from "@/types/inventory";
+import { Material, MenuItem, MenuItemBuilderProps, MenuItemCategory, MenuItemIngredient, StockEntry, UnitType } from "@/types/inventory";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { dataValidator, ValidationResult, ValidationIssue } from "@/utils/dataValidation";
 import { Check, Plus, Printer, Tag, AlertTriangle, CheckCircle, X, CheckSquare, Square } from "lucide-react";
@@ -19,7 +19,7 @@ import { dataValidationEnabledAtom } from "@/store/settingsStore";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
 
-export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, menuItems, categories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
+export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, categories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
   const currentMenuItems = storeMenuItems && storeMenuItems.length > 0 ? storeMenuItems : menuItems || [];
   const [dataValidationEnabled] = useAtom(dataValidationEnabledAtom);
@@ -49,11 +49,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         setValidationResults(null);
         return;
       }
-      if (!stockEntries || stockEntries.length === 0) return;
       const now = Date.now();
       if (now - lastValidationTime < 30000) return;
       try {
-        const result = dataValidator.validateData(stockEntries);
+        const result = dataValidator.validateData(currentMenuItems);
         setValidationResults(result);
         setLastValidationTime(now);
         if (!result.isValid || result.summary.warnings > 0) {
@@ -64,11 +63,12 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       }
     };
     validateData();
-  }, [stockEntries, lastValidationTime, dataValidationEnabled]);
+  }, [lastValidationTime, dataValidationEnabled]);
 
-  useEffect(() => {
-    fetchTabData("menu");
-  }, [fetchTabData]);
+  // useEffect(() => {
+  //   const data = fetchTabData("menu");
+  //   console.log("Fetching menu items...", data);
+  // }, [fetchTabData]);
 
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
     if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
@@ -105,13 +105,12 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
       });
       return;
     }
-    if (!stockEntries) return;
-    const result = dataValidator.validateData(stockEntries);
+    const result = dataValidator.validateData(currentMenuItems);
     setValidationResults(result);
     setLastValidationTime(Date.now());
     dataValidator.showValidationResults(result, "Manual Data Validation");
     setShowValidationPanel(true);
-  }, [stockEntries, dataValidationEnabled]);
+  }, [dataValidationEnabled]);
 
   const calculateMaterialCostPerUnit = useCallback((material: Material | undefined, materialStockEntries: StockEntry[]): number => {
     if (!material || !materialStockEntries.length) {
@@ -181,53 +180,137 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
     return parseFloat(weightedAverageCost.toFixed(8));
   }, []);
 
-  const availableMaterials = useMemo(() => {
-    const materialMap = new Map<string, Material>();
-    stockEntries.forEach(entry => {
-      if (entry.material && entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity > 0) {
-        materialMap.set(entry.material.id.toString(), entry.material);
-      }
-    });
-    return Array.from(materialMap.values());
-  }, [stockEntries]);
-
   const calculateMenuItemCost = useCallback(
     (ingredients: MenuItemIngredient[]) => {
       if (!ingredients || !Array.isArray(ingredients)) {
         return 0;
       }
       return ingredients.reduce((sum, ingredient) => {
+        // If the ingredient already has a cost value, use it directly
         if (ingredient.cost && parseFloat(String(ingredient.cost)) > 0) {
           return sum + parseFloat(String(ingredient.cost));
         }
-        const material = availableMaterials.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
+        
+        // Try to find the material in currentMenuItems
+        const material = currentMenuItems.find(m => m.id === String(ingredient.materialId) || String(m.id) === String(ingredient.materialId));
+        
+        // If not found in currentMenuItems, try to find it in the inventory store
         if (!material) {
-          console.warn(`Material not found for ID: ${ingredient.materialId}`);
-          return sum;
+          // Find material in the inventory store materials
+          const storeMaterial = materials?.find(m => String(m.id) === String(ingredient.materialId));
+          
+          if (!storeMaterial) {
+            console.warn(`Material not found for ID: ${ingredient.materialId}`);
+            return sum;
+          }
+          
+          // Create a proper Material object for calculation
+          const materialForCalculation: Material = {
+            id: storeMaterial.id,
+            name: storeMaterial.name,
+            category: storeMaterial.category,
+            baseUnit: storeMaterial.baseUnit,
+            unitType: storeMaterial.unitType,
+            costPerUnit: storeMaterial.costPerUnit || 0
+          };
+          
+          validateIngredientData(ingredient, materialForCalculation);
+          
+          // Get stock entries for this material if available
+          const materialStockEntries = inventoryStore.stockEntries?.filter(se => String(se.materialId) === String(ingredient.materialId)) || [];
+          
+          // Calculate cost per unit
+          const costPerUnit = calculateMaterialCostPerUnit(materialForCalculation, materialStockEntries);
+          
+          let conversionFactor = 1;
+          try {
+            conversionFactor = getConversionFactor(
+              ingredient.unit,
+              materialForCalculation.baseUnit,
+              materialForCalculation.unitType,
+              materialForCalculation
+            );
+          } catch (error) {
+            console.warn(`Unit conversion error for ingredient in material "${materialForCalculation.name}": ${ingredient.unit} to ${materialForCalculation.baseUnit}`, error);
+            conversionFactor = 1;
+          }
+          
+          const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
+          return sum + ingredientCost;
         }
-        validateIngredientData(ingredient, material);
-        const materialStockEntries = stockEntries.filter(entry => entry.materialId === String(ingredient.materialId));
-        const costPerUnit = calculateMaterialCostPerUnit(material, materialStockEntries);
+        
+        // If material was found in currentMenuItems
+        // Create a temporary Material object for validation
+        const materialForValidation: Material = {
+          id: material.id,
+          name: material.name,
+          category: "other",
+          baseUnit: "piece",
+          unitType: "piece",
+          costPerUnit: material.costPerUnit || 0
+        };
+        
+        validateIngredientData(ingredient, materialForValidation);
+        
+        // Since we don't have actual StockEntry objects, we'll use an empty array
+        const materialStockEntries: StockEntry[] = [];
+
+        // Create a proper Material object from MenuItem properties
+        const materialForCalculation: Material = {
+          id: material.id,
+          name: material.name,
+          category: "other", // Use a valid MaterialCategory value
+          baseUnit: "piece", // Default baseUnit for MenuItems
+          unitType: "piece", // Default unitType for MenuItems
+          costPerUnit: material.costPerUnit || 0
+        };
+
+        // Calculate cost per unit with proper arguments
+        const costPerUnit = calculateMaterialCostPerUnit(materialForCalculation, materialStockEntries);
+
         let conversionFactor = 1;
         try {
-          conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
+          // Ensure all required parameters are provided to getConversionFactor
+          conversionFactor = getConversionFactor(
+            ingredient.unit,
+            "piece", // Default baseUnit for MenuItems
+            "piece" as UnitType, // Default unitType for MenuItems
+            materialForCalculation
+          );
         } catch (error) {
-          console.warn(`Unit conversion error for ingredient in material "${material.name}": ${ingredient.unit} to ${material.baseUnit}`, error);
+          console.warn(`Unit conversion error for ingredient in material "${material.name}": ${ingredient.unit} to piece`, error);
           conversionFactor = 1;
         }
         const ingredientCost = ingredient.quantity * conversionFactor * costPerUnit;
         return sum + ingredientCost;
       }, 0);
     },
-    [availableMaterials, stockEntries, calculateMaterialCostPerUnit, validateIngredientData]
+    [calculateMaterialCostPerUnit, validateIngredientData]
   );
 
+  // Get materials from the inventory store
+  const inventoryStore = useInventoryStore();
+  const materials = inventoryStore.materialsWithStock;
+  
   const getMaterialName = useCallback(
     (id: string | number) => {
-      const material = availableMaterials.find(m => m.id === String(id) || String(m.id) === String(id));
-      return material?.name || "Unknown";
+      // First try to find the material in the current menu items
+      const material = currentMenuItems.find(m => m.id === String(id) || String(m.id) === String(id));
+      if (material?.name) {
+        return material.name;
+      }
+      
+      // If not found, check in the materials from inventory store
+      if (materials && materials.length > 0) {
+        const material = materials.find(m => String(m.id) === String(id));
+        if (material?.name) {
+          return material.name;
+        }
+      }
+      
+      return "Unknown";
     },
-    [availableMaterials]
+    [currentMenuItems, materials]
   );
 
   const handleDeleteMenuItem = useCallback(
@@ -337,7 +420,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           id: item.id,
           name: item.name,
           category: item.category,
-          isBeverage: item.isBeverage,
+          isBeverage: item.isBeverage
         }))
       );
     }
@@ -359,13 +442,26 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
       const searchLower = searchTerm.toLowerCase();
       const matchesNameOrDescription = item.name.toLowerCase().includes(searchLower) || (item.description?.toLowerCase() || "").includes(searchLower);
-      const matchesIngredients =
-        item.ingredients && Array.isArray(item.ingredients)
-          ? item.ingredients.some(ingredient => {
-              const materialName = getMaterialName(ingredient.materialId);
-              return materialName.toLowerCase().includes(searchLower);
-            })
-          : false;
+      
+      // Check both ingredients and menuItemIngredients arrays for search matches
+      const matchesIngredients = (() => {
+        // First check the ingredients array
+        if (item.ingredients && Array.isArray(item.ingredients)) {
+          return item.ingredients.some(ingredient => {
+            const materialName = getMaterialName(ingredient.materialId);
+            return materialName.toLowerCase().includes(searchLower);
+          });
+        }
+        // Then check the menuItemIngredients array if ingredients is not available
+        if (item.menuItemIngredients && Array.isArray(item.menuItemIngredients)) {
+          return item.menuItemIngredients.some(ingredient => {
+            const materialName = getMaterialName(ingredient.materialId);
+            return materialName.toLowerCase().includes(searchLower);
+          });
+        }
+        return false;
+      })();
+      
       const matchesSearch = matchesNameOrDescription || matchesIngredients;
       const matchesCategory =
         selectedCategory === "all" ||
@@ -672,12 +768,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         showMenuItemForm={showMenuItemForm}
         handleCloseModal={handleCloseModal}
         editingMenuItem={editingMenuItem}
-        availableMaterials={availableMaterials}
         menuItemCategories={menuItemCategories}
         handleUpdateMenuItem={handleUpdateMenuItem}
         handleAddMenuItem={handleAddMenuItem}
         handleCancel={handleCancel}
-        stockEntries={stockEntries}
         isMobile={isMobile}
         handleDeleteMenuItem={handleDeleteMenuItem}
         handleTogglePOSVisibility={handleTogglePOSVisibility}

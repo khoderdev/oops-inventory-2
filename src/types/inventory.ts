@@ -862,6 +862,7 @@ export interface MenuItemIngredient {
 }
 
 export interface CreateMenuItemData {
+
   name: string;
   description?: string;
   category?: MenuItemCategoryType | null;
@@ -870,8 +871,7 @@ export interface CreateMenuItemData {
   ingredients: MenuItemIngredient[];
   isPOSItem?: boolean;
   image?: string;
-  // Beverage-specific fields
-  beverageStockId?: string;
+  isBeverage: boolean;
   unit?: string;
   availableQuantity?: number;
   costPerUnit?: number;
@@ -895,8 +895,6 @@ export interface UpdateMenuItemData {
   ingredients?: MenuItemIngredient[];
   isPOSItem?: boolean;
   image?: string;
-  // Beverage-specific fields
-  beverageStockId?: string;
   unit?: string;
   availableQuantity?: number;
   costPerUnit?: number;
@@ -912,9 +910,6 @@ export interface UpdateMenuItemData {
 }
 
 export interface MenuItemBuilderProps {
-  stockEntries: StockEntryWithMaterial[];
-  materials?: Material[];
-  sections: Section[];
   menuItems: MenuItem[];
   categories?: Category[];
   categoriesLoading?: boolean;

@@ -1,4 +1,4 @@
-import { Material, StockEntry, MenuItemIngredient } from "@/types/inventory";
+import { Material, StockEntry, MenuItemIngredient, MenuItem } from "@/types/inventory";
 import { toast } from "@/components/ui/use-toast";
 
 export interface ValidationIssue {
@@ -29,6 +29,15 @@ export class DataValidator {
   private validationCache = new Map<string, ValidationResult>();
   private lastValidation = new Map<string, number>();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  // Type guards to distinguish between MenuItem and StockEntry
+  private isStockEntry(item: StockEntry | MenuItem): item is StockEntry {
+    return 'materialId' in item;
+  }
+
+  private isMenuItem(item: StockEntry | MenuItem): item is MenuItem {
+    return 'ingredients' in item && !('materialId' in item);
+  }
 
   static getInstance(): DataValidator {
     if (!DataValidator.instance) {
@@ -300,8 +309,8 @@ export class DataValidator {
   }
 
   // Comprehensive validation
-  validateData(stockEntries: StockEntry[], ingredients?: MenuItemIngredient[], materials?: Material[]): ValidationResult {
-    const cacheKey = `${stockEntries.length}-${ingredients?.length || 0}`;
+  validateData(entries: StockEntry[] | MenuItem[], ingredients?: MenuItemIngredient[], materials?: Material[]): ValidationResult {
+    const cacheKey = `${entries.length}-${ingredients?.length || 0}`;
     const now = Date.now();
 
     // Check cache
@@ -329,13 +338,23 @@ export class DataValidator {
         
         // If material not found in materials array, try to extract from stockEntries
         if (!material) {
-          const stockEntry = stockEntries.find(entry => entry.materialId === ingredient.materialId);
+          // Handle both StockEntry and MenuItem types
+          const stockEntry = entries.find(entry => {
+            if (this.isStockEntry(entry)) {
+              // It's a StockEntry
+              return entry.materialId === ingredient.materialId;
+            } else if (this.isMenuItem(entry)) {
+              // It's a MenuItem - check ingredients for matching materialId
+              return entry.ingredients?.some(ing => ing.materialId === ingredient.materialId);
+            }
+            return false;
+          });
           
           if (stockEntry) {
             // Check if stockEntry has a material property (StockEntryWithMaterial)
             if ((stockEntry as any).material) {
               material = (stockEntry as any).material;
-            } else {
+            } else if (this.isStockEntry(stockEntry)) {
               // Create a minimal Material object from the StockEntry
               material = {
                 id: stockEntry.materialId,
@@ -345,6 +364,19 @@ export class DataValidator {
                 unitType: 'piece',
                 costPerUnit: stockEntry.costPerBaseUnit || 0
               };
+            } else if (this.isMenuItem(stockEntry)) {
+              // For MenuItem, find the matching ingredient
+              const matchingIngredient = stockEntry.ingredients?.find(ing => ing.materialId === ingredient.materialId);
+              if (matchingIngredient) {
+                material = {
+                  id: matchingIngredient.materialId,
+                  name: 'Unknown Material',
+                  category: 'other',
+                  baseUnit: matchingIngredient.unit || 'piece',
+                  unitType: 'piece',
+                  costPerUnit: matchingIngredient.cost || 0
+                };
+              }
             }
           }
         }

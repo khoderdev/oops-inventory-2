@@ -28,11 +28,9 @@ export const MenuBuilderLayout: React.FC<MenuBuilderLayoutProps> = ({
   showMenuItemForm,
   handleCloseModal,
   editingMenuItem,
-  availableMaterials,
   handleUpdateMenuItem,
   handleAddMenuItem,
   handleCancel,
-  stockEntries,
   isMobile,
   handleDeleteMenuItem,
   handleTogglePOSVisibility,
@@ -141,7 +139,7 @@ export const MenuBuilderLayout: React.FC<MenuBuilderLayoutProps> = ({
                 <DialogHeader>
                   <DialogTitle className="text-lg sm:text-xl">{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm menuItem={editingMenuItem} materials={availableMaterials} categories={mapToCategory(menuItemCategories)} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} stockEntries={stockEntries} />
+                <MenuItemForm menuItem={editingMenuItem} categories={mapToCategory(menuItemCategories)} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} />
               </DialogContent>
             </Dialog>
 
