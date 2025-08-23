@@ -300,7 +300,7 @@ export class DataValidator {
   }
 
   // Comprehensive validation
-  validateData(stockEntries: StockEntry[], ingredients?: MenuItemIngredient[]): ValidationResult {
+  validateData(stockEntries: StockEntry[], ingredients?: MenuItemIngredient[], materials?: Material[]): ValidationResult {
     const cacheKey = `${stockEntries.length}-${ingredients?.length || 0}`;
     const now = Date.now();
 
@@ -310,11 +310,45 @@ export class DataValidator {
     }
 
     const allIssues: ValidationIssue[] = [];
+    
+    // Create a map of materials by ID for quick lookup
+    const materialsMap = new Map<string, Material>();
+    if (materials) {
+      materials.forEach(material => materialsMap.set(material.id, material));
+    }
 
     // Validate ingredients if provided
     if (ingredients) {
       ingredients.forEach(ingredient => {
-        const material = stockEntries.find(entry => entry.materialId === ingredient.materialId);
+        // First try to find the material in the provided materials array
+        let material: Material | undefined = undefined;
+        
+        if (materials) {
+          material = materialsMap.get(ingredient.materialId);
+        }
+        
+        // If material not found in materials array, try to extract from stockEntries
+        if (!material) {
+          const stockEntry = stockEntries.find(entry => entry.materialId === ingredient.materialId);
+          
+          if (stockEntry) {
+            // Check if stockEntry has a material property (StockEntryWithMaterial)
+            if ((stockEntry as any).material) {
+              material = (stockEntry as any).material;
+            } else {
+              // Create a minimal Material object from the StockEntry
+              material = {
+                id: stockEntry.materialId,
+                name: 'Unknown Material',
+                category: 'other',
+                baseUnit: stockEntry.purchasedUnit || 'piece',
+                unitType: 'piece',
+                costPerUnit: stockEntry.costPerBaseUnit || 0
+              };
+            }
+          }
+        }
+        
         if (material) {
           const ingredientIssues = this.validateIngredient(ingredient, material);
           allIssues.push(...ingredientIssues);
@@ -332,6 +366,7 @@ export class DataValidator {
       });
     }
 
+    // Count issues by type
     const summary = {
       errors: allIssues.filter(issue => issue.type === "error").length,
       warnings: allIssues.filter(issue => issue.type === "warning").length,
