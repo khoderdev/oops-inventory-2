@@ -86,7 +86,7 @@ const categoryController = {
       // Parse pagination parameters
       const paginationParams = parsePaginationParams(req.query, {
         defaultLimit: 50,
-        maxLimit: 200,
+        maxLimit: 1000,
         allowedSortFields: ["name", "value", "sortOrder", "createdAt", "updatedAt"]
       });
 

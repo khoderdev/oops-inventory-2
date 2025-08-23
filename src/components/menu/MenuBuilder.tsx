@@ -613,6 +613,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
 
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
+      {/* Menu Builder Layout */}
       <MenuBuilderLayout
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
@@ -648,6 +649,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
         table={table}
       />
 
+      {/* Floating & Bulk Actions */}
       <div className="fixed bottom-6 right-6 z-50">
         <div className="flex flex-col items-end gap-3">
           {bulkSelectionMode && (
@@ -737,11 +739,13 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ stockEntries, 
           </Tooltip>
         </div>
       </div>
-
+    {/* Printer Assignment */}
       <PrinterAssignmentDialog open={showPrinterDialog} onOpenChange={handleClosePrinterDialog} item={selectedMenuItemForPrinter} itemType="menu" onAssignmentChange={handlePrinterAssignmentComplete} />
 
+    {/* Bulk Printer Assignment */}
       <BulkPrinterAssignmentDialog open={showBulkPrinterDialog} onOpenChange={handleCloseBulkPrinterDialog} selectedItems={selectedMenuItems} itemType="menu" onAssignmentChange={handleBulkPrinterAssignmentComplete} />
 
+    {/* Bulk Category Assignment */}
       <AlertDialog open={showBulkCategoryDialog} onOpenChange={handleCloseBulkCategoryDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
