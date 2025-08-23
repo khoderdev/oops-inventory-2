@@ -1,4 +1,3 @@
-import { menuAPI } from "@/api/inventory.api";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +17,7 @@ import { useAtom } from "jotai";
 import { dataValidationEnabledAtom } from "@/store/settingsStore";
 import { PrinterAssignmentDialog } from "@/components/inventory/PrinterAssignmentDialog";
 import { BulkPrinterAssignmentDialog } from "@/components/inventory/BulkPrinterAssignmentDialog";
+import { menuAPI } from "@/api/menu.api.ts";
 
 export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, categories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
   const { fetchTabData, menuItems: storeMenuItems } = useInventoryStore();
@@ -316,16 +316,23 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
   const handleDeleteMenuItem = useCallback(
     async (id: string) => {
       try {
+        // Delete via API
+        await menuAPI.deleteMenuItem(id);
+        
+        // Call the callback first
         if (onDeleteMenuItem) {
           await onDeleteMenuItem(id);
         }
-        await fetchTabData("menu");
+        
         toast({
           title: "Success",
           description: "Menu item deleted successfully",
           variant: "default",
           duration: 1000
         });
+        
+        // Fetch data after the toast is shown to prevent UI flicker
+        await fetchTabData("menu");
       } catch (error) {
         console.error("❌ [MenuBuilder] Error deleting menu item:", error);
         toast({
@@ -343,24 +350,22 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
     async (item: MenuItem) => {
       try {
         const newPOSStatus = !item.isPOSItem;
-        const response = await menuAPI.updateMenuItem(item.id, {
-          isPOSItem: newPOSStatus
-        });
-        if (!response) {
-          throw new Error("Failed to update menu item POS visibility");
-        }
+        const updatedItem = { ...item, isPOSItem: newPOSStatus };
+        await menuAPI.updateMenuItem(item.id, updatedItem);
+        
         toast({
-          title: "Success",
-          description: `${item.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
+          title: `Menu item ${newPOSStatus ? "added to" : "removed from"} POS`,
+          description: `${item.name} is now ${newPOSStatus ? "visible" : "hidden"} in POS`,
           variant: "default",
           duration: 1000
         });
-        await fetchTabData("menu");
+        
+        // Only fetch data after the toast is shown to avoid UI flicker
         if (onUpdateMenuItem) {
-          onUpdateMenuItem(item.id, { ...item, isPOSItem: newPOSStatus });
+          onUpdateMenuItem(item.id, updatedItem);
         }
       } catch (error) {
-        console.error("Error updating menu item POS visibility:", error);
+        console.error("Error toggling POS visibility:", error);
         toast({
           title: "Error",
           description: "Failed to update POS visibility",
@@ -369,7 +374,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
         });
       }
     },
-    [onUpdateMenuItem, fetchTabData]
+    [onUpdateMenuItem]
   );
 
   const handleOpenPrinterDialog = useCallback((menuItem: MenuItem) => {
@@ -485,8 +490,8 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
     });
   }, [currentMenuItems, searchTerm, selectedCategory, getMaterialName, categories]);
 
-  // TanStack Table instance
-  const table = useReactTable({
+  // Prepare table configuration options - memoized to prevent unnecessary re-renders
+  const tableOptions = useMemo(() => ({
     data: filteredMenuItems,
     columns: bulkSelectionMode ? columns : columns.filter(col => col.id !== "select"),
     state: {
@@ -512,7 +517,10 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel()
-  });
+  }), [filteredMenuItems, bulkSelectionMode, columns, sorting, columnFilters, columnVisibility, selectedMenuItems]);
+  
+  // Initialize table with the memoized options
+  const table = useReactTable(tableOptions);
 
   const handleAddMenuItem = useCallback(
     async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
@@ -525,18 +533,28 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           createdAt: new Date(),
           updatedAt: new Date()
         };
+        
+        // Create via API
+        const createdMenuItem = await menuAPI.createMenuItem(menuItemToCreate);
+        
+        // Call the callback first
         if (onCreateMenuItem) {
-          onCreateMenuItem(menuItemToCreate);
+          onCreateMenuItem(createdMenuItem);
         }
-        await fetchTabData("menu");
+        
+        // Close the form before fetching data to prevent UI flicker
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
+        
         toast({
           title: "Success",
           description: "Menu item created successfully",
           variant: "default",
           duration: 1000
         });
+        
+        // Fetch data after the toast is shown and form is closed
+        await fetchTabData("menu");
       } catch (error) {
         console.error("Error creating menu item:", error);
         toast({
@@ -564,18 +582,28 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
           ingredients: ingredientsWithCosts,
           updatedAt: new Date()
         };
+        
+        // Update via API
+        await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
+        
+        // Call the callback first
         if (onUpdateMenuItem) {
           onUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
         }
-        await fetchTabData("menu");
+        
+        // Close the form before fetching data to prevent UI flicker
         setShowMenuItemForm(false);
         setEditingMenuItem(null);
+        
         toast({
           title: "Success",
           description: "Menu item updated successfully",
           variant: "default",
           duration: 1000
         });
+        
+        // Fetch data after the toast is shown and form is closed
+        await fetchTabData("menu");
       } catch (error) {
         console.error("Error updating menu item:", error);
         setShowMenuItemForm(false);

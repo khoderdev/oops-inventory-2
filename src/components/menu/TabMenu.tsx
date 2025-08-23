@@ -27,23 +27,26 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [menuItemsLoading, setMenuItemsLoading] = useState(true);
   const [menuItemsError, setMenuItemsError] = useState<string | null>(null);
-  
+
   // Handle tab change to fetch data only when needed
-  const handleTabChange = useCallback((value: string) => {
-    setActiveTab(value);
-    
-    // If switching to beverages tab and we don't have beverage data yet, fetch it
-    if (value === "beverages" && beverageMenuItems.length === 0) {
-      fetchBeverageItems();
-    }
-  }, [beverageMenuItems.length]);
-  
+  const handleTabChange = useCallback(
+    (value: string) => {
+      setActiveTab(value);
+
+      // If switching to beverages tab and we don't have beverage data yet, fetch it
+      if (value === "beverages" && beverageMenuItems.length === 0) {
+        fetchBeverageItems();
+      }
+    },
+    [beverageMenuItems.length]
+  );
+
   // Separate function to fetch only beverage items
   const fetchBeverageItems = useCallback(async () => {
     try {
       setMenuItemsLoading(true);
       setMenuItemsError(null);
-      
+
       console.log("🥤 TabMenu: Fetching beverage menu items...");
       const beverageItems = await menuAPI.getBeverageMenuItems(true);
       console.log("🥤 TabMenu: Fetched beverage menu items:", beverageItems.length);
@@ -113,7 +116,7 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
       const foodItems = await menuAPI.getFoodMenuItems(true);
       console.log("📋 TabMenu: Fetched food menu items:", foodItems.length);
       setFoodMenuItems(foodItems);
-      
+
       // Only fetch beverage items when the beverages tab is active
       if (activeTab === "beverages") {
         const beverageItems = await menuAPI.getBeverageMenuItems(true);
@@ -143,7 +146,7 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
   const handleCreateMenuItem = useCallback(
     async (menuItem: CreateMenuItemData, imageFile?: File) => {
       await onCreateMenuItem(menuItem, imageFile);
-      
+
       // Only refresh the appropriate tab data
       if (menuItem.isBeverage) {
         if (activeTab === "beverages") {
@@ -159,7 +162,7 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
   const handleUpdateMenuItem = useCallback(
     async (id: string, menuItem: Partial<MenuItem>) => {
       await onUpdateMenuItem(id, menuItem);
-      
+
       // Only refresh the appropriate tab data
       if (menuItem.isBeverage) {
         if (activeTab === "beverages") {
@@ -175,7 +178,7 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
   const handleDeleteMenuItem = useCallback(
     async (id: string, isBeverage: boolean = false) => {
       await onDeleteMenuItem(id);
-      
+
       // Only refresh the appropriate tab data
       if (isBeverage) {
         if (activeTab === "beverages") {
@@ -203,31 +206,15 @@ export const MenuPage: React.FC<TabMenuProps> = ({ categories: externalCategorie
         </TabsList>
       </div>
 
-      <div className="px-2 sm:px-4 md:px-6">
-        {menuItemsLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <span className="ml-2 text-lg">Loading menu items...</span>
-          </div>
-        ) : menuItemsError ? (
-          <div className="p-4 text-center text-red-500">
-            <p>{menuItemsError}</p>
-            <button onClick={fetchMenuItems} className="mt-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90">
-              Retry
-            </button>
-          </div>
-        ) : (
-          <>
-            <TabsContent value="menu-items" className="w-full mt-0">
-              <MenuItemBuilder menuItems={foodMenuItems} categories={menuItemCategories} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} categoriesLoading={categoriesLoading} categoriesError={categoriesError} />
-            </TabsContent>
+      <>
+        <TabsContent value="menu-items" className="w-full mt-0">
+          <MenuItemBuilder menuItems={foodMenuItems} categories={menuItemCategories} onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} categoriesLoading={categoriesLoading} categoriesError={categoriesError} />
+        </TabsContent>
 
-            <TabsContent value="beverages" className="w-full mt-0">
-              <BeveragesMenuBuilder menuItems={beverageMenuItems} categories={beverageCategories} onCreateBeverageItem={handleCreateMenuItem} onUpdateBeverageItem={handleUpdateMenuItem} onDeleteBeverageItem={(id) => handleDeleteMenuItem(id, true)} categoriesLoading={categoriesLoading} categoriesError={categoriesError} />
-            </TabsContent>
-          </>
-        )}
-      </div>
+        <TabsContent value="beverages" className="w-full mt-0">
+          <BeveragesMenuBuilder menuItems={beverageMenuItems} categories={beverageCategories} onCreateBeverageItem={handleCreateMenuItem} onUpdateBeverageItem={handleUpdateMenuItem} onDeleteBeverageItem={id => handleDeleteMenuItem(id, true)} categoriesLoading={categoriesLoading} categoriesError={categoriesError} />
+        </TabsContent>
+      </>
     </Tabs>
   );
 };

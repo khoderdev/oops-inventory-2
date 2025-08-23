@@ -11,8 +11,9 @@ import MenuItemCardView from "../MenuItemCardView";
 import { TanStackTable } from "@/components/ui/TanStackTable";
 import { MenuItem } from "@/types/inventory";
 import { MenuBuilderLayoutProps, mapToCategory } from "@/types/menuItems";
+import { useInventoryStore } from "@/hooks/useInventoryStore";
 
-export const MenuBuilderLayout: React.FC<MenuBuilderLayoutProps> = ({
+const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
   searchTerm,
   setSearchTerm,
   selectedCategory,
@@ -44,6 +45,9 @@ export const MenuBuilderLayout: React.FC<MenuBuilderLayoutProps> = ({
   calculateMenuItemCost,
   table
 }) => {
+  // Get materials from inventory store
+  const { materialsWithStock } = useInventoryStore();
+  
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
       <div className="flex flex-col h-[calc(100vh-6.5rem)] overflow-hidden">
@@ -139,7 +143,13 @@ export const MenuBuilderLayout: React.FC<MenuBuilderLayoutProps> = ({
                 <DialogHeader>
                   <DialogTitle className="text-lg sm:text-xl">{editingMenuItem ? "Edit Menu Item" : "Create New Menu Item"}</DialogTitle>
                 </DialogHeader>
-                <MenuItemForm menuItem={editingMenuItem} categories={mapToCategory(menuItemCategories)} onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} onCancel={handleCancel} />
+                <MenuItemForm 
+                  menuItem={editingMenuItem} 
+                  categories={mapToCategory(menuItemCategories)} 
+                  onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} 
+                  onCancel={handleCancel} 
+                  materials={materialsWithStock || []} 
+                />
               </DialogContent>
             </Dialog>
 
@@ -179,5 +189,23 @@ export const MenuBuilderLayout: React.FC<MenuBuilderLayoutProps> = ({
     </TooltipProvider>
   );
 };
+
+export const MenuBuilderLayout = React.memo(MenuBuilderLayoutComponent, (prevProps, nextProps) => {
+  // Only re-render if these specific props change
+  if (prevProps.searchTerm !== nextProps.searchTerm || prevProps.selectedCategory !== nextProps.selectedCategory || prevProps.showMenuItemForm !== nextProps.showMenuItemForm || prevProps.bulkSelectionMode !== nextProps.bulkSelectionMode || prevProps.showValidationPanel !== nextProps.showValidationPanel) {
+    return false; // Re-render
+  }
+
+  // Don't re-render when these actions are performed
+  if (prevProps.filteredMenuItems.length === nextProps.filteredMenuItems.length) {
+    // Check if table data is functionally the same
+    if (prevProps.table !== nextProps.table) {
+      // Prevent re-render when only table instance reference changes but data is the same
+      return true; // Skip re-render
+    }
+  }
+
+  return false; // Default to re-render
+});
 
 export default MenuBuilderLayout;
