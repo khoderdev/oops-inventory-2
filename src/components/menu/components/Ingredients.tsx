@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { Selection } from "../../ui/Selection";
 import { IngredientsProps } from "@/types/menuItems";
 
-export function Ingredients({ ingredients, materials, stockEntries, menuItem, category, price, onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
+export function Ingredients({ ingredients = [], materials = [], stockEntries = [], menuItem, category = '', price = '0', onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
@@ -22,9 +22,9 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
   const ingredientsInputSectionRef = useRef<HTMLDivElement>(null);
 
   const availableMaterials = useMemo(() => {
-    const usedMaterialIds = new Set(ingredients.map(i => i.materialId));
+    const usedMaterialIds = new Set((ingredients || []).map(i => i.materialId));
     const excludedCategories = ["beverages", "cold", "hot", "alcohol"];
-    return materials.filter(m => {
+    return (materials || []).filter(m => {
       let categoryName = "";
       if (typeof m.category === "string") {
         categoryName = m.category.toLowerCase();
@@ -47,12 +47,12 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
 
   const calculateIngredientCost = useCallback(
     (ingredient: Omit<MenuItemIngredient, "cost">) => {
-      const material = materials.find(m => String(m.id) === String(ingredient.materialId));
+      const material = (materials || []).find(m => String(m.id) === String(ingredient.materialId));
       if (!material) {
         console.warn(`Material not found for ID: ${ingredient.materialId}`);
         return 0;
       }
-      const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(ingredient.materialId));
+      const allStockEntries = (stockEntries || []).filter(entry => String(entry.materialId) === String(ingredient.materialId));
       if (allStockEntries.length === 0) {
         console.warn(`No stock entries found for material ${material.name}`);
         return 0;
@@ -116,11 +116,11 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
 
   const getMaterialCostPerBaseUnit = useCallback(
     (materialId: string) => {
-      const material = materials.find(m => String(m.id) === String(materialId));
+      const material = (materials || []).find(m => String(m.id) === String(materialId));
       if (!material) {
         return 0;
       }
-      const allStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(materialId));
+      const allStockEntries = (stockEntries || []).filter(entry => String(entry.materialId) === String(materialId));
       if (allStockEntries.length === 0) {
         return 0;
       }
@@ -155,7 +155,7 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
 
   const totalIngredientsCost = useMemo(() => {
     let total = 0;
-    ingredients.forEach(ingredient => {
+    (ingredients || []).forEach(ingredient => {
       const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
       const cost = storedCost || calculateIngredientCost(ingredient);
       const costValue = isNaN(parseFloat(String(cost))) ? 0 : parseFloat(String(cost));
@@ -179,7 +179,7 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
       onErrorsChange?.(newErrors);
       return;
     }
-    const material = materials.find(m => String(m.id) === selectedMaterialId);
+    const material = (materials || []).find(m => String(m.id) === selectedMaterialId);
     const cost = material ? calculateIngredientCost({ materialId: selectedMaterialId, quantity, unit: ingredientUnit }) : 0;
     const newIngredient: MenuItemIngredient = {
       materialId: selectedMaterialId,
@@ -219,7 +219,7 @@ export function Ingredients({ ingredients, materials, stockEntries, menuItem, ca
       setSelectedMaterialId(materialId);
       setMaterialSearchTerm(materialName || "");
       setShowMaterialDropdown(false);
-      const material = materials.find(m => String(m.id) === materialId);
+      const material = (materials || []).find(m => String(m.id) === materialId);
       if (material) {
         setIngredientUnit(material.baseUnit);
       } else {
@@ -351,7 +351,7 @@ interface TanStackVirtualizedIngredientsTableProps {
   price: string;
 }
 
-const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ ingredients, materials, menuItem, calculateIngredientCost, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost, price }) => {
+const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ ingredients = [], materials = [], menuItem, calculateIngredientCost, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = '0' }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnHelper = createColumnHelper<MenuItemIngredient & { index: number }>();
