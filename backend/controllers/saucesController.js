@@ -8,35 +8,23 @@ import sequelize from "../config/database.js";
 // Get all sauces with filtering and pagination
 export const getSauces = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 50,
-      search = "",
-      category = "",
-      isActive,
-      sortBy = "name",
-      sortOrder = "ASC"
-    } = req.query;
+    const { page = 1, limit = 50, search = "", category = "", isActive, sortBy = "name", sortOrder = "ASC" } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    
+
     // Build where conditions
     const whereConditions = {};
-    
+
     if (search) {
-      whereConditions[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { description: { [Op.iLike]: `%${search}%` } },
-        { category: { [Op.iLike]: `%${search}%` } }
-      ];
+      whereConditions[Op.or] = [{ name: { [Op.iLike]: `%${search}%` } }, { description: { [Op.iLike]: `%${search}%` } }, { category: { [Op.iLike]: `%${search}%` } }];
     }
-    
+
     if (category) {
       whereConditions.category = category;
     }
-    
+
     if (isActive !== undefined) {
-      whereConditions.isActive = isActive === 'true';
+      whereConditions.isActive = isActive === "true";
     }
 
     // Build order array
@@ -81,7 +69,6 @@ export const getSauces = async (req, res) => {
       },
       message: `Retrieved ${rows.length} sauces`
     });
-
   } catch (error) {
     console.error("❌ Error fetching sauces:", error);
     res.status(500).json({
@@ -126,7 +113,6 @@ export const getSauce = async (req, res) => {
       data: sauce,
       message: "Sauce retrieved successfully"
     });
-
   } catch (error) {
     console.error("❌ Error fetching sauce:", error);
     res.status(500).json({
@@ -140,23 +126,9 @@ export const getSauce = async (req, res) => {
 // Create new sauce
 export const createSauce = async (req, res) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
-    const {
-      name,
-      description,
-      category,
-      baseIngredients,
-      yieldQuantity,
-      unit,
-      preparationTime,
-      instructions,
-      shelfLife,
-      storageInstructions,
-      allergens,
-      nutritionalInfo,
-      isPOSItem = false
-    } = req.body;
+    const { name, description, category, baseIngredients, yieldQuantity, unit, preparationTime, isPOSItem = false } = req.body;
 
     // Validate required fields
     if (!name || !category || !baseIngredients || !Array.isArray(baseIngredients) || baseIngredients.length === 0) {
@@ -200,7 +172,7 @@ export const createSauce = async (req, res) => {
 
       // Get latest stock entries to calculate average cost
       const stockEntries = await StockEntry.findAll({
-        where: { 
+        where: {
           materialId: ingredient.materialId,
           purchasedIndividualQuantity: { [Op.gt]: 0 }
         },
@@ -213,18 +185,18 @@ export const createSauce = async (req, res) => {
         // Calculate weighted average cost from recent stock entries
         let totalValue = 0;
         let totalQuantity = 0;
-        
+
         stockEntries.forEach(entry => {
           totalValue += entry.totalCost;
           totalQuantity += entry.purchasedIndividualQuantity;
         });
-        
+
         costPerUnit = totalQuantity > 0 ? totalValue / totalQuantity : 0;
       }
 
       const ingredientCost = costPerUnit * ingredient.quantity;
       totalCost += ingredientCost;
-      
+
       ingredientCosts.push({
         materialId: ingredient.materialId,
         materialName: material.name,
@@ -238,40 +210,40 @@ export const createSauce = async (req, res) => {
     const costPerUnit = yieldQuantity > 0 ? totalCost / yieldQuantity : 0;
 
     // Create sauce
-    const sauce = await Sauce.create({
-      name,
-      description,
-      category,
-      totalCost,
-      costPerUnit,
-      unit,
-      yieldQuantity,
-      preparationTime,
-      instructions,
-      shelfLife,
-      storageInstructions,
-      allergens: allergens || [],
-      nutritionalInfo,
-      isPOSItem,
-      createdBy: req.user?.id || null
-    }, { transaction });
+    const sauce = await Sauce.create(
+      {
+        name,
+        description,
+        category,
+        totalCost,
+        costPerUnit,
+        unit,
+        yieldQuantity,
+        preparationTime,
+        isPOSItem,
+        createdBy: req.user?.id || null
+      },
+      { transaction }
+    );
 
     // Create sauce ingredients
     const sauceIngredients = [];
     for (let i = 0; i < baseIngredients.length; i++) {
       const ingredient = baseIngredients[i];
       const ingredientCost = ingredientCosts[i];
-      
-      const sauceIngredient = await SauceIngredient.create({
-        sauceId: sauce.id,
-        materialId: ingredient.materialId,
-        quantity: ingredient.quantity,
-        unit: ingredient.unit,
-        cost: ingredientCost.totalCost,
-        notes: ingredient.notes,
-        sortOrder: i
-      }, { transaction });
-      
+
+      const sauceIngredient = await SauceIngredient.create(
+        {
+          sauceId: sauce.id,
+          materialId: ingredient.materialId,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          cost: ingredientCost.totalCost,
+          sortOrder: i
+        },
+        { transaction }
+      );
+
       sauceIngredients.push(sauceIngredient);
     }
 
@@ -300,18 +272,17 @@ export const createSauce = async (req, res) => {
       data: createdSauce,
       message: "Sauce created successfully"
     });
-
   } catch (error) {
     await transaction.rollback();
     console.error("❌ Error creating sauce:", error);
-    
-    if (error.name === 'SequelizeUniqueConstraintError') {
+
+    if (error.name === "SequelizeUniqueConstraintError") {
       return res.status(400).json({
         success: false,
         message: "A sauce with this name already exists"
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: "Failed to create sauce",
@@ -323,25 +294,10 @@ export const createSauce = async (req, res) => {
 // Update sauce
 export const updateSauce = async (req, res) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const { id } = req.params;
-    const {
-      name,
-      description,
-      category,
-      baseIngredients,
-      yieldQuantity,
-      unit,
-      preparationTime,
-      instructions,
-      shelfLife,
-      storageInstructions,
-      allergens,
-      nutritionalInfo,
-      isPOSItem,
-      isActive
-    } = req.body;
+    const { name, description, category, baseIngredients, yieldQuantity, unit, preparationTime, isPOSItem, isActive } = req.body;
 
     const sauce = await Sauce.findByPk(id);
     if (!sauce) {
@@ -388,7 +344,7 @@ export const updateSauce = async (req, res) => {
 
         // Get latest stock entries to calculate average cost
         const stockEntries = await StockEntry.findAll({
-          where: { 
+          where: {
             materialId: ingredient.materialId,
             purchasedIndividualQuantity: { [Op.gt]: 0 }
           },
@@ -400,24 +356,23 @@ export const updateSauce = async (req, res) => {
         if (stockEntries.length > 0) {
           let totalValue = 0;
           let totalQuantity = 0;
-          
+
           stockEntries.forEach(entry => {
             totalValue += entry.totalCost;
             totalQuantity += entry.purchasedIndividualQuantity;
           });
-          
+
           materialCostPerUnit = totalQuantity > 0 ? totalValue / totalQuantity : 0;
         }
 
         const ingredientCost = materialCostPerUnit * ingredient.quantity;
         totalCost += ingredientCost;
-        
+
         ingredientCosts.push({
           materialId: ingredient.materialId,
           quantity: ingredient.quantity,
           unit: ingredient.unit,
-          cost: ingredientCost,
-          notes: ingredient.notes
+          cost: ingredientCost
         });
       }
 
@@ -427,38 +382,38 @@ export const updateSauce = async (req, res) => {
       // Create new ingredients
       for (let i = 0; i < ingredientCosts.length; i++) {
         const ingredient = ingredientCosts[i];
-        
-        await SauceIngredient.create({
-          sauceId: id,
-          materialId: ingredient.materialId,
-          quantity: ingredient.quantity,
-          unit: ingredient.unit,
-          cost: ingredient.cost,
-          notes: ingredient.notes,
-          sortOrder: i
-        }, { transaction });
+
+        await SauceIngredient.create(
+          {
+            sauceId: id,
+            materialId: ingredient.materialId,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            cost: ingredient.cost,
+            sortOrder: i
+          },
+          { transaction }
+        );
       }
     }
 
     // Update sauce
-    await sauce.update({
-      name: name || sauce.name,
-      description: description !== undefined ? description : sauce.description,
-      category: category || sauce.category,
-      totalCost,
-      costPerUnit,
-      unit: unit || sauce.unit,
-      yieldQuantity: yieldQuantity || sauce.yieldQuantity,
-      preparationTime: preparationTime !== undefined ? preparationTime : sauce.preparationTime,
-      instructions: instructions !== undefined ? instructions : sauce.instructions,
-      shelfLife: shelfLife !== undefined ? shelfLife : sauce.shelfLife,
-      storageInstructions: storageInstructions !== undefined ? storageInstructions : sauce.storageInstructions,
-      allergens: allergens !== undefined ? allergens : sauce.allergens,
-      nutritionalInfo: nutritionalInfo !== undefined ? nutritionalInfo : sauce.nutritionalInfo,
-      isPOSItem: isPOSItem !== undefined ? isPOSItem : sauce.isPOSItem,
-      isActive: isActive !== undefined ? isActive : sauce.isActive,
-      updatedBy: req.user?.id || null
-    }, { transaction });
+    await sauce.update(
+      {
+        name: name || sauce.name,
+        description: description !== undefined ? description : sauce.description,
+        category: category || sauce.category,
+        totalCost,
+        costPerUnit,
+        unit: unit || sauce.unit,
+        yieldQuantity: yieldQuantity || sauce.yieldQuantity,
+        preparationTime: preparationTime !== undefined ? preparationTime : sauce.preparationTime,
+        isPOSItem: isPOSItem !== undefined ? isPOSItem : sauce.isPOSItem,
+        isActive: isActive !== undefined ? isActive : sauce.isActive,
+        updatedBy: req.user?.id || null
+      },
+      { transaction }
+    );
 
     await transaction.commit();
 
@@ -485,18 +440,17 @@ export const updateSauce = async (req, res) => {
       data: updatedSauce,
       message: "Sauce updated successfully"
     });
-
   } catch (error) {
     await transaction.rollback();
     console.error("❌ Error updating sauce:", error);
-    
-    if (error.name === 'SequelizeUniqueConstraintError') {
+
+    if (error.name === "SequelizeUniqueConstraintError") {
       return res.status(400).json({
         success: false,
         message: "A sauce with this name already exists"
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: "Failed to update sauce",
@@ -508,7 +462,7 @@ export const updateSauce = async (req, res) => {
 // Delete sauce
 export const deleteSauce = async (req, res) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const { id } = req.params;
 
@@ -536,7 +490,6 @@ export const deleteSauce = async (req, res) => {
       success: true,
       message: "Sauce deleted successfully"
     });
-
   } catch (error) {
     await transaction.rollback();
     console.error("❌ Error deleting sauce:", error);
@@ -551,7 +504,7 @@ export const deleteSauce = async (req, res) => {
 // Bulk delete sauces
 export const bulkDeleteSauces = async (req, res) => {
   const transaction = await sequelize.transaction();
-  
+
   try {
     const { ids } = req.body;
 
@@ -582,7 +535,6 @@ export const bulkDeleteSauces = async (req, res) => {
       message: `${deletedCount} sauce(s) deleted successfully`,
       deletedCount
     });
-
   } catch (error) {
     await transaction.rollback();
     console.error("❌ Error bulk deleting sauces:", error);
@@ -616,9 +568,8 @@ export const togglePOSVisibility = async (req, res) => {
     res.status(200).json({
       success: true,
       data: sauce,
-      message: `Sauce ${sauce.isPOSItem ? 'added to' : 'removed from'} POS`
+      message: `Sauce ${sauce.isPOSItem ? "added to" : "removed from"} POS`
     });
-
   } catch (error) {
     console.error("❌ Error toggling POS visibility:", error);
     res.status(500).json({
@@ -651,9 +602,8 @@ export const toggleActiveStatus = async (req, res) => {
     res.status(200).json({
       success: true,
       data: sauce,
-      message: `Sauce ${sauce.isActive ? 'activated' : 'deactivated'}`
+      message: `Sauce ${sauce.isActive ? "activated" : "deactivated"}`
     });
-
   } catch (error) {
     console.error("❌ Error toggling active status:", error);
     res.status(500).json({
@@ -698,7 +648,7 @@ export const calculateSauceCost = async (req, res) => {
 
       // Get latest stock entries to calculate average cost
       const stockEntries = await StockEntry.findAll({
-        where: { 
+        where: {
           materialId: ingredient.materialId,
           purchasedIndividualQuantity: { [Op.gt]: 0 }
         },
@@ -710,12 +660,12 @@ export const calculateSauceCost = async (req, res) => {
       if (stockEntries.length > 0) {
         let totalValue = 0;
         let totalQuantity = 0;
-        
+
         stockEntries.forEach(entry => {
           totalValue += entry.totalCost;
           totalQuantity += entry.purchasedIndividualQuantity;
         });
-        
+
         costPerUnit = totalQuantity > 0 ? totalValue / totalQuantity : 0;
       }
 
@@ -738,7 +688,6 @@ export const calculateSauceCost = async (req, res) => {
       ingredientCosts,
       message: "Cost calculated successfully"
     });
-
   } catch (error) {
     console.error("❌ Error calculating sauce cost:", error);
     res.status(500).json({
@@ -752,29 +701,13 @@ export const calculateSauceCost = async (req, res) => {
 // Get sauce categories
 export const getSauceCategories = async (req, res) => {
   try {
-    const categories = [
-      "Hot Sauces",
-      "Cold Sauces", 
-      "Dressings",
-      "Marinades",
-      "Dips",
-      "Gravies",
-      "Reductions",
-      "Emulsions",
-      "Compound Butters",
-      "Salsas",
-      "Chutneys",
-      "Aiolis",
-      "Vinaigrettes",
-      "Other"
-    ];
+    const categories = ["Hot Sauces", "Cold Sauces", "Dressings", "Marinades", "Dips", "Gravies", "Reductions", "Emulsions", "Compound Butters", "Salsas", "Chutneys", "Aiolis", "Vinaigrettes", "Other"];
 
     res.status(200).json({
       success: true,
       data: categories,
       message: "Categories retrieved successfully"
     });
-
   } catch (error) {
     console.error("❌ Error fetching sauce categories:", error);
     res.status(500).json({

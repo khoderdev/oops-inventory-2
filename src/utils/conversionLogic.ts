@@ -1,5 +1,5 @@
 import { CalculationBreakdown, ConversionInput, PackagedGood } from "@/types/conversion";
-import { Material } from "@/types/inventory";
+import { Material, SauceCalculationResult, SauceIngredient } from "@/types/inventory";
 
 export const MASS_CONVERSIONS = {
   kg: { toGrams: 1000, toLbs: 2.20462 },
@@ -193,24 +193,18 @@ export function formatCurrencyUI(amount: number): string {
   if (amount == null || isNaN(amount) || !isFinite(amount)) {
     return "$0.00";
   }
-  
+
   // Handle recurring decimals like 8.333333333333334
   // Check if this is likely a recurring decimal by comparing rounded values
   const decimalPart = Math.abs(amount - Math.round(amount));
-  
+
   // If it has significant decimal places
   if (decimalPart > 0.0001) {
     // Check for common recurring decimal patterns
     const decimalStr = amount.toString();
-    
+
     // Pattern for 1/3 (0.3333...), 1/6 (0.1666...), 1/12 (0.0833...)
-    if ((decimalStr.includes("33333") || decimalStr.includes("66666") || 
-         decimalStr.includes("83333") || decimalStr.includes("16666") || 
-         decimalStr.includes("41666") || decimalStr.includes("58333") || 
-         decimalStr.includes("91666") || decimalStr.includes("08333") || 
-         decimalStr.includes("25") && decimalStr.length > 6) || 
-         (decimalStr.length > 8 && decimalStr.includes("."))) {
-      
+    if (decimalStr.includes("33333") || decimalStr.includes("66666") || decimalStr.includes("83333") || decimalStr.includes("16666") || decimalStr.includes("41666") || decimalStr.includes("58333") || decimalStr.includes("91666") || decimalStr.includes("08333") || (decimalStr.includes("25") && decimalStr.length > 6) || (decimalStr.length > 8 && decimalStr.includes("."))) {
       // For recurring decimals, show 4 decimal places
       return new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -220,7 +214,7 @@ export function formatCurrencyUI(amount: number): string {
       }).format(amount);
     }
   }
-  
+
   // Use standard formatting for normal amounts
   return formatCurrency(amount);
 }
@@ -277,35 +271,29 @@ export function formatNumberUI(num: number | string | null | undefined, unit?: s
   if (num === null || num === undefined) {
     return "0";
   }
-  
+
   // Convert to number if needed
   const numValue = typeof num === "string" ? parseFloat(num) : num;
   if (typeof numValue !== "number" || isNaN(numValue)) {
     return "0";
   }
-  
+
   // Handle recurring decimals like 8.333333333333334
   // Check if this is likely a recurring decimal by comparing rounded values
   const decimalPart = Math.abs(numValue - Math.round(numValue));
-  
+
   // If it has significant decimal places
   if (decimalPart > 0.0001) {
     // Check for common recurring decimal patterns
     const numStr = numValue.toString();
-    
+
     // Pattern for 1/3 (0.3333...), 1/6 (0.1666...), 1/12 (0.0833...)
-    if ((numStr.includes("33333") || numStr.includes("66666") || 
-         numStr.includes("83333") || numStr.includes("16666") || 
-         numStr.includes("41666") || numStr.includes("58333") || 
-         numStr.includes("91666") || numStr.includes("08333") || 
-         numStr.includes("25") && numStr.length > 6) || 
-         (numStr.length > 8 && numStr.includes("."))) {
-      
+    if (numStr.includes("33333") || numStr.includes("66666") || numStr.includes("83333") || numStr.includes("16666") || numStr.includes("41666") || numStr.includes("58333") || numStr.includes("91666") || numStr.includes("08333") || (numStr.includes("25") && numStr.length > 6) || (numStr.length > 8 && numStr.includes("."))) {
       // For recurring decimals, show 4 decimal places
       return numValue.toFixed(4);
     }
   }
-  
+
   // Otherwise use standard formatting
   return formatNumber(numValue, unit);
 }
@@ -451,7 +439,6 @@ export const formatPOSPrice = (amount: number): string => {
   }
 };
 
-
 /**
  * Format volume values for display:
  * - For values with decimals like 3.888888077, show only 6 decimal places
@@ -459,24 +446,308 @@ export const formatPOSPrice = (amount: number): string => {
  */
 export function formatVolume(value: number | string): string {
   // Convert to number if it's a string
-  const numValue = typeof value === 'string' ? parseFloat(value) : value;
-  
+  const numValue = typeof value === "string" ? parseFloat(value) : value;
+
   // Handle invalid values
   if (numValue === null || numValue === undefined || isNaN(numValue)) {
-    return '0';
+    return "0";
   }
-  
+
   // Check if it's a whole number (no decimal part)
   if (Number.isInteger(numValue)) {
     return numValue.toString();
   }
-  
+
   // Check if it has only zeros after decimal point (like 3.00)
   if (numValue % 1 === 0) {
     return Math.floor(numValue).toString();
   }
-  
+
   // For numbers with significant decimals, limit to 6 decimal places
   // and remove trailing zeros
-  return numValue.toFixed(6).replace(/\.?0+$/, '');
+  return numValue.toFixed(6).replace(/\.?0+$/, "");
+}
+
+// ============================================================================
+// SMART SAUCE CALCULATION SYSTEM
+// ============================================================================
+
+/**
+ * Determines the best unit for sauce yield based on ingredient types
+ */
+export function determineBestYieldUnit(ingredients: SauceIngredient[], materials: Material[]): string {
+  const materialMap = new Map(materials.map(m => [m.id.toString(), m]));
+
+  let hasLiquid = false;
+  let hasSolid = false;
+  let totalVolume = 0;
+  let totalMass = 0;
+
+  for (const ingredient of ingredients) {
+    const material = materialMap.get(ingredient.materialId);
+    if (!material) continue;
+
+    const unit = ingredient.unit.toLowerCase();
+
+    // Check if ingredient is liquid-based
+    if (isVolumeUnit(unit) || material.name.toLowerCase().includes("oil") || material.name.toLowerCase().includes("water") || material.name.toLowerCase().includes("milk") || material.name.toLowerCase().includes("cream") || material.name.toLowerCase().includes("juice")) {
+      hasLiquid = true;
+
+      // Convert to ml for comparison
+      if (isVolumeUnit(unit)) {
+        totalVolume += convertVolume(ingredient.quantity, unit, "ml");
+      }
+    }
+
+    // Check if ingredient is solid-based
+    if (isMassUnit(unit) || material.unitType === "mass" || material.unitType === "package") {
+      hasSolid = true;
+
+      // Convert to grams for comparison
+      if (isMassUnit(unit)) {
+        totalMass += convertMass(ingredient.quantity, unit, "g");
+      } else if (material.unitType === "package" && material.packageQuantity) {
+        // Estimate mass for package items
+        totalMass += ingredient.quantity * (material.packageQuantity || 1) * 10; // rough estimate
+      }
+    }
+  }
+
+  // Decision logic for yield unit
+  if (hasLiquid && !hasSolid) {
+    return totalVolume > 1000 ? "l" : "ml";
+  } else if (hasSolid && !hasLiquid) {
+    return totalMass > 1000 ? "kg" : "g";
+  } else if (hasLiquid && hasSolid) {
+    // Mixed ingredients - prefer volume for sauces
+    return totalVolume > 500 ? "l" : "ml";
+  }
+
+  // Default to ml for sauces
+  return "ml";
+}
+
+/**
+ * Estimates sauce yield based on ingredients with smart reduction factors
+ */
+export function estimateSauceYield(ingredients: SauceIngredient[], materials: Material[], targetUnit: string): number {
+  const materialMap = new Map(materials.map(m => [m.id.toString(), m]));
+
+  let totalVolume = 0; // in ml
+  let totalMass = 0; // in grams
+  let reductionFactor = 1.0;
+
+  const steps: string[] = [];
+
+  for (const ingredient of ingredients) {
+    const material = materialMap.get(ingredient.materialId);
+    if (!material) continue;
+
+    const unit = ingredient.unit.toLowerCase();
+    const quantity = ingredient.quantity;
+
+    // Convert all ingredients to base units for calculation
+    if (isVolumeUnit(unit)) {
+      const volumeInMl = convertVolume(quantity, unit, "ml");
+      totalVolume += volumeInMl;
+      steps.push(`${material.name}: ${quantity} ${unit} = ${formatVolume(volumeInMl)} ml`);
+
+      // Apply reduction factors for cooking processes
+      if (material.name.toLowerCase().includes("wine") || material.name.toLowerCase().includes("alcohol")) {
+        reductionFactor *= 0.7; // Alcohol evaporation
+      }
+    } else if (isMassUnit(unit)) {
+      const massInGrams = convertMass(quantity, unit, "g");
+      totalMass += massInGrams;
+      steps.push(`${material.name}: ${quantity} ${unit} = ${formatVolume(massInGrams)} g`);
+
+      // Convert mass to approximate volume for sauces (density ~1g/ml for most ingredients)
+      let volumeEquivalent = massInGrams;
+
+      // Adjust for different ingredient densities
+      const name = material.name.toLowerCase();
+      if (name.includes("oil") || name.includes("butter")) {
+        volumeEquivalent = massInGrams * 1.1; // Oils are less dense
+      } else if (name.includes("flour") || name.includes("starch")) {
+        volumeEquivalent = massInGrams * 0.6; // Flour absorbs liquid
+        reductionFactor *= 0.9; // Thickening agents reduce final volume
+      } else if (name.includes("sugar") || name.includes("salt")) {
+        volumeEquivalent = massInGrams * 0.8; // Dissolves, reduces volume
+      }
+
+      totalVolume += volumeEquivalent;
+    } else if (material.unitType === "package") {
+      // Handle package items (estimate volume)
+      const packageVolume = (material.packageQuantity || 1) * quantity * 10; // rough estimate
+      totalVolume += packageVolume;
+      steps.push(`${material.name}: ${quantity} ${unit} ≈ ${formatVolume(packageVolume)} ml (estimated)`);
+    } else {
+      // Handle piece/unit items
+      const pieceVolume = quantity * 15; // rough estimate: 15ml per piece
+      totalVolume += pieceVolume;
+      steps.push(`${material.name}: ${quantity} ${unit} ≈ ${formatVolume(pieceVolume)} ml (estimated)`);
+    }
+  }
+
+  // Apply cooking reduction factor
+  const finalVolume = totalVolume * reductionFactor;
+
+  // Convert to target unit
+  if (isVolumeUnit(targetUnit)) {
+    return convertVolume(finalVolume, "ml", targetUnit);
+  } else if (isMassUnit(targetUnit)) {
+    // Convert volume back to mass (assuming sauce density ~1g/ml)
+    const massInGrams = finalVolume * 1.0;
+    return convertMass(massInGrams, "g", targetUnit);
+  }
+
+  return finalVolume; // Return in ml as fallback
+}
+
+/**
+ * Calculates comprehensive sauce metrics with automatic yield estimation
+ */
+export function calculateSauceMetrics(ingredients: SauceIngredient[], materials: Material[], manualYield?: { quantity: number; unit: string }): SauceCalculationResult {
+  const materialMap = new Map(materials.map(m => [m.id.toString(), m]));
+  const steps: string[] = [];
+  const processedIngredients: SauceCalculationResult["ingredients"] = [];
+
+  let totalCost = 0;
+
+  // Process each ingredient
+  for (const ingredient of ingredients) {
+    const material = materialMap.get(ingredient.materialId);
+    if (!material) {
+      steps.push(`⚠️ Material not found for ingredient: ${ingredient.materialId}`);
+      continue;
+    }
+
+    // Normalize ingredient to material's base unit for cost calculation
+    let normalizedQuantity = ingredient.quantity;
+    let normalizedUnit = ingredient.unit;
+    let ingredientCost = 0;
+
+    // Convert to material's base unit for accurate cost calculation
+    if (ingredient.unit !== material.baseUnit) {
+      if (isMassUnit(ingredient.unit) && isMassUnit(material.baseUnit)) {
+        normalizedQuantity = convertMass(ingredient.quantity, ingredient.unit, material.baseUnit);
+        normalizedUnit = material.baseUnit;
+      } else if (isVolumeUnit(ingredient.unit) && isVolumeUnit(material.baseUnit)) {
+        normalizedQuantity = convertVolume(ingredient.quantity, ingredient.unit, material.baseUnit);
+        normalizedUnit = material.baseUnit;
+      } else if (material.unitType === "package") {
+        // Handle package conversions
+        if (ingredient.unit.toLowerCase() === "piece" || ingredient.unit.toLowerCase() === material.baseUnit) {
+          normalizedQuantity = ingredient.quantity;
+          normalizedUnit = material.baseUnit;
+        } else if (material.packageQuantity) {
+          // Convert package to pieces
+          normalizedQuantity = ingredient.quantity * material.packageQuantity;
+          normalizedUnit = material.baseUnit;
+        }
+      }
+    }
+
+    // Calculate ingredient cost
+    const materialCostPerUnit = typeof material.costPerUnit === "string" ? parseFloat(material.costPerUnit) : material.costPerUnit || 0;
+
+    ingredientCost = normalizedQuantity * materialCostPerUnit;
+    totalCost += ingredientCost;
+
+    processedIngredients.push({
+      name: material.name,
+      quantity: ingredient.quantity,
+      unit: ingredient.unit,
+      cost: ingredientCost,
+      normalizedQuantity,
+      normalizedUnit
+    });
+
+    steps.push(`${material.name}: ${ingredient.quantity} ${ingredient.unit} ` + `${normalizedQuantity !== ingredient.quantity ? `(${formatVolume(normalizedQuantity)} ${normalizedUnit}) ` : ""}` + `× $${formatCurrencyUI(materialCostPerUnit)} = ${formatCurrency(ingredientCost)}`);
+  }
+
+  // Determine yield
+  let finalYield: number;
+  let yieldUnit: string;
+
+  if (manualYield && manualYield.quantity > 0) {
+    // Use manual yield if provided
+    finalYield = manualYield.quantity;
+    yieldUnit = manualYield.unit;
+    steps.push(`📏 Manual yield: ${finalYield} ${yieldUnit}`);
+  } else {
+    // Auto-calculate yield
+    yieldUnit = determineBestYieldUnit(ingredients, materials);
+    finalYield = estimateSauceYield(ingredients, materials, yieldUnit);
+    steps.push(`📏 Estimated yield: ${formatVolume(finalYield)} ${yieldUnit} (auto-calculated)`);
+  }
+
+  // Calculate cost per unit
+  const costPerUnit = finalYield > 0 ? totalCost / finalYield : 0;
+
+  steps.push(`💰 Total cost: ${formatCurrency(totalCost)}`);
+  steps.push(`📊 Cost per ${yieldUnit}: ${formatCurrency(costPerUnit)}`);
+
+  return {
+    totalCost,
+    estimatedYield: finalYield,
+    yieldUnit,
+    costPerUnit,
+    ingredients: processedIngredients,
+    calculationSteps: steps
+  };
+}
+
+/**
+ * Updates ingredient cost when material or quantity changes
+ */
+export function calculateIngredientCostSmart(materialId: string, quantity: number, unit: string, materials: Material[]): number {
+  const material = materials.find(m => m.id.toString() === materialId);
+  if (!material || quantity <= 0) return 0;
+
+  // Get material cost per unit
+  const materialCostPerUnit = typeof material.costPerUnit === "string" ? parseFloat(material.costPerUnit) : material.costPerUnit || 0;
+
+  if (materialCostPerUnit <= 0) return 0;
+
+  // Convert quantity to material's base unit for accurate cost calculation
+  let normalizedQuantity = quantity;
+
+  if (unit !== material.baseUnit) {
+    if (isMassUnit(unit) && isMassUnit(material.baseUnit)) {
+      normalizedQuantity = convertMass(quantity, unit, material.baseUnit);
+    } else if (isVolumeUnit(unit) && isVolumeUnit(material.baseUnit)) {
+      normalizedQuantity = convertVolume(quantity, unit, material.baseUnit);
+    } else if (material.unitType === "package") {
+      // Handle package conversions
+      if (unit.toLowerCase() === "piece" || unit.toLowerCase() === material.baseUnit) {
+        normalizedQuantity = quantity;
+      } else if (material.packageQuantity && unit === material.inputUnit) {
+        // Convert from input unit (e.g., box) to base unit (e.g., piece)
+        normalizedQuantity = quantity * material.packageQuantity;
+      }
+    }
+  }
+
+  return normalizedQuantity * materialCostPerUnit;
+}
+
+/**
+ * Auto-updates sauce yield when ingredients change
+ */
+export function autoUpdateSauceYield(ingredients: SauceIngredient[], materials: Material[], currentYieldUnit?: string): { quantity: number; unit: string } {
+  if (!ingredients.length) {
+    return { quantity: 0, unit: currentYieldUnit || "ml" };
+  }
+
+  // Determine best unit if not specified
+  const yieldUnit = currentYieldUnit || determineBestYieldUnit(ingredients, materials);
+
+  // Calculate estimated yield
+  const estimatedQuantity = estimateSauceYield(ingredients, materials, yieldUnit);
+
+  return {
+    quantity: Math.round(estimatedQuantity * 100) / 100, // Round to 2 decimal places
+    unit: yieldUnit
+  };
 }

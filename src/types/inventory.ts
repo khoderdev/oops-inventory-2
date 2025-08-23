@@ -1117,6 +1117,7 @@ export interface DailyReportsProps {
 //-----------------------------------------------------------------------------
 
 export interface Sauce {
+  ingredients: SauceIngredient[];
   id: string;
   name: string;
   description?: string;
@@ -1196,6 +1197,31 @@ export interface SauceManagementProps {
   materials: Material[];
   stockEntries: StockEntry[];
   onRefresh?: () => void;
+}
+
+// Sauce-specific types
+export interface SauceIngredient {
+  materialId: string;
+  quantity: number;
+  unit: string;
+  cost: number;
+  material?: Material;
+}
+
+export interface SauceCalculationResult {
+  totalCost: number;
+  estimatedYield: number;
+  yieldUnit: string;
+  costPerUnit: number;
+  ingredients: Array<{
+    name: string;
+    quantity: number;
+    unit: string;
+    cost: number;
+    normalizedQuantity: number;
+    normalizedUnit: string;
+  }>;
+  calculationSteps: string[];
 }
 
 //-----------------------------------------------------------------------------

@@ -13,21 +13,21 @@ const SauceIngredient = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'sauces',
-        key: 'id'
+        model: "sauces",
+        key: "id"
       },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE'
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE"
     },
     materialId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'materials',
-        key: 'id'
+        model: "materials",
+        key: "id"
       },
-      onUpdate: 'CASCADE',
-      onDelete: 'CASCADE'
+      onUpdate: "CASCADE",
+      onDelete: "CASCADE"
     },
     quantity: {
       type: DataTypes.DECIMAL(10, 6),
@@ -51,10 +51,6 @@ const SauceIngredient = sequelize.define(
         min: { args: [0], msg: "Cost must be non-negative" }
       }
     },
-    notes: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
     sortOrder: {
       type: DataTypes.INTEGER,
       allowNull: false,
@@ -66,18 +62,18 @@ const SauceIngredient = sequelize.define(
     timestamps: true,
     indexes: [
       {
-        fields: ['sauceId']
+        fields: ["sauceId"]
       },
       {
-        fields: ['materialId']
+        fields: ["materialId"]
       },
       {
         unique: true,
-        fields: ['sauceId', 'materialId'],
-        name: 'sauce_ingredient_unique'
+        fields: ["sauceId", "materialId"],
+        name: "sauce_ingredient_unique"
       },
       {
-        fields: ['sortOrder']
+        fields: ["sortOrder"]
       }
     ]
   }

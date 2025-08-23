@@ -39,19 +39,12 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
   // Filter sauces
   const filteredSauces = useMemo(() => {
     return sauces.filter(sauce => {
-      const matchesSearch = !searchTerm || 
-        sauce.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sauce.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sauce.category.toLowerCase().includes(searchTerm.toLowerCase());
-      
+      const matchesSearch = !searchTerm || sauce.name.toLowerCase().includes(searchTerm.toLowerCase()) || sauce.description?.toLowerCase().includes(searchTerm.toLowerCase()) || sauce.category.toLowerCase().includes(searchTerm.toLowerCase());
+
       const matchesCategory = categoryFilter === "all" || sauce.category === categoryFilter;
-      
-      const matchesStatus = statusFilter === "all" || 
-        (statusFilter === "active" && sauce.isActive) ||
-        (statusFilter === "inactive" && !sauce.isActive) ||
-        (statusFilter === "pos" && sauce.isPOSItem) ||
-        (statusFilter === "non-pos" && !sauce.isPOSItem);
-      
+
+      const matchesStatus = statusFilter === "all" || (statusFilter === "active" && sauce.isActive) || (statusFilter === "inactive" && !sauce.isActive) || (statusFilter === "pos" && sauce.isPOSItem) || (statusFilter === "non-pos" && !sauce.isPOSItem);
+
       return matchesSearch && matchesCategory && matchesStatus;
     });
   }, [sauces, searchTerm, categoryFilter, statusFilter]);
@@ -59,22 +52,10 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
   const columns: ColumnDef<Sauce>[] = [
     {
       id: "select",
-      header: ({ table }) => (
-        <Checkbox
-          checked={table.getIsAllPageRowsSelected()}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
-        />
-      ),
-      cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
-        />
-      ),
+      header: ({ table }) => <Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />,
+      cell: ({ row }) => <Checkbox checked={row.getIsSelected()} onCheckedChange={value => row.toggleSelected(!!value)} aria-label="Select row" />,
       enableSorting: false,
-      enableHiding: false,
+      enableHiding: false
     },
     {
       accessorKey: "name",
@@ -84,14 +65,10 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
         return (
           <div className="flex flex-col">
             <div className="font-medium">{sauce.name}</div>
-            {sauce.description && (
-              <div className="text-sm text-gray-500 truncate max-w-xs">
-                {sauce.description}
-              </div>
-            )}
+            {sauce.description && <div className="text-sm text-gray-500 truncate max-w-xs">{sauce.description}</div>}
           </div>
         );
-      },
+      }
     },
     {
       accessorKey: "category",
@@ -101,26 +78,29 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
           <ChefHat className="w-3 h-3" />
           {row.getValue("category")}
         </Badge>
-      ),
+      )
     },
     {
-      accessorKey: "baseIngredients",
+      accessorKey: "ingredients",
       header: "Ingredients",
       cell: ({ row }) => {
-        const ingredients = row.original.baseIngredients;
+        const ingredients = row.original.ingredients || row.original.baseIngredients || [];
         return (
           <div className="flex flex-col space-y-1">
             <div className="text-sm font-medium">{ingredients.length} ingredients</div>
             <div className="text-xs text-gray-500">
-              {ingredients.slice(0, 2).map(ing => {
-                const material = materialsById.get(ing.materialId);
-                return material?.name || "Unknown";
-              }).join(", ")}
+              {ingredients
+                .slice(0, 2)
+                .map(ing => {
+                  const material = materialsById.get(ing.materialId);
+                  return material?.name || "Unknown";
+                })
+                .join(", ")}
               {ingredients.length > 2 && ` +${ingredients.length - 2} more`}
             </div>
           </div>
         );
-      },
+      }
     },
     {
       accessorKey: "yieldQuantity",
@@ -130,30 +110,40 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
         return (
           <div className="flex items-center gap-1">
             <Package className="w-3 h-3 text-gray-400" />
-            <span>{sauce.yieldQuantity} {sauce.unit}</span>
+            <span>
+              {sauce.yieldQuantity} {sauce.unit}
+            </span>
           </div>
         );
-      },
+      }
     },
     {
       accessorKey: "totalCost",
       header: "Total Cost",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <DollarSign className="w-3 h-3 text-gray-400" />
-          <span className="font-medium">${row.getValue<number>("totalCost").toFixed(2)}</span>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const totalCost = row.getValue<number>("totalCost");
+        const cost = typeof totalCost === "number" ? totalCost : parseFloat(totalCost) || 0;
+        return (
+          <div className="flex items-center gap-1">
+            <DollarSign className="w-3 h-3 text-gray-400" />
+            <span className="font-medium">${cost.toFixed(2)}</span>
+          </div>
+        );
+      }
     },
     {
       accessorKey: "costPerUnit",
       header: "Cost/Unit",
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          <DollarSign className="w-3 h-3 text-gray-400" />
-          <span>${row.getValue<number>("costPerUnit").toFixed(4)}</span>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const costPerUnit = row.getValue<number>("costPerUnit");
+        const cost = typeof costPerUnit === "number" ? costPerUnit : parseFloat(costPerUnit) || 0;
+        return (
+          <div className="flex items-center gap-1">
+            <DollarSign className="w-3 h-3 text-gray-400" />
+            <span>${cost.toFixed(4)}</span>
+          </div>
+        );
+      }
     },
     {
       accessorKey: "preparationTime",
@@ -168,22 +158,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
         ) : (
           <span className="text-gray-400">-</span>
         );
-      },
-    },
-    {
-      accessorKey: "shelfLife",
-      header: "Shelf Life",
-      cell: ({ row }) => {
-        const shelfLife = row.getValue<number>("shelfLife");
-        return shelfLife ? (
-          <div className="flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3 text-gray-400" />
-            <span>{shelfLife} days</span>
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        );
-      },
+      }
     },
     {
       accessorKey: "status",
@@ -192,9 +167,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
         const sauce = row.original;
         return (
           <div className="flex flex-col space-y-1">
-            <Badge variant={sauce.isActive ? "default" : "secondary"}>
-              {sauce.isActive ? "Active" : "Inactive"}
-            </Badge>
+            <Badge variant={sauce.isActive ? "default" : "secondary"}>{sauce.isActive ? "Active" : "Inactive"}</Badge>
             {sauce.isPOSItem && (
               <Badge variant="outline" className="text-xs">
                 POS Item
@@ -202,7 +175,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
             )}
           </div>
         );
-      },
+      }
     },
     {
       id: "actions",
@@ -249,8 +222,8 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
             </DropdownMenuContent>
           </DropdownMenu>
         );
-      },
-    },
+      }
+    }
   ];
 
   const table = useReactTable({
@@ -263,8 +236,8 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
     onRowSelectionChange: setRowSelection,
     state: {
       sorting,
-      rowSelection,
-    },
+      rowSelection
+    }
   });
 
   const selectedRows = table.getFilteredSelectedRowModel().rows;
@@ -313,10 +286,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ChefHat className="w-5 h-5" />
-              Sauce Management ({filteredSauces.length})
-            </div>
+           
             <div className="flex items-center gap-2">
               {selectedSauceIds.length > 0 && (
                 <Button onClick={handleBulkDelete} variant="destructive" size="sm">
@@ -332,12 +302,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  placeholder="Search sauces..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+                <Input placeholder="Search sauces..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
               </div>
             </div>
             <div className="flex gap-2">
@@ -349,7 +314,9 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map(category => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -376,16 +343,11 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
           <div className="rounded-md border">
             <Table>
               <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
+                {table.getHeaderGroups().map(headerGroup => (
                   <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
+                    {headerGroup.headers.map(header => (
                       <TableHead key={header.id} className="font-medium">
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -393,36 +355,22 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      className="hover:bg-gray-50"
-                    >
-                      {row.getVisibleCells().map((cell) => (
+                  table.getRowModel().rows.map(row => (
+                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="hover:bg-gray-50">
+                      {row.getVisibleCells().map(cell => (
                         <TableCell key={cell.id} className="py-3">
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       ))}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
                       <div className="flex flex-col items-center justify-center space-y-2">
                         <ChefHat className="w-8 h-8 text-gray-400" />
                         <div className="text-gray-500">No sauces found</div>
-                        <div className="text-sm text-gray-400">
-                          {searchTerm || categoryFilter !== "all" || statusFilter !== "all"
-                            ? "Try adjusting your filters"
-                            : "Create your first sauce to get started"}
-                        </div>
+                        <div className="text-sm text-gray-400">{searchTerm || categoryFilter !== "all" || statusFilter !== "all" ? "Try adjusting your filters" : "Create your first sauce to get started"}</div>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -438,9 +386,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Sauce</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{sauceToDelete?.name}"? This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Are you sure you want to delete "{sauceToDelete?.name}"? This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -456,9 +402,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Multiple Sauces</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {selectedSauceIds.length} selected sauce(s)? This action cannot be undone.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Are you sure you want to delete {selectedSauceIds.length} selected sauce(s)? This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

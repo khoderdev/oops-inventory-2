@@ -75,33 +75,6 @@ const Sauce = sequelize.define(
       },
       comment: "Preparation time in minutes"
     },
-    instructions: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
-    shelfLife: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      validate: {
-        min: { args: [0], msg: "Shelf life must be non-negative" }
-      },
-      comment: "Shelf life in days"
-    },
-    storageInstructions: {
-      type: DataTypes.TEXT,
-      allowNull: true
-    },
-    allergens: {
-      type: DataTypes.JSON,
-      allowNull: true,
-      defaultValue: [],
-      comment: "Array of allergen strings"
-    },
-    nutritionalInfo: {
-      type: DataTypes.JSON,
-      allowNull: true,
-      comment: "Nutritional information per 100g"
-    },
     isPOSItem: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
@@ -116,21 +89,21 @@ const Sauce = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'users',
-        key: 'id'
+        model: "users",
+        key: "id"
       },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL'
+      onUpdate: "CASCADE",
+      onDelete: "SET NULL"
     },
     updatedBy: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'users',
-        key: 'id'
+        model: "users",
+        key: "id"
       },
-      onUpdate: 'CASCADE',
-      onDelete: 'SET NULL'
+      onUpdate: "CASCADE",
+      onDelete: "SET NULL"
     }
   },
   {
@@ -138,19 +111,19 @@ const Sauce = sequelize.define(
     timestamps: true,
     indexes: [
       {
-        fields: ['name']
+        fields: ["name"]
       },
       {
-        fields: ['category']
+        fields: ["category"]
       },
       {
-        fields: ['isActive']
+        fields: ["isActive"]
       },
       {
-        fields: ['isPOSItem']
+        fields: ["isPOSItem"]
       },
       {
-        fields: ['createdAt']
+        fields: ["createdAt"]
       }
     ]
   }

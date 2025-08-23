@@ -11,15 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Minus, Calculator, Utensils, Info } from "lucide-react";
-import { SauceFormProps, Material, SauceFormData } from "@/types/inventory";
-import { toast } from "@/hooks/use-toast";
-import { saucesAPI } from "@/api/sauces.api";
+import { SauceFormProps, Material, SauceFormData, SauceCalculationResult, SauceIngredient } from "@/types/inventory";
 import { SAUCE_CATEGORIES, SAUCE_UNITS, SauceFormInputs, sauceFormSchema } from "./constants";
+import { calculateSauceMetrics, autoUpdateSauceYield, calculateIngredientCostSmart } from "@/utils/conversionLogic";
 
 export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCancel }: SauceFormProps) {
   const [isCalculating, setIsCalculating] = useState(false);
-  const [totalCost, setTotalCost] = useState(0);
-  const [costPerUnit, setCostPerUnit] = useState(0);
+  const [calculationResult, setCalculationResult] = useState<SauceCalculationResult | null>(null);
+  const [autoYieldEnabled, setAutoYieldEnabled] = useState(true);
 
   const form = useForm<SauceFormInputs>({
     resolver: zodResolver(sauceFormSchema),
@@ -43,75 +42,121 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
   const watchedIngredients = form.watch("baseIngredients");
   const watchedYieldQuantity = form.watch("yieldQuantity");
 
-  // Materials lookup for quick access
-  const materialsById = useMemo(() => {
-    const map = new Map<string, Material>();
-    materials.forEach(material => map.set(material.id.toString(), material));
-    return map;
-  }, [materials]);
-
-  // Materials with stock information
+  // Materials with stock information and calculated cost per unit for ingredient selection
   const materialsWithStock = useMemo(() => {
     return materials.map(material => {
       const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
-      const totalStock = materialStockEntries.reduce((sum, entry) => {
-        return sum + (entry.purchasedIndividualQuantity || 0);
-      }, 0);
-
+      const totalStock = materialStockEntries.reduce((sum, entry) => sum + (entry.purchasedIndividualQuantity || 0), 0);
+      
+      // Calculate cost per unit from recent stock entries if not available
+      let costPerUnit = material.costPerUnit;
+      console.log(`📊 Material ${material.name} (ID: ${material.id}):`, {
+        originalCostPerUnit: material.costPerUnit,
+        stockEntriesCount: materialStockEntries.length,
+        stockEntries: materialStockEntries
+      });
+      
+      if (!costPerUnit && materialStockEntries.length > 0) {
+        // Get recent stock entries (last 5) and calculate weighted average
+        const recentEntries = materialStockEntries
+          .filter(entry => entry.purchasedIndividualQuantity > 0)
+          .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+          .slice(0, 5);
+        
+        console.log(`📈 Recent entries for ${material.name}:`, recentEntries);
+        
+        if (recentEntries.length > 0) {
+          let totalValue = 0;
+          let totalQuantity = 0;
+          
+          recentEntries.forEach(entry => {
+            totalValue += entry.totalCost;
+            totalQuantity += entry.purchasedIndividualQuantity;
+          });
+          
+          costPerUnit = totalQuantity > 0 ? totalValue / totalQuantity : 0;
+          console.log(`💰 Calculated costPerUnit for ${material.name}:`, costPerUnit);
+        }
+      }
+      
       return {
         ...material,
-        availableStock: totalStock,
-        hasStock: totalStock > 0
+        costPerUnit: costPerUnit || 0,
+        hasStock: totalStock > 0,
+        availableStock: totalStock
       };
-    });
+    }).filter(material => material.hasStock);
   }, [materials, stockEntries]);
 
-  // Calculate costs when ingredients or yield changes
+  // Materials lookup for quick access (using enriched materials with cost data)
+  const materialsById = useMemo(() => {
+    const map = new Map<string, Material>();
+    materialsWithStock.forEach(material => map.set(material.id.toString(), material));
+    return map;
+  }, [materialsWithStock]);
+
+  // Smart sauce calculation with automatic yield estimation
   useEffect(() => {
-    const calculateCosts = async () => {
-      if (!watchedIngredients?.length || !watchedYieldQuantity) return;
-      const validIngredients = watchedIngredients.filter(ing => ing.materialId && ing.quantity > 0 && ing.unit);
-      if (validIngredients.length === 0) {
-        setTotalCost(0);
-        setCostPerUnit(0);
+    const calculateSauceMetricsAsync = async () => {
+      if (!watchedIngredients?.length) {
+        setCalculationResult(null);
         return;
       }
+
+      const validIngredients = watchedIngredients.filter(ing => ing.materialId && ing.quantity > 0 && ing.unit);
+
+      if (validIngredients.length === 0) {
+        setCalculationResult(null);
+        return;
+      }
+
       setIsCalculating(true);
       try {
-        const response = await saucesAPI.calculateSauceCost(
-          validIngredients.map(ing => ({
-            materialId: ing.materialId,
-            quantity: ing.quantity,
-            unit: ing.unit
-          }))
-        );
-        const calculatedTotalCost = response.totalCost;
-        const yieldQty = parseFloat(watchedYieldQuantity) || 1;
-        const calculatedCostPerUnit = calculatedTotalCost / yieldQty;
-        setTotalCost(calculatedTotalCost);
-        setCostPerUnit(calculatedCostPerUnit);
-        response.ingredientCosts.forEach((ingredientCost, index) => {
-          const fieldIndex = validIngredients.findIndex(ing => ing.materialId === ingredientCost.materialId);
-          if (fieldIndex >= 0) {
-            form.setValue(`baseIngredients.${fieldIndex}.cost`, ingredientCost.totalCost);
-          }
-        });
+        // Convert form ingredients to SauceIngredient format
+        const sauceIngredients: SauceIngredient[] = validIngredients.map(ing => ({
+          materialId: ing.materialId,
+          quantity: ing.quantity,
+          unit: ing.unit,
+          cost: ing.cost || 0
+        }));
+
+        // Calculate metrics with optional manual yield
+        const manualYield = watchedYieldQuantity && parseFloat(watchedYieldQuantity) > 0 ? { quantity: parseFloat(watchedYieldQuantity), unit: form.getValues("unit") } : undefined;
+
+        const result = calculateSauceMetrics(sauceIngredients, materials, manualYield);
+        setCalculationResult(result);
+
+        // Auto-update yield if enabled and no manual yield provided
+        if (autoYieldEnabled && (!watchedYieldQuantity || parseFloat(watchedYieldQuantity) === 0)) {
+          const autoYield = autoUpdateSauceYield(sauceIngredients, materials, form.getValues("unit"));
+          form.setValue("yieldQuantity", autoYield.quantity.toString(), { shouldValidate: false });
+          form.setValue("unit", autoYield.unit, { shouldValidate: false });
+        }
       } catch (error) {
-        console.error("❌ Error calculating sauce cost:", error);
-        toast({
-          title: "Calculation Error",
-          description: "Failed to calculate sauce cost. Please check ingredient data.",
-          variant: "destructive",
-          duration: 3000
-        });
+        console.error("❌ Error calculating sauce metrics:", error);
+        setCalculationResult(null);
       } finally {
         setIsCalculating(false);
       }
     };
 
-    const timeoutId = setTimeout(calculateCosts, 500);
-    return () => clearTimeout(timeoutId);
-  }, [watchedIngredients, watchedYieldQuantity, form]);
+    calculateSauceMetricsAsync();
+  }, [watchedIngredients, watchedYieldQuantity, materials, autoYieldEnabled, form]);
+
+  // Update ingredient costs from calculation results
+  useEffect(() => {
+    if (calculationResult?.ingredients) {
+      calculationResult.ingredients.forEach((ingredient, index) => {
+        const fieldIndex = watchedIngredients?.findIndex(ing => {
+          const material = materialsById.get(ing.materialId);
+          return material?.name === ingredient.name;
+        });
+        if (fieldIndex !== undefined && fieldIndex >= 0) {
+          form.setValue(`baseIngredients.${fieldIndex}.cost`, ingredient.cost, { shouldValidate: false });
+        }
+      });
+    }
+  }, [calculationResult, watchedIngredients, materialsById, form]);
 
   const handleSubmit = (data: SauceFormInputs) => {
     const processedData: SauceFormData = {
@@ -153,11 +198,11 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="flex items-center gap-1">
             <Calculator className="w-3 h-3" />
-            Total Cost: ${totalCost.toFixed(2)}
+            Total Cost: ${calculationResult?.totalCost.toFixed(2)}
           </Badge>
           <Badge variant="outline" className="flex items-center gap-1">
             <Utensils className="w-3 h-3" />
-            Cost/Unit: ${costPerUnit.toFixed(4)}
+            Cost/Unit: ${calculationResult?.costPerUnit.toFixed(4)}
           </Badge>
         </div>
       </div>
@@ -205,8 +250,17 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="yieldQuantity">Final Quantity *</Label>
-                  <Input id="yieldQuantity" {...form.register("yieldQuantity")} placeholder="500" className="mt-1" />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="yieldQuantity">Final Quantity *</Label>
+                    <div className="flex items-center space-x-2">
+                      <Switch id="autoYield" checked={autoYieldEnabled} onCheckedChange={setAutoYieldEnabled} />
+                      <Label htmlFor="autoYield" className="text-xs text-gray-500">
+                        Auto
+                      </Label>
+                    </div>
+                  </div>
+                  <Input id="yieldQuantity" {...form.register("yieldQuantity")} placeholder="500" className="mt-1" disabled={autoYieldEnabled} />
+                  {autoYieldEnabled && <p className="text-xs text-blue-600 mt-1">Auto-calculated from ingredients</p>}
                 </div>
 
                 <div>
@@ -238,28 +292,28 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
+          {/* Smart Cost Analysis */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calculator className="w-5 h-5" />
-                Cost Analysis
+                Smart Cost Analysis
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Total Cost:</span>
-                  <span className="font-semibold">${totalCost.toFixed(2)}</span>
+                  <span className="font-semibold">${calculationResult?.totalCost?.toFixed(2) || "0.00"}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Cost per {form.watch("unit") || "unit"}:</span>
-                  <span className="font-semibold">${costPerUnit.toFixed(4)}</span>
+                  <span className="text-sm text-gray-600">Cost per {calculationResult?.yieldUnit || form.watch("unit") || "unit"}:</span>
+                  <span className="font-semibold">${calculationResult?.costPerUnit?.toFixed(4) || "0.0000"}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Yield:</span>
+                  <span className="text-sm text-gray-600">Estimated Yield:</span>
                   <span className="font-semibold">
-                    {form.watch("yieldQuantity") || "0"} {form.watch("unit") || "units"}
+                    {calculationResult?.estimatedYield?.toFixed(1) || form.watch("yieldQuantity") || "0"} {calculationResult?.yieldUnit || form.watch("unit") || "units"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -267,10 +321,27 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                   <span className="font-semibold">{fields.length}</span>
                 </div>
               </div>
+
               {isCalculating && (
                 <div className="flex items-center gap-2 text-sm text-blue-600">
                   <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-                  Calculating...
+                  Calculating smart metrics...
+                </div>
+              )}
+
+              {calculationResult?.calculationSteps && calculationResult.calculationSteps.length > 0 && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">Calculation Details</span>
+                  </div>
+                  <div className="space-y-1 text-xs text-gray-600 max-h-32 overflow-y-auto">
+                    {calculationResult.calculationSteps.map((step, index) => (
+                      <div key={index} className="font-mono">
+                        {step}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -316,11 +387,14 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                                 if (material) {
                                   form.setValue(`baseIngredients.${index}.unit`, material.baseUnit, { shouldValidate: false });
 
-                                  // Calculate cost based on quantity and material cost per unit
+                                  // Use smart cost calculation
                                   const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
-                                  const costPerUnit = material.costPerUnit || 0;
-                                  const calculatedCost = quantity * costPerUnit;
-                                  form.setValue(`baseIngredients.${index}.cost`, calculatedCost, { shouldValidate: false });
+                                  const unit = material.baseUnit;
+
+                                  if (quantity > 0) {
+                                    const smartCost = calculateIngredientCostSmart(value.toString(), quantity, unit, materialsWithStock);
+                                    form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
+                                  }
                                 }
                               });
                             }}
@@ -347,12 +421,70 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
 
                     <div>
                       <Label>Quantity *</Label>
-                      <Input type="number" step="0.001" {...form.register(`baseIngredients.${index}.quantity`, { valueAsNumber: true })} placeholder="0" className="mt-1" />
+                      <Controller
+                        control={form.control}
+                        name={`baseIngredients.${index}.quantity`}
+                        render={({ field }) => (
+                          <Input
+                            type="number"
+                            step="0.001"
+                            placeholder="0"
+                            className="mt-1"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const quantity = parseFloat(e.target.value) || 0;
+                              field.onChange(quantity);
+                              
+                              // Recalculate cost
+                              const materialId = form.getValues(`baseIngredients.${index}.materialId`);
+                              const unit = form.getValues(`baseIngredients.${index}.unit`);
+                              
+                              console.log(`🔄 Quantity changed for ingredient ${index}:`, { materialId, quantity, unit });
+                              
+                              if (materialId && quantity > 0 && unit) {
+                                const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
+                                console.log(`🔍 Material found:`, material);
+                                console.log(`💵 Material costPerUnit:`, material?.costPerUnit);
+                                
+                                const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
+                                console.log(`💰 Calculated cost for ingredient ${index}:`, smartCost);
+                                form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
+                              }
+                            }}
+                          />
+                        )}
+                      />
                     </div>
 
                     <div>
                       <Label>Unit *</Label>
-                      <Input {...form.register(`baseIngredients.${index}.unit`)} placeholder="g" className="mt-1" />
+                      <Controller
+                        control={form.control}
+                        name={`baseIngredients.${index}.unit`}
+                        render={({ field }) => (
+                          <Input
+                            placeholder="g"
+                            className="mt-1"
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              const unit = e.target.value;
+                              field.onChange(unit);
+                              
+                              // Recalculate cost
+                              const materialId = form.getValues(`baseIngredients.${index}.materialId`);
+                              const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
+                              
+                              console.log(`🔄 Unit changed for ingredient ${index}:`, { materialId, quantity, unit });
+                              
+                              if (materialId && quantity > 0 && unit) {
+                                const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
+                                console.log(`💰 Calculated cost for ingredient ${index}:`, smartCost);
+                                form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
+                              }
+                            }}
+                          />
+                        )}
+                      />
                     </div>
 
                     <div>
