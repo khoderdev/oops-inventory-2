@@ -81,27 +81,17 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
   const refreshAll = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      // console.log("🔄 DayOperationsContext: Full refresh started...");
-
-      // Always refresh current day first and get the fresh data
       await refreshCurrentDay();
-
-      // Get fresh current day data directly from API instead of using stale closure
       try {
         const response = await dayOperationsAPI.getCurrentDayOperation();
         const freshCurrentDay = response.currentDay;
-
-        // Then refresh activities and stats if day is open (using fresh data)
         if (freshCurrentDay?.status === "opened") {
           await Promise.all([refreshActivities(), refreshUserStats()]);
         }
       } catch (err) {
         console.warn("⚠️ Could not get fresh current day for activities refresh:", err);
       }
-
-      // console.log("✅ DayOperationsContext: Full refresh completed");
     } catch (err) {
       console.error("❌ DayOperationsContext: Full refresh failed:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to refresh day operations";
@@ -117,30 +107,18 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
       try {
         setActionLoading(true);
         setError(null);
-
-        // console.log("🚀 DayOperationsContext: Opening day...", data);
-
-        // Ensure user ID is included
         const openDayData = {
           ...data,
           userId: user?.id as any,
           openedBy: data.openedBy || user?.fullName || ""
         };
-
         const response = await dayOperationsAPI.openDay(openDayData);
-
-        // Update current day immediately for instant UI update
         if (response.dayOperation) {
           setCurrentDay(response.dayOperation);
           setLastRefresh(new Date());
         }
-
         setSuccess(`Shift opened successfully! ${response.stockItemsCaptured} stock items captured.`);
-
-        // Refresh all data immediately to ensure consistency
         refreshAll();
-
-        // console.log("✅ DayOperationsContext: Day opened successfully");
       } catch (err) {
         console.error("❌ DayOperationsContext: Failed to open day:", err);
         const errorMessage = err instanceof Error ? err.message : "Failed to open day";
@@ -157,34 +135,20 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
       try {
         setActionLoading(true);
         setError(null);
-
-        // console.log("🛑 DayOperationsContext: Closing day...", data);
-
-        // Ensure user ID is included
         const closeDayData = {
           ...data,
           userId: user?.id as any,
           closedBy: data.closedBy || user?.fullName || ""
         };
-
         const response = await dayOperationsAPI.closeDay(closeDayData);
-
-        // Update current day immediately for instant UI update
         if (response.dayOperation) {
           setCurrentDay(response.dayOperation);
           setLastRefresh(new Date());
         }
-
         setSuccess(`Shift closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
-
-        // Clear activities and stats since day is now closed
         setActivities([]);
         setUserOrderStats([]);
-
-        // Refresh all data immediately to ensure consistency
         refreshAll();
-
-        // console.log("✅ DayOperationsContext: Day closed successfully");
       } catch (err) {
         console.error("❌ DayOperationsContext: Failed to close day:", err);
         const errorMessage = err instanceof Error ? err.message : "Failed to close day";
@@ -199,10 +163,7 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
   // Auto-refresh effect
   useEffect(() => {
     if (autoRefreshEnabled && isDayOpen) {
-      // console.log("🔄 DayOperationsContext: Starting auto-refresh interval", autoRefreshInterval / 1000, "seconds");
-
       const interval = setInterval(() => {
-        // console.log("⏰ DayOperationsContext: Auto-refresh triggered");
         refreshAll();
       }, autoRefreshInterval);
 
@@ -222,7 +183,6 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
 
   // Initial load effect
   useEffect(() => {
-    // console.log("🚀 DayOperationsContext: Initial load started");
     refreshAll();
   }, []);
 
