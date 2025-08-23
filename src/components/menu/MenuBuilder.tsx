@@ -64,7 +64,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
     validateData();
   }, [lastValidationTime, dataValidationEnabled]);
 
-
   const runValidation = useCallback(() => {
     if (!dataValidationEnabled) {
       toast({
@@ -92,18 +91,14 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
   const handleDeleteMenuItemLocal = useCallback(
     async (id: string) => {
       try {
-        // Use context method if available, otherwise use prop callback
         if (handleDeleteMenuItem) {
           await handleDeleteMenuItem(id);
         } else if (propDeleteMenuItem) {
-          // Delete via API
           await menuAPI.deleteMenuItem(id);
           await propDeleteMenuItem(id);
         } else {
-          // Fallback to direct API call
           await menuAPI.deleteMenuItem(id);
         }
-
         toast({
           title: "Success",
           description: "Menu item deleted successfully",
@@ -159,6 +154,91 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
     setSelectedMenuItemForPrinter(menuItem);
     setShowPrinterDialog(true);
   }, []);
+
+  const handleAddMenuItem = useCallback(
+    async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
+      try {
+        const ingredientsWithCosts = data.ingredients;
+        const menuItemToCreate: MenuItem = {
+          id: `menu-${Date.now()}`,
+          ...data,
+          ingredients: ingredientsWithCosts,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        if (handleCreateMenuItem) {
+          await handleCreateMenuItem(menuItemToCreate);
+        } else if (propCreateMenuItem) {
+          const createdMenuItem = await menuAPI.createMenuItem(menuItemToCreate);
+          await propCreateMenuItem(createdMenuItem.data);
+        } else {
+          await menuAPI.createMenuItem(menuItemToCreate);
+        }
+        setShowMenuItemForm(false);
+        setEditingMenuItem(null);
+        toast({
+          title: "Success",
+          description: "Menu item created successfully",
+          variant: "default",
+          duration: 1000
+        });
+      } catch (error) {
+        console.error("Error creating menu item:", error);
+        toast({
+          title: "Error",
+          description: "Failed to create menu item",
+          variant: "destructive",
+          duration: 1000
+        });
+      }
+    },
+    [handleCreateMenuItem, propCreateMenuItem]
+  );
+
+  const handleUpdateMenuItemLocal = useCallback(
+    async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
+      if (!editingMenuItem) {
+        console.error("editingMenuItem not provided");
+        return;
+      }
+      try {
+        const ingredientsWithCosts = data.ingredients;
+        const updatedMenuItem: MenuItem = {
+          ...editingMenuItem,
+          ...data,
+          ingredients: ingredientsWithCosts,
+          updatedAt: new Date()
+        };
+        if (handleUpdateMenuItem) {
+          await handleUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
+        } else if (propUpdateMenuItem) {
+          await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
+          await propUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
+        } else {
+          await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
+        }
+        setShowMenuItemForm(false);
+        setEditingMenuItem(null);
+        toast({
+          title: "Success",
+          description: "Menu item updated successfully",
+          variant: "default",
+          duration: 1000
+        });
+      } catch (error) {
+        console.error("Error updating menu item:", error);
+        setShowMenuItemForm(false);
+        setEditingMenuItem(null);
+        toast({
+          title: "Error",
+          description: "Failed to update menu item",
+          variant: "destructive",
+          duration: 1000
+        });
+      }
+    },
+    [editingMenuItem, handleUpdateMenuItem, propUpdateMenuItem]
+  );
 
   const columns = useMenuItemColumns({
     searchTerm,
@@ -246,91 +326,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
   }, [filteredMenuItems, bulkSelectionMode, columns, sorting, columnFilters, columnVisibility, selectedMenuItems]);
 
   const table = useReactTable(tableOptions);
-
-  const handleAddMenuItem = useCallback(
-    async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
-      try {
-        const ingredientsWithCosts = data.ingredients;
-        const menuItemToCreate: MenuItem = {
-          id: `menu-${Date.now()}`,
-          ...data,
-          ingredients: ingredientsWithCosts,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        };
-        if (handleCreateMenuItem) {
-          await handleCreateMenuItem(menuItemToCreate);
-        } else if (propCreateMenuItem) {
-          const createdMenuItem = await menuAPI.createMenuItem(menuItemToCreate);
-          await propCreateMenuItem(createdMenuItem.data);
-        } else {
-          await menuAPI.createMenuItem(menuItemToCreate);
-        }
-        setShowMenuItemForm(false);
-        setEditingMenuItem(null);
-        toast({
-          title: "Success",
-          description: "Menu item created successfully",
-          variant: "default",
-          duration: 1000
-        });
-      } catch (error) {
-        console.error("Error creating menu item:", error);
-        toast({
-          title: "Error",
-          description: "Failed to create menu item",
-          variant: "destructive",
-          duration: 1000
-        });
-      }
-    },
-    [handleCreateMenuItem, propCreateMenuItem]
-  );
-
-  const handleUpdateMenuItemLocal = useCallback(
-    async (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => {
-      if (!editingMenuItem) {
-        console.error("editingMenuItem not provided");
-        return;
-      }
-      try {
-        const ingredientsWithCosts = data.ingredients;
-        const updatedMenuItem: MenuItem = {
-          ...editingMenuItem,
-          ...data,
-          ingredients: ingredientsWithCosts,
-          updatedAt: new Date()
-        };
-        if (handleUpdateMenuItem) {
-          await handleUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
-        } else if (propUpdateMenuItem) {
-          await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
-          await propUpdateMenuItem(editingMenuItem.id, updatedMenuItem);
-        } else {
-          await menuAPI.updateMenuItem(editingMenuItem.id, updatedMenuItem);
-        }
-        setShowMenuItemForm(false);
-        setEditingMenuItem(null);
-        toast({
-          title: "Success",
-          description: "Menu item updated successfully",
-          variant: "default",
-          duration: 1000
-        });
-      } catch (error) {
-        console.error("Error updating menu item:", error);
-        setShowMenuItemForm(false);
-        setEditingMenuItem(null);
-        toast({
-          title: "Error",
-          description: "Failed to update menu item",
-          variant: "destructive",
-          duration: 1000
-        });
-      }
-    },
-    [editingMenuItem, handleUpdateMenuItem, propUpdateMenuItem]
-  );
 
   const handleCloseModal = useCallback((open: boolean) => {
     if (!open) {
