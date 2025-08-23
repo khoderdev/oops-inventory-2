@@ -871,7 +871,7 @@ export interface CreateMenuItemData {
   ingredients: MenuItemIngredient[];
   isPOSItem?: boolean;
   image?: string;
-  isBeverage: boolean;
+  isBeverage?: boolean;
   unit?: string;
   availableQuantity?: number;
   costPerUnit?: number;

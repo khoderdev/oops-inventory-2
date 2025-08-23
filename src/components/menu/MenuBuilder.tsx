@@ -65,10 +65,6 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
     validateData();
   }, [lastValidationTime, dataValidationEnabled]);
 
-  useEffect(() => {
-    const data = fetchTabData("menu");
-  }, [fetchTabData]);
-
   const validateIngredientData = useCallback((ingredient: MenuItemIngredient, material: Material) => {
     if (!ingredient.unit || !material.baseUnit || !ingredient.quantity) return;
     const issues: ValidationIssue[] = [];
@@ -923,7 +919,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ menuItems, cat
               </SelectTrigger>
               <SelectContent>
                 {menuItemCategories.map(category => (
-                  <SelectItem key={category.value} value={category.value}>
+                  <SelectItem key={category.id || category.value} value={category.value || category.id?.toString() || ''}>
                     {category.name}
                   </SelectItem>
                 ))}

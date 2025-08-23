@@ -389,8 +389,9 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
       await Promise.all([set(fetchMaterialsAction), set(fetchStockEntriesAction), set(fetchMenuItemsAction), set(fetchSectionsAction)]);
       break;
     case "menu":
-      // Menu tab needs both stock entries (for available materials) and menu items
-      await Promise.all([set(fetchStockEntriesAction), set(fetchMenuItemsAction)]);
+      // TabMenu.tsx already handles fetching food and beverage items with isActive=true
+      // No need to fetch data here to avoid duplicate API calls
+      console.log("📝 Menu tab data fetching skipped in fetchTabDataAction - handled by TabMenu.tsx");
       break;
     case "conversions":
       await set(fetchMaterialsAction); // Reuse materials for conversions
@@ -418,7 +419,7 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
       isPOSItem: data.isPOSItem,
       image: data.image, // Include base64 image data
       // Preserve all beverage-specific fields
-      beverageStockId: (data as any).beverageStockId,
+      isBeverage: (data as any).isBeverage,
       unit: (data as any).unit,
       availableQuantity: (data as any).availableQuantity,
       costPerUnit: (data as any).costPerUnit,
@@ -429,7 +430,7 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
       original: data,
       transformed: createData,
       beverageFields: {
-        beverageStockId: createData.beverageStockId,
+        isBeverage: createData.isBeverage,
         unit: createData.unit,
         availableQuantity: createData.availableQuantity,
         costPerUnit: createData.costPerUnit,
