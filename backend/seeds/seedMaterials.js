@@ -1,5 +1,7 @@
 import Material from "../models/materials.js";
 import Category from "../models/Category.js";
+import CategoryType from "../models/CategoryType.js";
+import { Op } from "sequelize";
 
 /**
  * Seed materials table with comprehensive ingredients
@@ -7,8 +9,41 @@ import Category from "../models/Category.js";
 export async function seedMaterials() {
   console.log("📦 Seeding materials...");
 
-  // First, get all categories to map category values to IDs
-  const categories = await Category.findAll({ where: { type: 'materials' } });
+  // First, find the CategoryType ID for 'materials'
+  const materialsCategoryType = await CategoryType.findOne({ where: { type: 'materials' } });
+  
+  if (!materialsCategoryType) {
+    console.error("❌ Error: CategoryType 'materials' not found in the database");
+    console.log("Creating 'materials' category type...");
+    
+    // Create the materials category type if it doesn't exist
+    const newCategoryType = await CategoryType.create({ type: 'materials' });
+    console.log(`✅ Created 'materials' category type with ID: ${newCategoryType.id}`);
+    
+    // No categories would be associated with this new type yet
+    console.warn("⚠️ No categories are associated with the 'materials' type yet.");
+    console.warn("Please run the categorySeed.js script first to create categories.");
+    return { created: 0, existing: 0 };
+  }
+  
+  console.log(`🔍 Found 'materials' category type with ID: ${materialsCategoryType.id}`);
+  
+  // Then get all categories where categoryTypeIds contains the materials category type ID
+  const categories = await Category.findAll({
+    where: {
+      categoryTypeIds: {
+        [Op.contains]: [materialsCategoryType.id]
+      }
+    }
+  });
+  
+  if (categories.length === 0) {
+    console.warn("⚠️ No categories found for 'materials' type.");
+    console.warn("Please run the categorySeed.js script first to create categories.");
+    return { created: 0, existing: 0 };
+  }
+  
+  console.log(`🔍 Found ${categories.length} categories for 'materials' type.`);
   const categoryMap = {};
   categories.forEach(cat => {
     categoryMap[cat.value] = cat.id;

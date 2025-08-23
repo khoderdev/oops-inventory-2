@@ -1,6 +1,7 @@
 import Material from "../models/materials.js";
 import { MenuItem, MenuItemIngredient } from "../models/menuItems.js";
 import Category from "../models/Category.js";
+import sequelize from "../config/database.js";
 
 /**
  * Seed comprehensive menu items with all 176 items from the menu
@@ -16,7 +17,10 @@ export async function seedMenuItems() {
   });
 
   // Get all menu item categories to map category values to IDs
-  const categories = await Category.findAll({ where: { type: 'menu_items' } });
+  const menuItemCategoryTypeId = 2; // menu_items category type ID
+  const categories = await Category.findAll({
+    where: sequelize.literal(`${menuItemCategoryTypeId} = ANY("categoryTypeIds")`)
+  });
   const categoryMap = {};
   categories.forEach(cat => {
     categoryMap[cat.value] = cat.id;

@@ -1,4 +1,5 @@
-import { MenuItem, Category } from "../models/index.js";
+import { MenuItem, Category, CategoryType } from "../models/index.js";
+import { Op } from "sequelize";
 
 const beverageItems = [
   // Beers & Energy Drinks
@@ -935,8 +936,24 @@ const beverageItems = [
 export const seedBeverages = async () => {
   console.log("🍹 Starting beverages seeding...");
 
+  // Get the ID of the 'menu_items' category type
+  const menuItemsCategoryType = await CategoryType.findOne({ where: { type: 'menu_items' } });
+  
+  if (!menuItemsCategoryType) {
+    console.error("❌ Error: 'menu_items' category type not found!");
+    return { created: 0, skipped: 0, errors: beverageItems.length };
+  }
+  
+  const menuItemsCategoryTypeId = menuItemsCategoryType.id;
+  
   // Get all menu item categories to map category values to IDs
-  const categories = await Category.findAll({ where: { type: 'menu_items' } });
+  // Filter categories where categoryTypeIds array contains the menu_items type ID
+  const categories = await Category.findAll({
+    where: {
+      categoryTypeIds: { [Op.contains]: [menuItemsCategoryTypeId] }
+    }
+  });
+  
   const categoryMap = {};
   categories.forEach(cat => {
     categoryMap[cat.value] = cat.id;

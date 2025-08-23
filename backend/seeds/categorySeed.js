@@ -1,4 +1,12 @@
 import Category from "../models/Category.js";
+import CategoryType from "../models/CategoryType.js";
+import { Op } from "sequelize";
+
+const DEFAULT_CATEGORY_TYPES = [
+  { type: 'materials' },
+  { type: 'menu_items' },
+  { type: 'beverages' }
+];
 
 // Default material categories from your existing MATERIAL_CATEGORIES
 const DEFAULT_MATERIAL_CATEGORIES = [
@@ -30,37 +38,81 @@ const DEFAULT_MENU_CATEGORIES = [
   { name: "Pizza", value: "pizza", type: "menu_items", sortOrder: 7 },
   { name: "Salads", value: "salads", type: "menu_items", sortOrder: 8 },
   { name: "Desserts", value: "desserts", type: "menu_items", sortOrder: 9 },
-  { name: "Cold Beverages", value: "cold", type: "menu_items", sortOrder: 10 },
-  { name: "Hot Beverages", value: "hot", type: "menu_items", sortOrder: 11 },
-  { name: "Alcohol", value: "alcohol", type: "menu_items", sortOrder: 12 },
   { name: "Breakfast", value: "breakfast", type: "menu_items", sortOrder: 13 },
   { name: "Shisha", value: "shisha", type: "menu_items", sortOrder: 14 }
+];
+
+const DEFAULT_BEVERAGES_CATEGORIES = [
+  { name: "Cold Drinks", value: "cold", type: "beverages", sortOrder: 1 },
+  { name: "Hot Drinks", value: "hot", type: "beverages", sortOrder: 2 },
+  { name: "Alcohol", value: "alcohol", type: "beverages", sortOrder: 3 },
+  { name: "Juices", value: "juices", type: "beverages", sortOrder: 4 },
 ];
 
 export const seedCategories = async () => {
   try {
     console.log("🌱 Starting category seeding...");
 
-    // Combine all default categories
-    const allCategories = [...DEFAULT_MATERIAL_CATEGORIES, ...DEFAULT_MENU_CATEGORIES];
-
-    // Use upsert to avoid duplicates
+    // First, seed the category types
+    console.log("🔄 Seeding category types...");
+    const categoryTypeMap = {};
+    
+    // Create category types first
+    for (const typeData of ["materials", "menu_items", "beverages"]) {
+      const [categoryType, created] = await CategoryType.findOrCreate({
+        where: { type: typeData },
+        defaults: { type: typeData }
+      });
+      
+      categoryTypeMap[typeData] = categoryType.id;
+      
+      if (created) {
+        console.log(`✅ Created category type: ${categoryType.type} (ID: ${categoryType.id})`);
+      } else {
+        console.log(`⏭️  Category type already exists: ${categoryType.type} (ID: ${categoryType.id})`);
+      }
+    }
+    
+    // Now seed the categories with proper categoryTypeIds
+    console.log("🔄 Seeding categories...");
+    
+    // Combine material, menu and beverage categories (not the types)
+    const allCategories = [...DEFAULT_MATERIAL_CATEGORIES, ...DEFAULT_MENU_CATEGORIES, ...DEFAULT_BEVERAGES_CATEGORIES];
     const createdCategories = [];
     
     for (const categoryData of allCategories) {
+      // Extract type and convert to categoryTypeId
+      const { type, ...categoryDataWithoutType } = categoryData;
+      const categoryTypeId = categoryTypeMap[type];
+      
+      if (!categoryTypeId) {
+        console.warn(`⚠️ Category type '${type}' not found for category '${categoryData.name}'. Skipping.`);
+        continue;
+      }
+      
+      // Find or create the category with proper categoryTypeIds
       const [category, created] = await Category.findOrCreate({
         where: { value: categoryData.value },
         defaults: {
-          ...categoryData,
+          ...categoryDataWithoutType,
+          categoryTypeIds: [categoryTypeId],
           isActive: true
         }
       });
       
+      // If category exists but doesn't have this categoryTypeId, update it
+      if (!created && category.categoryTypeIds && !category.categoryTypeIds.includes(categoryTypeId)) {
+        await category.update({
+          categoryTypeIds: [...category.categoryTypeIds, categoryTypeId]
+        });
+        console.log(`🔄 Updated category: ${category.name} with categoryTypeId: ${categoryTypeId}`);
+      }
+      
       if (created) {
         createdCategories.push(category);
-        console.log(`✅ Created category: ${category.name} (${category.type})`);
+        console.log(`✅ Created category: ${category.name} (type: ${type}, categoryTypeId: ${categoryTypeId})`);
       } else {
-        console.log(`⏭️  Category already exists: ${category.name} (${category.type})`);
+        console.log(`⏭️  Category already exists: ${category.name} (type: ${type}, categoryTypeId: ${categoryTypeId})`);
       }
     }
 
@@ -76,20 +128,50 @@ export const seedCategories = async () => {
 export const getCategoriesForDropdown = async (type = null) => {
   try {
     const whereClause = { isActive: true };
+    let categoryTypeId = null;
+    
+    // If type is specified, find the corresponding categoryTypeId
     if (type) {
-      whereClause.type = type;
+      const categoryType = await CategoryType.findOne({
+        where: { type },
+        attributes: ['id']
+      });
+      
+      if (categoryType) {
+        categoryTypeId = categoryType.id;
+      } else {
+        console.warn(`⚠️ Category type '${type}' not found`);
+        return [];
+      }
+    }
+    
+    // Build the query based on categoryTypeId
+    if (categoryTypeId) {
+      whereClause.categoryTypeIds = {
+        [Op.contains]: [categoryTypeId]
+      };
     }
 
     const categories = await Category.findAll({
       where: whereClause,
       order: [['sortOrder', 'ASC'], ['name', 'ASC']],
-      attributes: ['value', 'name', 'type']
+      attributes: ['id', 'value', 'name', 'categoryTypeIds']
+    });
+    
+    // Get all category types for mapping
+    const categoryTypes = await CategoryType.findAll();
+    const typeMap = {};
+    categoryTypes.forEach(ct => {
+      typeMap[ct.id] = ct.type;
     });
 
     return categories.map(cat => ({
+      id: cat.id,
       value: cat.value,
       label: cat.name,
-      type: cat.type
+      // Map the first categoryTypeId to a type string for backwards compatibility
+      type: cat.categoryTypeIds && cat.categoryTypeIds.length > 0 ? 
+            typeMap[cat.categoryTypeIds[0]] || null : null
     }));
   } catch (error) {
     console.error("❌ Error fetching categories for dropdown:", error);
