@@ -1,28 +1,41 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable, getSortedRowModel, SortingState, getFilteredRowModel } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Eye, EyeOff, ChefHat } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Eye, EyeOff, ChefHat, Search, Settings2 } from "lucide-react";
 import { Sauce, SauceTableProps } from "@/types/inventory";
 import { toast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { BulkSelectionToolbar } from "@/components/ui/BulkSelectionToolbar";
 
 export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, onTogglePOSVisibility }: SauceTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [rowSelection, setRowSelection] = useState({});
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({});
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [density, setDensity] = useState<"compact" | "comfortable" | "spacious">("comfortable");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sauceToDelete, setSauceToDelete] = useState<Sauce | null>(null);
-  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
   const columns: ColumnDef<Sauce>[] = [
     {
       id: "select",
-      header: ({ table }) => <Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />,
-      cell: ({ row }) => <Checkbox checked={row.getIsSelected()} onCheckedChange={value => row.toggleSelected(!!value)} aria-label="Select row" />,
+      header: ({ table }) => {
+        const all = table.getIsAllRowsSelected();
+        const some = table.getIsSomeRowsSelected();
+        const checked = all ? true : some ? "indeterminate" : false;
+        return (
+          <Checkbox checked={checked} onCheckedChange={value => table.toggleAllRowsSelected(!!value)} aria-label="Select all" />
+        );
+      },
+      cell: ({ row }) => (
+        <Checkbox checked={row.getIsSelected()} onCheckedChange={value => row.toggleSelected(!!value)} aria-label="Select row" />
+      ),
       enableSorting: false,
       enableHiding: false
     },
@@ -42,12 +55,16 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
     {
       accessorKey: "category",
       header: "Category",
-      cell: ({ row }) => (
-        <Badge variant="outline" className="flex justify-center w-fit items-center gap-1">
-          <ChefHat className="w-3 h-3" />
-          {row.getValue("category")}
-        </Badge>
-      )
+      cell: ({ row }) => {
+        const cat = (row.original as any).category;
+        const label = typeof cat === "string" ? cat : cat?.name ?? "uncategorized";
+        return (
+          <Badge variant="outline" className="flex justify-center w-fit items-center gap-1">
+            <ChefHat className="w-3 h-3" />
+            {label}
+          </Badge>
+        );
+      }
     },
     {
       accessorKey: "ingredients",
@@ -74,7 +91,7 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
       header: "Total Cost",
       cell: ({ row }) => {
         const totalCost = row.getValue<number>("totalCost");
-        const cost = typeof totalCost === "number" ? totalCost : parseFloat(totalCost) || 0;
+        const cost = typeof totalCost === "number" ? totalCost : parseFloat(totalCost as unknown as string) || 0;
         return <span className="font-medium">${cost.toFixed(2)}</span>;
       }
     },
@@ -83,7 +100,7 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
       header: "Cost/Unit",
       cell: ({ row }) => {
         const costPerUnit = row.getValue<number>("costPerUnit");
-        const cost = typeof costPerUnit === "number" ? costPerUnit : parseFloat(costPerUnit) || 0;
+        const cost = typeof costPerUnit === "number" ? costPerUnit : parseFloat(costPerUnit as unknown as string) || 0;
         return <span className="font-medium">${cost.toFixed(4)}</span>;
       }
     },
@@ -161,40 +178,37 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
     }
   ];
 
+  const filteredData = useMemo(() => {
+    const term = globalFilter.trim().toLowerCase();
+    if (!term) return sauces;
+    return sauces.filter(s => {
+      const fields = [s.name, (s as any).category, s.description]?.filter(Boolean) as string[];
+      return fields.some(v => v.toLowerCase().includes(term));
+    });
+  }, [sauces, globalFilter]);
+
   const table = useReactTable({
-    data: sauces,
+    data: filteredData,
     columns,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
+    onColumnVisibilityChange: setColumnVisibility,
     state: {
       sorting,
-      rowSelection
+      rowSelection,
+      columnVisibility
     }
   });
 
-  const selectedRows = table.getFilteredSelectedRowModel().rows;
-  const selectedSauceIds = selectedRows.map(row => row.original.id);
-
-  const handleBulkDelete = () => {
-    if (selectedSauceIds.length === 0) {
-      toast({
-        title: "No Selection",
-        description: "Please select sauces to delete",
-        variant: "destructive",
-        duration: 2000
-      });
-      return;
-    }
-    setBulkDeleteDialogOpen(true);
-  };
+  const selectedRows = table.getSelectedRowModel().rows;
+  const selectedSauceIds = useMemo(() => selectedRows.map(row => row.original.id), [selectedRows]);
 
   const confirmBulkDelete = () => {
     onBulkDelete(selectedSauceIds);
     setRowSelection({});
-    setBulkDeleteDialogOpen(false);
     toast({
       title: "Deleted",
       description: `${selectedSauceIds.length} sauce(s) deleted successfully`,
@@ -217,49 +231,102 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
 
   return (
     <div className="space-y-4">
-      {/* Header with filters and actions */}
+      {/* Controls: Search, Column visibility, Density */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {selectedSauceIds.length > 0 && (
-                <Button onClick={handleBulkDelete} variant="destructive" size="sm">
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete Selected ({selectedSauceIds.length})
-                </Button>
-              )}
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2 w-full md:max-w-md">
+              <Search className="h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search sauces by name, category, description..."
+                value={globalFilter}
+                onChange={e => setGlobalFilter(e.target.value)}
+              />
             </div>
-          </CardTitle>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings2 className="h-4 w-4" />
+                    View
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {table.getAllLeafColumns()
+                    .filter(c => c.id !== "select" && c.id !== "actions")
+                    .map(column => (
+                      <DropdownMenuItem key={column.id} className="flex items-center justify-between">
+                        <span className="capitalize">{column.id}</span>
+                        <Checkbox
+                          checked={column.getIsVisible()}
+                          onCheckedChange={val => column.toggleVisibility(!!val)}
+                          aria-label={`Toggle ${column.id}`}
+                        />
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <div className="hidden sm:flex items-center rounded-md border overflow-hidden">
+                <Button variant={density === "compact" ? "default" : "ghost"} size="sm" onClick={() => setDensity("compact")}>XS</Button>
+                <Button variant={density === "comfortable" ? "default" : "ghost"} size="sm" onClick={() => setDensity("comfortable")}>SM</Button>
+                <Button variant={density === "spacious" ? "default" : "ghost"} size="sm" onClick={() => setDensity("spacious")}>MD</Button>
+              </div>
+            </div>
+          </div>
         </CardHeader>
       </Card>
 
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-10 bg-white">
                 {table.getHeaderGroups().map(headerGroup => (
                   <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map(header => (
-                      <TableHead key={header.id} className="font-medium">
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
+                    {headerGroup.headers.map(header => {
+                      const id = header.column.id;
+                      const hiddenOnSmall = ["ingredients", "preparationTime", "status"].includes(id) ? "hidden md:table-cell" : "";
+                      const hiddenOnXs = id === "costPerUnit" ? "hidden sm:table-cell" : "";
+                      return (
+                        <TableHead key={header.id} className={`font-medium ${hiddenOnSmall} ${hiddenOnXs}`}>
+                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                 ))}
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map(row => (
-                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="hover:bg-gray-50">
-                      {row.getVisibleCells().map(cell => (
-                        <TableCell key={cell.id} className="py-3">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
+                  table.getRowModel().rows.map(row => {
+                    const padding = density === "compact" ? "py-1.5" : density === "spacious" ? "py-4" : "py-2.5";
+                    return (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                        className="hover:bg-gray-50 data-[state=selected]:bg-indigo-50 data-[state=selected]:ring-1 data-[state=selected]:ring-indigo-200 cursor-pointer"
+                        onClick={() => row.toggleSelected()}
+                      >
+                        {row.getVisibleCells().map(cell => {
+                          const id = cell.column.id;
+                          const hiddenOnSmall = ["ingredients", "preparationTime", "status"].includes(id) ? "hidden md:table-cell" : "";
+                          const hiddenOnXs = id === "costPerUnit" ? "hidden sm:table-cell" : "";
+                          const stopClick = id === "select" || id === "actions";
+                          return (
+                            <TableCell
+                              key={cell.id}
+                              className={`${padding} ${hiddenOnSmall} ${hiddenOnXs}`}
+                              onClick={stopClick ? e => e.stopPropagation() : undefined}
+                            >
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    );
+                  })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={columns.length} className="h-24 text-center">
@@ -277,6 +344,29 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
         </CardContent>
       </Card>
 
+      {/* Bulk selection toolbar */}
+      <BulkSelectionToolbar<number>
+        selectedItems={useMemo(() => new Set(selectedSauceIds), [selectedSauceIds])}
+        totalItems={filteredData.length}
+        selectionLabel="sauce"
+        onSelectAll={checked => table.toggleAllRowsSelected(!!checked)}
+        onClearSelection={() => setRowSelection({})}
+        bulkActions={[
+          {
+            id: "bulk-delete",
+            label: "Delete",
+            icon: <Trash2 className="h-4 w-4" />,
+            variant: "destructive",
+            requiresConfirmation: true,
+            confirmationTitle: "Delete selected sauces",
+            confirmationDescription: `Are you sure you want to delete ${selectedSauceIds.length} selected sauce(s)? This action cannot be undone.`,
+            confirmationActionText: "Delete",
+            onClick: confirmBulkDelete
+          }
+        ]}
+        position="bottom"
+      />
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -293,21 +383,6 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Bulk Delete Confirmation Dialog */}
-      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Multiple Sauces</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to delete {selectedSauceIds.length} selected sauce(s)? This action cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmBulkDelete} className="bg-red-600 hover:bg-red-700">
-              Delete All
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
