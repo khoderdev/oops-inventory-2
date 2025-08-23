@@ -1,53 +1,22 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable, getSortedRowModel, SortingState, getFilteredRowModel } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, Eye, EyeOff, Search, Filter, ChefHat, Clock, DollarSign, Package, AlertTriangle } from "lucide-react";
-import { Sauce, SauceTableProps, Material } from "@/types/inventory";
+import { MoreHorizontal, Edit, Trash2, Eye, EyeOff, ChefHat } from "lucide-react";
+import { Sauce, SauceTableProps } from "@/types/inventory";
 import { toast } from "@/hooks/use-toast";
 
-export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBulkDelete, onTogglePOSVisibility }: SauceTableProps) {
+export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, onTogglePOSVisibility }: SauceTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sauceToDelete, setSauceToDelete] = useState<Sauce | null>(null);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-
-  // Materials lookup for ingredient names
-  const materialsById = useMemo(() => {
-    const map = new Map<string, Material>();
-    materials.forEach(material => map.set(material.id, material));
-    return map;
-  }, [materials]);
-
-  // Get unique categories
-  const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(sauces.map(sauce => sauce.category))];
-    return uniqueCategories.sort();
-  }, [sauces]);
-
-  // Filter sauces
-  const filteredSauces = useMemo(() => {
-    return sauces.filter(sauce => {
-      const matchesSearch = !searchTerm || sauce.name.toLowerCase().includes(searchTerm.toLowerCase()) || sauce.description?.toLowerCase().includes(searchTerm.toLowerCase()) || sauce.category.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesCategory = categoryFilter === "all" || sauce.category === categoryFilter;
-
-      const matchesStatus = statusFilter === "all" || (statusFilter === "active" && sauce.isActive) || (statusFilter === "inactive" && !sauce.isActive) || (statusFilter === "pos" && sauce.isPOSItem) || (statusFilter === "non-pos" && !sauce.isPOSItem);
-
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
-  }, [sauces, searchTerm, categoryFilter, statusFilter]);
 
   const columns: ColumnDef<Sauce>[] = [
     {
@@ -74,7 +43,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
       accessorKey: "category",
       header: "Category",
       cell: ({ row }) => (
-        <Badge variant="outline" className="flex items-center gap-1">
+        <Badge variant="outline" className="flex justify-center w-fit items-center gap-1">
           <ChefHat className="w-3 h-3" />
           {row.getValue("category")}
         </Badge>
@@ -85,21 +54,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
       header: "Ingredients",
       cell: ({ row }) => {
         const ingredients = row.original.ingredients || row.original.baseIngredients || [];
-        return (
-          <div className="flex flex-col space-y-1">
-            <div className="text-sm font-medium">{ingredients.length} ingredients</div>
-            <div className="text-xs text-gray-500">
-              {ingredients
-                .slice(0, 2)
-                .map(ing => {
-                  const material = materialsById.get(ing.materialId);
-                  return material?.name || "Unknown";
-                })
-                .join(", ")}
-              {ingredients.length > 2 && ` +${ingredients.length - 2} more`}
-            </div>
-          </div>
-        );
+        return <span className="font-medium">{ingredients.length} ingredients</span>;
       }
     },
     {
@@ -108,12 +63,9 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
       cell: ({ row }) => {
         const sauce = row.original;
         return (
-          <div className="flex items-center gap-1">
-            <Package className="w-3 h-3 text-gray-400" />
-            <span>
-              {sauce.yieldQuantity} {sauce.unit}
-            </span>
-          </div>
+          <span className="font-medium">
+            {sauce.yieldQuantity} {sauce.unit}
+          </span>
         );
       }
     },
@@ -123,12 +75,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
       cell: ({ row }) => {
         const totalCost = row.getValue<number>("totalCost");
         const cost = typeof totalCost === "number" ? totalCost : parseFloat(totalCost) || 0;
-        return (
-          <div className="flex items-center gap-1">
-            <DollarSign className="w-3 h-3 text-gray-400" />
-            <span className="font-medium">${cost.toFixed(2)}</span>
-          </div>
-        );
+        return <span className="font-medium">${cost.toFixed(2)}</span>;
       }
     },
     {
@@ -137,12 +84,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
       cell: ({ row }) => {
         const costPerUnit = row.getValue<number>("costPerUnit");
         const cost = typeof costPerUnit === "number" ? costPerUnit : parseFloat(costPerUnit) || 0;
-        return (
-          <div className="flex items-center gap-1">
-            <DollarSign className="w-3 h-3 text-gray-400" />
-            <span>${cost.toFixed(4)}</span>
-          </div>
-        );
+        return <span className="font-medium">${cost.toFixed(4)}</span>;
       }
     },
     {
@@ -150,14 +92,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
       header: "Prep Time",
       cell: ({ row }) => {
         const prepTime = row.getValue<number>("preparationTime");
-        return prepTime ? (
-          <div className="flex items-center gap-1">
-            <Clock className="w-3 h-3 text-gray-400" />
-            <span>{prepTime}min</span>
-          </div>
-        ) : (
-          <span className="text-gray-400">-</span>
-        );
+        return prepTime ? <span className="font-medium">{prepTime} min</span> : <span className="text-gray-400">-</span>;
       }
     },
     {
@@ -227,7 +162,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
   ];
 
   const table = useReactTable({
-    data: filteredSauces,
+    data: sauces,
     columns,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -286,7 +221,6 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-           
             <div className="flex items-center gap-2">
               {selectedSauceIds.length > 0 && (
                 <Button onClick={handleBulkDelete} variant="destructive" size="sm">
@@ -297,44 +231,6 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input placeholder="Search sauces..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[130px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="pos">POS Items</SelectItem>
-                  <SelectItem value="non-pos">Non-POS</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
       </Card>
 
       {/* Table */}
@@ -370,7 +266,7 @@ export function SauceTable({ sauces, materials, onEditSauce, onDeleteSauce, onBu
                       <div className="flex flex-col items-center justify-center space-y-2">
                         <ChefHat className="w-8 h-8 text-gray-400" />
                         <div className="text-gray-500">No sauces found</div>
-                        <div className="text-sm text-gray-400">{searchTerm || categoryFilter !== "all" || statusFilter !== "all" ? "Try adjusting your filters" : "Create your first sauce to get started"}</div>
+                        <div className="text-sm text-gray-400">Create your first sauce to get started</div>
                       </div>
                     </TableCell>
                   </TableRow>
