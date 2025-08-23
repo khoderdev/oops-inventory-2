@@ -1,0 +1,404 @@
+import { useState, useEffect, useMemo } from "react";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, Minus, Calculator, Utensils, Info } from "lucide-react";
+import { SauceFormProps, Material, SauceFormData } from "@/types/inventory";
+import { toast } from "@/hooks/use-toast";
+import { saucesAPI } from "@/api/sauces.api";
+
+const sauceIngredientSchema = z.object({
+  materialId: z.string().min(1, "Material is required"),
+  quantity: z.number().min(0.001, "Quantity must be greater than 0"),
+  unit: z.string().min(1, "Unit is required"),
+  cost: z.number().min(0, "Cost must be non-negative")
+});
+
+const sauceFormSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100, "Name too long"),
+  description: z.string().optional(),
+  category: z.string().min(1, "Category is required"),
+  baseIngredients: z.array(sauceIngredientSchema).min(1, "At least one ingredient is required"),
+  yieldQuantity: z.string().min(1, "Yield quantity is required"),
+  unit: z.string().min(1, "Unit is required"),
+  preparationTime: z.string().optional(),
+  isPOSItem: z.boolean().default(false)
+});
+
+type SauceFormInputs = z.infer<typeof sauceFormSchema>;
+
+const SAUCE_CATEGORIES = ["Hot Sauces", "Cold Sauces", "Dressings", "Marinades", "Dips", "Gravies", "Reductions", "Emulsions", "Compound Butters", "Salsas", "Chutneys", "Aiolis", "Vinaigrettes", "Other"];
+
+const SAUCE_UNITS = ["ml", "l", "g", "kg", "cup", "pint", "quart", "gallon", "portion", "serving"];
+
+export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCancel }: SauceFormProps) {
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [totalCost, setTotalCost] = useState(0);
+  const [costPerUnit, setCostPerUnit] = useState(0);
+
+  const form = useForm<SauceFormInputs>({
+    resolver: zodResolver(sauceFormSchema),
+    defaultValues: {
+      name: sauce?.name || "",
+      description: sauce?.description || "",
+      category: sauce?.category || "",
+      baseIngredients: sauce?.baseIngredients || [{ materialId: "", quantity: 0, unit: "", cost: 0 }],
+      yieldQuantity: sauce?.yieldQuantity?.toString() || "",
+      unit: sauce?.unit || "ml",
+      preparationTime: sauce?.preparationTime?.toString() || "",
+      isPOSItem: sauce?.isPOSItem || false
+    } as SauceFormInputs
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "baseIngredients"
+  });
+
+  const watchedIngredients = form.watch("baseIngredients");
+  const watchedYieldQuantity = form.watch("yieldQuantity");
+
+  // Materials lookup for quick access
+  const materialsById = useMemo(() => {
+    const map = new Map<string, Material>();
+    materials.forEach(material => map.set(material.id.toString(), material));
+    return map;
+  }, [materials]);
+
+  // Materials with stock information
+  const materialsWithStock = useMemo(() => {
+    return materials.map(material => {
+      const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
+      const totalStock = materialStockEntries.reduce((sum, entry) => {
+        return sum + (entry.purchasedIndividualQuantity || 0);
+      }, 0);
+
+      return {
+        ...material,
+        availableStock: totalStock,
+        hasStock: totalStock > 0
+      };
+    });
+  }, [materials, stockEntries]);
+
+  // Calculate costs when ingredients or yield changes
+  useEffect(() => {
+    const calculateCosts = async () => {
+      if (!watchedIngredients?.length || !watchedYieldQuantity) return;
+      const validIngredients = watchedIngredients.filter(ing => ing.materialId && ing.quantity > 0 && ing.unit);
+      if (validIngredients.length === 0) {
+        setTotalCost(0);
+        setCostPerUnit(0);
+        return;
+      }
+      setIsCalculating(true);
+      try {
+        const response = await saucesAPI.calculateSauceCost(
+          validIngredients.map(ing => ({
+            materialId: ing.materialId,
+            quantity: ing.quantity,
+            unit: ing.unit
+          }))
+        );
+        const calculatedTotalCost = response.totalCost;
+        const yieldQty = parseFloat(watchedYieldQuantity) || 1;
+        const calculatedCostPerUnit = calculatedTotalCost / yieldQty;
+        setTotalCost(calculatedTotalCost);
+        setCostPerUnit(calculatedCostPerUnit);
+        response.ingredientCosts.forEach((ingredientCost, index) => {
+          const fieldIndex = validIngredients.findIndex(ing => ing.materialId === ingredientCost.materialId);
+          if (fieldIndex >= 0) {
+            form.setValue(`baseIngredients.${fieldIndex}.cost`, ingredientCost.totalCost);
+          }
+        });
+      } catch (error) {
+        console.error("❌ Error calculating sauce cost:", error);
+        toast({
+          title: "Calculation Error",
+          description: "Failed to calculate sauce cost. Please check ingredient data.",
+          variant: "destructive",
+          duration: 3000
+        });
+      } finally {
+        setIsCalculating(false);
+      }
+    };
+
+    const timeoutId = setTimeout(calculateCosts, 500);
+    return () => clearTimeout(timeoutId);
+  }, [watchedIngredients, watchedYieldQuantity, form]);
+
+  const handleSubmit = (data: SauceFormInputs) => {
+    const processedData: SauceFormData = {
+      name: data.name,
+      description: data.description,
+      category: data.category,
+      baseIngredients: data.baseIngredients.map(ing => ({
+        materialId: ing.materialId,
+        quantity: typeof ing.quantity === "string" ? parseFloat(ing.quantity) : ing.quantity,
+        unit: ing.unit,
+        cost: typeof ing.cost === "string" ? parseFloat(ing.cost) : ing.cost,
+      })),
+      yieldQuantity: data.yieldQuantity,
+      unit: data.unit,
+      preparationTime: data.preparationTime,
+      isPOSItem: data.isPOSItem
+    };
+
+    onSubmit(processedData);
+  };
+
+  const addIngredient = () => {
+    append({ materialId: "", quantity: 0, unit: "", cost: 0 });
+  };
+
+  const removeIngredient = (index: number) => {
+    if (fields.length > 1) {
+      remove(index);
+    }
+  };
+
+  return (
+    <div className=" mx-auto p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">{sauce ? "Edit Sauce" : "Create New Sauce"}</h2>
+          <p className="text-gray-600 mt-1">{sauce ? "Update sauce recipe and details" : "Create a new sauce recipe from available materials"}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="flex items-center gap-1">
+            <Calculator className="w-3 h-3" />
+            Total Cost: ${totalCost.toFixed(2)}
+          </Badge>
+          <Badge variant="outline" className="flex items-center gap-1">
+            <Utensils className="w-3 h-3" />
+            Cost/Unit: ${costPerUnit.toFixed(4)}
+          </Badge>
+        </div>
+      </div>
+
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Basic Information */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="w-5 h-5" />
+                Basic Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Sauce Name *</Label>
+                  <Input id="name" {...form.register("name")} placeholder="e.g., Spicy Garlic Aioli" className="mt-1" />
+                  {form.formState.errors.name && <p className="text-red-500 text-sm mt-1">{form.formState.errors.name.message}</p>}
+                </div>
+
+                <div>
+                  <Label htmlFor="category">Category *</Label>
+                  <Select value={form.watch("category")} onValueChange={value => form.setValue("category", value)}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SAUCE_CATEGORIES.map(category => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.category && <p className="text-red-500 text-sm mt-1">{form.formState.errors.category.message}</p>}
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea id="description" {...form.register("description")} placeholder="Brief description of the sauce..." className="mt-1" rows={2} />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="yieldQuantity">Yield Quantity *</Label>
+                  <Input id="yieldQuantity" {...form.register("yieldQuantity")} placeholder="500" className="mt-1" />
+                </div>
+
+                <div>
+                  <Label htmlFor="unit">Unit *</Label>
+                  <Select value={form.watch("unit")} onValueChange={value => form.setValue("unit", value)}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SAUCE_UNITS.map(unit => (
+                        <SelectItem key={unit} value={unit}>
+                          {unit}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="preparationTime">Prep Time (minutes)</Label>
+                  <Input id="preparationTime" {...form.register("preparationTime")} placeholder="30" className="mt-1" />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch id="isPOSItem" checked={form.watch("isPOSItem")} onCheckedChange={checked => form.setValue("isPOSItem", checked)} />
+                <Label htmlFor="isPOSItem">Available in POS</Label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calculator className="w-5 h-5" />
+                Cost Analysis
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Total Cost:</span>
+                  <span className="font-semibold">${totalCost.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Cost per {form.watch("unit") || "unit"}:</span>
+                  <span className="font-semibold">${costPerUnit.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Yield:</span>
+                  <span className="font-semibold">
+                    {form.watch("yieldQuantity") || "0"} {form.watch("unit") || "units"}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Ingredients:</span>
+                  <span className="font-semibold">{fields.length}</span>
+                </div>
+              </div>
+              {isCalculating && (
+                <div className="flex items-center gap-2 text-sm text-blue-600">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                  Calculating...
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Ingredients */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Utensils className="w-5 h-5" />
+                Ingredients ({fields.length})
+              </div>
+              <Button type="button" onClick={addIngredient} size="sm" variant="outline">
+                <Plus className="w-4 h-4 mr-1" />
+                Add Ingredient
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="max-h-96">
+              <div className="space-y-4">
+                {fields.map((field, index) => (
+                  <div key={field.id} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
+                    <div className="md:col-span-2">
+                      <Label>Material *</Label>
+                      <Controller
+                        name={`baseIngredients.${index}.materialId`}
+                        control={form.control}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              const material = materialsById.get(value);
+                              if (material) {
+                                form.setValue(`baseIngredients.${index}.unit`, material.baseUnit);
+                                
+                                // Calculate cost based on quantity and material cost per unit
+                                const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
+                                const costPerUnit = material.costPerUnit || 0;
+                                const calculatedCost = quantity * costPerUnit;
+                                form.setValue(`baseIngredients.${index}.cost`, calculatedCost);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select material" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {materialsWithStock.map(material => (
+                                <SelectItem key={material.id} value={material.id.toString()}>
+                                  <div className="flex justify-between items-center w-full">
+                                    <span>
+                                      {material.name} ({material.baseUnit})
+                                    </span>
+                                    <span className={`text-xs ml-2 ${material.hasStock ? "text-green-600" : "text-red-500"}`}>{material.availableStock > 0 ? `${material.availableStock.toFixed(2)} available` : "No stock"}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Quantity *</Label>
+                      <Input type="number" step="0.001" {...form.register(`baseIngredients.${index}.quantity`, { valueAsNumber: true })} placeholder="0" className="mt-1" />
+                    </div>
+
+                    <div>
+                      <Label>Unit *</Label>
+                      <Input {...form.register(`baseIngredients.${index}.unit`)} placeholder="g" className="mt-1" />
+                    </div>
+
+                    <div>
+                      <Label>Cost</Label>
+                      <Input type="number" step="0.01" {...form.register(`baseIngredients.${index}.cost`, { valueAsNumber: true })} placeholder="0.00" className="mt-1" readOnly />
+                    </div>
+
+                    <div className="flex items-end">
+                      <Button type="button" onClick={() => removeIngredient(index)} size="sm" variant="outline" disabled={fields.length <= 1} className="w-full">
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Form Actions */}
+        <div className="flex justify-end gap-3 pt-6 border-t">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isCalculating}>
+            {sauce ? "Update Sauce" : "Create Sauce"}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}

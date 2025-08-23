@@ -17,10 +17,7 @@ interface TabMenuProps {
 // Inner component that uses the context
 const MenuPageContent: React.FC = () => {
   const { foodMenuItems, beverageMenuItems, menuItemCategories, beverageCategories, categoriesLoading, categoriesError, activeTab, handleTabChange, handleCreateMenuItem, handleUpdateMenuItem, handleDeleteMenuItem } = useMenuItems();
-
   const isMobile = useMediaQuery("(max-width: 640px)");
-
-  // Map the tab values from context to component
   const tabValue = activeTab === "food" ? "menu-items" : "beverages";
 
   // Handle tab change with appropriate mapping

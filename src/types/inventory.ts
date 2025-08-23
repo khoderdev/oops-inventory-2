@@ -5,8 +5,7 @@ import { UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
-import { materialSchema } from "@/components/materials/materialsSchema";
-import { Category, CategoryType, CategoryTypeEntity } from "./categories";
+import { Category } from "./categories";
 
 // Interface for pagination metadata
 export interface PaginationInfo {
@@ -767,7 +766,6 @@ export type BeverageItemCategory = "beverages" | "cold" | "hot" | "alcohol";
 export type BeverageItemCategoryType = BeverageItemCategory | Category | number | { id: number; name: string; value: string };
 
 export interface MenuItem {
-
   id: string;
   name: string;
   description?: string;
@@ -862,7 +860,6 @@ export interface MenuItemIngredient {
 }
 
 export interface CreateMenuItemData {
-
   name: string;
   description?: string;
   category?: MenuItemCategoryType | null;
@@ -1114,6 +1111,94 @@ export interface ReportGeneratorProps {
 export interface DailyReportsProps {
   className?: string;
 }
+
+//-----------------------------------------------------------------------------
+// Sauce Management Types
+//-----------------------------------------------------------------------------
+
+export interface Sauce {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  baseIngredients: SauceIngredient[];
+  totalCost: number;
+  costPerUnit: number;
+  unit: string;
+  yieldQuantity: number;
+  preparationTime?: number;
+  isPOSItem: boolean;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SauceIngredient {
+  materialId: string;
+  materialName?: string;
+  quantity: number;
+  unit: string;
+  cost: number;
+}
+
+export interface CreateSauceData {
+  name: string;
+  description?: string;
+  category: string;
+  baseIngredients: SauceIngredient[];
+  yieldQuantity: number;
+  unit: string;
+  preparationTime?: number;
+  isPOSItem?: boolean;
+}
+
+export interface UpdateSauceData {
+  name?: string;
+  description?: string;
+  category?: string;
+  baseIngredients?: SauceIngredient[];
+  yieldQuantity?: number;
+  unit?: string;
+  preparationTime?: number;
+  isPOSItem?: boolean;
+  isActive?: boolean;
+}
+
+export interface SauceFormData {
+  name: string;
+  description?: string;
+  category: string;
+  baseIngredients: SauceIngredient[];
+  yieldQuantity: string;
+  unit: string;
+  preparationTime?: string;
+  isPOSItem?: boolean;
+}
+
+export interface SauceFormProps {
+  sauce?: Sauce;
+  materials: Material[];
+  stockEntries?: StockEntry[];
+  onSubmit: (data: SauceFormData) => void;
+  onCancel: () => void;
+}
+
+export interface SauceTableProps {
+  sauces: Sauce[];
+  materials: Material[];
+  onEditSauce: (sauce: Sauce) => void;
+  onDeleteSauce: (sauceId: string) => void;
+  onBulkDelete: (sauceIds: string[]) => void;
+  onTogglePOSVisibility: (sauce: Sauce) => void;
+}
+
+export interface SauceManagementProps {
+  materials: Material[];
+  stockEntries: StockEntry[];
+  onRefresh?: () => void;
+}
+
+//-----------------------------------------------------------------------------
 
 export interface DailyReportsModalProps {
   showReportModal: boolean;

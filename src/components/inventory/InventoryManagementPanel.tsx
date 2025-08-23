@@ -3,6 +3,7 @@ import { MaterialTable } from "@/components/materials/MaterialTable";
 import { StockEntriesTable } from "@/components/stock/StockEntriesTable";
 import { StockForm } from "@/components/stock/StockForm";
 import { CategoryManagement } from "@/components/categories/CategoryManagement";
+import { SauceManagement } from "@/components/sauces/SauceManagement";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -124,16 +125,8 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
 
   useEffect(() => {
     const loadInitialData = async () => {
-      // Load categories first for instant rendering
       await fetchCategories();
-      
-      if (activeTab === "material" || activeTab === "stock") {
-        await refresh();
-      } else if (activeTab === "material") {
-        await fetchMaterials();
-      } else if (activeTab === "stock") {
-        await fetchStock();
-      }
+      await refresh();
     };
     loadInitialData();
   }, []);
@@ -624,17 +617,18 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
   return (
     <div className="h-[calc(100vh-4rem)] w-full flex flex-col overflow-hidden">
       <Tabs defaultValue="stock" value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           {[
-            { value: "material", label: "Materials", icon: Package, short: "Mat", loading: tabLoading.material },
-            { value: "stock", label: "Stock Entries", icon: Warehouse, short: "Stock", loading: tabLoading.stock },
-            { value: "categories", label: "Categories", icon: Tags, short: "Cat", loading: false }
-          ].map(({ value, label, icon: Icon, short, loading }) => (
+            { value: "material", label: "Materials", icon: Package, loading: tabLoading.material },
+            { value: "stock", label: "Stock Entries", icon: Warehouse, loading: tabLoading.stock },
+            { value: "categories", label: "Categories", icon: Tags, loading: false },
+            { value: "sauces", label: "Sauces", iconImg: "/sauce.png", loading: false }
+          ].map(({ value, label, icon: Icon, iconImg, loading }) => (
             <TabsTrigger
               key={value}
               value={value}
               className="
-                flex items-center justify-center gap-2 px-3 py-3
+                flex items-center justify-center gap-2 px-2 sm:px-3 py-2 sm:py-3
                 text-sm font-medium text-gray-600 transition-colors
                 bg-whites
                 data-[state=active]:bg-teal-500/20 data-[state=active]:text-teal-700 
@@ -643,9 +637,21 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
                 min-h-[3rem]
               "
             >
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              <span className="hidden sm:inline">{label}</span>
-              <span className="sm:hidden">{short}</span>
+              <div className="flex items-center justify-center">
+                {/* Only show icon on small screens */}
+                <div className="block sm:hidden">
+                  {Icon ? <Icon className="w-5 h-5" /> : 
+                   iconImg && <img src={iconImg} alt={label} className="w-5 h-5" />}
+                </div>
+                
+                {/* Show icon and text on larger screens */}
+                <div className="hidden sm:flex items-center gap-2">
+                  {Icon ? <Icon className="w-5 h-5 flex-shrink-0" /> : 
+                   iconImg && <img src={iconImg} alt={label} className="w-5 h-5 flex-shrink-0" />}
+                  <span>{label}</span>
+                </div>
+              </div>
+              
               {loading && <Loader2 className="w-4 h-4 ml-1 animate-spin flex-shrink-0" />}
             </TabsTrigger>
           ))}
@@ -680,6 +686,19 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
           <div className="h-full overflow-auto">
             <CategoryManagement
               onCategoryChange={() => {
+                refresh("materials");
+                refresh("stock");
+              }}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sauces" className="flex-1 focus-visible:outline-none overflow-hidden">
+          <div className="h-full overflow-auto">
+            <SauceManagement
+              materials={materials}
+              stockEntries={stock}
+              onRefresh={() => {
                 refresh("materials");
                 refresh("stock");
               }}

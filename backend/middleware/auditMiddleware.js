@@ -7,7 +7,6 @@ const SENSITIVE_FIELDS = ["password", "token", "secret", "key", "authorization",
 // Helper function to sanitize data
 const sanitizeData = data => {
   if (!data || typeof data !== "object") return data;
-
   const sanitized = {};
   for (const [key, value] of Object.entries(data)) {
     const lowerKey = key.toLowerCase();
@@ -27,7 +26,6 @@ const getResourceFromUrl = url => {
   const pathSegments = url.split("/").filter(segment => segment);
   if (pathSegments.length >= 2 && pathSegments[0] === "api") {
     const resource = pathSegments[1];
-
     // Map specific resources for better consistency
     const resourceMap = {
       auth: "authentication",
@@ -44,7 +42,8 @@ const getResourceFromUrl = url => {
       sales: "pos",
       tables: "pos",
       sections: "section",
-      "day-operations": "day_operations"
+      "day-operations": "day_operations",
+      sauces: "sauce"
     };
 
     return resourceMap[resource] || resource.replace(/s$/, ""); // Remove trailing 's' for plurals
@@ -118,17 +117,17 @@ const shouldDeduplicateLogout = (userId, sessionId, requestData, responseData) =
       return true; // Skip duplicate logout within time window
     }
   }
-  
+
   // Record this logout timestamp
   recentLogouts.set(key, now);
-  
+
   // Clean up old entries
   for (const [k, timestamp] of recentLogouts.entries()) {
     if (now - timestamp > LOGOUT_DEDUP_WINDOW) {
       recentLogouts.delete(k);
     }
   }
-  
+
   return false;
 };
 
@@ -214,7 +213,7 @@ export const auditMiddleware = (options = {}) => {
         }
 
         // Skip duplicate logout entries
-        if (action === 'logout' && shouldDeduplicateLogout(userId, sessionId, requestData, responseData)) {
+        if (action === "logout" && shouldDeduplicateLogout(userId, sessionId, requestData, responseData)) {
           return;
         }
 

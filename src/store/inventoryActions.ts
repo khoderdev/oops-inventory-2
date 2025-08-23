@@ -398,6 +398,10 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
       break;
     case "categories":
       break;
+    case "sauces":
+      // Sauces tab needs both materials (for ingredients) and stock entries (for stock information)
+      await Promise.all([set(fetchMaterialsAction), set(fetchStockEntriesAction)]);
+      break;
     default:
       console.error(`No specific data fetching defined for tab: ${tabValue}`);
   }

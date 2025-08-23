@@ -679,6 +679,17 @@ User.prototype.getRolePermissions = function () {
       "employee.settlementProcess": false,
       "employee.settlementView": false,
 
+
+      // === SAUCE MANAGEMENT ===
+      "sauces.create": false,
+      "sauces.read": true,
+      "sauces.update": false,
+      "sauces.delete": false,
+      "sauces.bulkDelete": false,
+      "sauces.togglePOSVisibility": false,
+      "sauces.toggleActiveStatus": false,
+      "sauces.calculateCost": false,
+
       // === All Other Permissions ===
       "finance.viewCosts": false,
       "finance.viewProfits": false,

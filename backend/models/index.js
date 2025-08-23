@@ -11,6 +11,8 @@ import EmployeeSettlement from "./EmployeeSettlement.js";
 import EmployeeUsage from "./EmployeeUsage.js";
 import Material from "./materials.js";
 import { MenuItem, MenuItemIngredient } from "./menuItems.js";
+import Sauce from "./Sauce.js";
+import SauceIngredient from "./SauceIngredient.js";
 import Variants from "./Variants.js";
 import Order from "./Order.js";
 import OrderItem from "./OrderItem.js";
@@ -707,4 +709,76 @@ Variants.belongsTo(MenuItem, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };
+// Sauce ↔ SauceIngredient
+Sauce.hasMany(SauceIngredient, {
+  foreignKey: "sauceId",
+  as: "ingredients",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+SauceIngredient.belongsTo(Sauce, {
+  foreignKey: "sauceId",
+  as: "sauce",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Material ↔ SauceIngredient
+Material.hasMany(SauceIngredient, {
+  foreignKey: "materialId",
+  as: "sauceIngredients",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+SauceIngredient.belongsTo(Material, {
+  foreignKey: "materialId",
+  as: "material",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Sauce ↔ Material (through SauceIngredient)
+Sauce.belongsToMany(Material, {
+  through: SauceIngredient,
+  foreignKey: "sauceId",
+  otherKey: "materialId",
+  as: "materials",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+Material.belongsToMany(Sauce, {
+  through: SauceIngredient,
+  foreignKey: "materialId",
+  otherKey: "sauceId",
+  as: "sauces",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// User ↔ Sauce (for createdBy and updatedBy)
+User.hasMany(Sauce, {
+  foreignKey: "createdBy",
+  as: "createdSauces",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+User.hasMany(Sauce, {
+  foreignKey: "updatedBy",
+  as: "updatedSauces",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Sauce.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "creator",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Sauce.belongsTo(User, {
+  foreignKey: "updatedBy",
+  as: "updater",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };
