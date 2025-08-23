@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,30 +14,7 @@ import { Plus, Minus, Calculator, Utensils, Info } from "lucide-react";
 import { SauceFormProps, Material, SauceFormData } from "@/types/inventory";
 import { toast } from "@/hooks/use-toast";
 import { saucesAPI } from "@/api/sauces.api";
-
-const sauceIngredientSchema = z.object({
-  materialId: z.string().min(1, "Material is required"),
-  quantity: z.number().min(0.001, "Quantity must be greater than 0"),
-  unit: z.string().min(1, "Unit is required"),
-  cost: z.number().min(0, "Cost must be non-negative")
-});
-
-const sauceFormSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100, "Name too long"),
-  description: z.string().optional(),
-  category: z.string().min(1, "Category is required"),
-  baseIngredients: z.array(sauceIngredientSchema).min(1, "At least one ingredient is required"),
-  yieldQuantity: z.string().min(1, "Yield quantity is required"),
-  unit: z.string().min(1, "Unit is required"),
-  preparationTime: z.string().optional(),
-  isPOSItem: z.boolean().default(false)
-});
-
-type SauceFormInputs = z.infer<typeof sauceFormSchema>;
-
-const SAUCE_CATEGORIES = ["Hot Sauces", "Cold Sauces", "Dressings", "Marinades", "Dips", "Gravies", "Reductions", "Emulsions", "Compound Butters", "Salsas", "Chutneys", "Aiolis", "Vinaigrettes", "Other"];
-
-const SAUCE_UNITS = ["ml", "l", "g", "kg", "cup", "pint", "quart", "gallon", "portion", "serving"];
+import { SAUCE_CATEGORIES, SAUCE_UNITS, SauceFormInputs, sauceFormSchema } from "./constants";
 
 export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCancel }: SauceFormProps) {
   const [isCalculating, setIsCalculating] = useState(false);
@@ -146,7 +122,7 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
         materialId: ing.materialId,
         quantity: typeof ing.quantity === "string" ? parseFloat(ing.quantity) : ing.quantity,
         unit: ing.unit,
-        cost: typeof ing.cost === "string" ? parseFloat(ing.cost) : ing.cost,
+        cost: typeof ing.cost === "string" ? parseFloat(ing.cost) : ing.cost
       })),
       yieldQuantity: data.yieldQuantity,
       unit: data.unit,
@@ -229,7 +205,7 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label htmlFor="yieldQuantity">Yield Quantity *</Label>
+                  <Label htmlFor="yieldQuantity">Final Quantity *</Label>
                   <Input id="yieldQuantity" {...form.register("yieldQuantity")} placeholder="500" className="mt-1" />
                 </div>
 
@@ -327,19 +303,26 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                         control={form.control}
                         render={({ field }) => (
                           <Select
-                            value={field.value}
-                            onValueChange={(value) => {
+                            value={field.value || ""}
+                            onValueChange={value => {
+                              if (!value) return;
+
+                              // Immediate field update to prevent Select issues
                               field.onChange(value);
-                              const material = materialsById.get(value);
-                              if (material) {
-                                form.setValue(`baseIngredients.${index}.unit`, material.baseUnit);
-                                
-                                // Calculate cost based on quantity and material cost per unit
-                                const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
-                                const costPerUnit = material.costPerUnit || 0;
-                                const calculatedCost = quantity * costPerUnit;
-                                form.setValue(`baseIngredients.${index}.cost`, calculatedCost);
-                              }
+
+                              // Batch other updates to prevent DOM conflicts
+                              requestAnimationFrame(() => {
+                                const material = materialsById.get(value);
+                                if (material) {
+                                  form.setValue(`baseIngredients.${index}.unit`, material.baseUnit, { shouldValidate: false });
+
+                                  // Calculate cost based on quantity and material cost per unit
+                                  const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
+                                  const costPerUnit = material.costPerUnit || 0;
+                                  const calculatedCost = quantity * costPerUnit;
+                                  form.setValue(`baseIngredients.${index}.cost`, calculatedCost, { shouldValidate: false });
+                                }
+                              });
                             }}
                           >
                             <SelectTrigger className="mt-1">
