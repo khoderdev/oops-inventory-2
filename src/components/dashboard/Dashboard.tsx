@@ -158,7 +158,7 @@ export const Dashboard: React.FC = () => {
       <WelcomeHeader username={user?.firstName || user?.username || ""} />
 
       {/* Day Operations Status */}
-      {hasPermission(PERMISSIONS.DAY_OPERATIONS_READ) && <DayOperationsCard loading={dayOpsLoading} currentDay={currentDay} />}
+      {hasPermission(PERMISSIONS.DAY_OPERATIONS_READ) && <DayOperationsCard />}
 
       {/* Key Metrics */}
       <KeyMetricsGrid stats={dashboardStats} />

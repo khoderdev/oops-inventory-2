@@ -85,12 +85,20 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
     try {
       // console.log("🔄 DayOperationsContext: Full refresh started...");
 
-      // Always refresh current day first
+      // Always refresh current day first and get the fresh data
       await refreshCurrentDay();
 
-      // Then refresh activities and stats if day is open
-      if (currentDay?.status === "opened") {
-        await Promise.all([refreshActivities(), refreshUserStats()]);
+      // Get fresh current day data directly from API instead of using stale closure
+      try {
+        const response = await dayOperationsAPI.getCurrentDayOperation();
+        const freshCurrentDay = response.currentDay;
+
+        // Then refresh activities and stats if day is open (using fresh data)
+        if (freshCurrentDay?.status === "opened") {
+          await Promise.all([refreshActivities(), refreshUserStats()]);
+        }
+      } catch (err) {
+        console.warn("⚠️ Could not get fresh current day for activities refresh:", err);
       }
 
       // console.log("✅ DayOperationsContext: Full refresh completed");
@@ -101,7 +109,7 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [refreshCurrentDay, refreshActivities, refreshUserStats, currentDay?.status]);
+  }, [refreshCurrentDay, refreshActivities, refreshUserStats]);
 
   // Day operations actions
   const openDay = useCallback(
@@ -121,17 +129,16 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
 
         const response = await dayOperationsAPI.openDay(openDayData);
 
-        // Update current day immediately
+        // Update current day immediately for instant UI update
         if (response.dayOperation) {
           setCurrentDay(response.dayOperation);
+          setLastRefresh(new Date());
         }
 
         setSuccess(`Shift opened successfully! ${response.stockItemsCaptured} stock items captured.`);
 
-        // Refresh all data after a short delay to ensure backend consistency
-        setTimeout(() => {
-          refreshAll();
-        }, 500);
+        // Refresh all data immediately to ensure consistency
+        refreshAll();
 
         // console.log("✅ DayOperationsContext: Day opened successfully");
       } catch (err) {
@@ -162,9 +169,10 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
 
         const response = await dayOperationsAPI.closeDay(closeDayData);
 
-        // Update current day immediately
+        // Update current day immediately for instant UI update
         if (response.dayOperation) {
           setCurrentDay(response.dayOperation);
+          setLastRefresh(new Date());
         }
 
         setSuccess(`Shift closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
@@ -173,10 +181,8 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
         setActivities([]);
         setUserOrderStats([]);
 
-        // Refresh all data after a short delay to ensure backend consistency
-        setTimeout(() => {
-          refreshAll();
-        }, 500);
+        // Refresh all data immediately to ensure consistency
+        refreshAll();
 
         // console.log("✅ DayOperationsContext: Day closed successfully");
       } catch (err) {
@@ -222,7 +228,7 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
 
   // User change effect
   useEffect(() => {
-    if (user) { 
+    if (user) {
       // console.log("👤 DayOperationsContext: User changed, refreshing data for:", user.fullName);
       refreshAll();
     }

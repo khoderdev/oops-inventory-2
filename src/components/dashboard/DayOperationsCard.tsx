@@ -1,17 +1,57 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, Calendar, ChevronRight } from "lucide-react";
+import { AlertTriangle, Calendar, ChevronRight, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/dayOperationsFormattings";
+import { useDayOperations } from "@/contexts/DayOperationsContext";
+import { dayOperationsAPI } from "@/api/dayOperations.api";
+import { DayOperation } from "@/types/inventory";
 
-interface DayOperationsCardProps {
-  loading: boolean;
-  currentDay: any; // Replace with proper type when available
-}
+export const DayOperationsCard: React.FC = () => {
+  // Get context values as fallback
+  const { refreshAll } = useDayOperations();
+  
+  // Local component state for direct API data
+  const [localDay, setLocalDay] = useState<DayOperation | null>(null);
+  const [localLoading, setLocalLoading] = useState(true);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const isDayOpen = localDay?.status === "opened";
+  
+  // Direct API call function to bypass context
+  const fetchDayOperationDirect = async () => {
+    try {
+      setLocalLoading(true);
+      setLocalError(null);
+      const response = await dayOperationsAPI.getCurrentDayOperation();
+      setLocalDay(response.currentDay);
+      setLastUpdated(new Date());
+      refreshAll();
+    } catch (error) {
+      console.error("❌ Direct API call failed:", error);
+      setLocalError("Failed to fetch current day");
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+  
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchDayOperationDirect();
+    const intervalId = setInterval(() => {
+      fetchDayOperationDirect();
+    }, 5000);
+    
+    return () => clearInterval(intervalId);
+  }, []);
+  
+  // Manual refresh function for user-triggered updates
+  const handleManualRefresh = () => {
+    fetchDayOperationDirect();
+  };
 
-export const DayOperationsCard: React.FC<DayOperationsCardProps> = ({ loading, currentDay }) => {
   return (
     <Card className="border-l-4 border-l-blue-500 rounded-2xl">
       <CardHeader className="pb-3">
@@ -20,53 +60,65 @@ export const DayOperationsCard: React.FC<DayOperationsCardProps> = ({ loading, c
             <Calendar className="h-5 w-5" />
             Day Operations Status
           </CardTitle>
-          <Link to="/day-operations">
-            <Button variant="outline" size="sm">
-              View Details <ChevronRight className="h-4 w-4 ml-1" />
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleManualRefresh} 
+              disabled={localLoading}
+              title="Refresh data"
+            >
+              <RefreshCw className={`h-4 w-4 ${localLoading ? 'animate-spin' : ''}`} />
             </Button>
-          </Link>
+            <Link to="/day-operations">
+              <Button variant="outline" size="sm">
+                View All <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
+        {lastUpdated && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Last updated: {lastUpdated.toLocaleTimeString()}
+          </p>
+        )}
       </CardHeader>
       <CardContent>
-        {loading ? (
-          <div className="animate-pulse">
-            <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+        {localLoading && !localDay ? (
+          <div className="flex items-center justify-center py-6">
+            <p className="text-muted-foreground">Loading...</p>
           </div>
-        ) : currentDay ? (
-          <div className="space-y-2">
+        ) : localDay ? (
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Status:</span>
-              <Badge variant={currentDay.status === "opened" ? "default" : "secondary"}>
-                {currentDay.status === "opened" ? "Day Open" : "Day Closed"}
-              </Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Today's Sales:</span>
-              <span className="font-semibold text-green-600">
-                {formatCurrency(currentDay.totalSales || 0)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Transactions:</span>
-              <span className="font-semibold">{currentDay.totalTransactions || 0}</span>
-            </div>
-            {currentDay.status === "opened" && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Expected Cash:</span>
-                <span className="font-semibold text-blue-600">
-                  {formatCurrency(currentDay.expectedCash || 0)}
-                </span>
+              <div>
+                <p className="text-sm font-medium">Status</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge
+                    variant={isDayOpen ? "default" : "destructive"}
+                    className={`${isDayOpen ? "bg-green-500" : "bg-red-500"} hover:${isDayOpen ? "bg-green-600" : "bg-red-600"}`}
+                  >
+                    {localDay.status === "opened" ? "Open" : "Closed"}
+                  </Badge>
+                </div>
               </div>
-            )}
+              <div className="text-right">
+                <p className="text-sm font-medium">Total Sales</p>
+                <p className="text-2xl font-bold">{formatCurrency(localDay.totalSales || 0)}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Transactions</p>
+              <p className="text-xl">{localDay.totalTransactions || 0}</p>
+            </div>
           </div>
         ) : (
-          <div className="text-center py-4">
-            <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto mb-2" />
-            <p className="text-sm text-gray-600 mb-3">No active day operation</p>
-            <Link to="/day-operations">
-              <Button size="sm">Open Day</Button>
-            </Link>
+          <div className="flex items-center justify-center py-6">
+            <div className="flex items-center gap-2 text-amber-500">
+              <AlertTriangle className="h-5 w-5" />
+              <p>{localError || "No day operation found"}</p>
+            </div>
           </div>
         )}
       </CardContent>

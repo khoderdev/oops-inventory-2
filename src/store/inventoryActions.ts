@@ -389,9 +389,6 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
       await Promise.all([set(fetchMaterialsAction), set(fetchStockEntriesAction), set(fetchMenuItemsAction), set(fetchSectionsAction)]);
       break;
     case "menu":
-      // TabMenu.tsx already handles fetching food and beverage items with isActive=true
-      // No need to fetch data here to avoid duplicate API calls
-      console.log("📝 Menu tab data fetching skipped in fetchTabDataAction - handled by TabMenu.tsx");
       break;
     case "conversions":
       await set(fetchMaterialsAction); // Reuse materials for conversions
@@ -412,7 +409,6 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
   try {
     // Optimistic update - add menu item immediately at the top
     set(menuItemsAtom, prev => [data, ...prev]);
-
     // Transform MenuItem to CreateMenuItemData format, preserving all beverage fields
     const createData: CreateMenuItemData = {
       name: data.name,
@@ -429,18 +425,6 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
       costPerUnit: (data as any).costPerUnit,
       variants: (data as any).variants
     };
-
-    console.log("🔍 Store - createMenuItemAction - Transformed data:", {
-      original: data,
-      transformed: createData,
-      beverageFields: {
-        isBeverage: createData.isBeverage,
-        unit: createData.unit,
-        availableQuantity: createData.availableQuantity,
-        costPerUnit: createData.costPerUnit,
-        variants: createData.variants
-      }
-    });
 
     // Make API call with base64 image data - no imageFile needed
     const response = await menuAPI.createMenuItem(createData);
@@ -467,16 +451,12 @@ export const createMenuItemAction = atom(null, async (get, set, data: MenuItem &
 });
 
 export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { id: string; data: MenuItem & { imageFile?: File } }) => {
-  // Get current state before optimistic update
   const currentMenuItems = get(menuItemsAtom);
-
-  // Optimistic update - move updated item to top
   const updatedItem = { ...currentMenuItems.find(item => item.id === id), ...data, updatedAt: new Date() };
   const otherItems = currentMenuItems.filter(item => item.id !== id);
   set(menuItemsAtom, [updatedItem, ...otherItems]);
 
   try {
-    // Transform MenuItem to UpdateMenuItemData format
     const updateData: UpdateMenuItemData = {
       name: data.name,
       description: data.description,
@@ -484,26 +464,20 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
       price: data.price,
       ingredients: data.ingredients,
       isPOSItem: data.isPOSItem,
-      image: data.image // Include base64 image data
+      image: data.image
     };
-
-    // Make API call with base64 image data - no imageFile needed
     const response = await inventoryAPI.menu.updateMenuItem(id, updateData);
-
     const transformedMenuItem: MenuItem = {
       ...response.data,
       id: response.data.id.toString(),
       createdAt: response.data.createdAt ? new Date(response.data.createdAt) : new Date(),
       updatedAt: response.data.updatedAt ? new Date(response.data.updatedAt) : new Date()
     };
-
-    // Replace the optimistic item with server response and ensure it stays at the top
     set(menuItemsAtom, prev => {
       const filteredItems = prev.filter(item => item.id !== id);
       return [transformedMenuItem, ...filteredItems];
     });
   } catch (error) {
-    // Revert optimistic update
     set(menuItemsAtom, currentMenuItems);
     console.error("Failed to update menu item:", error);
     throw error;
@@ -511,22 +485,16 @@ export const updateMenuItemAction = atom(null, async (get, set, { id, data }: { 
 });
 
 export const deleteMenuItemAction = atom(null, async (get, set, id: string) => {
-  // Get current state before optimistic update
   const currentMenuItems = get(menuItemsAtom);
-
   const itemToDelete = currentMenuItems.find(item => item.id === id);
   if (!itemToDelete) {
     throw new Error(`Menu item with id ${id} not found`);
   }
-
-  // Optimistic update - remove menu item immediately
   set(menuItemsAtom, prev => {
     const filtered = prev.filter(item => item.id !== id);
     return filtered;
   });
-
   try {
-    // Make API call
     await inventoryAPI.menu.deleteMenuItem(id);
   } catch (error) {
     console.error("❌ [DeleteAction] API call failed, reverting optimistic update:", error);
