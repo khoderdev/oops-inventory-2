@@ -20,6 +20,23 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
     return `${dd}-${mm}-${yyyy}`;
   };
 
+  const formatDateTime = (value: any) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) {
+      return String(value);
+    }
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    const hours24 = d.getHours();
+    const meridiem = hours24 >= 12 ? "PM" : "AM";
+    const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+    const hh = String(hours12).padStart(2, "0");
+    const min = String(d.getMinutes()).padStart(2, "0");
+    return `${dd}-${mm}-${yyyy} ${hh}:${min} ${meridiem}`;
+  };
+
   // Normalize per-item sales data for display (prefer topSellingItems, fallback to salesSummary.topItems)
   type ItemSales = { name: string; quantity: number; revenue: number };
   const itemSales: ItemSales[] = React.useMemo(() => {
@@ -125,26 +142,6 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               </div>
             </div>
 
-            {/* Inventory Summary */}
-            <div className="mt-3">
-              <p className="uppercase text-[11px] tracking-wider text-gray-700">Inventory Summary</p>
-              <div className="border-t border-dashed border-gray-300 my-1" />
-              <div className="space-y-1">
-                <div className="flex justify-between">
-                  <span>Total Variances</span>
-                  <span className="tabular-nums">{selectedReport.inventorySummary?.totalVariances ?? 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Gains</span>
-                  <span className="tabular-nums text-green-700">{selectedReport.inventorySummary?.gains ?? 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Losses</span>
-                  <span className="tabular-nums text-red-700">{selectedReport.inventorySummary?.losses ?? 0}</span>
-                </div>
-              </div>
-            </div>
-
             {/* User-specific Reports */}
             {selectedReport.userReports && selectedReport.userReports.length > 0 && (
               <div className="mt-4">
@@ -189,32 +186,6 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               </div>
             )}
 
-            {/* Sales by Section */}
-            {selectedReport.salesBySection && Object.keys(selectedReport.salesBySection).length > 0 && (
-              <div className="mt-4">
-                <p className="uppercase text-[11px] tracking-wider text-gray-700">Sales by Section</p>
-                <div className="border-t border-dashed border-gray-300 my-1" />
-                <div className="space-y-1">
-                  {Object.entries(selectedReport.salesBySection).map(([sectionName, sectionData]) => (
-                    <div key={sectionName}>
-                      <div className="flex justify-between font-medium">
-                        <span>{sectionName}</span>
-                        <span className="tabular-nums">{formatCurrency(sectionData.total)}</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span>Tx</span>
-                        <span className="tabular-nums">{sectionData.count}</span>
-                      </div>
-                      <div className="flex justify-between text-[11px]">
-                        <span>%</span>
-                        <span className="tabular-nums">{((sectionData.percentage || 0) as number).toFixed(1)}%</span>
-                      </div>
-                      <div className="border-t border-dashed border-gray-200 my-1" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Report Generation Info */}
             <div className="mt-4">
@@ -222,7 +193,7 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               <div className="space-y-1 text-[11px]">
                 <div className="flex justify-between">
                   <span>Generated</span>
-                  <span className="tabular-nums">{selectedReport.generatedAt ? new Date(selectedReport.generatedAt).toLocaleString() : "-"}</span>
+                  <span className="tabular-nums">{formatDateTime(selectedReport.generatedAt)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Status</span>
