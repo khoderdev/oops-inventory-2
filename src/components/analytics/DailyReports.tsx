@@ -8,6 +8,18 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
     return `$${numAmount.toFixed(2)}`;
   };
 
+  const formatDate = (value: any) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) {
+      return String(value);
+    }
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}-${mm}-${yyyy}`;
+  };
+
   // Normalize per-item sales data for display (prefer topSellingItems, fallback to salesSummary.topItems)
   type ItemSales = { name: string; quantity: number; revenue: number };
   const itemSales: ItemSales[] = React.useMemo(() => {
@@ -30,14 +42,17 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
       {/* Daily Report Modal */}
       {showReportModal && selectedReport && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-md p-4 w-full max-w-md max-h-[90vh] overflow-y-auto font-mono text-xs text-gray-800 shadow-lg">
+          <div className="bg-white rounded-md w-full max-w-md max-h-[90vh] font-mono text-xs text-gray-800 shadow-lg flex flex-col">
             {/* Header */}
-            <div className="text-center">
-              <h3 className="text-sm font-bold tracking-wide">DAILY REPORT</h3>
-              <p className="text-[11px] mt-1">{selectedReport.reportDate || (selectedReport as any).date}</p>
-              <div className="border-t border-dashed border-gray-400 mt-2" />
+            <div className="sticky top-0 z-10 bg-white p-4 border-b">
+              <div className="text-center">
+                <h3 className="text-sm font-bold tracking-wide">DAILY REPORT</h3>
+                <p className="text-[11px] mt-1">{formatDate(selectedReport.reportDate || (selectedReport as any).date)}</p>
+              </div>
             </div>
 
+            {/* Scrollable Content */}
+            <div className="px-4 overflow-y-auto flex-1">
             {/* Sales Summary */}
             <div className="mt-3">
               <p className="uppercase text-[11px] tracking-wider text-gray-700">Sales Summary</p>
@@ -67,7 +82,7 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
                   {itemSales.map((item, idx) => (
                     <div key={idx}>
                       <div className="flex justify-between font-medium">
-                        <span className="truncate">{`${item.name} X${item.quantity}`}</span>
+                        <span className="truncate">{`${item.name} x${item.quantity}`}</span>
                         <span className="tabular-nums">{formatCurrency(item.revenue)}</span>
                       </div>
                       <div className="border-t border-dashed border-gray-200 my-1" />
@@ -226,9 +241,10 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               </div>
               <div className="border-t border-dashed border-gray-400 mt-2" />
             </div>
+            </div>
 
-            {/* Actions */}
-            <div className="mt-4 flex items-center justify-center gap-2">
+            {/* Footer Actions (Sticky) */}
+            <div className="sticky bottom-0 z-10 bg-white p-4 border-t flex items-center justify-center gap-2">
               <button onClick={() => setShowReportModal(false)} className="px-4 py-1.5 bg-gray-700 text-white rounded hover:bg-gray-800">
                 Close
               </button>
