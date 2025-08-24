@@ -1,4 +1,4 @@
-import { AlertTriangle, Calendar, CheckCircle, Eye, EyeOff, Key, Loader2, MapPin, Phone, Save, Shield, User as UserIcon } from "lucide-react";
+import { AlertTriangle, Calendar, CheckCircle, Eye, EyeOff, Key, Loader2, Phone, Save, Shield, User as UserIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { authAPI } from "../../api/auth";
 import { useAuth } from "../../contexts/AuthContext";
@@ -8,7 +8,6 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Separator } from "../ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 const ProfilePage: React.FC = () => {
@@ -24,8 +23,7 @@ const ProfilePage: React.FC = () => {
   const [profileForm, setProfileForm] = useState({
     firstName: "",
     lastName: "",
-    phone: "",
-    address: ""
+    phone: ""
   });
 
   // Password form state
@@ -47,8 +45,7 @@ const ProfilePage: React.FC = () => {
       setProfileForm({
         firstName: user.firstName || "",
         lastName: user.lastName || "",
-        phone: user.phone || "",
-        address: user.address || ""
+        phone: user.phone || ""
       });
     }
   }, [user]);
@@ -63,8 +60,7 @@ const ProfilePage: React.FC = () => {
       await authAPI.updateProfile({
         firstName: profileForm.firstName,
         lastName: profileForm.lastName,
-        phone: profileForm.phone,
-        address: profileForm.address
+        phone: profileForm.phone
       });
 
       await refreshUser();
@@ -268,21 +264,6 @@ const ProfilePage: React.FC = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input
-                    id="address"
-                    value={profileForm.address}
-                    onChange={e =>
-                      setProfileForm(prev => ({
-                        ...prev,
-                        address: e.target.value
-                      }))
-                    }
-                    placeholder="Enter your address"
-                  />
-                </div>
-
                 <Button type="submit" disabled={isLoading} className="flex items-center gap-2">
                   {isLoading ? (
                     <>
@@ -399,12 +380,7 @@ const ProfilePage: React.FC = () => {
                 <Shield className="h-5 w-5" />
                 {user?.pin ? "Change PIN" : "Set PIN"}
               </CardTitle>
-              <CardDescription>
-                {user?.pin 
-                  ? "Update your 6-digit PIN for POS system access" 
-                  : "Set a 6-digit PIN for quick access to the POS system"
-                }
-              </CardDescription>
+              <CardDescription>{user?.pin ? "Update your 6-digit PIN for POS system access" : "Set a 6-digit PIN for quick access to the POS system"}</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handlePinSubmit} className="space-y-4">
@@ -417,7 +393,7 @@ const ProfilePage: React.FC = () => {
                       maxLength={6}
                       value={pinForm.currentPin}
                       onChange={e => {
-                        const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        const value = e.target.value.replace(/\D/g, "").slice(0, 6);
                         setPinForm(prev => ({
                           ...prev,
                           currentPin: value
@@ -437,7 +413,7 @@ const ProfilePage: React.FC = () => {
                     maxLength={6}
                     value={pinForm.newPin}
                     onChange={e => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      const value = e.target.value.replace(/\D/g, "").slice(0, 6);
                       setPinForm(prev => ({
                         ...prev,
                         newPin: value
@@ -457,7 +433,7 @@ const ProfilePage: React.FC = () => {
                     maxLength={6}
                     value={pinForm.confirmPin}
                     onChange={e => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      const value = e.target.value.replace(/\D/g, "").slice(0, 6);
                       setPinForm(prev => ({
                         ...prev,
                         confirmPin: value
@@ -548,19 +524,6 @@ const ProfilePage: React.FC = () => {
                   </div>
                 </div>
               </div>
-
-              {user.address && (
-                <>
-                  <Separator />
-                  <div>
-                    <Label className="text-sm font-medium text-gray-500">Address</Label>
-                    <p className="text-lg font-medium flex items-center gap-2 mt-1">
-                      <MapPin className="h-4 w-4" />
-                      {user.address}
-                    </p>
-                  </div>
-                </>
-              )}
             </CardContent>
           </Card>
         </TabsContent>

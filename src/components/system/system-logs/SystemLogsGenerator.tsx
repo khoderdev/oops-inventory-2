@@ -83,8 +83,16 @@ export function SystemLogsGenerator({ className }: SystemLogsGeneratorProps) {
     const loadMaterials = async () => {
       try {
         setLoadingMaterials(true);
-        const response = await materialsAPI.getMaterials();
-        setMaterials(response.data || []);
+        // Request a large page and add cache-busting to avoid missing items or stale data
+        const list = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
+        // Map API items to the local Material shape used by this component
+        const mapped = (list || []).map((m: any) => ({
+          id: String(m.id),
+          name: m.name,
+          // Category might be a string or nested object; handle both
+          category: (m.category && typeof m.category === "object") ? (m.category.name || "") : (m.category || "")
+        }));
+        setMaterials(mapped);
       } catch (error) {
         console.error("Error loading materials:", error);
       } finally {

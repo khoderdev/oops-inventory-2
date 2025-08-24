@@ -321,6 +321,7 @@ const authController = {
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
+          phone: user.phone,
           role: user.role,
           permissions: user.getRolePermissions(),
           specificPermissions: user.permissions,
@@ -338,18 +339,19 @@ const authController = {
   // Update user profile
   updateProfile: async (req, res, next) => {
     try {
-      const { firstName, lastName } = req.body;
+      const { firstName, lastName, phone } = req.body;
       const user = req.user;
-
       // Store old values for audit
       const oldValues = {
         firstName: user.firstName,
-        lastName: user.lastName
+        lastName: user.lastName,
+        phone: user.phone
       };
 
       const updates = {};
       if (firstName !== undefined) updates.firstName = firstName;
       if (lastName !== undefined) updates.lastName = lastName;
+      if (phone !== undefined) updates.phone = phone;
 
       if (Object.keys(updates).length === 0) {
         return res.status(400).json({
@@ -370,6 +372,7 @@ const authController = {
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
+          phone: user.phone,
           role: user.role
         }
       });

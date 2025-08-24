@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@/types/auth";
 import { NavigationItem } from "@/types/inventory";
-import { Activity, AlertTriangle, BarChart3, Bell, Calendar, Clock, CreditCard, Database, DollarSign, FileText, Home, Key, Lock, MessageSquare, Package, Receipt, Settings, Shield, ShoppingCart, Truck, UserCheck, Users, Utensils } from "lucide-react";
+import { Activity, BarChart3, Calendar, Database, FileText, Home, Package, Receipt, Settings, Shield, ShoppingCart, UserCheck, Users, Utensils } from "lucide-react";
 
 export const navigationItems: NavigationItem[] = [
   {
@@ -42,26 +42,7 @@ export const navigationItems: NavigationItem[] = [
   {
     label: "Daily Operations",
     icon: Calendar,
-    children: [
-      {
-        label: "Day Operations",
-        href: "/day-operations",
-        icon: Calendar,
-        permission: PERMISSIONS.DAY_OPERATIONS_READ
-      },
-      {
-        label: "Close Day",
-        href: "/day-operations/close",
-        icon: Lock,
-        permission: PERMISSIONS.DAY_OPERATIONS_CLOSE
-      },
-      {
-        label: "Cash Count",
-        href: "/day-operations/cash-count",
-        icon: DollarSign,
-        permission: PERMISSIONS.DAY_OPERATIONS_CASH_COUNT
-      }
-    ]
+    href: "/day-operations"
   },
   {
     label: "Reports & Analytics",

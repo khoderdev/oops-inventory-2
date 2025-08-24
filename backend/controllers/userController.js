@@ -46,6 +46,7 @@ const userController = {
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
+          phone: user.phone,
           role: user.role,
           permissions: user.getRolePermissions(),
           specificPermissions: user.permissions,
@@ -108,6 +109,7 @@ const userController = {
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
+          phone: user.phone,
           role: user.role,
           permissions: user.getRolePermissions(),
           specificPermissions: user.permissions,
@@ -135,7 +137,7 @@ const userController = {
   // Create new user (admin only)
   createUser: async (req, res, next) => {
     try {
-      const { username, password, firstName, lastName, role, permissions } = req.body;
+      const { username, password, firstName, lastName, role, permissions, phone } = req.body;
 
       // Validation
       if (!username || !password || !firstName || !lastName) {
@@ -158,6 +160,7 @@ const userController = {
         password,
         firstName,
         lastName,
+        phone,
         role: role || "staff",
         permissions: permissions || {},
         createdBy: req.user.id
@@ -184,6 +187,7 @@ const userController = {
           firstName: user.firstName,
           lastName: user.lastName,
           fullName: user.getFullName(),
+          phone: user.phone,
           role: user.role,
           isActive: user.isActive,
           createdAt: user.createdAt
@@ -205,7 +209,7 @@ const userController = {
   updateUser: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { username, firstName, lastName, role, permissions, isActive } = req.body;
+      const { username, firstName, lastName, role, permissions, isActive, phone } = req.body;
 
       const user = await User.findByPk(id);
 
@@ -250,6 +254,7 @@ const userController = {
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone,
         role: user.role,
         permissions: user.permissions,
         isActive: user.isActive
@@ -259,6 +264,7 @@ const userController = {
       if (username !== undefined) updates.username = username.toLowerCase();
       if (firstName !== undefined) updates.firstName = firstName;
       if (lastName !== undefined) updates.lastName = lastName;
+      if (phone !== undefined) updates.phone = phone;
       if (role !== undefined) updates.role = role;
       if (permissions !== undefined) updates.permissions = permissions;
       if (isActive !== undefined) updates.isActive = isActive;
@@ -279,6 +285,7 @@ const userController = {
           username: user.username,
           firstName: user.firstName,
           lastName: user.lastName,
+          phone: user.phone,
           fullName: user.getFullName(),
           role: user.role,
           isActive: user.isActive,
@@ -301,7 +308,6 @@ const userController = {
   deleteUser: async (req, res, next) => {
     try {
       const { id } = req.params;
-
       const user = await User.findByPk(id);
 
       if (!user) {

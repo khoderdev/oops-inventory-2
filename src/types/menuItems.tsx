@@ -109,3 +109,18 @@ export interface IngredientsProps {
   };
   onErrorsChange?: (errors: { ingredients?: string; ingredientQuantity?: string }) => void;
 }
+
+
+
+export interface IngredientsTableProps {
+  ingredients: MenuItemIngredient[];
+  materials: Material[];
+  menuItem?: MenuItem;
+  calculateIngredientCost: (ingredient: Omit<MenuItemIngredient, "cost">) => number;
+  getMaterialCostPerBaseUnit: (materialId: string) => number;
+  formatNumber: (value: number) => string;
+  formatCurrency: (amount: number) => string;
+  handleRemoveIngredient: (index: number) => void;
+  totalIngredientsCost: number;
+  price: string;
+}

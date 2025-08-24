@@ -1,20 +1,18 @@
-import { Material, MenuItem, MenuItemIngredient } from "@/types/inventory";
+import {  MenuItemIngredient } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../ui/table";
 import { Selection } from "../../ui/Selection";
-import { IngredientsProps } from "@/types/menuItems";
+import { IngredientsProps,  } from "@/types/menuItems";
+import { IngredientsTable } from "./IngredientsTable";
 
-export function Ingredients({ ingredients = [], stockEntries = [], menuItem, category = '', price = '0', onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
-  // Get materials from context
+export function Ingredients({ ingredients = [], stockEntries = [], menuItem, category = "", price = "0", onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
   const { materialsWithStock: materials } = useMenuItems();
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
@@ -47,6 +45,8 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
     }
     return availableMaterials.filter(material => material.name.toLowerCase().includes(materialSearchTerm.toLowerCase()));
   }, [availableMaterials, materialSearchTerm]);
+
+  console.log(filteredMaterials);
 
   const calculateIngredientCost = useCallback(
     (ingredient: Omit<MenuItemIngredient, "cost">) => {
@@ -272,7 +272,18 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
         </p>
       )}
 
-      <TanStackVirtualizedIngredientsTable ingredients={ingredients} materials={materials} menuItem={menuItem} calculateIngredientCost={calculateIngredientCost} getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit} formatNumber={formatNumber} formatCurrency={formatCurrency} handleRemoveIngredient={handleRemoveIngredient} totalIngredientsCost={totalIngredientsCost} price={price} />
+      <IngredientsTable
+        ingredients={ingredients}
+        materials={materials || []}
+        menuItem={menuItem}
+        calculateIngredientCost={calculateIngredientCost}
+        getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit}
+        formatNumber={formatNumber}
+        formatCurrency={formatCurrency}
+        handleRemoveIngredient={handleRemoveIngredient}
+        totalIngredientsCost={totalIngredientsCost}
+        price={price}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
         <Selection
@@ -340,220 +351,3 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
   );
 }
 
-// TanStack Virtualized Ingredients Table Component
-interface TanStackVirtualizedIngredientsTableProps {
-  ingredients: MenuItemIngredient[];
-  materials: Material[];
-  menuItem?: MenuItem;
-  calculateIngredientCost: (ingredient: Omit<MenuItemIngredient, "cost">) => number;
-  getMaterialCostPerBaseUnit: (materialId: string) => number;
-  formatNumber: (value: number) => string;
-  formatCurrency: (amount: number) => string;
-  handleRemoveIngredient: (index: number) => void;
-  totalIngredientsCost: number;
-  price: string;
-}
-
-const TanStackVirtualizedIngredientsTable: React.FC<TanStackVirtualizedIngredientsTableProps> = ({ ingredients = [], menuItem, calculateIngredientCost, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = '0' }) => {
-  // Get materials from context
-  const { materialsWithStock: materials } = useMenuItems();
-  const parentRef = useRef<HTMLDivElement>(null);
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const columnHelper = createColumnHelper<MenuItemIngredient & { index: number }>();
-
-  const columns = useMemo<ColumnDef<MenuItemIngredient & { index: number }>[]>(
-    () => [
-      // Material name column
-      columnHelper.display({
-        id: "material",
-        header: "Material",
-        cell: ({ row }) => {
-          const material = materials.find(m => String(m.id) === String(row.original.materialId));
-          return <div className="font-medium truncate">{material?.name || "Unknown"}</div>;
-        },
-        size: 200
-      }),
-
-      // Quantity column
-      columnHelper.accessor("quantity", {
-        header: "Quantity",
-        cell: ({ getValue }) => <div>{formatNumber(getValue())}</div>,
-        size: 100
-      }),
-
-      // Unit column
-      columnHelper.accessor("unit", {
-        header: "Unit",
-        cell: ({ getValue }) => <div className="text-muted-foreground">{getValue()}</div>,
-        size: 80
-      }),
-
-      // Cost column
-      columnHelper.display({
-        id: "cost",
-        header: "Cost",
-        cell: ({ row }) => {
-          const storedCost = menuItem?.ingredients?.find(i => i.materialId === row.original.materialId)?.cost;
-          const ingredientCost = storedCost || calculateIngredientCost(row.original);
-          return <div className="text-right font-medium">{ingredientCost > 0 ? <span className="text-foreground">{formatCurrency(ingredientCost)}</span> : <span className="text-red-500 text-xs">No cost data</span>}</div>;
-        },
-        size: 120
-      }),
-
-      // Actions column
-      columnHelper.display({
-        id: "actions",
-        header: "",
-        cell: ({ row }) => {
-          const material = materials.find(m => String(m.id) === String(row.original.materialId));
-          return (
-            <div className="text-right">
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600" onClick={() => handleRemoveIngredient(row.original.index)} aria-label={`Remove ${material?.name || "ingredient"}`}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          );
-        },
-        enableSorting: false,
-        size: 60
-      })
-    ],
-    [materials, menuItem, calculateIngredientCost, formatNumber, formatCurrency, handleRemoveIngredient]
-  );
-  const tableData = useMemo(() => ingredients.map((ingredient, index) => ({ ...ingredient, index })), [ingredients]);
-
-  // TanStack Table instance
-  const table = useReactTable({
-    data: tableData,
-    columns,
-    state: {
-      sorting
-    },
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel()
-  });
-
-  const rows = table.getRowModel().rows;
-
-  const rowVirtualizer = useVirtualizer({
-    count: rows.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 52,
-    overscan: 5
-  });
-
-  return (
-    <div className="mb-4 border rounded-md overflow-hidden">
-      <div className="flex flex-1 flex-col min-h-0 h-[250px]">
-        {/* Table Header */}
-        <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map(headerGroup => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map(header => (
-                    <TableHead key={header.id} style={{ width: header.getSize() }} className={header.column.getCanSort() ? "cursor-pointer select-none" : ""} onClick={header.column.getToggleSortingHandler()}>
-                      {header.isPlaceholder ? null : (
-                        <div className="flex items-center gap-2">
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          {header.column.getCanSort() && (
-                            <span className="text-xs">
-                              {{
-                                asc: "↑",
-                                desc: "↓"
-                              }[header.column.getIsSorted() as string] ?? "↕"}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-          </Table>
-        </div>
-
-        {/* Virtualized Table Body */}
-        <div className="flex-1 overflow-auto max-h-96" ref={parentRef} style={{ height: Math.min(rows.length * 52, 384) }}>
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative"
-            }}
-          >
-            {rowVirtualizer.getVirtualItems().map(virtualItem => {
-              const row = rows[virtualItem.index];
-
-              return (
-                <div
-                  key={virtualItem.key}
-                  className="border-b border-border hover:bg-muted/50 transition-colors"
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: `${virtualItem.size}px`,
-                    transform: `translateY(${virtualItem.start}px)`
-                  }}
-                >
-                  <Table>
-                    <TableBody>
-                      <TableRow>
-                        {row.getVisibleCells().map(cell => (
-                          <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Footer with totals - always render regardless of ingredients count */}
-      <div className="px-4 py-3 bg-muted/50 border-t">
-        <div className="flex justify-between items-center font-medium">
-          <span>Total Ingredients Cost:</span>
-          <span className="text-lg font-semibold">{formatCurrency(totalIngredientsCost || 0)}</span>
-        </div>
-        <div className="flex justify-between items-center text-sm text-muted-foreground mt-1">
-          <span>Profit Margin:</span>
-          <span
-            className={(() => {
-              const priceValue = parseFloat(price || "0");
-              const ingredientsCost = parseFloat(String(totalIngredientsCost || 0));
-              const profit = priceValue - ingredientsCost;
-              return profit >= 0 ? "text-green-600 font-medium" : "text-red-600 font-medium";
-            })()}
-          >
-            {(() => {
-              // Ensure we have valid numbers
-              const priceValue = parseFloat(price || "0");
-              const ingredientsCost = parseFloat(String(totalIngredientsCost || 0));
-
-              // Calculate profit
-              const profit = priceValue - ingredientsCost;
-              const profitDisplay = formatCurrency(profit);
-
-              // Calculate percentage
-              let percentageDisplay = "0%";
-              if (priceValue > 0) {
-                const percentage = (profit / priceValue) * 100;
-                percentageDisplay = `${formatNumber(isNaN(percentage) ? 0 : percentage)}%`;
-              }
-              return `${profitDisplay} (${percentageDisplay})`;
-            })()}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-};

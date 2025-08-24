@@ -42,10 +42,10 @@ const User = sequelize.define(
       allowNull: true,
       validate: {
         isValidPin(value) {
-          if (value && !value.startsWith('$2b$')) {
+          if (value && !value.startsWith("$2b$")) {
             // Only validate raw PIN (not hashed)
             if (!/^\d{6}$/.test(value)) {
-              throw new Error('PIN must be exactly 6 digits');
+              throw new Error("PIN must be exactly 6 digits");
             }
           }
         }
@@ -71,6 +71,18 @@ const User = sequelize.define(
         }
       }
     },
+
+    phone: {
+      type: DataTypes.STRING(15),
+      allowNull: true,
+      validate: {
+        len: {
+          args: [10, 15],
+          msg: "Phone number must be between 10 and 15 characters"
+        }
+      }
+    },
+
     role: {
       type: DataTypes.ENUM("admin", "manager", "staff"),
       allowNull: false,
@@ -678,7 +690,6 @@ User.prototype.getRolePermissions = function () {
       "employee.settlementApprove": false,
       "employee.settlementProcess": false,
       "employee.settlementView": false,
-
 
       // === SAUCE MANAGEMENT ===
       "sauces.create": false,
