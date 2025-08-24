@@ -42,10 +42,28 @@ const dayOperationsController = {
         include: [{ model: Section, as: "section", attributes: ["id", "name"] }],
         transaction
       });
-      const totalSales = salesData.reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
-      const totalTransactions = salesData.length;
+      // Determine staff users among participants in today's sales and exclude their sales
+      const uniqueUserIds = Array.from(new Set(salesData.map(s => s.userId).filter(Boolean)));
+      let staffUserIds = new Set();
+      if (uniqueUserIds.length > 0) {
+        const users = await User.findAll({
+          where: { id: uniqueUserIds },
+          attributes: ["id", "role"],
+          transaction
+        });
+        staffUserIds = new Set(users.filter(u => u.role === "staff").map(u => u.id));
+      }
+      const nonStaffSales = salesData.filter(s => !staffUserIds.has(s.userId));
+      const totalSales = nonStaffSales.reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
+      const totalTransactions = nonStaffSales.length;
       const averageTicket = totalTransactions > 0 ? totalSales / totalTransactions : 0;
-      const expectedCash = parseFloat(dayOperation.openingCash) + totalSales;
+      // Expected cash should be based on non-staff cash sales; if paymentMethod not present, fallback to total
+      const saleAttributes = Object.keys(Sale.rawAttributes || {});
+      const hasPaymentMethod = saleAttributes.includes("paymentMethod");
+      const nonStaffCashSales = hasPaymentMethod
+        ? nonStaffSales.filter(s => s.paymentMethod === "cash").reduce((sum, s) => sum + parseFloat(s.totalAmount), 0)
+        : totalSales;
+      const expectedCash = parseFloat(dayOperation.openingCash) + nonStaffCashSales;
       return {
         totalSales,
         totalTransactions,
@@ -473,13 +491,26 @@ const dayOperationsController = {
         include: [{ model: Section, as: "section", attributes: ["id", "name"] }],
         transaction
       });
-      console.log("[DayOps][closeDay] salesData length:", salesData.length);
-      const totalSales = salesData.reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
-      const totalTransactions = salesData.length;
+      // Exclude staff users' sales from aggregates
+      const uniqueUserIds = Array.from(new Set(salesData.map(s => s.userId).filter(Boolean)));
+      let staffUserIds = new Set();
+      if (uniqueUserIds.length > 0) {
+        const users = await User.findAll({ where: { id: uniqueUserIds }, attributes: ["id", "role"], transaction });
+        staffUserIds = new Set(users.filter(u => u.role === "staff").map(u => u.id));
+      }
+      const nonStaffSales = salesData.filter(s => !staffUserIds.has(s.userId));
+      console.log("[DayOps][closeDay] salesData length:", salesData.length, "nonStaffSales length:", nonStaffSales.length);
+      const totalSales = nonStaffSales.reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
+      const totalTransactions = nonStaffSales.length;
       const averageTicket = totalTransactions > 0 ? totalSales / totalTransactions : 0;
-      console.log("[DayOps][closeDay] totals:", { totalSales, totalTransactions, averageTicket });
-      // Compute expected/actual cash for the global close path
-      const expectedCash = parseFloat(dayOperation.openingCash) + totalSales;
+      console.log("[DayOps][closeDay] totals (non-staff):", { totalSales, totalTransactions, averageTicket });
+      // Compute expected/actual cash for the global close path (only non-staff cash sales contribute to expected cash)
+      const saleAttributes = Object.keys(Sale.rawAttributes || {});
+      const hasPaymentMethod = saleAttributes.includes("paymentMethod");
+      const nonStaffCashSales = hasPaymentMethod
+        ? nonStaffSales.filter(s => s.paymentMethod === "cash").reduce((sum, s) => sum + parseFloat(s.totalAmount), 0)
+        : totalSales;
+      const expectedCash = parseFloat(dayOperation.openingCash) + nonStaffCashSales;
       const actualClosingCash = parseFloat(closingCash || 0);
       const cashVariance = actualClosingCash - expectedCash;
       console.log("[DayOps][closeDay] cash summary:", { openingCash: parseFloat(dayOperation.openingCash), expectedCash, actualClosingCash, cashVariance });
@@ -530,7 +561,7 @@ const dayOperationsController = {
           totalAmount: totalSales,
           totalTransactions,
           averageTicket,
-          salesBySection: salesData.reduce((acc, sale) => {
+          salesBySection: nonStaffSales.reduce((acc, sale) => {
             const sectionName = sale.section?.name || "Unknown";
             if (!acc[sectionName]) {
               acc[sectionName] = { count: 0, total: 0 };

@@ -145,7 +145,6 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
           setCurrentDay(response.dayOperation);
           setLastRefresh(new Date());
         }
-        setSuccess(`Shift closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
         setActivities([]);
         setUserOrderStats([]);
         refreshAll();

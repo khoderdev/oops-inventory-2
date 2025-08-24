@@ -514,7 +514,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           setShowLockOverlay(true);
         }
       }
-      setSuccess(`Shift closed successfully! Total sales: $${response.summary?.totalSales.toFixed(2)}`);
       setShowCloseModal(false);
       setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
       setTimeout(async () => {
