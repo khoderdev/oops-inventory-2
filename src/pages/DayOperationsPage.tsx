@@ -7,30 +7,17 @@ import DayOperationsModal from "../components/DayOperationsModal/DayOperationsMo
 import DailyReports from "../components/analytics/DailyReports";
 import ViewReportButton from "../components/ui/ViewReportButton";
 import { useDailyReports } from "../hooks/useDailyReports";
-import { ActivityLog, CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
-import type { UserOrderStats,DayOperationsFormData } from "@/types/dayOperations";
+import { CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
+import type { DayOperationsFormData } from "@/types/dayOperations";
 import { formatCurrency, formatDate, formatDateTime, formatWeekday } from "@/utils/dayOperationsFormattings";
 
 // Destructure API methods for cleaner usage
-const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
+const { getDayOperations } = dayOperationsAPI;
 
 const DayOperationsPage: React.FC = () => {
   const { user } = useAuth();
-  
-  // Use day operations context for global state management
-  const {
-    currentDay,
-    userOrderStats,
-    loading,
-    error,
-    success,
-    actionLoading,
-    openDay: contextOpenDay,
-    closeDay: contextCloseDay,
-    clearError,
-    clearSuccess
-  } = useDayOperations();
-  
+  const { currentDay, loading, error, success, openDay: contextOpenDay, closeDay: contextCloseDay, clearError, clearSuccess } = useDayOperations();
+
   // Local state for page-specific data
   const [recentDays, setRecentDays] = useState<DayOperation[]>([]);
   const [showTotalSales, setShowTotalSales] = useState(true);
@@ -386,7 +373,7 @@ const DayOperationsPage: React.FC = () => {
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sales</th>
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Transactions</th>
                 <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">Cash Variance</th>
-                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -432,26 +419,10 @@ const DayOperationsPage: React.FC = () => {
       </div>
 
       {/* Open Day Modal */}
-      <DayOperationsModal 
-        open={showOpenModal} 
-        onOpenChange={setShowOpenModal} 
-        onSubmit={handleOpenDay} 
-        type="open" 
-        formData={convertToModalFormData("open")} 
-        onFormChange={data => handleModalFormChange("open", data)} 
-        formatCurrency={formatCurrency} 
-      />
+      <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} formatCurrency={formatCurrency} />
 
       {/* Close Day Modal */}
-      <DayOperationsModal
-        open={showCloseModal}
-        onOpenChange={setShowCloseModal}
-        onSubmit={handleCloseDay}
-        type="close"
-        formData={convertToModalFormData("close")}
-        onFormChange={data => handleModalFormChange("close", data)}
-        formatCurrency={formatCurrency}
-      />
+      <DayOperationsModal open={showCloseModal} onOpenChange={setShowCloseModal} onSubmit={handleCloseDay} type="close" formData={convertToModalFormData("close")} onFormChange={data => handleModalFormChange("close", data)} formatCurrency={formatCurrency} />
 
       {/* Daily Reports Modal */}
       <DailyReports showReportModal={showReportModal} setShowReportModal={setShowReportModal} selectedReport={selectedReport} error={reportError} setError={setReportError} />

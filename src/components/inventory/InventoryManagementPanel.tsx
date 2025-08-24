@@ -23,7 +23,8 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
   const [stock, setStock] = useState<StockEntry[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState({ materials: false, stock: false });
-  const [activeTab, setActiveTab] = useAtom(activeTabAtom);
+  // const [activeTab, setActiveTab] = useAtom(activeTabAtom);
+  const [activeTab, setActiveTab] = useState("stock");
   const [showMaterialForm, setShowMaterialForm] = useAtom(showMaterialFormAtom);
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
   const [selectedMaterial, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];

@@ -8,7 +8,7 @@ const DayOperationsContext = createContext<DayOperationsContextType | undefined>
 
 export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
   children,
-  autoRefreshInterval = 30000, // 30 seconds
+  autoRefreshInterval = 30000,
   enableAutoRefresh = true
 }) => {
   const { user } = useAuth();
@@ -117,7 +117,6 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
           setCurrentDay(response.dayOperation);
           setLastRefresh(new Date());
         }
-        setSuccess(`Shift opened successfully! ${response.stockItemsCaptured} stock items captured.`);
         refreshAll();
       } catch (err) {
         console.error("❌ DayOperationsContext: Failed to open day:", err);
@@ -194,7 +193,6 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
   }, [user?.id]);
 
   const contextValue: DayOperationsContextType = {
-    // State
     currentDay,
     activities,
     userOrderStats,
@@ -202,8 +200,6 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
     error,
     success,
     actionLoading,
-
-    // Actions
     openDay,
     closeDay,
     refreshCurrentDay,
@@ -214,13 +210,9 @@ export const DayOperationsProvider: React.FC<DayOperationsProviderProps> = ({
     clearSuccess,
     setError,
     setSuccess,
-
-    // Computed values
     isDayOpen,
     isDayClosed,
     hasActiveDay,
-
-    // Real-time tracking
     lastRefresh,
     autoRefreshEnabled,
     setAutoRefreshEnabled

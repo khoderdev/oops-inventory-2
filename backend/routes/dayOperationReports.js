@@ -4,11 +4,6 @@ import { authenticate } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-/**
- * Day Operation Reports Routes
- * Base path: /api/day-operation-reports
- */
-
 // Get all reports with pagination and filtering
 router.get("/", authenticate, dayOperationReportsController.getAllReports);
 
@@ -23,6 +18,9 @@ router.post("/", authenticate, dayOperationReportsController.createReport);
 
 // Generate a report for a day operation
 router.post("/generate/:dayOperationId", authenticate, dayOperationReportsController.generateReport);
+
+// Regenerate/update a report for a day operation (recompute per-item totals)
+router.post("/regenerate/:dayOperationId", authenticate, dayOperationReportsController.regenerateReport);
 
 // Update an existing report
 router.put("/:id", authenticate, dayOperationReportsController.updateReport);

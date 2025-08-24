@@ -76,6 +76,12 @@ export const dayOperationReportsAPI = {
     return response.data;
   },
 
+  // Regenerate/update a report for a day operation (recompute per-item totals)
+  regenerateReport: async (dayOperationId: number, generatedBy?: string): Promise<DayOperationReportResponse> => {
+    const response = await api.post<DayOperationReportResponse, { generatedBy?: string }>(`/day-operation-reports/regenerate/${dayOperationId}`, { generatedBy });
+    return response.data;
+  },
+
   // Update an existing report
   updateReport: async (id: number, updates: Partial<DayOperationReport>): Promise<DayOperationReportResponse> => {
     const response = await api.put<DayOperationReportResponse, Partial<DayOperationReport>>(`/day-operation-reports/${id}`, updates);
@@ -90,4 +96,4 @@ export const dayOperationReportsAPI = {
 };
 
 // Export individual functions for backward compatibility
-export const { getReports, getReportById, getReportsByDayOperation, createReport, generateReport, updateReport, deleteReport } = dayOperationReportsAPI;
+export const { getReports, getReportById, getReportsByDayOperation, createReport, generateReport, regenerateReport, updateReport, deleteReport } = dayOperationReportsAPI;

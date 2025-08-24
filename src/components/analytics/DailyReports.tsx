@@ -8,6 +8,13 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
     return `$${numAmount.toFixed(2)}`;
   };
 
+  // Normalize per-item sales data for display (prefer topSellingItems, fallback to salesSummary.topItems)
+  type ItemSales = { name: string; quantity: number; revenue: number };
+  const itemSales: ItemSales[] = React.useMemo(() => {
+    const items: ItemSales[] = selectedReport?.topSellingItems && selectedReport.topSellingItems.length > 0 ? selectedReport.topSellingItems.map(i => ({ name: i.name, quantity: i.quantity, revenue: i.revenue })) : (selectedReport?.salesSummary?.topItems as ItemSales[]) || [];
+    return [...items].sort((a, b) => (Number(b.revenue) || 0) - (Number(a.revenue) || 0));
+  }, [selectedReport]);
+
   return (
     <div className={className}>
       {/* Error Display */}
@@ -27,7 +34,7 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
             {/* Header */}
             <div className="text-center">
               <h3 className="text-sm font-bold tracking-wide">DAILY REPORT</h3>
-              <p className="text-[11px] mt-1">{selectedReport.date}</p>
+              <p className="text-[11px] mt-1">{selectedReport.reportDate || (selectedReport as any).date}</p>
               <div className="border-t border-dashed border-gray-400 mt-2" />
             </div>
 
@@ -38,18 +45,46 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               <div className="space-y-1">
                 <div className="flex justify-between">
                   <span>Total Sales</span>
-                  <span className="tabular-nums font-semibold">{formatCurrency(selectedReport.salesSummary.totalAmount)}</span>
+                  <span className="tabular-nums font-semibold">{formatCurrency(selectedReport.salesSummary?.totalAmount)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Transactions</span>
-                  <span className="tabular-nums">{selectedReport.salesSummary.totalTransactions}</span>
+                  <span className="tabular-nums">{selectedReport.salesSummary?.totalTransactions ?? 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Average Ticket</span>
-                  <span className="tabular-nums">{formatCurrency(selectedReport.salesSummary.averageTicket)}</span>
+                  <span className="tabular-nums">{formatCurrency(selectedReport.salesSummary?.averageTicket)}</span>
                 </div>
               </div>
             </div>
+
+            {/* Sales by Item */}
+            {itemSales && itemSales.length > 0 && (
+              <div className="mt-4">
+                <p className="uppercase text-[11px] tracking-wider text-gray-700">Sales by Item</p>
+                <div className="border-t border-dashed border-gray-300 my-1" />
+                <div className="space-y-1">
+                  {itemSales.map((item, idx) => (
+                    <div key={idx}>
+                      <div className="flex justify-between font-medium">
+                        <span className="truncate">{`${item.name} X${item.quantity}`}</span>
+                        <span className="tabular-nums">{formatCurrency(item.revenue)}</span>
+                      </div>
+                      <div className="border-t border-dashed border-gray-200 my-1" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No item sales placeholder */}
+            {(!itemSales || itemSales.length === 0) && (
+              <div className="mt-4">
+                <p className="uppercase text-[11px] tracking-wider text-gray-700">Sales by Item</p>
+                <div className="border-t border-dashed border-gray-300 my-1" />
+                <p className="text-gray-500 text-[11px]">No item sales recorded for this day.</p>
+              </div>
+            )}
 
             {/* Cash Summary */}
             <div className="mt-3">
@@ -58,19 +93,19 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               <div className="space-y-1">
                 <div className="flex justify-between">
                   <span>Opening</span>
-                  <span className="tabular-nums">{formatCurrency(selectedReport.cashSummary.opening)}</span>
+                  <span className="tabular-nums">{formatCurrency(selectedReport.cashSummary?.opening)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Expected</span>
-                  <span className="tabular-nums">{formatCurrency(selectedReport.cashSummary.expected)}</span>
+                  <span className="tabular-nums">{formatCurrency(selectedReport.cashSummary?.expected)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Actual</span>
-                  <span className="tabular-nums">{formatCurrency(selectedReport.cashSummary.closing)}</span>
+                  <span className="tabular-nums">{formatCurrency(selectedReport.cashSummary?.closing)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Variance</span>
-                  <span className={`tabular-nums font-semibold ${selectedReport.cashSummary.variance >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(selectedReport.cashSummary.variance)}</span>
+                  <span className={`tabular-nums font-semibold ${(selectedReport.cashSummary?.variance ?? 0) >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(selectedReport.cashSummary?.variance)}</span>
                 </div>
               </div>
             </div>
@@ -82,15 +117,15 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               <div className="space-y-1">
                 <div className="flex justify-between">
                   <span>Total Variances</span>
-                  <span className="tabular-nums">{selectedReport.inventorySummary.totalVariances}</span>
+                  <span className="tabular-nums">{selectedReport.inventorySummary?.totalVariances ?? 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Gains</span>
-                  <span className="tabular-nums text-green-700">{selectedReport.inventorySummary.gains}</span>
+                  <span className="tabular-nums text-green-700">{selectedReport.inventorySummary?.gains ?? 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Losses</span>
-                  <span className="tabular-nums text-red-700">{selectedReport.inventorySummary.losses}</span>
+                  <span className="tabular-nums text-red-700">{selectedReport.inventorySummary?.losses ?? 0}</span>
                 </div>
               </div>
             </div>
@@ -172,7 +207,7 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               <div className="space-y-1 text-[11px]">
                 <div className="flex justify-between">
                   <span>Generated</span>
-                  <span className="tabular-nums">{new Date(selectedReport.generatedAt).toLocaleString()}</span>
+                  <span className="tabular-nums">{selectedReport.generatedAt ? new Date(selectedReport.generatedAt).toLocaleString() : "-"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Status</span>
@@ -199,6 +234,19 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
               </button>
               <button onClick={() => window.print()} className="px-4 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700">
                 Print
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    await dayOperationReportsAPI.regenerateReport((selectedReport as any).dayOperationId, "Admin User");
+                    setShowReportModal(false);
+                  } catch (err) {
+                    setError("Failed to regenerate report");
+                  }
+                }}
+                className="px-4 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700"
+              >
+                Regenerate
               </button>
               {selectedReport.reportStatus === "draft" && (
                 <button
