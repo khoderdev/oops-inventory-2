@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
-import { toast } from "@/components/ui/use-toast";
 import { menuAPI } from "@/api/menu.api.ts";
 import { MenuItem, Material } from "@/types/inventory";
 import { getCategoriesByType } from "@/api/categories.api";
@@ -7,10 +6,8 @@ import { Category } from "@/types/categories";
 import { materialsAPI } from "@/api/materials.api";
 import { MenuItemsContextState } from "@/types/menuItems";
 
-// Create the context with default values
 const MenuItemsContext = createContext<MenuItemsContextState | undefined>(undefined);
 
-// Provider props interface
 interface MenuItemsProviderProps {
   children: ReactNode;
   externalCategories?: Category[];
@@ -19,9 +16,7 @@ interface MenuItemsProviderProps {
   onDeleteMenuItem?: (id: string) => Promise<void>;
 }
 
-// Provider component
 export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, externalCategories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
-  // Menu items state
   const [foodMenuItems, setFoodMenuItems] = useState<MenuItem[]>([]);
   const [beverageMenuItems, setBeverageMenuItems] = useState<MenuItem[]>([]);
   const [menuItemsLoading, setMenuItemsLoading] = useState<boolean>(false);
@@ -48,24 +43,14 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
       setMenuItemsError(null);
       // Always fetch food menu items
       const foodItems = await menuAPI.getFoodMenuItems(true);
-      console.log("🍔 MenuItemsContext: Fetched food menu items:", foodItems.length);
       setFoodMenuItems(foodItems);
-
-      // Only fetch beverage items when the beverages tab is active
       if (activeTab === "beverages") {
         const beverageItems = await menuAPI.getBeverageMenuItems(true);
-        console.log("🍹 MenuItemsContext: Fetched beverage menu items:", beverageItems.length);
         setBeverageMenuItems(beverageItems);
       }
     } catch (error) {
       console.error("Failed to fetch menu items:", error);
       setMenuItemsError("Failed to load menu items");
-      toast({
-        title: "Error",
-        description: "Failed to load menu items. Please try again.",
-        variant: "destructive",
-        duration: 5000
-      });
     } finally {
       setMenuItemsLoading(false);
     }
@@ -89,23 +74,17 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
     try {
       setCategoriesLoading(true);
       setCategoriesError(null);
-
       if (externalCategories && externalCategories.length > 0) {
-        // If external categories are provided, use them
         const menuItemCats = externalCategories.filter(category => (category.categoryTypes && category.categoryTypes.some(type => type.type === "menu_items")) || (category.value && typeof category.value === "string" && (category.value.toLowerCase().includes("menu") || category.name.toLowerCase().includes("menu") || category.value.toLowerCase().includes("food") || category.name.toLowerCase().includes("food"))));
 
         const beverageCats = externalCategories.filter(category => (category.categoryTypes && category.categoryTypes.some(type => type.type === "beverages")) || (category.value && typeof category.value === "string" && (category.value.toLowerCase().includes("beverage") || category.name.toLowerCase().includes("beverage") || category.value.toLowerCase().includes("drink") || category.name.toLowerCase().includes("drink"))));
-
         setMenuItemCategories(menuItemCats);
         setBeverageCategories(beverageCats);
       } else {
-        // Fetch categories from API by type
         const [menuItemsResponse, beveragesResponse] = await Promise.all([getCategoriesByType("menu_items", true), getCategoriesByType("beverages", true)]);
-
         if (menuItemsResponse.totalItems) {
           setMenuItemCategories(menuItemsResponse.totalItems);
         }
-
         if (beveragesResponse.totalItems) {
           setBeverageCategories(beveragesResponse.totalItems);
         }
@@ -113,12 +92,6 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
     } catch (error) {
       console.error("Failed to fetch categories:", error);
       setCategoriesError("Failed to load categories");
-      toast({
-        title: "Error",
-        description: "Failed to load categories. Please try again.",
-        variant: "destructive",
-        duration: 5000
-      });
     } finally {
       setCategoriesLoading(false);
     }
@@ -129,52 +102,30 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
     try {
       setMaterialsLoading(true);
       setMaterialsError(null);
-
-      // Add cache-busting parameter to ensure fresh data
       const materials = await materialsAPI.getMaterials({ _t: Date.now() });
       setMaterialsWithStock(materials);
     } catch (error) {
       console.error("Failed to fetch materials:", error);
       setMaterialsError("Failed to load materials");
-      toast({
-        title: "Error",
-        description: "Failed to load materials. Please try again.",
-        variant: "destructive",
-        duration: 5000
-      });
     } finally {
       setMaterialsLoading(false);
     }
   }, []);
-
-  // Initial data loading
   useEffect(() => {
-    // Only fetch food menu items on initial load
     fetchMenuItems();
-    fetchCategories(); // Fetch categories directly for forms
-    fetchMaterials(); // Fetch materials for forms
+    fetchCategories();
+    fetchMaterials();
   }, [fetchCategories, fetchMenuItems, fetchMaterials]);
-
-  // Handle create menu item
   const handleCreateMenuItem = useCallback(
     async (menuItem: any, imageFile?: File) => {
       try {
         if (onCreateMenuItem) {
           await onCreateMenuItem(menuItem, imageFile);
         }
-
-        // Refresh the appropriate data based on current tab
         fetchMenuItems();
-
         return Promise.resolve();
       } catch (error) {
         console.error("Error creating menu item:", error);
-        toast({
-          title: "Error",
-          description: "Failed to create menu item",
-          variant: "destructive",
-          duration: 5000
-        });
         return Promise.reject(error);
       }
     },
@@ -188,19 +139,10 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
         if (onUpdateMenuItem) {
           await onUpdateMenuItem(id, menuItem);
         }
-
-        // Refresh the appropriate data based on current tab
         fetchMenuItems();
-
         return Promise.resolve();
       } catch (error) {
         console.error("Error updating menu item:", error);
-        toast({
-          title: "Error",
-          description: "Failed to update menu item",
-          variant: "destructive",
-          duration: 5000
-        });
         return Promise.reject(error);
       }
     },
@@ -211,53 +153,30 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
   const handleDeleteMenuItem = useCallback(
     async (id: string, isBeverage: boolean = false) => {
       try {
-        // Log and validate ID
-        console.log("🗑️ MenuItemsContext.handleDeleteMenuItem called:", { id, type: typeof id, isBeverage });
         const idStr = String(id).trim();
         const isNumeric = /^\d+$/.test(idStr);
-
         if (!isNumeric) {
-          const msg = idStr.startsWith("menu-")
-            ? "Cannot delete unsaved menu item. Please save it first."
-            : `Invalid menu item ID: ${idStr}`;
+          const msg = idStr.startsWith("menu-") ? "Cannot delete unsaved menu item. Please save it first." : `Invalid menu item ID: ${idStr}`;
           console.warn("🚫 Invalid delete ID:", { id });
-          toast({
-            title: "Invalid ID",
-            description: msg,
-            variant: "destructive",
-            duration: 5000
-          });
           throw { message: msg, status: 400 };
         }
-
         if (onDeleteMenuItem) {
           await onDeleteMenuItem(idStr);
         } else {
-          // Perform API deletion when no external handler is provided
           await menuAPI.deleteMenuItem(idStr);
         }
-
-        // Refresh the appropriate data based on current tab
         fetchMenuItems();
-
         return Promise.resolve();
       } catch (error) {
         console.error("❌ Error deleting menu item:", error);
         const err = error as any;
         const description = err?.message || err?.details?.message || "Failed to delete menu item";
-        toast({
-          title: "Error",
-          description,
-          variant: "destructive",
-          duration: 5000
-        });
         return Promise.reject(error);
       }
     },
     [onDeleteMenuItem, fetchMenuItems]
   );
 
-  // Context value
   const contextValue: MenuItemsContextState = {
     foodMenuItems,
     beverageMenuItems,

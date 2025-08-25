@@ -47,12 +47,12 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const [settlementToDelete, setSettlementToDelete] = useState<EmployeeSettlement | null>(null);
   const [forceDelete, setForceDelete] = useState(false);
   const [internalSelectedEmployeeId, setInternalSelectedEmployeeId] = useState<number | null>(selectedEmployeeId || null);
-  const [newUsages, setNewUsages] = useState<any[]>([]);
   const [addedUsageIds, setAddedUsageIds] = useState<Set<number>>(new Set());
   const [editingDiscountId, setEditingDiscountId] = useState<number | null>(null);
   const [editingDiscountValue, setEditingDiscountValue] = useState<string>("");
   const { user } = useAuth();
   const canDeleteSettlements = user?.role === "admin" || user?.role === "manager";
+  const [discountInputMode, setDiscountInputMode] = useState<"percentage" | "amount">("percentage");
   const canDeleteSettlement = (settlement: EmployeeSettlement | null) => {
     if (!canDeleteSettlements || !settlement) return false;
     return ["pending", "disputed", "cancelled"].includes(settlement.status);
@@ -187,24 +187,48 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     }
   };
 
-  const handleDiscountEdit = (usageId: number, currentDiscount: number) => {
+  // const handleDiscountEdit = (usageId: number, currentDiscount: number) => {
+  //   setEditingDiscountId(usageId);
+  //   setEditingDiscountValue(currentDiscount.toString());
+  // };
+
+  const handleDiscountEdit = (usageId: number, currentDiscount: number, totalCost: number) => {
     setEditingDiscountId(usageId);
-    setEditingDiscountValue(currentDiscount.toString());
+
+    if (discountInputMode === "percentage") {
+      setEditingDiscountValue(currentDiscount.toString());
+    } else {
+      // Convert percentage to amount
+      const discountAmount = (totalCost * currentDiscount) / 100;
+      setEditingDiscountValue(discountAmount.toString());
+    }
   };
 
-  const handleDiscountSave = async (usageId: number) => {
+  const handleDiscountSave = async (usageId: number, totalCost: number) => {
     if (!selectedSettlement) return;
 
     try {
-      const newDiscountValue = parseFloat(editingDiscountValue);
-      if (isNaN(newDiscountValue) || newDiscountValue < 0 || newDiscountValue > 100) {
-        toast.error("Please enter a valid discount percentage (0-100)");
-        return;
+      let newDiscountValue: number;
+      let discountAmount: number;
+
+      if (discountInputMode === "percentage") {
+        newDiscountValue = parseFloat(editingDiscountValue);
+        if (isNaN(newDiscountValue) || newDiscountValue < 0 || newDiscountValue > 100) {
+          toast.error("Please enter a valid discount percentage (0-100)");
+          return;
+        }
+        discountAmount = (totalCost * newDiscountValue) / 100;
+      } else {
+        // Amount mode
+        discountAmount = parseFloat(editingDiscountValue);
+        if (isNaN(discountAmount) || discountAmount < 0 || discountAmount > totalCost) {
+          toast.error(`Please enter a valid discount amount (0-${totalCost.toFixed(2)})`);
+          return;
+        }
+        newDiscountValue = (discountAmount / totalCost) * 100;
       }
-      const usageItem = selectedSettlement.settlementData?.usageBreakdown?.find(u => u.id === usageId);
-      if (!usageItem) return;
-      const discountAmount = (usageItem.totalCost * newDiscountValue) / 100;
-      const newFinalCost = usageItem.totalCost - discountAmount;
+
+      const newFinalCost = totalCost - discountAmount;
       await employeeAPI.updateUsage(usageId, {
         discountApplied: newDiscountValue,
         finalCost: newFinalCost
@@ -785,8 +809,20 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
               {selectedSettlement.settlementData?.usageBreakdown && (
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle className="text-lg">Usage Breakdown</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Discount input:</span>
+                      <Select value={discountInputMode} onValueChange={(value: "percentage" | "amount") => setDiscountInputMode(value)}>
+                        <SelectTrigger className="w-32 h-8">
+                          <SelectValue placeholder="Input mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">Percentage (%)</SelectItem>
+                          <SelectItem value="amount">Amount ($)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="rounded-md border">
@@ -810,7 +846,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                               <TableCell>{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
                               <TableCell className="font-mono">{formatCurrency(usage.unitCost)}</TableCell>
                               <TableCell className="font-mono">{formatCurrency(usage.totalCost)}</TableCell>
-                              <TableCell className="font-mono text-green-600 cursor-pointer hover:bg-muted/50" onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied)} title="Double-click to edit discount">
+                              <TableCell className="font-mono text-green-600 cursor-pointer hover:bg-muted/50" onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied, usage.totalCost)} title="Double-click to edit discount">
                                 {editingDiscountId === usage.id ? (
                                   <div className="flex items-center gap-1">
                                     <input
@@ -819,22 +855,22 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                                       onChange={e => setEditingDiscountValue(e.target.value)}
                                       onKeyDown={e => {
                                         if (e.key === "Enter") {
-                                          handleDiscountSave(usage.id);
+                                          handleDiscountSave(usage.id, usage.totalCost);
                                         } else if (e.key === "Escape") {
                                           handleDiscountCancel();
                                         }
                                       }}
-                                      onBlur={() => handleDiscountSave(usage.id)}
+                                      onBlur={() => handleDiscountSave(usage.id, usage.totalCost)}
                                       className="w-16 px-1 py-0 text-xs border rounded"
                                       min="0"
-                                      max="100"
-                                      step="0.1"
+                                      max={discountInputMode === "percentage" ? "100" : usage.totalCost.toFixed(2)}
+                                      step={discountInputMode === "percentage" ? "0.1" : "0.01"}
                                       autoFocus
                                     />
-                                    <span className="text-xs">%</span>
+                                    <span className="text-xs">{discountInputMode === "percentage" ? "%" : "$"}</span>
                                   </div>
                                 ) : (
-                                  <span>-{usage.discountApplied}%</span>
+                                  <span>{discountInputMode === "percentage" ? `-${usage.discountApplied}%` : `-${formatCurrency((usage.totalCost * usage.discountApplied) / 100)}`}</span>
                                 )}
                               </TableCell>
                               <TableCell className="font-mono font-medium">{formatCurrency(usage.finalCost)}</TableCell>
