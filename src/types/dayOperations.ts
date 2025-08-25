@@ -1,11 +1,6 @@
 import { ReactNode } from "react";
 import { ActivityLog, CloseDayRequest, DayOperation, DayOperationReport, OpenDayRequest } from "./inventory";
 
-export interface MOCK_DATE_TIME {
-  enabled: boolean;
-  date: Date;
-}
-
 export interface DayOperationsContextType {
   // State
   currentDay: DayOperation | null;
@@ -15,7 +10,7 @@ export interface DayOperationsContextType {
   error: string | null;
   success: string | null;
   actionLoading: boolean;
-
+  
   // Actions
   openDay: (data: OpenDayRequest) => Promise<void>;
   closeDay: (data: CloseDayRequest) => Promise<void>;
@@ -27,13 +22,12 @@ export interface DayOperationsContextType {
   clearSuccess: () => void;
   setError: (error: string) => void;
   setSuccess: (success: string) => void;
-  getCurrentTime: () => Date;
-  timeOverride:MOCK_DATE_TIME;
+  
   // Computed values
   isDayOpen: boolean;
   isDayClosed: boolean;
   hasActiveDay: boolean;
-
+  
   // Real-time tracking
   lastRefresh: Date | null;
   autoRefreshEnabled: boolean;
