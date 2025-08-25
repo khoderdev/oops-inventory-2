@@ -1,5 +1,6 @@
 import { Op } from "sequelize";
-import { AuditLog, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, User } from "../models/index.js";
+import sequelize from "../config/database.js";
+import { AuditLog, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, StockEntry, User } from "../models/index.js";
 
 // Get all employees
 export const getAllEmployees = async (req, res) => {
@@ -18,13 +19,7 @@ export const getAllEmployees = async (req, res) => {
 
     // Add search functionality for employee fields
     if (search) {
-      where[Op.or] = [
-        { firstName: { [Op.iLike]: `%${search}%` } },
-        { lastName: { [Op.iLike]: `%${search}%` } },
-        { employeeNumber: { [Op.iLike]: `%${search}%` } },
-        { email: { [Op.iLike]: `%${search}%` } },
-        { phone: { [Op.iLike]: `%${search}%` } }
-      ];
+      where[Op.or] = [{ firstName: { [Op.iLike]: `%${search}%` } }, { lastName: { [Op.iLike]: `%${search}%` } }, { employeeNumber: { [Op.iLike]: `%${search}%` } }, { email: { [Op.iLike]: `%${search}%` } }, { phone: { [Op.iLike]: `%${search}%` } }];
     }
 
     const offset = (page - 1) * limit;
@@ -39,7 +34,10 @@ export const getAllEmployees = async (req, res) => {
           required: false // LEFT JOIN - include employees without users
         }
       ],
-      order: [["firstName", "ASC"], ["lastName", "ASC"]],
+      order: [
+        ["firstName", "ASC"],
+        ["lastName", "ASC"]
+      ],
       limit: parseInt(limit),
       offset
     });
@@ -133,22 +131,7 @@ export const getEmployeeById = async (req, res) => {
 // Create new employee
 export const createEmployee = async (req, res) => {
   try {
-    const { 
-      firstName, 
-      lastName, 
-      email, 
-      phone, 
-      userId, 
-      employeeNumber, 
-      department, 
-      position, 
-      baseSalary, 
-      discountPercentage = 0, 
-      hireDate, 
-      emergencyContact, 
-      bankDetails, 
-      notes 
-    } = req.body;
+    const { firstName, lastName, email, phone, userId, employeeNumber, department, position, baseSalary, discountPercentage = 0, hireDate, emergencyContact, bankDetails, notes } = req.body;
 
     // Validate required fields
     if (!firstName || !lastName || !department || !position || !baseSalary || !hireDate) {
@@ -267,24 +250,7 @@ export const createEmployee = async (req, res) => {
 export const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      firstName, 
-      lastName, 
-      email, 
-      phone, 
-      userId, 
-      employeeNumber, 
-      department, 
-      position, 
-      baseSalary, 
-      discountPercentage, 
-      hireDate, 
-      terminationDate, 
-      isActive, 
-      emergencyContact, 
-      bankDetails, 
-      notes 
-    } = req.body;
+    const { firstName, lastName, email, phone, userId, employeeNumber, department, position, baseSalary, discountPercentage, hireDate, terminationDate, isActive, emergencyContact, bankDetails, notes } = req.body;
 
     const employee = await Employee.findByPk(id);
     if (!employee) {
@@ -455,14 +421,28 @@ export const deleteEmployee = async (req, res) => {
 };
 
 // Get employee statistics
+// Get employee statistics
 export const getEmployeeStats = async (req, res) => {
   try {
-    const stats = await Promise.all([
+    const [activeCount, inactiveCount, departmentCounts, monthlyUsages, pendingSettlements] = await Promise.all([
       Employee.count({ where: { isActive: true } }),
       Employee.count({ where: { isActive: false } }),
-      Employee.count({ where: { department: "kitchen", isActive: true } }),
-      Employee.count({ where: { department: "service", isActive: true } }),
-      Employee.count({ where: { department: "management", isActive: true } }),
+      Employee.findAll({
+        attributes: [
+          "departmentId",
+          [sequelize.fn("COUNT", sequelize.col("Employee.id")), "count"]
+        ],
+        where: { isActive: true },
+        include: [
+          {
+            model: Department,
+            as: "department",
+            attributes: ["id", "name"],
+            required: false
+          }
+        ],
+        group: ["Employee.departmentId", "department.id", "department.name"]
+      }),
       EmployeeUsage.count({
         where: {
           usageDate: {
@@ -477,8 +457,15 @@ export const getEmployeeStats = async (req, res) => {
       })
     ]);
 
-    const [activeEmployees, inactiveEmployees, kitchenStaff, serviceStaff, managementStaff, monthlyUsages, pendingSettlements] = stats;
+    // Convert department counts to a more usable format
+    const departmentBreakdown = {};
+    departmentCounts.forEach(dept => {
+      const name = dept.department?.name || "Unassigned";
+      departmentBreakdown[name] = parseInt(dept.get("count"), 10);
+    });
 
+    const activeEmployees = activeCount;
+    const inactiveEmployees = inactiveCount;
     const totalEmployees = activeEmployees + inactiveEmployees;
 
     res.json({
@@ -487,12 +474,7 @@ export const getEmployeeStats = async (req, res) => {
         totalEmployees,
         activeEmployees,
         inactiveEmployees,
-        departmentBreakdown: {
-          kitchen: kitchenStaff,
-          service: serviceStaff,
-          management: managementStaff,
-          other: activeEmployees - kitchenStaff - serviceStaff - managementStaff
-        },
+        departmentBreakdown,
         monthlyUsages,
         pendingSettlements
       },

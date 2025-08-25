@@ -1,5 +1,6 @@
 import sequelize from "../config/database.js";
 import Assignment from "./Assignment.js";
+import Department from "./Department.js";
 import AuditLog from "./AuditLog.js";
 import BackupSchedule from "./BackupSchedule.js";
 import Category from "./Category.js";
@@ -131,10 +132,6 @@ MenuItemIngredient.belongsTo(MenuItem, {
   onDelete: "CASCADE",
   onUpdate: "CASCADE"
 });
-
-// Category ↔ CategoryType (No direct relationship - Category stores categoryTypeIds array)
-// CategoryType is now independent - no foreign key relationships needed
-// Associations will be handled manually in controllers using the categoryTypeIds array
 
 // Material ↔ Category (through CategoryType)
 Material.belongsTo(Category, {
@@ -405,6 +402,67 @@ Employee.belongsTo(User, {
   foreignKey: "userId",
   as: "user",
   onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+
+// Department ↔ Employee (One-to-Many)
+Department.hasMany(Employee, {
+  foreignKey: "departmentId",
+  as: "employees",
+  onDelete: "RESTRICT", // Prevent department deletion if employees are assigned
+  onUpdate: "CASCADE"
+});
+
+Employee.belongsTo(Department, {
+  foreignKey: "departmentId",
+  as: "department",
+  onDelete: "RESTRICT",
+  onUpdate: "CASCADE"
+});
+
+// Department manager relationship (Self-referencing through Employee)
+Department.belongsTo(Employee, {
+  foreignKey: "managerId",
+  as: "manager",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// Add the reverse relationship for manager
+Employee.hasMany(Department, {
+  foreignKey: "managerId",
+  as: "managedDepartments",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// User ↔ Department relationships for createdBy/updatedBy
+User.hasMany(Department, {
+  foreignKey: "createdBy",
+  as: "createdDepartments",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+Department.belongsTo(User, {
+  foreignKey: "createdBy",
+  as: "creator",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+User.hasMany(Department, {
+  foreignKey: "updatedBy",
+  as: "updatedDepartments",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+Department.belongsTo(User, {
+  foreignKey: "updatedBy",
+  as: "updater",
+  onDelete: "SET NULL",
   onUpdate: "CASCADE"
 });
 
@@ -781,4 +839,4 @@ Sauce.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };
+export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };

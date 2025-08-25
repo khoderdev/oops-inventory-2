@@ -307,6 +307,12 @@ export const PERMISSIONS = {
   CUSTOMERS_LOYALTY: "customers.loyalty",
   CUSTOMERS_FEEDBACK: "customers.feedback",
 
+  // === DEPARTMENT MANAGEMENT ===
+  DEPARTMENT_CREATE: "department.create",
+  DEPARTMENT_READ: "department.read",
+  DEPARTMENT_UPDATE: "department.update",
+  DEPARTMENT_DELETE: "department.delete",
+
   // === EMPLOYEE MANAGEMENT ===
   EMPLOYEE_CREATE: "employee.create",
   EMPLOYEE_READ: "employee.read",

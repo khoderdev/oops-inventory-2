@@ -357,6 +357,12 @@ User.prototype.getRolePermissions = function () {
       "audit.trails": true,
       "audit.reports": true,
 
+      // === DEPARTMENT MANAGEMENT ===
+      "department.create": true,
+      "department.read": true,
+      "department.update": true,
+      "department.delete": true,
+
       // === EMPLOYEE MANAGEMENT ===
       "employee.create": true,
       "employee.read": true,

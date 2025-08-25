@@ -1,10 +1,8 @@
-export type EmployeeDepartment = "kitchen" | "service" | "management" | "cleaning" | "security" | "other";
+import { Department } from "./department";
 
 export type EmployeeUsageType = "material" | "menu_item" | "stock_entry";
-
 export type SettlementStatus = "pending" | "approved" | "paid" | "disputed" | "cancelled";
-
-export type PaymentMethod = "bank_transfer" | "cash" | "check" | "mobile_payment" | "other";
+export type PaymentMethod = "cash";
 
 export interface Employee {
   id: number;
@@ -14,7 +12,7 @@ export interface Employee {
   email: string;
   phone: string;
   employeeNumber: string;
-  department: EmployeeDepartment;
+  department: Department;
   position: string;
   baseSalary: number;
   discountPercentage: number;
@@ -190,7 +188,7 @@ export interface CreateEmployeeData {
   email: string; // Employee's own email
   phone: string; // Employee's own phone number
   employeeNumber?: string;
-  department: EmployeeDepartment;
+  department: Department;
   position: string;
   baseSalary: number;
   discountPercentage?: number;
@@ -216,7 +214,7 @@ export interface UpdateEmployeeData {
   email?: string; // Employee's own email
   phone?: string; // Employee's own phone number
   employeeNumber?: string;
-  department?: EmployeeDepartment;
+  department?: Department;
   position?: string;
   baseSalary?: number;
   discountPercentage?: number;
@@ -344,7 +342,7 @@ export interface MonthlyUsageSummary {
     id: number;
     name: string;
     employeeNumber: string;
-    department: EmployeeDepartment;
+    department: Department;
     baseSalary: number;
     discountPercentage: number;
   };
@@ -422,7 +420,7 @@ export interface SettlementPreview {
     id: number;
     name: string;
     employeeNumber: string;
-    department: EmployeeDepartment;
+    department: Department;
     discountPercentage: number;
   };
   period: {
@@ -477,7 +475,7 @@ export interface SettlementPreview {
 
 // Query Parameters
 export interface EmployeeFilters {
-  department?: EmployeeDepartment;
+  department?: Department;
   isActive?: boolean;
   search?: string;
   page?: number;
@@ -605,7 +603,6 @@ export const usageTypeColors = {
 };
 
 export const usageTypes: EmployeeUsageType[] = ["material", "menu_item", "stock_entry"];
-
 
 export interface GroupedOrder {
   posTransactionId: string;

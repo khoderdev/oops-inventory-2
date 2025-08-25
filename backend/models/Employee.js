@@ -80,12 +80,16 @@ const Employee = sequelize.define(
       },
       comment: "Unique employee identifier"
     },
-    department: {
-      type: DataTypes.ENUM("kitchen", "service", "management", "cleaning", "security", "other"),
-      allowNull: false,
-      defaultValue: "service"
-      // Note: comment removed to avoid Sequelize enum ALTER TABLE bug
+    departmentId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: "departments",
+        key: "id"
+      },
+      comment: "Reference to department"
     },
+    
     position: {
       type: DataTypes.STRING(100),
       allowNull: false,
@@ -111,7 +115,7 @@ const Employee = sequelize.define(
     discountPercentage: {
       type: DataTypes.DECIMAL(5, 2),
       allowNull: false,
-      defaultValue: 0.00,
+      defaultValue: 0.0,
       validate: {
         min: {
           args: [0],
@@ -199,7 +203,7 @@ const Employee = sequelize.define(
         fields: ["employeeNumber"]
       },
       {
-        fields: ["department"]
+        fields: ["departmentId"]
       },
       {
         fields: ["isActive"]
@@ -215,7 +219,7 @@ const Employee = sequelize.define(
       }
     ],
     hooks: {
-      beforeCreate: (employee) => {
+      beforeCreate: employee => {
         // Auto-generate employee number if not provided
         if (!employee.employeeNumber) {
           const timestamp = Date.now().toString().slice(-6);
@@ -227,62 +231,66 @@ const Employee = sequelize.define(
 );
 
 // Instance methods
-Employee.prototype.getFullName = function() {
+Employee.prototype.getFullName = function () {
   return `${this.firstName} ${this.lastName}`;
 };
 
-Employee.prototype.getDisplayName = function() {
+Employee.prototype.getDisplayName = function () {
   return `${this.firstName} ${this.lastName} (${this.employeeNumber})`;
 };
 
-Employee.prototype.hasSystemAccess = function() {
+Employee.prototype.hasSystemAccess = function () {
   return !!this.userId;
 };
 
-Employee.prototype.calculateMonthlyDeduction = function(usageAmount) {
+Employee.prototype.calculateMonthlyDeduction = function (usageAmount) {
   const discountAmount = usageAmount * (this.discountPercentage / 100);
   return usageAmount - discountAmount;
 };
 
-Employee.prototype.isCurrentlyActive = function() {
+Employee.prototype.isCurrentlyActive = function () {
   return this.isActive && !this.terminationDate;
 };
 
 // Static methods
-Employee.getActiveEmployees = function() {
+Employee.getActiveEmployees = function () {
   return this.findAll({
     where: {
       isActive: true,
       terminationDate: null
     },
-    include: [{
-      model: sequelize.models.User,
-      as: 'user',
-      attributes: ['id', 'username', 'firstName', 'lastName', 'role'],
-      required: false // LEFT JOIN - include employees without users
-    }],
-    order: [['employeeNumber', 'ASC']]
+    include: [
+      {
+        model: sequelize.models.User,
+        as: "user",
+        attributes: ["id", "username", "firstName", "lastName", "role"],
+        required: false // LEFT JOIN - include employees without users
+      }
+    ],
+    order: [["employeeNumber", "ASC"]]
   });
 };
 
-Employee.getByDepartment = function(department) {
+Employee.getByDepartment = function (department) {
   return this.findAll({
     where: {
       department,
       isActive: true,
       terminationDate: null
     },
-    include: [{
-      model: sequelize.models.User,
-      as: 'user',
-      attributes: ['id', 'username', 'firstName', 'lastName'],
-      required: false // LEFT JOIN - include employees without users
-    }],
-    order: [['employeeNumber', 'ASC']]
+    include: [
+      {
+        model: sequelize.models.User,
+        as: "user",
+        attributes: ["id", "username", "firstName", "lastName"],
+        required: false // LEFT JOIN - include employees without users
+      }
+    ],
+    order: [["employeeNumber", "ASC"]]
   });
 };
 
-Employee.findByEmail = function(email) {
+Employee.findByEmail = function (email) {
   return this.findOne({
     where: {
       email,
@@ -291,7 +299,7 @@ Employee.findByEmail = function(email) {
   });
 };
 
-Employee.findByPhone = function(phone) {
+Employee.findByPhone = function (phone) {
   return this.findOne({
     where: {
       phone,
@@ -300,19 +308,16 @@ Employee.findByPhone = function(phone) {
   });
 };
 
-Employee.searchEmployees = function(searchTerm) {
+Employee.searchEmployees = function (searchTerm) {
   return this.findAll({
     where: {
       isActive: true,
-      [sequelize.Op.or]: [
-        { firstName: { [sequelize.Op.iLike]: `%${searchTerm}%` } },
-        { lastName: { [sequelize.Op.iLike]: `%${searchTerm}%` } },
-        { employeeNumber: { [sequelize.Op.iLike]: `%${searchTerm}%` } },
-        { email: { [sequelize.Op.iLike]: `%${searchTerm}%` } },
-        { phone: { [sequelize.Op.iLike]: `%${searchTerm}%` } }
-      ]
+      [sequelize.Op.or]: [{ firstName: { [sequelize.Op.iLike]: `%${searchTerm}%` } }, { lastName: { [sequelize.Op.iLike]: `%${searchTerm}%` } }, { employeeNumber: { [sequelize.Op.iLike]: `%${searchTerm}%` } }, { email: { [sequelize.Op.iLike]: `%${searchTerm}%` } }, { phone: { [sequelize.Op.iLike]: `%${searchTerm}%` } }]
     },
-    order: [['firstName', 'ASC'], ['lastName', 'ASC']]
+    order: [
+      ["firstName", "ASC"],
+      ["lastName", "ASC"]
+    ]
   });
 };
 
