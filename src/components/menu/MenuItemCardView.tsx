@@ -27,7 +27,7 @@ const MenuItemCardView: React.FC<MenuItemCardViewProps> = ({ items, onEdit, onDe
 
         return (
           <div key={item.id} className={`border rounded-lg overflow-hidden shadow-sm transition-all ${isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`} onClick={() => bulkSelectionMode && onSelect && onSelect(item.id, !isSelected)}>
-            <div className="flex items-center p-3">
+            <div className="flex items-center p-3 pb-0">
               {bulkSelectionMode && (
                 <div className="mr-3">
                   <input type="checkbox" checked={isSelected} onChange={e => onSelect && onSelect(item.id, e.target.checked)} onClick={e => e.stopPropagation()} className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" />
@@ -118,7 +118,7 @@ const MenuItemCardView: React.FC<MenuItemCardViewProps> = ({ items, onEdit, onDe
             </div>
 
             {item.ingredients && item.ingredients.length > 0 && (
-              <div className="px-3 pb-3 pt-0">
+              <div className="px-3 pb-3 pt-1">
                 <p className="text-xs text-gray-500 mb-1">Ingredients:</p>
                 <div className="flex flex-wrap gap-1">
                   {item.ingredients.slice(0, 3).map(ing => (

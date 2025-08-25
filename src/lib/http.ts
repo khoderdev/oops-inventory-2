@@ -223,8 +223,9 @@ const getApiBaseURL = () => {
   // Check if we're in production environment
   const isProduction = import.meta.env.PROD || (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1");
 
-  const productionURL = "https://oops-pos-backend.onrender.com/api";
-  const developmentURL = "http://localhost:3000/api";
+  // const productionURL = "https://oops-pos-backend.onrender.com/api";
+  const productionURL = "http://192.168.88.86:3000/api";
+  const developmentURL = "http://192.168.88.86:3000/api";
 
   const baseURL = isProduction ? productionURL : developmentURL;
 

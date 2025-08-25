@@ -597,21 +597,30 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
+      console.log("[MenuItemsController.deleteMenuItem] Request received", { id });
       const menuItem = await MenuItem.findByPk(id, { transaction });
       if (!menuItem) {
+        console.warn("[MenuItemsController.deleteMenuItem] Menu item not found", { id });
         await transaction.rollback();
         return res.status(404).json({ error: "Menu item not found" });
       }
-      await MenuItemIngredient.destroy({
+      console.log("[MenuItemsController.deleteMenuItem] Deleting related records", { id });
+      const deletedVariants = await Variants.destroy({ where: { menuItemId: id }, transaction });
+      console.log("[MenuItemsController.deleteMenuItem] Variants deleted", { id, count: deletedVariants });
+      const deletedIngredients = await MenuItemIngredient.destroy({
         where: { menuItemId: id },
         transaction
       });
+      console.log("[MenuItemsController.deleteMenuItem] Ingredients deleted", { id, count: deletedIngredients });
       await menuItem.destroy({ transaction });
+      console.log("[MenuItemsController.deleteMenuItem] Menu item deleted", { id });
       await transaction.commit();
-      res.status(204).send();
+      console.log("[MenuItemsController.deleteMenuItem] Transaction committed", { id });
+      return res.status(204).send();
     } catch (error) {
+      console.error("[MenuItemsController.deleteMenuItem] Error during deletion", { error });
       await transaction.rollback();
-      next(error);
+      return next(error);
     }
   },
 

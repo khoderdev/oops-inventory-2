@@ -143,7 +143,7 @@ export const POSHeader: React.FC<POSHeaderProps> = ({ currentTime, isFullscreen,
           </div>
 
           {/* User Info */}
-          <div className="group select-none">
+          <div className="hidden lg:block group select-none">
             <div className="flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 hover:bg-white/20">
               <div className="w-6 h-6 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full flex items-center justify-center text-white font-semibold text-xs">{(user?.username || "U").charAt(0).toUpperCase()}</div>
               <span className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">{user?.username || "User"}</span>

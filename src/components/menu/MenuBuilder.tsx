@@ -90,14 +90,29 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
 
   const handleDeleteMenuItemLocal = useCallback(
     async (id: string) => {
+      const idStr = String(id).trim();
+      const isNumeric = /^\d+$/.test(idStr);
+      console.log("🗑️ [MenuBuilder] Delete requested", { id, idStr, isNumeric });
+      if (!isNumeric) {
+        const message = idStr.startsWith("menu-")
+          ? "Cannot delete unsaved menu item. Please save it first."
+          : `Invalid menu item ID: ${idStr}`;
+        toast({
+          title: "Invalid ID",
+          description: message,
+          variant: "destructive",
+          duration: 2000
+        });
+        return;
+      }
       try {
         if (handleDeleteMenuItem) {
-          await handleDeleteMenuItem(id);
+          await handleDeleteMenuItem(idStr);
         } else if (propDeleteMenuItem) {
-          await menuAPI.deleteMenuItem(id);
-          await propDeleteMenuItem(id);
+          // Assume external handler performs deletion and refresh
+          await propDeleteMenuItem(idStr);
         } else {
-          await menuAPI.deleteMenuItem(id);
+          await menuAPI.deleteMenuItem(idStr);
         }
         toast({
           title: "Success",
@@ -105,13 +120,18 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
           variant: "default",
           duration: 1000
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error("❌ [MenuBuilder] Error deleting menu item:", error);
+        const backendMsg =
+          error?.message ||
+          error?.data?.message ||
+          error?.response?.data?.message ||
+          "Failed to delete menu item";
         toast({
           title: "Error",
-          description: "Failed to delete menu item",
+          description: backendMsg,
           variant: "destructive",
-          duration: 1000
+          duration: 1500
         });
       }
     },
@@ -509,7 +529,7 @@ export const MenuItemBuilder: React.FC<MenuItemBuilderProps> = ({ categories: pr
         handleAddMenuItem={handleAddMenuItem}
         handleCancel={handleCancel}
         isMobile={isMobile}
-        handleDeleteMenuItem={handleDeleteMenuItem}
+        handleDeleteMenuItem={handleDeleteMenuItemLocal}
         handleTogglePOSVisibility={handleTogglePOSVisibility}
         handlePrinterAssignment={handlePrinterAssignment}
         handleSelectMenuItem={handleSelectMenuItem}

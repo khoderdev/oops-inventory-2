@@ -1,4 +1,6 @@
+import { PERMISSIONS } from "@/types/auth";
 import { Table } from "@/types/inventory";
+import { LucideIcon, X, Printer, DollarSign, Package, ShoppingCart, Calculator, Grid3X3, Save } from "lucide-react";
 
 export const getTableStatusColor = (status: Table["status"]) => {
   switch (status) {
@@ -45,3 +47,61 @@ export const formatTime = (date: Date | string) => {
     return "Invalid time";
   }
 };
+
+// Action button configuration interface
+export interface ActionButtonConfig {
+  id: string;
+  icon: LucideIcon;
+  label: string;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+  className?: string;
+  compact?: boolean;
+  requiredPermission?: string;
+  requiredRole?: string | string[];
+  badgeCount?: number;
+  showIndicator?: boolean;
+  indicatorColor?: string;
+  title?: string;
+}
+
+// Default button configurations
+export const defaultActionButtons: ActionButtonConfig[] = [
+  { id: "void", icon: X, label: "Void", active: false, requiredPermission: PERMISSIONS.SALES_VOID },
+  { id: "print", icon: Printer, label: "Print Receipt", active: false, requiredPermission: PERMISSIONS.POS_RECEIPTS },
+  { id: "refund", icon: DollarSign, label: "Refund", active: false, requiredPermission: PERMISSIONS.SALES_REFUND },
+  { id: "table-orders", icon: Package, label: "Table Orders", active: false, requiredPermission: PERMISSIONS.POS_TABLES },
+  { id: "orders", icon: ShoppingCart, label: "Orders", active: false, requiredPermission: PERMISSIONS.ORDERS_READ },
+  { id: "depts", icon: Calculator, label: "Depts", active: false },
+  { id: "speed-key", icon: Grid3X3, label: "Speed Key", active: false },
+  { id: "save", icon: Save, label: "Save Order", active: false, requiredPermission: PERMISSIONS.ORDERS_CREATE }
+];
+
+// Legacy props interface for backward compatibility
+export interface LegacyActionBarProps {
+  onSaveOrder?: () => void;
+  onPrintReceipt?: () => void;
+  onVoidOrder?: () => void;
+  onShowOrders?: () => void;
+  onShowReports?: () => void;
+  hasUnsavedChanges?: boolean;
+  isOrderLoading?: boolean;
+  canPrintReceipt?: boolean;
+  canVoidOrder?: boolean;
+  onCancelOrder?: () => void;
+  incompleteOrdersCount?: number;
+  incompleteDeliveryTakeawayCount?: number;
+  onDiscount?: () => void;
+  onShowPrinterSettings?: () => void;
+  hasSavedPrinter?: boolean;
+  savedPrinterName?: string;
+  isDayOpen?: boolean;
+}
+
+export interface FlexibleActionBarProps {
+  buttons: ActionButtonConfig[];
+  columns?: number;
+  className?: string;
+  isMobile?: boolean;
+}

@@ -101,49 +101,6 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
   const [salesReportData, setSalesReportData] = React.useState<ReceiptData | null>(null);
   const currentSales = viewMode === "staff" ? staffSales : sales;
 
-  const convertSaleToReceipt = useCallback(
-    (saleId: string) => {
-      const sale = currentSales.find(s => s.id.toString() === saleId);
-      if (!sale) return;
-      const receiptItems: ReceiptData["items"] = [];
-      sale.items?.forEach(item => {
-        receiptItems.push({
-          name: item.materialName || `Item ${item.materialId}`,
-          quantity: item.quantity,
-          unitPrice: parseFloat(String(item.unitPrice || 0)),
-          totalPrice: parseFloat(String(item.totalPrice || 0)),
-          type: "material"
-        });
-      });
-      sale.menuItems?.forEach(menuItem => {
-        receiptItems.push({
-          name: menuItem.menuItemName || `Menu Item ${menuItem.menuItemId}`,
-          quantity: menuItem.quantity,
-          unitPrice: parseFloat(String(menuItem.unitPrice || 0)),
-          totalPrice: parseFloat(String(menuItem.totalPrice || 0)),
-          type: "menu_item"
-        });
-      });
-      const saleDate = new Date(sale.saleDate);
-      const receipt: ReceiptData = {
-        id: `SALE-${sale.id}`,
-        date: saleDate.toLocaleDateString(),
-        time: saleDate.toLocaleTimeString(),
-        cashier: sale.creator?.username || "Unknown User",
-        items: receiptItems,
-        subtotal: sale.totalAmount,
-        tax: 0,
-        total: sale.totalAmount,
-        paymentAmount: sale.totalAmount,
-        change: 0,
-        paymentMethod: "cash"
-      };
-
-      setReceiptData(receipt);
-      setShowReceiptDialog(true);
-    },
-    [currentSales]
-  );
 
   const localFilteredSales = useMemo(() => {
     const items: ItemSale[] = [];

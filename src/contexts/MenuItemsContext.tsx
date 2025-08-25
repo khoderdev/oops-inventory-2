@@ -211,8 +211,30 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
   const handleDeleteMenuItem = useCallback(
     async (id: string, isBeverage: boolean = false) => {
       try {
+        // Log and validate ID
+        console.log("🗑️ MenuItemsContext.handleDeleteMenuItem called:", { id, type: typeof id, isBeverage });
+        const idStr = String(id).trim();
+        const isNumeric = /^\d+$/.test(idStr);
+
+        if (!isNumeric) {
+          const msg = idStr.startsWith("menu-")
+            ? "Cannot delete unsaved menu item. Please save it first."
+            : `Invalid menu item ID: ${idStr}`;
+          console.warn("🚫 Invalid delete ID:", { id });
+          toast({
+            title: "Invalid ID",
+            description: msg,
+            variant: "destructive",
+            duration: 5000
+          });
+          throw { message: msg, status: 400 };
+        }
+
         if (onDeleteMenuItem) {
-          await onDeleteMenuItem(id);
+          await onDeleteMenuItem(idStr);
+        } else {
+          // Perform API deletion when no external handler is provided
+          await menuAPI.deleteMenuItem(idStr);
         }
 
         // Refresh the appropriate data based on current tab
@@ -220,10 +242,12 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
 
         return Promise.resolve();
       } catch (error) {
-        console.error("Error deleting menu item:", error);
+        console.error("❌ Error deleting menu item:", error);
+        const err = error as any;
+        const description = err?.message || err?.details?.message || "Failed to delete menu item";
         toast({
           title: "Error",
-          description: "Failed to delete menu item",
+          description,
           variant: "destructive",
           duration: 5000
         });

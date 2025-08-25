@@ -147,5 +147,3 @@ export const menuAPI = {
     return response.data;
   }
 };
-
-

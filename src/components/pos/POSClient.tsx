@@ -1,9 +1,6 @@
 import { ordersAPI } from "@/api/orders.api";
 import { printerAPI } from "@/api/printer.api";
 import { tablesAPI } from "@/api/tables.api";
-import { getCategoriesByType } from "@/api/categories.api";
-import { menuAPI } from "@/api/menu.api.ts";
-import { stockAPI } from "@/api/stock.api.ts";
 import PrinterSelector from "@/components/common/PrinterSelector";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -34,11 +31,11 @@ import { ReceiptPrinter } from "./ReceiptPrinter";
 import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 import { Category } from "@/types/categories";
+import { useMenuItems } from "@/contexts/MenuItemsContext";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
-  const [stock, setStock] = useState<StockEntryWithMaterial[]>([]);
-  const [menu, setMenu] = useState<MenuItem[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  // Use MenuItemsContext for menu items data
+  const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems, handleTabChange } = useMenuItems();
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -78,32 +75,29 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [tableOrders, setTableOrders] = useState<{ [tableId: string]: number }>({});
   const [incompleteTableOrdersCount, setIncompleteTableOrdersCount] = useState<number>(0);
 
-  // Direct API data fetching with cache-busting
-  const fetchInventoryData = useCallback(async () => {
-    try {
-      setIsLoadingData(true);
-      const [stockData, menuData] = await Promise.all([stockAPI.getStockEntries({ limit: 10000, _t: Date.now() }), menuAPI.getMenuItems({ limit: 10000, _t: Date.now() })]);
-      setStock(stockData);
-      setMenu(menuData);
-      setMenuItems(menuData);
-      setStockEntries(stockData);
-    } catch (error) {
-      console.error("❌ POSClient: Failed to load inventory data:", error);
-      setError("Failed to load inventory data");
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, []);
-
-  // Refresh function to replace refreshInventory
-  const refreshInventory = useCallback(async () => {
-    await fetchInventoryData();
-  }, [fetchInventoryData]);
-
-  // Load data on component mount
+  // Ensure menu items are loaded from context (load both food and beverage)
   useEffect(() => {
-    fetchInventoryData();
-  }, [fetchInventoryData]);
+    let cancelled = false;
+    const ensureMenuItemsLoaded = async () => {
+      try {
+        await fetchMenuItems(); // loads food by default
+        // If beverages not yet loaded, temporarily switch context tab to fetch beverages
+        if (!cancelled && beverageMenuItems.length === 0) {
+          handleTabChange("beverages");
+          await fetchMenuItems();
+          // Switch back to food to avoid affecting other consumers
+          handleTabChange("food");
+        }
+      } catch (e) {
+        console.error("❌ POSClient: Failed to ensure menu items via context:", e);
+      }
+    };
+    ensureMenuItemsLoaded();
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally exclude beverageMenuItems from deps to avoid flip-flopping
+  }, [fetchMenuItems, handleTabChange]);
   const [incompleteDeliveryTakeawayCount, setIncompleteDeliveryTakeawayCount] = useState<number>(0);
   const [, setIncompleteDeliveryCount] = useState<number>(0);
   const [, setIncompleteTakeawayCount] = useState<number>(0);
@@ -466,10 +460,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setSelectedItemForNotes(null);
   }, []);
 
-  const handlePaymentWithPrinter = useCallback(async (printer?: any) => {
-    // TODO: Implement payment with printer functionality
-  }, []);
-
   const handlePrintReceiptWithPrinter = useCallback(
     async (printer?: any) => {
       let receiptData = lastSaleData;
@@ -650,170 +640,95 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     };
   }, []);
 
+  // Keep local menuItems in sync with context for legacy lookups in this component
   useEffect(() => {
-    if (stock && stock.length > 0) {
-      setStockEntries(stock);
+    const combined = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+    setMenuItems(combined);
+  }, [foodMenuItems, beverageMenuItems]);
+
+  // Build categories map from context categories
+  useEffect(() => {
+    const categoryMap = new Map<number, string>();
+    if (menuItemCategories && menuItemCategories.length > 0) {
+      menuItemCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
     }
-  }, [stock]);
-
-  useEffect(() => {
-    if (menu && menu.length > 0) {
-      setMenuItems(menu);
+    if (beverageCategories && beverageCategories.length > 0) {
+      beverageCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
     }
-  }, [menu]);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const [menuCategories, beveragesCategories] = await Promise.all([getCategoriesByType("menu_items"), getCategoriesByType("beverages")]);
-        const categoryMap = new Map<number, string>();
-        // Add ONLY ACTIVE menu categories
-        if (menuCategories?.totalItems) {
-          menuCategories.totalItems
-            .filter(category => category.isActive) // Only include active categories
-            .forEach(category => {
-              categoryMap.set(category.id, category.name);
-            });
-        }
-        if (beveragesCategories?.totalItems) {
-          beveragesCategories.totalItems
-            .filter(category => category.isActive) // Only include active categories
-            .forEach(category => {
-              categoryMap.set(category.id, category.name);
-            });
-        }
-        setCategoriesMap(categoryMap);
-      } catch (error) {
-        console.error("❌ Failed to fetch categories:", error);
-      }
-    };
-
-    fetchCategories();
-  }, []);
+    setCategoriesMap(categoryMap);
+  }, [menuItemCategories, beverageCategories]);
 
   // Memoized POS items to prevent unnecessary re-renders during POS operations
   const memoizedPosItems = useMemo(() => {
-    if (!menu || !stock || categoriesMap.size === 0) {
-      return [];
-    }
+    if (categoriesMap.size === 0) return [];
+    const allMenuItems: MenuItem[] = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+    if (allMenuItems.length === 0) return [];
     const posItemsFromData: POSItem[] = [];
 
-    menu.forEach(menuItem => {
-      if (menuItem.isPOSItem) {
-        // Extract category ID from category object or use the category directly if it's already an ID
-        let categoryId: number;
-        if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
-          categoryId = (menuItem.category as any).id;
-        } else if (menuItem.category && typeof menuItem.category === "number") {
-          categoryId = menuItem.category;
-        } else {
-          console.warn("⚠️ Invalid category format for menu item:", menuItem.name, menuItem.category);
-          categoryId = 0;
-        }
-        const categoryName = categoriesMap.get(categoryId);
-
-        // COMPLETELY HIDE items with deactivated categories - don't add them to POS
-        if (!categoryName) {
-          return; // Skip this item completely
-        }
-
-        posItemsFromData.push({
-          id: `menu-${menuItem.id}`,
-          name: menuItem.name,
-          price: menuItem.price,
-          category: categoryName,
-          type: "menu_item",
-          menuItemId: menuItem.id,
-          unit: menuItem.unit,
-          availableQuantity: menuItem.availableQuantity,
-          costPerUnit: menuItem.costPerUnit,
-          createdAt: menuItem.createdAt.toString(),
-          updatedAt: menuItem.updatedAt.toString(),
-          description: menuItem.description,
-          image: menuItem.image
-        });
+    allMenuItems.forEach(menuItem => {
+      if (!menuItem?.isPOSItem) return;
+      let categoryId: number;
+      if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
+        categoryId = (menuItem.category as any).id;
+      } else if (menuItem.category && typeof menuItem.category === "number") {
+        categoryId = menuItem.category;
+      } else {
+        console.warn("⚠️ Invalid category format for menu item:", menuItem?.name, menuItem?.category);
+        categoryId = 0;
       }
-    });
-
-    stock.forEach(stockEntry => {
-      if (stockEntry.isPOSItem && stockEntry.material) {
-        // Extract category ID from category object or use the category directly if it's already an ID
-        let categoryId: number;
-        const category = stockEntry.material.category;
-
-        if (category === null || category === undefined) {
-          console.warn("⚠️ Null or undefined category for stock entry:", stockEntry.material.name);
-          categoryId = 0;
-        } else if (typeof category === "number") {
-          categoryId = category;
-        } else if (typeof category === "object" && category && "id" in category) {
-          categoryId = (category as { id: number }).id;
-        } else {
-          console.warn("⚠️ Invalid category type for stock entry:", stockEntry.material.name, category);
-          categoryId = 0;
-        }
-        const categoryName = categoriesMap.get(categoryId);
-        if (!categoryName) {
-          return;
-        }
-        posItemsFromData.push({
-          id: `stock-${stockEntry.id}`,
-          name: stockEntry.material.name,
-          price: stockEntry.costPerBaseUnit || 0,
-          category: categoryName,
-          type: "stock_entry",
-          materialId: Number(stockEntry.materialId),
-          unit: stockEntry.material.baseUnit,
-          description: `${stockEntry.material.name} - ${stockEntry.material.baseUnit}`,
-          availableQuantity: 0,
-          costPerUnit: stockEntry.costPerBaseUnit || 0,
-          createdAt: "",
-          updatedAt: ""
-        });
-      }
+      const categoryName = categoriesMap.get(categoryId);
+      if (!categoryName) return;
+      posItemsFromData.push({
+        id: `menu-${menuItem.id}`,
+        name: menuItem.name,
+        price: menuItem.price,
+        category: categoryName,
+        type: "menu_item",
+        menuItemId: menuItem.id,
+        unit: menuItem.unit,
+        availableQuantity: menuItem.availableQuantity,
+        costPerUnit: menuItem.costPerUnit,
+        createdAt: menuItem.createdAt.toString(),
+        updatedAt: menuItem.updatedAt.toString(),
+        description: menuItem.description,
+        image: menuItem.image
+      });
     });
     return posItemsFromData;
-  }, [menu, stock, categoriesMap]);
+  }, [foodMenuItems, beverageMenuItems, categoriesMap]);
 
   // Update posItems state only when memoized items actually change and no POS action is in progress
   useEffect(() => {
     // Block updates during POS actions to prevent grid refresh
-    if (isPOSActionInProgress) {
-      return;
-    }
-
+    if (isPOSActionInProgress) return;
     if (!isItemsGridStable) {
       setPosItems(memoizedPosItems);
       setIsItemsGridStable(true);
-      setIsItemsGridLoading(false);
-    } else if (isItemsGridStable) {
-      // Only update if there's a significant change (different count or different items)
+    } else {
       const hasSignificantChange = memoizedPosItems.length !== posItems.length || memoizedPosItems.some((item, index) => !posItems[index] || item.id !== posItems[index].id || item.name !== posItems[index].name || item.price !== posItems[index].price);
-      if (hasSignificantChange) {
-        setPosItems(memoizedPosItems);
-      }
+      if (hasSignificantChange) setPosItems(memoizedPosItems);
     }
-  }, [memoizedPosItems, isItemsGridStable, posItems, isPOSActionInProgress]);
+    // Loading state mirrors context loading
+    setIsItemsGridLoading(!!menuItemsLoading);
+  }, [memoizedPosItems, isItemsGridStable, posItems, isPOSActionInProgress, menuItemsLoading]);
 
-  useEffect(() => {
-    const fetchAdditionalData = async () => {
-      try {
-        setIsLoading(true);
-        const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
-        const responseData = tablesResponse.data as Table[] | { data: Table[] };
-        const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
-        setTables(tablesData);
-      } catch (error) {
-        console.error("❌ Failed to load tables:", error);
-        showError("Failed to load additional data");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    if (!isLoading && menu.length > 0 && stock.length > 0) {
-      fetchAdditionalData();
+  const fetchTablesData = useCallback(async () => {
+    try {
+      const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
+      const responseData = tablesResponse.data as Table[] | { data: Table[] };
+      const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
+      setTables(tablesData);
+    } catch (error) {
+      console.error("❌ Failed to refresh tables data:", error);
     }
-  }, [menu.length, stock.length, showError]);
+  }, []);
+
+  // Load tables data once POS items are available
+  useEffect(() => {
+    if (posItems.length > 0) {
+      fetchTablesData();
+    }
+  }, [posItems.length, fetchTablesData]);
 
   useEffect(() => {
     const loadSavedOrder = async () => {
@@ -871,20 +786,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [cart]);
 
-  const fetchTablesData = useCallback(async () => {
-    try {
-      const tablesResponse = await tablesAPI.getTables({ includeOrders: true });
-      const responseData = tablesResponse.data as Table[] | { data: Table[] };
-      const tablesData = Array.isArray(responseData) ? responseData : responseData.data || [];
-      setTables(tablesData);
-    } catch (error) {
-      console.error("❌ Failed to refresh tables data:", error);
-    }
-  }, []);
-
   const refreshAllCounts = useCallback(async () => {
-    await Promise.all([refreshInventory(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
-  }, [refreshInventory, fetchTablesData, refreshCountsRef]);
+    await Promise.all([fetchMenuItems(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
+  }, [fetchMenuItems, fetchTablesData, refreshCountsRef]);
 
   const availablePosItems = posItems.filter(posItem => {
     const getCategoryString = (category: string | number | Category | { id: number; name: string; value: string } | undefined): string => {
@@ -1345,8 +1249,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     try {
       setShowSuccessCheckmark(true);
       justSavedRef.current = true;
-      const optimisticOrderId = currentOrder?.orderNumber || currentOrder?.id || `ORDER-${Date.now()}`;
-
       setTimeout(() => {
         clearCartWithAnimation();
         setAppliedDiscount(null);
@@ -1853,7 +1755,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     <>
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
         {cart && cart.length > 0 && !showSuccessCheckmark && (
-          <div className="lg:hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
+          <div className="md:!hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 {cart && cart.length > 0 && (
@@ -1889,7 +1791,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
         {/* Left Panel - Cart/Order Details (Desktop) / Full Width (Mobile) */}
         <div
-          className="cart flex flex-col h-full bg-white lg:border-r lg:border-gray-200"
+          className="cart hidden lg:flex flex-col h-full bg-white lg:border-r lg:border-gray-200"
           style={{
             width: typeof window !== "undefined" && window.innerWidth >= 1024 ? `${leftPanelWidth}%` : "100%"
           }}
@@ -1914,7 +1816,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                   </span>
                 )}
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="hidden lg:flex items-center space-x-2">
                 {cart && cart.length > 0 && (
                   <>
                     <Button variant="outline" size="sm" onClick={() => setShowDiscountDialog(true)} className="text-xs px-2 py-1 h-7" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
@@ -1933,7 +1835,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           </div>
 
           {/* Order Items List - Scrollable */}
-          <div className="flex-1 h-full relative overflow-hidden">
+          <div className="hidden lg:block flex-1 h-full relative overflow-hidden">
             <div className="h-full overflow-y-auto">
               <OrderItemsList
                 cart={cart}
@@ -1977,7 +1879,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           {/* Order Summary - Fixed Footer */}
           {!showSuccessCheckmark && (
-            <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+            <div className="hidden md:flex-shrink-0 border-t border-gray-200 bg-white">
               <OrderSummary
                 cart={cart}
                 subtotal={subtotal}
@@ -2082,7 +1984,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             </div>
 
             {/* Product Grid - Scrollable */}
-            <div className="flex-1 overflow-y-auto !bg-gray-50">
+            <div className="flex-1 overflow-y-auto !bg-gray-50 p-2">
               <ItemsGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={isItemsGridLoading} />
             </div>
 
@@ -2273,12 +2175,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       )}
 
       {/* Orders Management Dialog */}
+      <div className="h-[50dvh]">
       <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelectCallback} onOrderStatusChange={fetchIncompleteOrders} />
+      </div>
 
       {/* Tables Layout Dialog */}
       {showTablesLayout && (
         <Dialog open={showTablesLayout} onOpenChange={setShowTablesLayout}>
-          <DialogContent className="w-screen h-screen max-w-none max-h-none m-0 p-0 !z-50 bg-white overflow-hidden">
+          <DialogContent className="w-screen h- max-w-none max-h-none m-0 p-0 !z-50 bg-white overflow-hidden">
             <DialogTitle className="sr-only">Tables Layout</DialogTitle>
             <DialogDescription className="sr-only">Manage restaurant table layout and assignments</DialogDescription>
             <div className="w-full h-full flex flex-col overflow-hidden">

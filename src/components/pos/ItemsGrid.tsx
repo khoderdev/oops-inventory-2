@@ -14,9 +14,9 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
   // Calculate grid configuration based on panel width
   const gridConfig = useMemo(() => {
     const getColumnsCount = (width: number) => {
-      if (width <= 300) return 1;
-      if (width <= 450) return 2;
-      if (width <= 650) return 3;
+      if (width <= 300) return 2;
+      if (width <= 450) return 3;
+      if (width <= 650) return 4;
       if (width <= 850) return 4;
       if (width <= 1100) return 5;
       if (width <= 1400) return 6;
@@ -179,10 +179,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
             <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">You don't have any menu items yet</h3>
             <p className="text-gray-600 mb-6">Start by adding menu items to your inventory</p>
-            <Button 
-              onClick={() => navigate('/menu')}
-              className="bg-primary hover:bg-primary/90 text-white"
-            >
+            <Button onClick={() => navigate("/menu")} className="bg-primary hover:bg-primary/90 text-white">
               <Plus className="w-4 h-4 mr-2" />
               Add Menu Items
             </Button>
@@ -220,7 +217,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
                 transform: `translateY(${virtualRow.start}px)`
               }}
             >
-              <div className={`grid gap-2 sm:gap-4 lg:gap-4 ${gridConfig.columns === 1 ? "grid-cols-1" : gridConfig.columns === 2 ? "grid-cols-2" : gridConfig.columns === 3 ? "grid-cols-3" : gridConfig.columns === 4 ? "grid-cols-4" : gridConfig.columns === 5 ? "grid-cols-5" : gridConfig.columns === 6 ? "grid-cols-6" : "grid-cols-7"} h-full`}>
+              <div className={`grid gap-4 sm:gap-4 lg:gap-4 ${gridConfig.columns === 1 ? "grid-cols-1" : gridConfig.columns === 2 ? "grid-cols-2" : gridConfig.columns === 3 ? "grid-cols-3" : gridConfig.columns === 4 ? "grid-cols-4" : gridConfig.columns === 5 ? "grid-cols-5" : gridConfig.columns === 6 ? "grid-cols-6" : "grid-cols-7"} h-full`}>
                 {rowItems.map(item => (
                   <ProductItem key={item.id} item={item} />
                 ))}

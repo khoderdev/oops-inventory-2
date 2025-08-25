@@ -356,7 +356,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   return (
     <div
       ref={layoutRef}
-      className="h-[calc(100vh-0rem)] w-full flex flex-col overflow-hidden"
+      className="md:h-[calc(100vh-0rem)] h-[100dvh] w-full flex flex-col overflow-hidden"
       onContextMenu={e => {
         const target = e.target as HTMLElement | null;
         if (target && target.closest("[data-table-trigger]")) {
