@@ -190,41 +190,42 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
   }
 
   return (
-    <div className="flex-1 p-1 sm:p-2 lg:p-3 overflow-y-auto safe-area-padding">
-      <div
-        ref={parentRef}
-        className="h-full overflow-auto"
-        style={{
-          height: virtualizer.getTotalSize(),
-          position: "relative"
-        }}
-      >
-        {virtualizer.getVirtualItems().map(virtualRow => {
-          const rowItems = virtualRows[virtualRow.index];
-          if (!rowItems || rowItems.length === 0) return null;
+    <div className="h-full p-1 sm:p-2 lg:p-3 safe-area-padding">
+      <div ref={parentRef} className="h-full overflow-auto">
+        <div
+          style={{
+            height: virtualizer.getTotalSize(),
+            width: "100%",
+            position: "relative"
+          }}
+        >
+          {virtualizer.getVirtualItems().map(virtualRow => {
+            const rowItems = virtualRows[virtualRow.index];
+            if (!rowItems || rowItems.length === 0) return null;
 
-          return (
-            <div
-              key={virtualRow.index}
-              data-index={virtualRow.index}
-              ref={virtualizer.measureElement}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                height: `${virtualRow.size}px`,
-                transform: `translateY(${virtualRow.start}px)`
-              }}
-            >
-              <div className={`grid gap-4 sm:gap-4 lg:gap-4 ${gridConfig.columns === 1 ? "grid-cols-1" : gridConfig.columns === 2 ? "grid-cols-2" : gridConfig.columns === 3 ? "grid-cols-3" : gridConfig.columns === 4 ? "grid-cols-4" : gridConfig.columns === 5 ? "grid-cols-5" : gridConfig.columns === 6 ? "grid-cols-6" : "grid-cols-7"} h-full`}>
-                {rowItems.map(item => (
-                  <ProductItem key={item.id} item={item} />
-                ))}
+            return (
+              <div
+                key={virtualRow.index}
+                data-index={virtualRow.index}
+                ref={virtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: `${virtualRow.size}px`,
+                  transform: `translateY(${virtualRow.start}px)`
+                }}
+              >
+                <div className={`grid gap-4 sm:gap-4 lg:gap-4 ${gridConfig.columns === 1 ? "grid-cols-1" : gridConfig.columns === 2 ? "grid-cols-2" : gridConfig.columns === 3 ? "grid-cols-3" : gridConfig.columns === 4 ? "grid-cols-4" : gridConfig.columns === 5 ? "grid-cols-5" : gridConfig.columns === 6 ? "grid-cols-6" : "grid-cols-7"} h-full`}>
+                  {rowItems.map(item => (
+                    <ProductItem key={item.id} item={item} />
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

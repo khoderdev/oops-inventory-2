@@ -75,29 +75,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [tableOrders, setTableOrders] = useState<{ [tableId: string]: number }>({});
   const [incompleteTableOrdersCount, setIncompleteTableOrdersCount] = useState<number>(0);
 
-  // Ensure menu items are loaded from context (load both food and beverage)
-  useEffect(() => {
-    let cancelled = false;
-    const ensureMenuItemsLoaded = async () => {
-      try {
-        await fetchMenuItems(); // loads food by default
-        // If beverages not yet loaded, temporarily switch context tab to fetch beverages
-        if (!cancelled && beverageMenuItems.length === 0) {
-          handleTabChange("beverages");
-          await fetchMenuItems();
-          // Switch back to food to avoid affecting other consumers
-          handleTabChange("food");
-        }
-      } catch (e) {
-        console.error("❌ POSClient: Failed to ensure menu items via context:", e);
-      }
-    };
-    ensureMenuItemsLoaded();
-    return () => {
-      cancelled = true;
-    };
-    // Intentionally exclude beverageMenuItems from deps to avoid flip-flopping
-  }, [fetchMenuItems, handleTabChange]);
   const [incompleteDeliveryTakeawayCount, setIncompleteDeliveryTakeawayCount] = useState<number>(0);
   const [, setIncompleteDeliveryCount] = useState<number>(0);
   const [, setIncompleteTakeawayCount] = useState<number>(0);
@@ -121,6 +98,22 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showPrinterSelector, setShowPrinterSelector] = useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
+
+  // Ensure menu items are loaded from context (explicitly load both food and beverages)
+  useEffect(() => {
+    let cancelled = false;
+    const ensureMenuItemsLoaded = async () => {
+      try {
+        await fetchMenuItems('both');
+      } catch (e) {
+        console.error("❌ POSClient: Failed to ensure menu items via context:", e);
+      }
+    };
+    ensureMenuItemsLoaded();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchMenuItems]);
 
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>();
@@ -205,6 +198,21 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       window.removeEventListener("resize", handleResize);
     };
   }, [leftPanelWidth]);
+
+  // When switching back to the Products view (especially on mobile), force a re-measure
+  // and allow the grid to refresh its items to avoid empty renders after being hidden.
+  useEffect(() => {
+    if (activeView === "products") {
+      // Let layout settle, then trigger resize so rightPanelPixelWidth recalculates
+      setTimeout(() => {
+        try {
+          window.dispatchEvent(new Event("resize"));
+        } catch {}
+        // Mark grid unstable so posItems state can refresh from memoizedPosItems if needed
+        setIsItemsGridStable(false);
+      }, 0);
+    }
+  }, [activeView]);
 
   useEffect(() => {
     // Block selectedOrderForPOS if there's already a current order being edited
@@ -1984,8 +1992,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             </div>
 
             {/* Product Grid - Scrollable */}
-            <div className="flex-1 overflow-y-auto !bg-gray-50 p-2">
-              <ItemsGrid posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={isItemsGridLoading} />
+            <div className="flex-1 min-h-0 !bg-gray-50 p-2">
+              {/* Remount ItemsGrid when switching views or when panel width changes to force re-measure */}
+              <ItemsGrid
+                key={`${activeView}-${rightPanelPixelWidth}`}
+                posItems={filteredPosItems}
+                onAddToCart={addToCart}
+                rightPanelPixelWidth={rightPanelPixelWidth}
+                isLoading={isItemsGridLoading}
+              />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}
@@ -2176,7 +2191,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
       {/* Orders Management Dialog */}
       <div className="h-[50dvh]">
-      <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelectCallback} onOrderStatusChange={fetchIncompleteOrders} />
+        <POSClientOrders isOpen={showOrdersDialog} onClose={handleCloseOrdersDialog} onOrderSelect={handleOrderSelectCallback} onOrderStatusChange={fetchIncompleteOrders} />
       </div>
 
       {/* Tables Layout Dialog */}

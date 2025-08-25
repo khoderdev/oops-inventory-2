@@ -36,25 +36,41 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
   // Active tab state
   const [activeTab, setActiveTab] = useState<string>("food");
 
-  // Fetch menu items function
-  const fetchMenuItems = useCallback(async () => {
-    try {
-      setMenuItemsLoading(true);
-      setMenuItemsError(null);
-      // Always fetch food menu items
-      const foodItems = await menuAPI.getFoodMenuItems(true);
-      setFoodMenuItems(foodItems);
-      if (activeTab === "beverages") {
-        const beverageItems = await menuAPI.getBeverageMenuItems(true);
-        setBeverageMenuItems(beverageItems);
+  // Fetch menu items function (supports explicit mode)
+  const fetchMenuItems = useCallback(
+    async (mode?: 'food' | 'beverages' | 'both') => {
+      try {
+        setMenuItemsLoading(true);
+        setMenuItemsError(null);
+
+        if (mode === 'both') {
+          const [foodItems, beverageItems] = await Promise.all([
+            menuAPI.getFoodMenuItems(true),
+            menuAPI.getBeverageMenuItems(true)
+          ]);
+          setFoodMenuItems(foodItems);
+          setBeverageMenuItems(beverageItems);
+          return;
+        }
+
+        // Always fetch food menu items (backward compatible default)
+        const foodItems = await menuAPI.getFoodMenuItems(true);
+        setFoodMenuItems(foodItems);
+
+        // Fetch beverages explicitly or when activeTab is beverages (legacy behavior)
+        if (mode === 'beverages' || (!mode && activeTab === 'beverages')) {
+          const beverageItems = await menuAPI.getBeverageMenuItems(true);
+          setBeverageMenuItems(beverageItems);
+        }
+      } catch (error) {
+        console.error("Failed to fetch menu items:", error);
+        setMenuItemsError("Failed to load menu items");
+      } finally {
+        setMenuItemsLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to fetch menu items:", error);
-      setMenuItemsError("Failed to load menu items");
-    } finally {
-      setMenuItemsLoading(false);
-    }
-  }, [activeTab]);
+    },
+    [activeTab]
+  );
 
   // Handle tab change to fetch data only when needed
   const handleTabChange = useCallback(
@@ -63,7 +79,7 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
 
       // If switching to beverages tab and we don't have beverage data yet, fetch it
       if (value === "beverages" && beverageMenuItems.length === 0) {
-        fetchMenuItems();
+        fetchMenuItems('beverages');
       }
     },
     [beverageMenuItems.length, fetchMenuItems]

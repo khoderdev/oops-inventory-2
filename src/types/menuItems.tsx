@@ -25,7 +25,7 @@ export interface MenuItemsContextState {
   activeTab: string;
 
   // Actions
-  fetchMenuItems: () => Promise<void>;
+  fetchMenuItems: (mode?: 'food' | 'beverages' | 'both') => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchMaterials: () => Promise<void>;
   handleTabChange: (value: string) => void;
