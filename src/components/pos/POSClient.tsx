@@ -1755,7 +1755,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     <>
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
         {cart && cart.length > 0 && !showSuccessCheckmark && (
-          <div className="md:!hidden bg-white border-b border-gray-200 p-3 flex-shrink-0">
+          <div className="md:!hidden bg-white border-b border-gray-200 px-3 p-1 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 {cart && cart.length > 0 && (
@@ -1777,8 +1777,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 <span className="text-sm text-gray-600">{cart && cart.length > 0 ? `${cart.length} items` : "Empty"}</span>
                 {cart && cart.length > 0 && (
                   <>
-                    <Button variant="outline" size="sm" onClick={() => setShowDiscountDialog(true)} className="text-xs px-2 py-1 h-6" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
-                      <DollarSign className="w-3 h-3 mr-1" />
+                    <Button variant="outline" size="sm" onClick={() => setShowDiscountDialog(true)} className="text-xs p-2" disabled={currentOrder?.status === "paid" || currentOrder?.status === "served"}>
+                      <DollarSign className="w-3 h-3" />
                       Discount
                     </Button>
                     <Trash2 className="w-4 h-4 text-red-600 cursor-pointer" onClick={clearCart} />
@@ -1879,7 +1879,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           {/* Order Summary - Fixed Footer */}
           {!showSuccessCheckmark && (
-            <div className="hidden md:flex-shrink-0 border-t border-gray-200 bg-white">
+            <div className="hidden lg:block border-t border-gray-200 bg-white">
               <OrderSummary
                 cart={cart}
                 subtotal={subtotal}
@@ -1921,12 +1921,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }}
         >
           {/* Mobile Toggle Buttons (visible on mobile only) */}
-          <div className="lg:hidden bg-gray-50 border-b border-gray-200 p-2 flex-shrink-0">
-            <div className="flex space-x-2">
-              <Button variant={activeView === "cart" ? "default" : "outline"} size="sm" onClick={() => setActiveView("cart")} className="flex-1 btn-touch">
+          <div className="lg:hidden bg-gray-50 flex-shrink-0">
+            <div className="flex border-b">
+              <Button variant={activeView === "cart" ? "default" : "outline"} size="sm" onClick={() => setActiveView("cart")} className="flex-1 btn-touch !rounded-none">
                 Cart ({cart?.length || 0})
               </Button>
-              <Button variant={activeView === "products" ? "default" : "outline"} size="sm" onClick={() => setActiveView("products")} className="flex-1 btn-touch">
+              <Button variant={activeView === "products" ? "default" : "outline"} size="sm" onClick={() => setActiveView("products")} className="flex-1 btn-touch !rounded-none">
                 Products
               </Button>
             </div>
