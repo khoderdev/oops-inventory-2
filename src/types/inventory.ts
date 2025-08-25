@@ -755,7 +755,7 @@ export interface CategoryTabsProps {
 //-----------------------------------------------------------------------------
 
 // Legacy hardcoded menu item categories for backward compatibility
-export type MenuItemCategory = "appetizers" | "burgers" | "sandwiches" | "plates" | "pasta" | "sushi" | "pizza" | "salads" | "desserts" | "cold" | "hot" | "alcohol" | "breakfast" | "shisha";
+export type MenuItemCategory = "appetizers" | "burgers" | "sandwiches" | "plates" | "pasta" | "sushi" | "pizza" | "salads" | "desserts" | "breakfast" | "shisha";
 
 // New menu item category type that can be either a legacy string or a Category object from the API
 export type MenuItemCategoryType = MenuItemCategory | Category | number | { id: number; name: string; value: string };
@@ -799,31 +799,6 @@ export interface MenuItem {
   updatedAt: Date;
 }
 
-export interface BeverageItem {
-  beverageStockId: string;
-  id: string;
-  name: string;
-  description?: string;
-  category: BeverageItemCategoryType | null;
-  categoryId?: number;
-  price: number;
-  unit: string;
-  availableQuantity: number;
-  costPerUnit: number;
-  ingredients: MenuItemIngredient[];
-  menuItemIngredients: boolean;
-  isPOSItem?: boolean;
-  image?: string;
-  printerId?: number | null;
-  assignedPrinter?: {
-    id: number;
-    name: string;
-    type: string;
-    status: string;
-  };
-  createdAt?: string;
-  updatedAt?: string;
-}
 
 export interface CategoryOption {
   id: number | string;
@@ -838,7 +813,6 @@ export interface BeverageItemFormProps {
   stockEntries?: StockEntry[];
   onSubmit: (
     data: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
-      beverageStockId?: string | null;
       variants?: {
         selectedVariants: string[];
         variantVolumes: Record<string, number>;

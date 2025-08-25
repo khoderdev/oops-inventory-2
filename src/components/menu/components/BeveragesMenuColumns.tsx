@@ -1,26 +1,13 @@
-import React, { useMemo } from "react";
-import { MenuItem, MenuItemCategory } from "@/types/inventory";
+import { useMemo } from "react";
+import { MenuItem } from "@/types/inventory";
 import { createColumnHelper } from "@tanstack/react-table";
 import { Button } from "../../ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
 import { Eye, Edit, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/utils/conversionLogic";
+import { BeveragesMenuColumnsProps } from "@/types/menuItems";
 
-interface BeveragesMenuColumnsProps {
-  categories: any[];
-  bulkSelectionMode: boolean;
-  handleTogglePOSVisibility: (item: MenuItem) => void;
-  handleEditBeverageItem: (item: MenuItem) => void;
-  handleDeleteBeverageItem: (id: string) => void;
-}
-
-export const useBeveragesMenuColumns = ({
-  categories,
-  bulkSelectionMode,
-  handleTogglePOSVisibility,
-  handleEditBeverageItem,
-  handleDeleteBeverageItem
-}: BeveragesMenuColumnsProps) => {
+export const useBeveragesMenuColumns = ({ categories, bulkSelectionMode, handleTogglePOSVisibility, handleEditBeverageItem, handleDeleteBeverageItem }: BeveragesMenuColumnsProps) => {
   const columnHelper = createColumnHelper<MenuItem>();
 
   const columns = useMemo(
@@ -31,6 +18,7 @@ export const useBeveragesMenuColumns = ({
         cell: ({ row }) => <div className="flex items-center justify-center">{bulkSelectionMode && <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} className="h-4 w-4" />}</div>,
         size: 40
       }),
+
       columnHelper.accessor("image", {
         header: "Image",
         cell: info => (
@@ -46,6 +34,7 @@ export const useBeveragesMenuColumns = ({
         ),
         size: 80
       }),
+
       columnHelper.accessor("name", {
         header: "Name",
         cell: info => <div className="font-medium">{info.getValue()}</div>,

@@ -154,3 +154,11 @@ export interface IngredientsTableProps {
   totalIngredientsCost: number;
   price: string;
 }
+
+export interface BeveragesMenuColumnsProps {
+  categories: any[];
+  bulkSelectionMode: boolean;
+  handleTogglePOSVisibility: (item: MenuItem) => void;
+  handleEditBeverageItem: (item: MenuItem) => void;
+  handleDeleteBeverageItem: (id: string) => void;
+}

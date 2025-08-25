@@ -20,7 +20,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
   const [beverageStockEntries, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
   const [beverageSearchTerm, setBeverageSearchTerm] = useState("");
-  
   const [isBeverageLoading, setIsBeverageLoading] = useState(false);
   const [selectedBeverageStock, setSelectedBeverageStock] = useState<StockEntryWithMaterial | null>(null);
   const [ingredients, setIngredients] = useState<MenuItemIngredient[]>([]);
@@ -180,7 +179,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     [beverageStockEntries]
   );
 
-
   const handleImageChange = useCallback((imageValue: string | undefined, file?: File) => {
     setImage(imageValue);
     setImageFile(file);
@@ -216,15 +214,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       return;
     }
 
-    // Prepare form data to match the expected type in BeverageItemFormProps
+    // Prepare form data matching BeverageItemFormProps.onSubmit signature
     const formData: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
-      beverageStockId?: string;
-      variants?: {
-        selectedVariants: string[];
-        variantVolumes: Record<string, number>;
-        variantVolumeUnits: Record<string, string>;
-        variantPrices: Record<string, number>;
-      };
       imageFile?: File;
     } = {
       name,
@@ -241,25 +232,29 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       isPOSItem,
       image: image || "",
       imageFile: imageFile,
-      beverageStockId: selectedBeverageStock?.id ? selectedBeverageStock.id.toString() : undefined,
+      isBeverage: true,
       unit: selectedBeverageStock?.purchasedUnit || "piece",
       availableQuantity: selectedBeverageStock?.purchasedQuantity ? parseFloat(selectedBeverageStock.purchasedQuantity.toString()) : undefined,
       costPerUnit: selectedBeverageStock?.costPerPurchasedUnit ? parseFloat(selectedBeverageStock.costPerPurchasedUnit.toString()) : undefined,
-      // Convert variants to the expected format
       variants:
         showVariantsSection && variantData.selectedVariants.length > 0
-          ? {
-              selectedVariants: variantData.selectedVariants,
-              variantVolumes: variantData.variantVolumes,
-              variantVolumeUnits: variantData.variantVolumeUnits,
-              variantPrices: variantData.variantPrices
-            }
+          ? variantData.selectedVariants.reduce(
+              (acc, variantName) => {
+                const volume = variantData.variantVolumes?.[variantName];
+                const unit = variantData.variantVolumeUnits?.[variantName];
+                const price = variantData.variantPrices?.[variantName];
+
+                if (volume && unit && price !== undefined) {
+                  acc[variantName] = { volume, unit, price };
+                }
+
+                return acc;
+              },
+              {} as Record<string, { volume: number; unit: string; price: number }>
+            )
           : undefined
     };
-
-    // Pass the properly typed form data
     onSubmit(formData);
-
     setName("");
     setCategoryId("");
     setPrice("");
