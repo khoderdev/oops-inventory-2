@@ -28,7 +28,7 @@ export interface SelectionProps<T extends SelectableItem> {
   onInputBlur?: (event: React.FocusEvent<HTMLInputElement>) => void;
   onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   isLoading?: boolean;
-  showDropdown: boolean;
+  showDropdown?: boolean;
   items: T[];
   onItemSelect: (id: string, displayValue: string) => void;
   inputRef?: React.RefObject<HTMLInputElement>;
@@ -53,8 +53,11 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
   const internalInputRef = React.useRef<HTMLInputElement>(null);
   const inputRef = externalInputRef || internalInputRef;
   const parentRef = React.useRef<HTMLDivElement>(null);
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const [highlightedIndex, setHighlightedIndex] = React.useState<number>(-1);
   const listboxId = `${inputId}-listbox`;
+  const pointerDownInDropdown = React.useRef(false);
+  const isHoveringDropdown = React.useRef(false);
 
   const selectedItem = React.useMemo(() => {
     if (!searchTerm) return null;
@@ -95,11 +98,26 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
   };
 
   const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    setTimeout(() => {
-      setInternalShowDropdown(false);
-    }, 200);
+    // Never close on blur to avoid issues with scrollbar interactions.
+    // We close via outside pointerdown, Escape, selection, or chevron.
+    if (pointerDownInDropdown.current || isHoveringDropdown.current) {
+      requestAnimationFrame(() => inputRef?.current?.focus());
+    }
     onInputBlur?.(e);
   };
+
+  // Close on outside pointerdown (mouse/touch) only
+  React.useEffect(() => {
+    const onDocPointerDown = (ev: PointerEvent) => {
+      const el = containerRef.current;
+      if (!el) return;
+      if (!el.contains(ev.target as Node)) {
+        if (externalShowDropdown === undefined) setInternalShowDropdown(false);
+      }
+    };
+    document.addEventListener("pointerdown", onDocPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onDocPointerDown, true);
+  }, [externalShowDropdown]);
 
   const handleChevronClick = (e: React.MouseEvent<SVGSVGElement>) => {
     e.preventDefault();
@@ -215,7 +233,7 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
   };
 
   return (
-    <div className={`select-input-container relative mb-4 ${widthClass} ${className}`}>
+    <div ref={containerRef} className={`select-input-container relative mb-4 ${widthClass} ${className}`}>
       <label htmlFor={inputId} className="block text-sm font-medium mb-1">
         <div>
           <label htmlFor="quantity" className="block text-sm font-medium mb-1">
@@ -275,6 +293,11 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
           role="listbox"
           id={listboxId}
           style={{ maxHeight: maxDropdownHeightPx }}
+          onPointerDownCapture={() => { pointerDownInDropdown.current = true; }}
+          onPointerUpCapture={() => { pointerDownInDropdown.current = false; }}
+          onPointerCancel={() => { pointerDownInDropdown.current = false; }}
+          onMouseEnter={() => { isHoveringDropdown.current = true; }}
+          onMouseLeave={() => { pointerDownInDropdown.current = false; isHoveringDropdown.current = false; }}
         >
           <div style={{ height: rowVirtualizer.getTotalSize(), width: "100%", position: "relative" }}>
             {rowVirtualizer.getVirtualItems().map(virtualRow => {

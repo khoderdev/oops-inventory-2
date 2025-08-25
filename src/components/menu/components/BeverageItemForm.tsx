@@ -20,7 +20,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
   const [beverageStockEntries, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
   const [beverageSearchTerm, setBeverageSearchTerm] = useState("");
-  const [showBeverageDropdown, setShowBeverageDropdown] = useState(false);
+  
   const [isBeverageLoading, setIsBeverageLoading] = useState(false);
   const [selectedBeverageStock, setSelectedBeverageStock] = useState<StockEntryWithMaterial | null>(null);
   const [ingredients, setIngredients] = useState<MenuItemIngredient[]>([]);
@@ -49,7 +49,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         toast({
           title: "Error",
           description: "Failed to load beverage stock entries. Please try again.",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 5000
         });
       } finally {
         setIsBeverageLoading(false);
@@ -115,8 +116,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       setPrice(menuItem.price?.toString() || "");
       setIsPOSItem(menuItem.isPOSItem ?? true);
       setImage(menuItem.image);
-      if (menuItem.beverageStockId && beverageStockEntries.length > 0) {
-        const matchingStock = beverageStockEntries.find(entry => String(entry.id) === String(menuItem.beverageStockId));
+      if (menuItem.isBeverage && beverageStockEntries.length > 0) {
+        const matchingStock = beverageStockEntries.find(entry => String(entry.id) === String(menuItem.isBeverage));
         if (matchingStock) {
           setSelectedBeverageStock(matchingStock);
           setBeverageSearchTerm(matchingStock.material?.name || "");
@@ -158,13 +159,11 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const handleBeverageSearchChange = useCallback((value: string) => {
     setBeverageSearchTerm(value);
     setSelectedBeverageStock(null);
-    setShowBeverageDropdown(value.length > 0);
   }, []);
 
   const handleBeverageSelect = useCallback(
     (beverageId: string, beverageName?: string) => {
       setBeverageSearchTerm(beverageName || "");
-      setShowBeverageDropdown(false);
       if (beverageId) {
         const selectedBeverage = beverageStockEntries.find(entry => String(entry.id) === beverageId);
         if (selectedBeverage) {
@@ -181,13 +180,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     [beverageStockEntries]
   );
 
-  const handleBeverageInputFocus = useCallback(() => {
-    setShowBeverageDropdown(beverageSearchTerm.length > 0 || filteredBeverageStock.length > 0);
-  }, [beverageSearchTerm, filteredBeverageStock]);
-
-  const handleBeverageInputBlur = useCallback(() => {
-    setTimeout(() => setShowBeverageDropdown(false), 150);
-  }, []);
 
   const handleImageChange = useCallback((imageValue: string | undefined, file?: File) => {
     setImage(imageValue);
@@ -290,19 +282,15 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     <div className="space-y-6 p-4">
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <div className="md:col-span-1 lg:col-span-2">
-          <Selection<StockEntryWithMaterial>
+          <Selection
             label="Stock Beverages"
             id="beverage"
-            // width="lg"
             errors={errors}
             errorField="beverageId"
             searchTerm={beverageSearchTerm}
             onSearchChange={handleBeverageSearchChange}
-            onInputFocus={handleBeverageInputFocus}
-            onInputBlur={handleBeverageInputBlur}
             onKeyDown={handleKeyDown}
             isLoading={isBeverageLoading}
-            showDropdown={showBeverageDropdown}
             items={filteredBeverageStock}
             onItemSelect={handleBeverageSelect}
             inputRef={beverageSelectRef}

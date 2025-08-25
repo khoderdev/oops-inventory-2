@@ -129,6 +129,7 @@ export interface MenuItemFormProps {
 export interface IngredientsProps {
   ingredients: MenuItemIngredient[];
   stockEntries: StockEntry[];
+  materials?: Material[];
   menuItem?: MenuItem;
   category: string;
   price: string;
@@ -140,8 +141,6 @@ export interface IngredientsProps {
   };
   onErrorsChange?: (errors: { ingredients?: string; ingredientQuantity?: string }) => void;
 }
-
-
 
 export interface IngredientsTableProps {
   ingredients: MenuItemIngredient[];

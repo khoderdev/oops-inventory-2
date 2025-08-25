@@ -14,6 +14,7 @@ import QuickActionsCard from "./QuickActionsCard";
 import LowStockAlertsCard from "./LowStockAlertsCard";
 import EmployeeUsageCard from "./EmployeeUsageCard";
 import SystemStatusCard from "./SystemStatusCard";
+import { VirtualSelect } from "../ui/VirtualSelect";
 
 interface DashboardStats {
   totalMaterials: number;

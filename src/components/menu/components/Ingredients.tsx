@@ -11,8 +11,9 @@ import { Selection } from "../../ui/Selection";
 import { IngredientsProps } from "@/types/menuItems";
 import { IngredientsTable } from "./IngredientsTable";
 
-export function Ingredients({ ingredients = [], stockEntries = [], menuItem, category = "", price = "0", onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
-  const { materialsWithStock: materials } = useMenuItems();
+export function Ingredients({ ingredients = [], stockEntries = [], materials: materialsProp, menuItem, category = "", price = "0", onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
+  const { materialsWithStock: materialsFromCtx } = useMenuItems();
+  const materials = materialsProp ?? materialsFromCtx;
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
   const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
@@ -237,7 +238,6 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
     (materialId: string, materialName?: string) => {
       setSelectedMaterialId(materialId);
       setMaterialSearchTerm(materialName || "");
-      setShowMaterialDropdown(false);
       const material = (materials || []).find(m => String(m.id) === materialId);
       if (material) {
         setIngredientUnit(material.baseUnit);
@@ -252,16 +252,8 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
     setMaterialSearchTerm(value);
     setSelectedMaterialId("");
     setIngredientUnit("");
-    setShowMaterialDropdown(value.length > 0);
   }, []);
 
-  const handleMaterialInputFocus = useCallback(() => {
-    setShowMaterialDropdown(materialSearchTerm.length > 0 || filteredMaterials.length > 0);
-  }, [materialSearchTerm, filteredMaterials]);
-
-  const handleMaterialInputBlur = useCallback(() => {
-    setTimeout(() => setShowMaterialDropdown(false), 150);
-  }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -295,10 +287,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
           label="Material"
           searchTerm={materialSearchTerm}
           onSearchChange={handleMaterialSearchChange}
-          onInputFocus={handleMaterialInputFocus}
-          onInputBlur={handleMaterialInputBlur}
           onKeyDown={handleKeyDown}
-          showDropdown={showMaterialDropdown}
           items={filteredMaterials}
           onItemSelect={handleMaterialSelect}
           getDisplayValue={item => item.name}
