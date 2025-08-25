@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { DepartmentForm } from "@/components/department/DepartmentForm";
 import { DepartmentTable } from "@/components/department/DepartmentTable";
 import departmentAPI from "@/api/department.api";
@@ -122,12 +120,6 @@ export const DepartmentManagement: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" /> Add Department
-        </Button>
-      </div>
-
       <DepartmentTable
         data={departments}
         total={total}
@@ -139,6 +131,7 @@ export const DepartmentManagement: React.FC = () => {
         onEdit={openEdit}
         onDelete={requestDelete}
         onBulkDelete={handleBulkDelete}
+        onAdd={openCreate}
         onFiltersChange={p => {
           if (p.search !== undefined) setSearch(p.search);
           if (p.isActive !== undefined || p.isActive === undefined) setIsActive(p.isActive);

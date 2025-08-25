@@ -120,6 +120,7 @@ export interface DepartmentTableProps {
   onEdit: (dept: Department) => void;
   onDelete: (dept: Department) => void;
   onBulkDelete?: (ids: number[]) => void;
+  onAdd?: () => void;
   onFiltersChange?: (filters: Partial<DepartmentFilters>) => void;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (limit: number) => void;

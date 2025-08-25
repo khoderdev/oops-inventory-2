@@ -10,10 +10,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Pagination, PaginationContent, PaginationItem, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MoreHorizontal, Edit, Trash2, User2, Hash } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, User2, Hash, Plus } from "lucide-react";
 import type { Department, DepartmentTableProps } from "@/types/department";
 
-export const DepartmentTable: React.FC<DepartmentTableProps> = ({ data, total, page, limit, loading = false, search = "", isActive, onEdit, onDelete, onBulkDelete, onFiltersChange, onPageChange, onPageSizeChange }) => {
+export const DepartmentTable: React.FC<DepartmentTableProps> = ({ data, total, page, limit, loading = false, search = "", isActive, onEdit, onDelete, onBulkDelete, onAdd, onFiltersChange, onPageChange, onPageSizeChange }) => {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
@@ -142,38 +142,46 @@ export const DepartmentTable: React.FC<DepartmentTableProps> = ({ data, total, p
                 </Button>
               )}
             </div>
-            <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto">
-              <div className="flex-1 md:w-64">
+            {/* <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto"> */}
+            <div className="w-full flex flex-col md:flex-row md:justify-between md:items-center">
+              <div className="w-fit md:w-64 mb-3 md:mb-0">
                 <Input value={search} onChange={e => onFiltersChange?.({ search: e.target.value, page: 1 })} placeholder="Search departments..." />
               </div>
-              <Select
-                value={isActive === undefined ? "all" : isActive ? "active" : "inactive"}
-                onValueChange={val => {
-                  const next = val === "all" ? undefined : val === "active";
-                  onFiltersChange?.({ isActive: next, page: 1 });
-                }}
-              >
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={String(limit)} onValueChange={val => onPageSizeChange?.(Number(val))}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Rows" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[10, 20, 50, 100].map(sz => (
-                    <SelectItem key={sz} value={String(sz)}>
-                      {sz} / page
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={isActive === undefined ? "all" : isActive ? "active" : "inactive"}
+                  onValueChange={val => {
+                    const next = val === "all" ? undefined : val === "active";
+                    onFiltersChange?.({ isActive: next, page: 1 });
+                  }}
+                >
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={String(limit)} onValueChange={val => onPageSizeChange?.(Number(val))}>
+                  <SelectTrigger className="w-[120px]">
+                    <SelectValue placeholder="Rows" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 20, 50, 100].map(sz => (
+                      <SelectItem key={sz} value={String(sz)}>
+                        {sz} / page
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {onAdd && (
+                  <Button size="sm" onClick={onAdd} className="whitespace-nowrap">
+                    <Plus className="w-4 h-4 mr-1" /> Add Department
+                  </Button>
+                )}
+              </div>
             </div>
           </CardTitle>
         </CardHeader>
