@@ -5,11 +5,21 @@ import { AuditLog, Department, Employee, EmployeeSettlement, EmployeeUsage, Mate
 // Get all employees
 export const getAllEmployees = async (req, res) => {
   try {
-    const { department, isActive, page = 1, limit = 50, search } = req.query;
+    const { department, departmentId, isActive, page = 1, limit = 50, search } = req.query;
 
     const where = {};
 
-    if (department) where.department = department;
+    // Department filtering: prefer departmentId, fallback to department name
+    if (departmentId) {
+      where.departmentId = parseInt(departmentId);
+    } else if (department) {
+      // Resolve department name to ID (case-insensitive exact match)
+      const dept = await Department.findOne({
+        where: { name: { [Op.iLike]: department }, isActive: true },
+        attributes: ["id", "name", "code"]
+      });
+      where.departmentId = dept ? dept.id : -1; // -1 yields no results if not found
+    }
     // Handle isActive parameter - default to true if not provided
     if (isActive !== undefined) {
       where.isActive = isActive === "true" || isActive === true;
@@ -32,6 +42,12 @@ export const getAllEmployees = async (req, res) => {
           as: "user",
           attributes: ["id", "username", "firstName", "lastName", "role", "isActive"],
           required: false // LEFT JOIN - include employees without users
+        },
+        {
+          model: Department,
+          as: "department",
+          attributes: ["id", "name", "code"],
+          required: false
         }
       ],
       order: [
@@ -80,6 +96,12 @@ export const getEmployeeById = async (req, res) => {
           as: "user",
           attributes: ["id", "username", "firstName", "lastName", "role", "isActive", "lastLogin"],
           required: false // LEFT JOIN - include employees without users
+        },
+        {
+          model: Department,
+          as: "department",
+          attributes: ["id", "name", "code"],
+          required: false
         },
         {
           model: EmployeeUsage,
@@ -131,13 +153,27 @@ export const getEmployeeById = async (req, res) => {
 // Create new employee
 export const createEmployee = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, userId, employeeNumber, department, position, baseSalary, discountPercentage = 0, hireDate, emergencyContact, bankDetails, notes } = req.body;
+    const { firstName, lastName, email, phone, userId, employeeNumber, department, departmentId, position, baseSalary, discountPercentage = 0, hireDate, emergencyContact, bankDetails, notes } = req.body;
+
+    // Resolve department to departmentId (accept id, object, or name)
+    let resolvedDepartment = null;
+    if (departmentId) {
+      resolvedDepartment = await Department.findOne({ where: { id: departmentId, isActive: true } });
+    } else if (department && typeof department === "object") {
+      if (department.id) {
+        resolvedDepartment = await Department.findOne({ where: { id: department.id, isActive: true } });
+      } else if (department.name) {
+        resolvedDepartment = await Department.findOne({ where: { name: { [Op.iLike]: department.name }, isActive: true } });
+      }
+    } else if (department && typeof department === "string") {
+      resolvedDepartment = await Department.findOne({ where: { name: { [Op.iLike]: department }, isActive: true } });
+    }
 
     // Validate required fields
-    if (!firstName || !lastName || !department || !position || !baseSalary || !hireDate) {
+    if (!firstName || !lastName || !position || !baseSalary || !hireDate || !resolvedDepartment) {
       return res.status(400).json({
         success: false,
-        message: "Missing required fields: firstName, lastName, department, position, baseSalary, hireDate"
+        message: "Missing required fields: firstName, lastName, department (valid), position, baseSalary, hireDate"
       });
     }
 
@@ -174,8 +210,10 @@ export const createEmployee = async (req, res) => {
     // Generate employee number if not provided
     let finalEmployeeNumber = employeeNumber;
     if (!finalEmployeeNumber) {
-      // Generate employee number based on department and timestamp
-      const departmentCode = department.substring(0, 3).toUpperCase();
+      // Generate employee number based on department code/name and timestamp
+      const deptCodeFromResolved = resolvedDepartment?.code || resolvedDepartment?.name?.substring(0, 3)?.toUpperCase();
+      const deptCodeFromInput = typeof department === "string" ? department.substring(0, 3).toUpperCase() : null;
+      const departmentCode = deptCodeFromResolved || deptCodeFromInput || "EMP";
       const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
       finalEmployeeNumber = `${departmentCode}${timestamp}`;
 
@@ -205,7 +243,7 @@ export const createEmployee = async (req, res) => {
       phone: phone || null,
       userId: userId || null,
       employeeNumber: finalEmployeeNumber,
-      department,
+      departmentId: resolvedDepartment.id,
       position,
       baseSalary: parseFloat(baseSalary),
       discountPercentage: parseFloat(discountPercentage),
@@ -224,6 +262,12 @@ export const createEmployee = async (req, res) => {
           as: "user",
           attributes: ["id", "username", "firstName", "lastName", "role"],
           required: false // LEFT JOIN - include employees without users
+        },
+        {
+          model: Department,
+          as: "department",
+          attributes: ["id", "name", "code"],
+          required: false
         }
       ]
     });
@@ -250,7 +294,7 @@ export const createEmployee = async (req, res) => {
 export const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const { firstName, lastName, email, phone, userId, employeeNumber, department, position, baseSalary, discountPercentage, hireDate, terminationDate, isActive, emergencyContact, bankDetails, notes } = req.body;
+    const { firstName, lastName, email, phone, userId, employeeNumber, department, departmentId, position, baseSalary, discountPercentage, hireDate, terminationDate, isActive, emergencyContact, bankDetails, notes } = req.body;
 
     const employee = await Employee.findByPk(id);
     if (!employee) {
@@ -328,7 +372,29 @@ export const updateEmployee = async (req, res) => {
     if (phone !== undefined) updateData.phone = phone || null;
     if (userId !== undefined) updateData.userId = userId || null;
     if (employeeNumber !== undefined) updateData.employeeNumber = employeeNumber;
-    if (department !== undefined) updateData.department = department;
+    // Resolve department update if provided via id/object/name
+    if (departmentId !== undefined || department !== undefined) {
+      let resolvedDepartment = null;
+      if (departmentId) {
+        resolvedDepartment = await Department.findOne({ where: { id: departmentId, isActive: true } });
+      } else if (department && typeof department === "object") {
+        if (department.id) {
+          resolvedDepartment = await Department.findOne({ where: { id: department.id, isActive: true } });
+        } else if (department.name) {
+          resolvedDepartment = await Department.findOne({ where: { name: { [Op.iLike]: department.name }, isActive: true } });
+        }
+      } else if (department && typeof department === "string") {
+        resolvedDepartment = await Department.findOne({ where: { name: { [Op.iLike]: department }, isActive: true } });
+      }
+
+      if (!resolvedDepartment) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid department provided"
+        });
+      }
+      updateData.departmentId = resolvedDepartment.id;
+    }
     if (position !== undefined) updateData.position = position;
     if (baseSalary !== undefined) updateData.baseSalary = parseFloat(baseSalary);
     if (discountPercentage !== undefined) updateData.discountPercentage = parseFloat(discountPercentage);
@@ -349,6 +415,12 @@ export const updateEmployee = async (req, res) => {
           as: "user",
           attributes: ["id", "username", "firstName", "lastName", "role"],
           required: false // LEFT JOIN - include employees without users
+        },
+        {
+          model: Department,
+          as: "department",
+          attributes: ["id", "name", "code"],
+          required: false
         }
       ]
     });
@@ -513,7 +585,10 @@ export const recordEmployeeUsage = async (req, res) => {
     // Validate employee exists and is active
     const employee = await Employee.findOne({
       where: { id: employeeId, isActive: true },
-      include: [{ model: User, as: "user" }]
+      include: [
+        { model: User, as: "user" },
+        { model: Department, as: "department", attributes: ["id", "name", "code"] }
+      ]
     });
 
     if (!employee) {
@@ -862,7 +937,7 @@ export const calculateEmployeeSettlement = async (req, res) => {
         id: employee.id,
         name: employee.user ? `${employee.user.firstName} ${employee.user.lastName}` : "Unknown",
         employeeNumber: employee.employeeNumber,
-        department: employee.department,
+        department: employee.department?.name || "Unassigned",
         discountPercentage: employee.discountPercentage
       },
       calculations: {

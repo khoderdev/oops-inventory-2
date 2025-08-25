@@ -8,14 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/use-toast";
 import { employeeAPI } from "@/api/employee.api";
+import { departmentAPI } from "@/api/department.api";
 import { deleteEmployeeAtom, employeesFiltersAtom, employeesLoadingAtom, employeeStatsAtom, fetchEmployeesAtom, fetchEmployeeStatsAtom } from "@/store/employeeAtoms";
-import type { Employee, EmployeeDepartment } from "@/types/employee";
+import type { Employee } from "@/types/employee";
 import { useAtom } from "jotai";
 import { Calendar, Edit, MoreHorizontal, Plus, Search, Trash2, TrendingUp } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { EmployeeForm } from "./EmployeeForm";
 import { EmployeeStatsCards } from "./EmployeeStatsCards";
+import { Department } from "@/types/department";
 
 interface EmployeeTableProps {
   employees: Employee[];
@@ -32,7 +34,19 @@ const departmentColors = {
   other: "bg-gray-100 text-gray-800"
 };
 
-const departments: EmployeeDepartment[] = ["kitchen", "service", "management", "cleaning", "security", "other"];
+// Helper functions to support both legacy string department values and new Department objects
+const getDeptKey = (dept: any): keyof typeof departmentColors => {
+  if (!dept) return "other";
+  const raw = typeof dept === "string" ? dept : dept.code || dept.name || "other";
+  const key = String(raw).toLowerCase();
+  return key in departmentColors ? (key as keyof typeof departmentColors) : "other";
+};
+
+const getDeptLabel = (dept: any): string => {
+  if (!dept) return "Other";
+  const label = typeof dept === "string" ? dept : dept.name || dept.code || "Other";
+  return String(label).charAt(0).toUpperCase() + String(label).slice(1);
+};
 
 export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit }) => {
   const navigate = useNavigate();
@@ -47,6 +61,9 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit 
   const [employeeFormOpen, setEmployeeFormOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
+
+  // Departments state
+  const [departments, setDepartments] = useState<Department[]>([]);
 
   // Delete confirmation dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -69,6 +86,19 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array to prevent infinite loops
 
+  // Load departments once
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        const res = await departmentAPI.getDepartments({ isActive: true, limit: 1000 });
+        setDepartments(res.data.departments || []);
+      } catch (err) {
+        console.error("Failed to load departments:", err);
+      }
+    };
+    loadDepartments();
+  }, []);
+
   const handleSearchChange = (value: string) => {
     const updatedFilters = { ...filters, search: value || undefined };
     setFilters(updatedFilters);
@@ -76,10 +106,11 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit 
     setTimeout(() => fetchEmployees(updatedFilters), 300);
   };
 
-  const handleDepartmentFilter = (department: string) => {
+  const handleDepartmentFilter = (deptIdStr: string) => {
+    const selected = deptIdStr === "all" ? undefined : departments.find(d => String(d.id) === deptIdStr);
     const updatedFilters = {
       ...filters,
-      department: department === "all" ? undefined : (department as EmployeeDepartment)
+      department: selected
     };
     setFilters(updatedFilters);
     fetchEmployees(updatedFilters);
@@ -221,15 +252,15 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit 
           <Input placeholder="Search employees..." value={filters.search || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-10" />
         </div>
 
-        <Select value={filters.department || "all"} onValueChange={handleDepartmentFilter}>
+        <Select value={filters.department ? String(filters.department.id) : "all"} onValueChange={handleDepartmentFilter}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Departments</SelectItem>
             {departments.map(dept => (
-              <SelectItem key={dept} value={dept}>
-                {dept.charAt(0).toUpperCase() + dept.slice(1)}
+              <SelectItem key={dept.id} value={String(dept.id)}>
+                {getDeptLabel(dept)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -321,8 +352,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit 
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className={departmentColors[employee.department]}>
-                      {employee.department}
+                    <Badge variant="secondary" className={departmentColors[getDeptKey(employee.department)]}>
+                      {getDeptLabel(employee.department)}
                     </Badge>
                   </TableCell>
                   <TableCell className="font-medium">{employee.position}</TableCell>

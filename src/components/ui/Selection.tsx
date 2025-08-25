@@ -66,7 +66,8 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
 
   const defaultItemRenderer = (props: ItemRendererProps<T>) => {
     const { item, onSelect } = props;
-    const displayValue = getDisplayValue(item);
+    const rawDisplay = getDisplayValue(item) as unknown;
+    const displayValue = typeof rawDisplay === "string" ? rawDisplay : String(rawDisplay);
     const itemId = getItemId(item);
 
     return (

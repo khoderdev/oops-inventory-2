@@ -56,6 +56,11 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "N/A";
   };
 
+  const getDeptLabel = (dept: Employee["department"] | string | null | undefined) => {
+    if (!dept) return "";
+    return typeof dept === "string" ? dept : dept.name || dept.code || "";
+  };
+
   if (compact) {
     return (
       <Select value={selectedEmployeeId?.toString() || "none"} onValueChange={handleEmployeeChange}>
@@ -138,7 +143,7 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
                         {employee.user?.firstName} {employee.user?.lastName}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        #{employee.employeeNumber} • {employee.department}
+                        #{employee.employeeNumber} • {getDeptLabel(employee.department)}
                       </span>
                     </div>
                   </div>
@@ -172,7 +177,7 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
                       {employee.user?.firstName} {employee.user?.lastName}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      #{employee.employeeNumber} • {employee.department}
+                      #{employee.employeeNumber} • {getDeptLabel(employee.department)}
                     </span>
                   </div>
                 </div>

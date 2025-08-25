@@ -6,7 +6,10 @@ export const employeeAPI = {
   // Employee CRUD operations
   async getEmployees(filters?: EmployeeFilters): Promise<EmployeesResponse> {
     const params = new URLSearchParams();
-    if (filters?.department) params.append("department", filters.department);
+    if (filters?.department) {
+      // Send departmentId, backend prefers departmentId and falls back to department name
+      params.append("departmentId", String(filters.department.id));
+    }
     if (filters?.isActive !== undefined) params.append("isActive", filters.isActive.toString());
     if (filters?.search) params.append("search", filters.search);
     if (filters?.page) params.append("page", filters.page.toString());

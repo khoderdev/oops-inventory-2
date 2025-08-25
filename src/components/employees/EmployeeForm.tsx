@@ -1,4 +1,5 @@
 import { userAPI } from "@/api/auth";
+import { departmentAPI } from "@/api/department.api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,18 +7,17 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { createEmployeeAtom, employeeFormLoadingAtom, updateEmployeeAtom } from "@/store/employeeAtoms";
 import type { User } from "@/types/auth";
-import type { CreateEmployeeData, Employee, EmployeeDepartment, UpdateEmployeeData } from "@/types/employee";
+import type { Department } from "@/types/department";
+import type { CreateEmployeeData, Employee, UpdateEmployeeData } from "@/types/employee";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
-import { DollarSign, User as UserIcon } from "lucide-react";
+import { User as UserIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-
-const departments: EmployeeDepartment[] = ["kitchen", "service", "management", "cleaning", "security", "other"];
+import { Selection } from "../ui/Selection";
 
 const employeeSchema = z.object({
   userId: z.number().optional(),
@@ -25,15 +25,21 @@ const employeeSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().optional(),
   phone: z.string().optional(),
-  department: z.enum(["kitchen", "service", "management", "cleaning", "security", "other"]),
+  department: z
+    .object({
+      id: z.number().positive(),
+      name: z.string().min(1)
+    })
+    .passthrough(),
   position: z.string().min(1, "Position is required"),
-  baseSalary: z.number().min(0, "Salary must be positive"),
-  discountPercentage: z.number().min(0).max(100).optional(),
+  baseSalary: z.coerce.number().min(0, "Salary must be positive"),
+  discountPercentage: z.coerce.number().min(0).max(100).optional(),
   hireDate: z.string().min(1, "Hire date is required"),
   isActive: z.boolean().optional()
 });
 
-type EmployeeFormData = z.infer<typeof employeeSchema>;
+type EmployeeFormSchema = z.infer<typeof employeeSchema>;
+type EmployeeFormData = Omit<EmployeeFormSchema, "department"> & { department: Department };
 
 interface EmployeeFormProps {
   open: boolean;
@@ -48,6 +54,9 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
   const [loading] = useAtom(employeeFormLoadingAtom);
   const [, createEmployee] = useAtom(createEmployeeAtom);
   const [, updateEmployee] = useAtom(updateEmployeeAtom);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [deptSearch, setDeptSearch] = useState("");
+  const [loadingDepts, setLoadingDepts] = useState(false);
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(employeeSchema),
@@ -57,7 +66,8 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
       lastName: "",
       email: "",
       phone: "",
-      department: "service",
+      // Placeholder; will be set after departments load
+      department: { id: -1, name: "" } as unknown as Department,
       position: "",
       baseSalary: 0,
       discountPercentage: 0,
@@ -83,6 +93,57 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
     }
   }, [open, users.length]);
 
+  // Load departments when dialog opens
+  useEffect(() => {
+    const loadDepartments = async () => {
+      try {
+        setLoadingDepts(true);
+        const res = await departmentAPI.getDepartments({ isActive: true, limit: 1000 });
+        const list = res.data.departments || [];
+        setDepartments(list);
+      } catch (error) {
+        console.error("Error loading departments:", error);
+      } finally {
+        setLoadingDepts(false);
+      }
+    };
+    if (open) {
+      loadDepartments();
+      // Initialize search display from current dept if present
+      const currentDept = form.getValues("department") as unknown as Department | undefined;
+      if (currentDept && typeof currentDept === "object" && currentDept.name) {
+        setDeptSearch(currentDept.name);
+      }
+    }
+  }, [open]);
+
+  // Once departments are loaded, choose an initial department if needed
+  useEffect(() => {
+    if (!open || departments.length === 0) return;
+    const current = form.getValues("department") as any;
+    const isInvalid = !current || typeof current !== "object" || !current.id || current.id <= 0;
+
+    let initial: Department | undefined;
+    if (mode === "edit" && employee) {
+      const empDept = (employee as any).department;
+      if (empDept && typeof empDept === "object" && empDept.id) {
+        initial = departments.find(d => d.id === empDept.id) || empDept;
+      } else if (typeof empDept === "string") {
+        const name = empDept.toLowerCase();
+        initial = departments.find(d => d.name.toLowerCase() === name || (d.code || "").toLowerCase() === name);
+      }
+    }
+
+    if (!initial) {
+      initial = departments.find(d => d.name.toLowerCase() === "service" || (d.code || "").toLowerCase() === "service") || departments[0];
+    }
+
+    if (isInvalid && initial) {
+      form.setValue("department" as any, initial as any, { shouldValidate: true });
+      setDeptSearch(initial.name);
+    }
+  }, [departments, open, mode, employee]);
+
   useEffect(() => {
     if (!open) return;
     if (employee && mode === "edit") {
@@ -92,13 +153,16 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         lastName: employee.lastName || "",
         email: employee.email || "",
         phone: employee.phone || "",
-        department: employee.department,
+        department: (typeof (employee as any).department === "object" && (employee as any).department ? ((employee as any).department as any) : ({ id: -1, name: String((employee as any).department ?? "") } as any)) as any,
         position: employee.position,
-        baseSalary: employee.baseSalary,
-        discountPercentage: employee.discountPercentage,
+        baseSalary: Number((employee as any).baseSalary),
+        discountPercentage: Number((employee as any).discountPercentage ?? 0),
         hireDate: employee.hireDate.split("T")[0],
         isActive: employee.isActive
       });
+      // Reflect current department into selection search term
+      const deptDisplay = typeof (employee as any).department === "string" ? ((employee as any).department as string) : ((employee as any).department?.name as string) || "";
+      setDeptSearch(deptDisplay || "");
     } else if (mode === "create") {
       form.reset({
         userId: undefined,
@@ -106,13 +170,14 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
         lastName: "",
         email: "",
         phone: "",
-        department: "service",
+        department: { id: -1, name: "" } as any,
         position: "",
         baseSalary: 0,
         discountPercentage: 0,
         hireDate: new Date().toISOString().split("T")[0],
         isActive: true
       });
+      setDeptSearch("");
     }
   }, [open, employee, mode, form]);
 
@@ -241,22 +306,29 @@ export const EmployeeForm: React.FC<EmployeeFormProps> = ({ open, onClose, emplo
                     control={form.control}
                     name="department"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Department</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="h-11">
-                              <SelectValue placeholder="Select department" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {departments.map(dept => (
-                              <SelectItem key={dept} value={dept}>
-                                {dept.charAt(0).toUpperCase() + dept.slice(1)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <FormItem className="col-span-1">
+                        {/* We use Selection's built-in label */}
+                        <Selection<Department>
+                          label="Department"
+                          searchTerm={deptSearch}
+                          onSearchChange={(val: string) => {
+                            setDeptSearch(val);
+                          }}
+                          isLoading={loadingDepts}
+                          items={deptSearch ? departments.filter(d => d.name.toLowerCase().includes(deptSearch.toLowerCase()) || (d.code || "").toLowerCase().includes(deptSearch.toLowerCase())) : departments}
+                          getDisplayValue={(item: Department) => item.name}
+                          getItemId={(item: Department) => String(item.id)}
+                          onItemSelect={(_id: string, display: string) => {
+                            setDeptSearch(display);
+                            const selected = departments.find(d => String(d.id) === _id);
+                            if (selected) {
+                              field.onChange(selected as Department);
+                            }
+                          }}
+                          placeholder="Search departments..."
+                          noResultsText="No departments matching {searchTerm}"
+                          width="full"
+                        />
                         <FormMessage />
                       </FormItem>
                     )}

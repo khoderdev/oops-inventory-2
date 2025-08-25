@@ -239,7 +239,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                                   </span>
                                   <span className="text-sm text-gray-500">({employee.employeeNumber})</span>
                                   <Badge variant="outline" className="text-xs">
-                                    {employee.department}
+                                    {employee.department?.name}
                                   </Badge>
                                 </div>
                               </SelectItem>
@@ -259,7 +259,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                             {selectedEmployee.user?.firstName} {selectedEmployee.user?.lastName}
                           </p>
                           <p className="text-sm text-blue-700">
-                            {selectedEmployee.position} • {selectedEmployee.department}
+                            {selectedEmployee.position} • {selectedEmployee.department?.name}
                           </p>
                         </div>
                         <div className="text-right">
@@ -430,7 +430,7 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                         <div>
                           <p className="font-medium text-gray-900">{settlementPreview.employee.name}</p>
                           <p className="text-sm text-gray-600">
-                            {settlementPreview.employee.employeeNumber} • {settlementPreview.employee.department}
+                            {settlementPreview.employee.employeeNumber} • {settlementPreview.employee.department?.name}
                           </p>
                         </div>
                         <div className="text-right">

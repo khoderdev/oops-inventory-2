@@ -67,11 +67,6 @@ export const DepartmentTable: React.FC<DepartmentTableProps> = ({ data, total, p
         }
       },
       {
-        accessorKey: "costCenter",
-        header: "Cost Center",
-        cell: ({ row }) => row.original.costCenter ?? <span className="text-muted-foreground">-</span>
-      },
-      {
         accessorKey: "employeeCount",
         header: "Employees",
         cell: ({ row }) => <span className="font-medium">{row.original.employeeCount ?? 0}</span>
@@ -192,60 +187,56 @@ export const DepartmentTable: React.FC<DepartmentTableProps> = ({ data, total, p
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map(hg => (
-                  <TableRow key={hg.id}>
-                    {hg.headers.map(h => (
-                      <TableHead key={h.id} className="font-medium">
-                        {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
+      <div className="rounded-md border mx-4 bg-white">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map(hg => (
+              <TableRow key={hg.id}>
+                {hg.headers.map(h => (
+                  <TableHead key={h.id} className="font-bold text-gray-700">
+                    {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
+                  </TableHead>
                 ))}
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      Loading...
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map(row => (
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="hover:bg-gray-50">
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id} className="py-3">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
-                  </TableRow>
-                ) : table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map(row => (
-                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="hover:bg-gray-50">
-                      {row.getVisibleCells().map(cell => (
-                        <TableCell key={cell.id} className="py-3">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      No departments found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No departments found
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          Page {page} of {pageCount}
-        </div>
         <Pagination>
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious onClick={() => onPageChange?.(Math.max(1, page - 1))} />
             </PaginationItem>
+            <div className="text-sm text-muted-foreground">
+              Page {page} of {pageCount}
+            </div>
             <PaginationItem>
               <PaginationNext onClick={() => onPageChange?.(Math.min(pageCount, page + 1))} />
             </PaginationItem>
