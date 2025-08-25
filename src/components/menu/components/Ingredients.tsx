@@ -303,6 +303,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
           onItemSelect={handleMaterialSelect}
           getDisplayValue={item => item.name}
           getItemId={item => String(item.id)}
+          estimateItemSizePx={56}
           placeholder={availableMaterials.length === 0 ? "All materials used" : "Search materials..."}
           noResultsText={`No materials found matching "{searchTerm}"`}
           inputRef={materialSelectRef}

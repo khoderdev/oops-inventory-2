@@ -3,7 +3,7 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { Input } from "./input";
 import { ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer, elementScroll } from "@tanstack/react-virtual";
 
 export interface SelectableItem {
   id: string | number;
@@ -40,9 +40,11 @@ export interface SelectionProps<T extends SelectableItem> {
   getItemId: (item: T) => string;
   className?: string;
   width?: SelectionWidth;
+  maxDropdownHeightPx?: number; // Optional, defaults to 384 (tailwind max-h-96)
+  estimateItemSizePx?: number; // Optional, defaults to 44
 }
 
-export function Selection<T extends SelectableItem>({ label, id, errors = {}, errorField = "id", searchTerm, onSearchChange, onInputFocus, onInputBlur, onKeyDown, isLoading = false, showDropdown: externalShowDropdown, items, onItemSelect, inputRef: externalInputRef, loadingText = "Loading...", placeholder = "Select...", noResultsText = "No results found", itemRenderer, getDisplayValue, getItemId, className = "", width = "md" }: SelectionProps<T>) {
+export function Selection<T extends SelectableItem>({ label, id, errors = {}, errorField = "id", searchTerm, onSearchChange, onInputFocus, onInputBlur, onKeyDown, isLoading = false, showDropdown: externalShowDropdown, items, onItemSelect, inputRef: externalInputRef, loadingText = "Loading...", placeholder = "Select...", noResultsText = "No results found", itemRenderer, getDisplayValue, getItemId, className = "", width = "md", maxDropdownHeightPx = 384, estimateItemSizePx = 44 }: SelectionProps<T>) {
   const inputId = id || `selection-${Math.random().toString(36).substring(2, 9)}`;
   const errorId = `${inputId}-error`;
   const errorMessage = errorField && errors[errorField];
@@ -51,6 +53,8 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
   const internalInputRef = React.useRef<HTMLInputElement>(null);
   const inputRef = externalInputRef || internalInputRef;
   const parentRef = React.useRef<HTMLDivElement>(null);
+  const [highlightedIndex, setHighlightedIndex] = React.useState<number>(-1);
+  const listboxId = `${inputId}-listbox`;
 
   const selectedItem = React.useMemo(() => {
     if (!searchTerm) return null;
@@ -63,8 +67,8 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
     const itemId = getItemId(item);
 
     return (
-      <button key={itemId} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(String(itemId), displayValue)} onMouseDown={e => e.preventDefault()}>
-        <div className="font-medium">{displayValue}</div>
+      <button key={itemId} type="button" className="w-full px-3 py-1 text-left focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(String(itemId), displayValue)} onMouseDown={e => e.preventDefault()}>
+        <div className="block -mx-3 px-3 font-medium leading-snug group-hover:bg-muted group-aria-selected:bg-muted">{displayValue}</div>
       </button>
     );
   };
@@ -114,9 +118,101 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
   const rowVirtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 44, // estimated row height in px
-    overscan: 6
+    estimateSize: () => estimateItemSizePx, // estimated row height in px
+    overscan: 8,
+    scrollToFn: elementScroll
   });
+
+  // Keep highlighted index valid and visible
+  React.useEffect(() => {
+    if (!showDropdown || items.length === 0) {
+      setHighlightedIndex(-1);
+      return;
+    }
+    if (highlightedIndex < 0 || highlightedIndex >= items.length) {
+      setHighlightedIndex(0);
+    }
+  }, [showDropdown, items.length]);
+
+  React.useEffect(() => {
+    if (showDropdown && highlightedIndex >= 0) {
+      rowVirtualizer.scrollToIndex(highlightedIndex, { align: "auto" });
+    }
+  }, [showDropdown, highlightedIndex, rowVirtualizer]);
+
+  const selectAndClose = React.useCallback(
+    (id: string, displayValue: string) => {
+      onItemSelect(id, displayValue);
+      if (externalShowDropdown === undefined) {
+        setInternalShowDropdown(false);
+      }
+    },
+    [onItemSelect, externalShowDropdown]
+  );
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Pass through to consumer first
+    onKeyDown?.(e);
+    if (e.defaultPrevented) return;
+
+    const maxIndex = items.length - 1;
+    switch (e.key) {
+      case "ArrowDown": {
+        e.preventDefault();
+        if (!showDropdown && externalShowDropdown === undefined) setInternalShowDropdown(true);
+        setHighlightedIndex(prev => {
+          const next = Math.min(prev < 0 ? 0 : prev + 1, maxIndex);
+          return next;
+        });
+        break;
+      }
+      case "ArrowUp": {
+        e.preventDefault();
+        setHighlightedIndex(prev => {
+          const next = Math.max(prev <= 0 ? 0 : prev - 1, 0);
+          return next;
+        });
+        break;
+      }
+      case "PageDown": {
+        e.preventDefault();
+        const page = Math.max(1, Math.floor((maxDropdownHeightPx / estimateItemSizePx) - 1));
+        setHighlightedIndex(prev => Math.min((prev < 0 ? 0 : prev) + page, maxIndex));
+        break;
+      }
+      case "PageUp": {
+        e.preventDefault();
+        const page = Math.max(1, Math.floor((maxDropdownHeightPx / estimateItemSizePx) - 1));
+        setHighlightedIndex(prev => Math.max((prev < 0 ? 0 : prev) - page, 0));
+        break;
+      }
+      case "Home": {
+        e.preventDefault();
+        setHighlightedIndex(0);
+        break;
+      }
+      case "End": {
+        e.preventDefault();
+        setHighlightedIndex(maxIndex);
+        break;
+      }
+      case "Enter": {
+        if (showDropdown && highlightedIndex >= 0 && highlightedIndex < items.length) {
+          e.preventDefault();
+          const item = items[highlightedIndex];
+          selectAndClose(String(getItemId(item)), getDisplayValue(item));
+        }
+        break;
+      }
+      case "Escape": {
+        if (showDropdown && externalShowDropdown === undefined) {
+          e.preventDefault();
+          setInternalShowDropdown(false);
+        }
+        break;
+      }
+    }
+  };
 
   return (
     <div className={`select-input-container relative mb-4 ${widthClass} ${className}`}>
@@ -128,7 +224,13 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
         </div>
       </label>
 
-      <div className={cn("flex items-center relative border rounded-md overflow-hidden", errorMessage ? "border-red-500" : "border-input", isLoading ? "opacity-70" : "")}>
+      <div
+        className={cn("flex items-center relative border rounded-md overflow-hidden", errorMessage ? "border-red-500" : "border-input", isLoading ? "opacity-70" : "")}
+        role="combobox"
+        aria-haspopup="listbox"
+        aria-owns={listboxId}
+        aria-expanded={showDropdown}
+      >
         <div className="flex-grow relative">
           <Input
             id={inputId}
@@ -137,7 +239,7 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
             onChange={e => onSearchChange(e.target.value)}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
-            onKeyDown={onKeyDown}
+            onKeyDown={handleInputKeyDown}
             placeholder={isLoading ? loadingText : placeholder}
             className={cn("border-0 focus-visible:ring-0 focus-visible:ring-offset-0", selectedItem ? "text-foreground" : "text-muted-foreground")}
             disabled={isLoading}
@@ -145,6 +247,7 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
             aria-describedby={errorMessage ? errorId : undefined}
             ref={inputRef}
             autoComplete="off"
+            aria-controls={listboxId}
           />
         </div>
 
@@ -166,20 +269,30 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
       </div>
 
       {showDropdown && items.length > 0 && (
-        <div ref={parentRef} className="absolute z-50 w-full bg-white border border-input rounded-none shadow-lg max-h-96 overflow-y-auto ">
+        <div
+          ref={parentRef}
+          className="absolute z-50 w-full bg-white border border-input rounded-none shadow-lg overflow-y-auto"
+          role="listbox"
+          id={listboxId}
+          style={{ maxHeight: maxDropdownHeightPx }}
+        >
           <div style={{ height: rowVirtualizer.getTotalSize(), width: "100%", position: "relative" }}>
             {rowVirtualizer.getVirtualItems().map(virtualRow => {
               const item = items[virtualRow.index];
               const key = getItemId(item);
+              const isActive = highlightedIndex === virtualRow.index;
               return (
                 <div
                   key={key}
                   ref={rowVirtualizer.measureElement}
-                  className="absolute top-0 left-0 right-0"
+                  className={cn("absolute top-0 left-0 right-0 group")}
                   style={{ transform: `translateY(${virtualRow.start}px)`, height: virtualRow.size }}
                   data-index={virtualRow.index}
+                  role="option"
+                  aria-selected={isActive}
+                  onMouseEnter={() => setHighlightedIndex(virtualRow.index)}
                 >
-                  {itemRenderer ? itemRenderer({ item, onSelect: onItemSelect }) : defaultItemRenderer({ item, onSelect: onItemSelect })}
+                  {itemRenderer ? itemRenderer({ item, onSelect: selectAndClose }) : defaultItemRenderer({ item, onSelect: selectAndClose })}
                 </div>
               );
             })}
@@ -223,10 +336,10 @@ export const StockEntryItemRenderer = <
   const showDetails = quantity !== undefined && unit && cost !== undefined;
 
   return (
-    <button key={String(item.id)} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(String(item.id), name)} onMouseDown={e => e.preventDefault()}>
-      <div className="font-medium">{name}</div>
+    <button key={String(item.id)} type="button" className="w-full px-3 py-1 text-left focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(String(item.id), name)} onMouseDown={e => e.preventDefault()}>
+      <div className="block -mx-3 px-3 font-medium leading-snug group-hover:bg-muted group-aria-selected:bg-muted">{name}</div>
       {showDetails && (
-        <div className="text-sm text-muted-foreground">
+        <div className="text-xs text-muted-foreground leading-snug">
           {formatNumber(quantity!)} {unit} | {formatCurrency(cost!)} per {unit}
         </div>
       )}
