@@ -22,6 +22,7 @@ import { PermissionsTest } from "./PermissionsTest";
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
+const DepartmentManagementPage = lazy(() => import("./components/department/DepartmentManagement"));
 const UserManagementPage = lazy(() => import("./components/admin/UserManagementPage"));
 const ReportGenerator = lazy(() => import("./components/analytics/ReportGenerator").then(m => ({ default: m.ReportGenerator })));
 const LoginPage = lazy(() => import("./components/auth/LoginPage"));
@@ -37,7 +38,7 @@ const PlaceholderPage = lazy(() => import("./components/common/PlaceholderPage")
 const queryClient = new QueryClient();
 
 export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps = {}) {
-  const { materialsWithStock, stockEntries, sections, menuItems, handleCreateMenuItem: storeCreateMenuItem, handleUpdateMenuItem: storeUpdateMenuItem, handleDeleteMenuItem: storeDeleteMenuItem } = useInventoryStore();
+  const { handleCreateMenuItem: storeCreateMenuItem, handleUpdateMenuItem: storeUpdateMenuItem, handleDeleteMenuItem: storeDeleteMenuItem } = useInventoryStore();
   const [employees] = useAtom(employeesAtom);
   const [, setFormOpen] = useAtom(employeeFormOpenAtom);
   const [, setFormMode] = useAtom(employeeFormModeAtom);
@@ -232,6 +233,17 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                       <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
                         <AuthenticatedLayout>
                           <ReportGenerator className="w-full" />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/departments"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.DEPARTMENT_READ}>
+                        <AuthenticatedLayout pageTitle="Departments">
+                          <DepartmentManagementPage />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
                     }

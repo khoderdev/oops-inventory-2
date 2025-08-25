@@ -1,3 +1,5 @@
+import z from "zod";
+
 export interface Department {
   id: number;
   name: string;
@@ -105,4 +107,47 @@ export interface UpdateDepartmentData {
   managerId?: number | null;
   costCenter?: string | null;
   isActive?: boolean;
+}
+
+export interface DepartmentTableProps {
+  data: Department[];
+  total: number;
+  page: number;
+  limit: number;
+  loading?: boolean;
+  search?: string;
+  isActive?: boolean;
+  onEdit: (dept: Department) => void;
+  onDelete: (dept: Department) => void;
+  onBulkDelete?: (ids: number[]) => void;
+  onFiltersChange?: (filters: Partial<DepartmentFilters>) => void;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (limit: number) => void;
+}
+
+export const createSchema = z.object({
+  name: z.string().min(2, "Name is too short"),
+  code: z
+    .string()
+    .min(2, "Code is too short")
+    .max(10, "Code is too long")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, '_' and '-' allowed"),
+  description: z.string().optional(),
+  managerId: z.number().int().positive().optional(),
+  costCenter: z.string().optional()
+});
+
+export const updateSchema = createSchema.extend({
+  isActive: z.boolean().optional()
+});
+
+export type DepartmentCreateValues = z.infer<typeof createSchema>;
+export type DepartmentUpdateValues = z.infer<typeof updateSchema>;
+
+export interface DepartmentFormProps {
+  mode: "create" | "edit";
+  initialData?: Department | null;
+  onSubmit: (values: CreateDepartmentData | UpdateDepartmentData) => Promise<void> | void;
+  onCancel?: () => void;
+  submitting?: boolean;
 }
