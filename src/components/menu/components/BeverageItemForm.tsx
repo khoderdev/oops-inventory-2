@@ -289,7 +289,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
             errorField="beverageId"
             searchTerm={beverageSearchTerm}
             onSearchChange={handleBeverageSearchChange}
-            onKeyDown={handleKeyDown}
             isLoading={isBeverageLoading}
             items={filteredBeverageStock}
             onItemSelect={handleBeverageSelect}

@@ -98,9 +98,8 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
   };
 
   const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    // Never close on blur to avoid issues with scrollbar interactions.
-    // We close via outside pointerdown, Escape, selection, or chevron.
-    if (pointerDownInDropdown.current || isHoveringDropdown.current) {
+    // Do not close on blur; only restore focus if blur was caused by interacting inside the dropdown (e.g., scrollbar)
+    if (pointerDownInDropdown.current) {
       requestAnimationFrame(() => inputRef?.current?.focus());
     }
     onInputBlur?.(e);
@@ -235,11 +234,7 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
   return (
     <div ref={containerRef} className={`select-input-container relative mb-4 ${widthClass} ${className}`}>
       <label htmlFor={inputId} className="block text-sm font-medium mb-1">
-        <div>
-          <label htmlFor="quantity" className="block text-sm font-medium mb-1">
-            {label} {errorMessage && <span className="text-red-500 ml-1 !mb-6">*</span>}
-          </label>
-        </div>
+        {label} {errorMessage && <span className="text-red-500 ml-1 !mb-6">*</span>}
       </label>
 
       <div
