@@ -388,7 +388,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     
     // If material is not found in current state, fetch fresh materials data
     if (!material) {
-      console.log('🔍 Material not found in current state, fetching fresh data...');
       try {
         const freshMaterials = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
         setMaterials(freshMaterials);
@@ -403,7 +402,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     }
     
     if (material) {
-      console.log('✅ Setting selected material for editing:', material.name);
       setSelectedMaterial(material);
     } else {
       console.warn('⚠️ Could not find material with ID:', stockEntry.materialId);

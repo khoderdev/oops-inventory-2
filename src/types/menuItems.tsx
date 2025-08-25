@@ -3,6 +3,37 @@ import { Category } from "./categories";
 import { CreateMenuItemData, Material, MenuItem, MenuItemIngredient,  StockEntry } from "./inventory";
 import { Table } from "@tanstack/react-table";
 
+export interface MenuItemsContextState {
+  // Menu items data
+  foodMenuItems: MenuItem[];
+  beverageMenuItems: MenuItem[];
+  menuItemsLoading: boolean;
+  menuItemsError: string | null;
+
+  // Categories data
+  menuItemCategories: Category[];
+  beverageCategories: Category[];
+  categoriesLoading: boolean;
+  categoriesError: string | null;
+  
+  // Materials data
+  materialsWithStock: Material[];
+  materialsLoading: boolean;
+  materialsError: string | null;
+
+  // Active tab
+  activeTab: string;
+
+  // Actions
+  fetchMenuItems: () => Promise<void>;
+  fetchCategories: () => Promise<void>;
+  fetchMaterials: () => Promise<void>;
+  handleTabChange: (value: string) => void;
+  handleCreateMenuItem: (menuItem: any, imageFile?: File) => Promise<void>;
+  handleUpdateMenuItem: (id: string, menuItem: Partial<MenuItem>) => Promise<void>;
+  handleDeleteMenuItem: (id: string, isBeverage?: boolean) => Promise<void>;
+}
+
 export interface MenuBuilderLayoutProps {
   searchTerm: string;
   setSearchTerm: (value: string) => void;

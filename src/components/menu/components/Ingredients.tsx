@@ -1,4 +1,4 @@
-import {  MenuItemIngredient } from "@/types/inventory";
+import { MenuItemIngredient } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
@@ -9,7 +9,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Selection } from "../../ui/Selection";
-import { IngredientsProps,  } from "@/types/menuItems";
+import { IngredientsProps } from "@/types/menuItems";
 import { IngredientsTable } from "./IngredientsTable";
 
 export function Ingredients({ ingredients = [], stockEntries = [], menuItem, category = "", price = "0", onIngredientsChange, errors = {}, onErrorsChange }: IngredientsProps) {
@@ -46,72 +46,89 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
     return availableMaterials.filter(material => material.name.toLowerCase().includes(materialSearchTerm.toLowerCase()));
   }, [availableMaterials, materialSearchTerm]);
 
-  console.log(filteredMaterials);
-
   const calculateIngredientCost = useCallback(
     (ingredient: Omit<MenuItemIngredient, "cost">) => {
-      const material = (materials || []).find(m => String(m.id) === String(ingredient.materialId));
-      if (!material) {
-        console.warn(`Material not found for ID: ${ingredient.materialId}`);
-        return 0;
-      }
-      const allStockEntries = (stockEntries || []).filter(entry => String(entry.materialId) === String(ingredient.materialId));
-      if (allStockEntries.length === 0) {
-        console.warn(`No stock entries found for material ${material.name}`);
-        return 0;
-      }
-      let costPerUnit = 0;
-      let totalWeightedCost = 0;
-      let totalQuantity = 0;
-      for (const entry of allStockEntries) {
-        let quantity = entry.purchasedIndividualQuantity || 0;
-        if (quantity <= 0 && entry.purchasedQuantity) {
-          try {
-            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-            quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
-          } catch (error) {
-            console.error(`Error converting units for ${material.name}:`, error);
-            continue;
-          }
-        }
-        if (quantity <= 0) {
-          console.warn(`Invalid quantity for stock entry:`, entry);
-          continue;
-        }
-        let unitCost = 0;
-        if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
-          unitCost = entry.costPerBaseUnit;
-        } else if (entry.totalCost && entry.totalCost > 0) {
-          unitCost = parseFloat(String(entry.totalCost)) / quantity;
-        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          try {
-            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-            unitCost = parseFloat(String(entry.costPerPurchasedUnit)) / conversionFactor;
-          } catch (error) {
-            console.error(`Error converting cost units for ${material.name}:`, error);
-            continue;
-          }
-        }
-        if (unitCost > 0) {
-          totalWeightedCost += unitCost * quantity;
-          totalQuantity += quantity;
-        } else {
-          console.warn(`Could not determine unit cost for stock entry:`, entry);
-        }
-      }
-      if (totalQuantity > 0) {
-        costPerUnit = totalWeightedCost / totalQuantity;
-      } else {
-        console.warn(`No valid quantity data for material ${material.name}`);
-        return 0;
-      }
       try {
-        const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
-        const finalCost = ingredient.quantity * costPerUnit * conversionFactor;
-        return isNaN(finalCost) ? 0 : finalCost;
-      } catch (error) {
-        console.error(`Error calculating final cost for ${material.name}:`, error);
-        return 0;
+        const material = (materials || []).find(m => String(m.id) === String(ingredient.materialId));
+        if (!material) {
+          console.warn(`Material not found for ID: ${ingredient.materialId}`);
+          return 0;
+        }
+
+        const allStockEntries = (stockEntries || []).filter(entry => String(entry.materialId) === String(ingredient.materialId));
+        if (allStockEntries.length === 0) {
+          console.warn(`No stock entries found for material ${material.name}`);
+          return 0;
+        }
+
+        let costPerUnit = 0;
+        let totalWeightedCost = 0;
+        let totalQuantity = 0;
+        for (const [index, entry] of allStockEntries.entries()) {
+          let quantity = entry.purchasedIndividualQuantity || 0;
+          let quantitySource: string = "purchasedIndividualQuantity";
+          let quantityConversionFactor: number | undefined = undefined;
+          if (quantity <= 0 && entry.purchasedQuantity) {
+            try {
+              const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+              quantityConversionFactor = conversionFactor;
+              quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
+              quantitySource = "purchasedQuantity*conversionFactor";
+            } catch (error) {
+              console.error(`Error converting units for ${material.name}:`, error);
+              console.log("entry-quantity-debug", { index, entry, quantityBefore: entry.purchasedIndividualQuantity, purchasedQuantity: entry.purchasedQuantity, purchasedUnit: entry.purchasedUnit });
+              continue;
+            }
+          }
+          if (quantity <= 0) {
+            console.warn(`Invalid quantity for stock entry:`, entry);
+            continue;
+          }
+
+          let unitCost = 0;
+          let unitCostSource: string = "";
+          let costConversionFactor: number | undefined = undefined;
+          if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
+            unitCost = entry.costPerBaseUnit;
+            unitCostSource = "costPerBaseUnit";
+          } else if (entry.totalCost && entry.totalCost > 0) {
+            unitCost = parseFloat(String(entry.totalCost)) / quantity;
+            unitCostSource = "totalCost/quantity";
+          } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+            try {
+              const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+              costConversionFactor = conversionFactor;
+              unitCost = parseFloat(String(entry.costPerPurchasedUnit)) / conversionFactor;
+              unitCostSource = "costPerPurchasedUnit/conv";
+            } catch (error) {
+              console.error(`Error converting cost units for ${material.name}:`, error);
+              console.log("entry-cost-debug", { index, entry, costPerPurchasedUnit: entry.costPerPurchasedUnit, purchasedUnit: entry.purchasedUnit });
+              continue;
+            }
+          }
+          if (unitCost > 0) {
+            totalWeightedCost += unitCost * quantity;
+            totalQuantity += quantity;
+          } else {
+            console.warn(`Could not determine unit cost for stock entry:`, entry);
+          }
+        }
+        if (totalQuantity > 0) {
+          costPerUnit = totalWeightedCost / totalQuantity;
+        } else {
+          console.warn(`No valid quantity data for material ${material.name}`);
+          return 0;
+        }
+        try {
+          const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
+          const finalCost = ingredient.quantity * costPerUnit * conversionFactor;
+          return isNaN(finalCost) ? 0 : finalCost;
+        } catch (error) {
+          console.error(`Error calculating final cost for ${material.name}:`, error);
+          return 0;
+        }
+      } finally {
+        try { console.groupEnd(); } catch {}
       }
     },
     [materials, stockEntries]
@@ -132,7 +149,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
       for (const entry of allStockEntries) {
         let quantity = entry.purchasedIndividualQuantity || 0;
         if (quantity <= 0 && entry.purchasedQuantity) {
-          const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
+          const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
           quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
         }
         if (quantity <= 0) continue;
@@ -142,8 +159,8 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
         } else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
         } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          const conversionFactor = getConversionFactor(entry.purchasedUnit, material.baseUnit, material.unitType || "piece", material);
-          unitCost = parseFloat(String(entry.costPerPurchasedUnit)) * conversionFactor;
+          const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+          unitCost = parseFloat(String(entry.costPerPurchasedUnit)) / conversionFactor;
         }
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
@@ -272,18 +289,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
         </p>
       )}
 
-      <IngredientsTable
-        ingredients={ingredients}
-        materials={materials || []}
-        menuItem={menuItem}
-        calculateIngredientCost={calculateIngredientCost}
-        getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit}
-        formatNumber={formatNumber}
-        formatCurrency={formatCurrency}
-        handleRemoveIngredient={handleRemoveIngredient}
-        totalIngredientsCost={totalIngredientsCost}
-        price={price}
-      />
+      <IngredientsTable ingredients={ingredients} materials={materials || []} menuItem={menuItem} calculateIngredientCost={calculateIngredientCost} getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit} formatNumber={formatNumber} formatCurrency={formatCurrency} handleRemoveIngredient={handleRemoveIngredient} totalIngredientsCost={totalIngredientsCost} price={price} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
         <Selection
@@ -350,4 +356,3 @@ export function Ingredients({ ingredients = [], stockEntries = [], menuItem, cat
     </div>
   );
 }
-

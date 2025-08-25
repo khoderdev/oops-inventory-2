@@ -5,38 +5,7 @@ import { MenuItem, Material } from "@/types/inventory";
 import { getCategoriesByType } from "@/api/categories.api";
 import { Category } from "@/types/categories";
 import { materialsAPI } from "@/api/materials.api";
-
-// Define the context state interface
-interface MenuItemsContextState {
-  // Menu items data
-  foodMenuItems: MenuItem[];
-  beverageMenuItems: MenuItem[];
-  menuItemsLoading: boolean;
-  menuItemsError: string | null;
-
-  // Categories data
-  menuItemCategories: Category[];
-  beverageCategories: Category[];
-  categoriesLoading: boolean;
-  categoriesError: string | null;
-  
-  // Materials data
-  materialsWithStock: Material[];
-  materialsLoading: boolean;
-  materialsError: string | null;
-
-  // Active tab
-  activeTab: string;
-
-  // Actions
-  fetchMenuItems: () => Promise<void>;
-  fetchCategories: () => Promise<void>;
-  fetchMaterials: () => Promise<void>;
-  handleTabChange: (value: string) => void;
-  handleCreateMenuItem: (menuItem: any, imageFile?: File) => Promise<void>;
-  handleUpdateMenuItem: (id: string, menuItem: Partial<MenuItem>) => Promise<void>;
-  handleDeleteMenuItem: (id: string, isBeverage?: boolean) => Promise<void>;
-}
+import { MenuItemsContextState } from "@/types/menuItems";
 
 // Create the context with default values
 const MenuItemsContext = createContext<MenuItemsContextState | undefined>(undefined);
@@ -63,7 +32,7 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
   const [beverageCategories, setBeverageCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState<boolean>(false);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
-  
+
   // Materials state
   const [materialsWithStock, setMaterialsWithStock] = useState<Material[]>([]);
   const [materialsLoading, setMaterialsLoading] = useState<boolean>(false);
@@ -77,18 +46,15 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
     try {
       setMenuItemsLoading(true);
       setMenuItemsError(null);
-
-      console.log("🔄 MenuItemsContext: Fetching menu items...");
-
       // Always fetch food menu items
       const foodItems = await menuAPI.getFoodMenuItems(true);
-      console.log("📋 MenuItemsContext: Fetched food menu items:", foodItems.length);
+      console.log("🍔 MenuItemsContext: Fetched food menu items:", foodItems.length);
       setFoodMenuItems(foodItems);
 
       // Only fetch beverage items when the beverages tab is active
       if (activeTab === "beverages") {
         const beverageItems = await menuAPI.getBeverageMenuItems(true);
-        console.log("🥤 MenuItemsContext: Fetched beverage menu items:", beverageItems.length);
+        console.log("🍹 MenuItemsContext: Fetched beverage menu items:", beverageItems.length);
         setBeverageMenuItems(beverageItems);
       }
     } catch (error) {
@@ -163,7 +129,7 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
     try {
       setMaterialsLoading(true);
       setMaterialsError(null);
-      
+
       // Add cache-busting parameter to ensure fresh data
       const materials = await materialsAPI.getMaterials({ _t: Date.now() });
       setMaterialsWithStock(materials);

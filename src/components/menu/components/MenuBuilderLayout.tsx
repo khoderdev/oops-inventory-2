@@ -12,6 +12,7 @@ import { TanStackTable } from "@/components/ui/TanStackTable";
 import { MenuItem } from "@/types/inventory";
 import { MenuBuilderLayoutProps, mapToCategory } from "@/types/menuItems";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
+import { useInventoryStore } from "@/hooks/useInventoryStore";
 
 const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
   searchTerm,
@@ -46,6 +47,15 @@ const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
 }) => {
   // Get materials from context
   const { materialsWithStock } = useMenuItems();
+  // Get live stock entries from inventory store
+  const { stockEntries, fetchTabData } = useInventoryStore();
+
+  // Ensure fresh stock entries when the form opens
+  React.useEffect(() => {
+    if (showMenuItemForm) {
+      fetchTabData("stock");
+    }
+  }, [showMenuItemForm, fetchTabData]);
   
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
@@ -145,6 +155,7 @@ const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
                 <MenuItemForm 
                   menuItem={editingMenuItem} 
                   categories={mapToCategory(menuItemCategories)} 
+                  stockEntries={stockEntries}
                   onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} 
                   onCancel={handleCancel} 
                 />

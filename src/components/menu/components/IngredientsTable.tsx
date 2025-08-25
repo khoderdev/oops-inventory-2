@@ -172,7 +172,7 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
         </div>
 
         {/* Footer with totals - always render regardless of ingredients count */}
-        <div className="px-4 py-3 bg-muted/50 border-t">
+        <div className="px-4 py-1 bg-muted/50 border-t">
           <div className="flex justify-between items-center font-medium">
             <span>Total Ingredients Cost:</span>
             <span className="text-lg font-semibold">{formatCurrency(totalIngredientsCost || 0)}</span>
