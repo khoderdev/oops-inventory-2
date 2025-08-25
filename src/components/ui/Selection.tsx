@@ -3,6 +3,7 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { Input } from "./input";
 import { ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 export interface SelectableItem {
   id: string | number;
@@ -49,6 +50,7 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
   const showDropdown = externalShowDropdown !== undefined ? externalShowDropdown : internalShowDropdown;
   const internalInputRef = React.useRef<HTMLInputElement>(null);
   const inputRef = externalInputRef || internalInputRef;
+  const parentRef = React.useRef<HTMLDivElement>(null);
 
   const selectedItem = React.useMemo(() => {
     if (!searchTerm) return null;
@@ -108,6 +110,14 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
     }
   };
 
+  // Virtualizer for dropdown items
+  const rowVirtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 44, // estimated row height in px
+    overscan: 6
+  });
+
   return (
     <div className={`select-input-container relative mb-4 ${widthClass} ${className}`}>
       <label htmlFor={inputId} className="block text-sm font-medium mb-1">
@@ -156,10 +166,24 @@ export function Selection<T extends SelectableItem>({ label, id, errors = {}, er
       </div>
 
       {showDropdown && items.length > 0 && (
-        <div className="absolute z-50 w-full bg-white border border-input rounded-none shadow-lg max-h-60 overflow-y-auto ">
-          {items.map(item => (
-            <React.Fragment key={getItemId(item)}>{itemRenderer ? itemRenderer({ item, onSelect: onItemSelect }) : defaultItemRenderer({ item, onSelect: onItemSelect })}</React.Fragment>
-          ))}
+        <div ref={parentRef} className="absolute z-50 w-full bg-white border border-input rounded-none shadow-lg max-h-96 overflow-y-auto ">
+          <div style={{ height: rowVirtualizer.getTotalSize(), width: "100%", position: "relative" }}>
+            {rowVirtualizer.getVirtualItems().map(virtualRow => {
+              const item = items[virtualRow.index];
+              const key = getItemId(item);
+              return (
+                <div
+                  key={key}
+                  ref={rowVirtualizer.measureElement}
+                  className="absolute top-0 left-0 right-0"
+                  style={{ transform: `translateY(${virtualRow.start}px)`, height: virtualRow.size }}
+                  data-index={virtualRow.index}
+                >
+                  {itemRenderer ? itemRenderer({ item, onSelect: onItemSelect }) : defaultItemRenderer({ item, onSelect: onItemSelect })}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

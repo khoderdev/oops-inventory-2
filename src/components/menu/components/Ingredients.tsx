@@ -5,7 +5,6 @@ import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Plus } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Selection } from "../../ui/Selection";

@@ -284,11 +284,6 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                   <Input id="preparationTime" {...form.register("preparationTime")} placeholder="30" className="mt-1" />
                 </div>
               </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch id="isPOSItem" checked={form.watch("isPOSItem")} onCheckedChange={checked => form.setValue("isPOSItem", checked)} />
-                <Label htmlFor="isPOSItem">Available in POS</Label>
-              </div>
             </CardContent>
           </Card>
 
@@ -377,20 +372,13 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                             value={field.value || ""}
                             onValueChange={value => {
                               if (!value) return;
-
-                              // Immediate field update to prevent Select issues
                               field.onChange(value);
-
-                              // Batch other updates to prevent DOM conflicts
                               requestAnimationFrame(() => {
                                 const material = materialsById.get(value);
                                 if (material) {
                                   form.setValue(`baseIngredients.${index}.unit`, material.baseUnit, { shouldValidate: false });
-
-                                  // Use smart cost calculation
                                   const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
                                   const unit = material.baseUnit;
-
                                   if (quantity > 0) {
                                     const smartCost = calculateIngredientCostSmart(value.toString(), quantity, unit, materialsWithStock);
                                     form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
@@ -434,18 +422,13 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                             onChange={(e) => {
                               const quantity = parseFloat(e.target.value) || 0;
                               field.onChange(quantity);
-                              
-                              // Recalculate cost
                               const materialId = form.getValues(`baseIngredients.${index}.materialId`);
                               const unit = form.getValues(`baseIngredients.${index}.unit`);
-                              
                               console.log(`🔄 Quantity changed for ingredient ${index}:`, { materialId, quantity, unit });
-                              
                               if (materialId && quantity > 0 && unit) {
                                 const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
                                 console.log(`🔍 Material found:`, material);
                                 console.log(`💵 Material costPerUnit:`, material?.costPerUnit);
-                                
                                 const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
                                 console.log(`💰 Calculated cost for ingredient ${index}:`, smartCost);
                                 form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
@@ -469,13 +452,9 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                             onChange={(e) => {
                               const unit = e.target.value;
                               field.onChange(unit);
-                              
-                              // Recalculate cost
                               const materialId = form.getValues(`baseIngredients.${index}.materialId`);
                               const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
-                              
                               console.log(`🔄 Unit changed for ingredient ${index}:`, { materialId, quantity, unit });
-                              
                               if (materialId && quantity > 0 && unit) {
                                 const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
                                 console.log(`💰 Calculated cost for ingredient ${index}:`, smartCost);
