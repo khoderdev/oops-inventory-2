@@ -107,15 +107,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     }
                   />
 
-                  <Route
-                    path="/permissions"
-                    element={
-                      // <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_READ}>
-                      <PermissionsTest />
-                      // </ProtectedRoute>
-                    }
-                  />
-
                   {/* POS System Routes */}
                   <Route
                     path="/pos"
@@ -131,7 +122,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/inventory"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.STOCK_READ || PERMISSIONS.REPORTS_READ}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Inventory" showSearch={true} showNotifications={true}>
                           <InventoryManagementPanel onCreateMenuItem={handleCreateMenuItem} onUpdateMenuItem={handleUpdateMenuItem} onDeleteMenuItem={handleDeleteMenuItem} />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -143,7 +134,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/sales"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Sales" showSearch={true} showNotifications={true}>
                           <SalesHistoryPage isOpen={false} onClose={() => {}} />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -154,7 +145,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/orders"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_READ}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Orders" showSearch={true} showNotifications={true}>
                           <POSClientOrders />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -166,29 +157,8 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/menu"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Menus" showSearch={true} showNotifications={true}>
                           <MenuPage onCreateMenuItem={handleCreateMenuItemAsync} onUpdateMenuItem={handleUpdateMenuItemAsync} onDeleteMenuItem={handleDeleteMenuItemAsync} />
-                        </AuthenticatedLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-
-                  <Route
-                    path="/menu/categories"
-                    element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
-                        <AuthenticatedLayout>
-                          <PlaceholderPage title="Menu Categories" description="Manage menu categories and organization" />
-                        </AuthenticatedLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/menu/recipes"
-                    element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.MENU_ITEMS_READ}>
-                        <AuthenticatedLayout>
-                          <PlaceholderPage title="Recipe Management" description="Create and manage item recipes" />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
                     }
@@ -199,39 +169,18 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/day-operations"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_READ}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Day Operations" showSearch={true} showNotifications={true}>
                           <DayOperationsPage />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
                     }
                   />
-                  <Route
-                    path="/day-operations/close"
-                    element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CLOSE}>
-                        <AuthenticatedLayout>
-                          <PlaceholderPage title="Close Day" description="Close daily operations and generate reports" />
-                        </AuthenticatedLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/day-operations/cash-count"
-                    element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.DAY_OPERATIONS_CASH_COUNT}>
-                        <AuthenticatedLayout>
-                          <PlaceholderPage title="Cash Count" description="Perform cash drawer counting and reconciliation" />
-                        </AuthenticatedLayout>
-                      </ProtectedRoute>
-                    }
-                  />
-
                   {/* Reports & Analytics */}
                   <Route
                     path="/reports"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.REPORTS_SALES}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Reports" showSearch={true} showNotifications={true}>
                           <ReportGenerator className="w-full" />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -254,7 +203,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/employees"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_READ}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Employees" showSearch={true} showNotifications={true}>
                           <EmployeeTable employees={employees} onEdit={handleEditEmployee} />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -265,7 +214,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/employees/usage"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_USAGE_VIEW}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Employee Usage" showSearch={true} showNotifications={true}>
                           <EmployeeUsageView />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -276,7 +225,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/employees/settlements"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Employee Settlements" showSearch={true} showNotifications={true}>
                           <EmployeeSettlements />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -288,7 +237,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/profile"
                     element={
                       <ProtectedRoute>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Profile" showSearch={true} showNotifications={true}>
                           <ProfilePage />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -298,7 +247,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/profile/sessions"
                     element={
                       <ProtectedRoute>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Users Sessions" showSearch={true} showNotifications={true}>
                           <SessionManagementPage />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -310,7 +259,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/admin/users"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.USERS_READ} requiredRole={["admin", "manager"]}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="Users" showSearch={true} showNotifications={true}>
                           <UserManagementPage />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -321,7 +270,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/admin/system"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="System" showSearch={true} showNotifications={true}>
                           <System />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
@@ -331,7 +280,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     path="/admin/system/backup"
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.SYSTEM_SETTINGS} requiredRole={["admin"]}>
-                        <AuthenticatedLayout>
+                        <AuthenticatedLayout pageTitle="System Backup" showSearch={true} showNotifications={true}>
                           <DatabaseBackupManager />
                         </AuthenticatedLayout>
                       </ProtectedRoute>

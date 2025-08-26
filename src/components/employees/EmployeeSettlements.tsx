@@ -486,16 +486,12 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
   return (
     <div className="space-y-6 p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Employee Settlements</h2>
-          <p className="text-muted-foreground">Process monthly salary settlements and track payments</p>
-        </div>
+      {/* <div className="flex items-center justify-between">
         <Button className="gap-2" onClick={() => setSettlementFormOpen(true)} disabled={formLoading}>
           <Plus className="h-4 w-4" />
           Create Settlement
         </Button>
-      </div>
+      </div> */}
 
       {settlementStats && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -547,7 +543,13 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Filters</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Filters</CardTitle>
+            <Button className="gap-2" onClick={() => setSettlementFormOpen(true)} disabled={formLoading}>
+              <Plus className="h-4 w-4" />
+              Create Settlement
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-center gap-4">

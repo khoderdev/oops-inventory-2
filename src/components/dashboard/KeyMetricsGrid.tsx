@@ -24,9 +24,17 @@ export const KeyMetricsGrid: React.FC<KeyMetricsGridProps> = ({ stats }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstLoadRef = useRef(true);
+  // Tracks only unmount, not effect re-runs
+  const unmountedRef = useRef(false);
+
+  // Mark unmounted to avoid setting state after component is gone
+  useEffect(() => {
+    return () => {
+      unmountedRef.current = true;
+    };
+  }, []);
 
   useEffect(() => {
-    let mounted = true;
     const fetchValue = async (withLoader: boolean) => {
       try {
         if (withLoader) {
@@ -34,16 +42,16 @@ export const KeyMetricsGrid: React.FC<KeyMetricsGridProps> = ({ stats }) => {
           setError(null);
         }
         const data = await stockAPI.getTotalStockValue();
-        if (mounted) {
+        if (!unmountedRef.current) {
           setStockValueSummary(data);
           // Clear any previous error on success
           setError(null);
         }
       } catch (err) {
         console.warn("Failed to fetch total stock value:", err);
-        if (mounted && withLoader) setError("Failed to load");
+        if (!unmountedRef.current && withLoader) setError("Failed to load");
       } finally {
-        if (mounted && withLoader) setLoading(false);
+        if (!unmountedRef.current && withLoader) setLoading(false);
       }
     };
 
@@ -55,7 +63,6 @@ export const KeyMetricsGrid: React.FC<KeyMetricsGridProps> = ({ stats }) => {
     // Light polling to keep it fresh without page refresh (no loader to avoid flicker)
     const id = setInterval(() => fetchValue(false), 15000);
     return () => {
-      mounted = false;
       clearInterval(id);
     };
   }, [stats.totalMaterials, stats.totalStockEntries, stats.totalStockValue]);

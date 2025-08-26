@@ -501,13 +501,6 @@ export const EmployeeUsageView: React.FC<EmployeeUsageViewProps> = ({ selectedEm
 
   return (
     <div className="space-y-6 p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Employee Usages</h2>
-        </div>
-      </div>
-
       {/* Stats Cards */}
       {usageStats && (
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
