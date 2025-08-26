@@ -21,7 +21,7 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
     frequency: "daily",
     time: "02:00",
     intervalMinutes: 1,
-    backupType: "custom",
+    backupType: "sql",
     includeData: true,
     includeSchema: true,
     retentionDays: 30
@@ -48,7 +48,7 @@ const CreateScheduleDialog: React.FC<CreateScheduleDialogProps> = ({ open, onOpe
         frequency: "daily",
         time: "02:00",
         intervalMinutes: 1,
-        backupType: "custom",
+        backupType: "sql",
         includeData: true,
         includeSchema: true,
         retentionDays: 30
