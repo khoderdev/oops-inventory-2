@@ -378,17 +378,18 @@ export const fetchTabDataAction = atom(null, async (get, set, tabValue: string) 
   switch (tabValue) {
     case "material":
     case "materials":
-      await set(fetchMaterialsAction);
+      await Promise.all([set(fetchMaterialsAction), set(fetchMenuItemsAction)]);
       break;
     case "stock":
       // Stock tab needs both materials (for material names and editing) and stock entries
-      await Promise.all([set(fetchMaterialsAction), set(fetchStockEntriesAction)]);
+      await Promise.all([set(fetchMaterialsAction), set(fetchStockEntriesAction), set(fetchMenuItemsAction)]);
       break;
     case "sections":
       // Sections tab needs materials, stock entries, menu items, sections and assignments
       await Promise.all([set(fetchMaterialsAction), set(fetchStockEntriesAction), set(fetchMenuItemsAction), set(fetchSectionsAction)]);
       break;
     case "menu":
+      await set(fetchMenuItemsAction);
       break;
     case "conversions":
       await set(fetchMaterialsAction); // Reuse materials for conversions

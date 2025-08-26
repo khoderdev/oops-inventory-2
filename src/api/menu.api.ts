@@ -60,10 +60,22 @@ const processMenuItemData = (menuItemData: CreateMenuItemData | UpdateMenuItemDa
 };
 
 export const menuAPI = {
-  getMenus: () => api.get<MenuItem[]>("/menu-items"),
+  getMenus: () => api.get<MenuItem[]>(`/menu-items?_t=${Date.now()}`),
   getMenuItems: async (params?: MenuItemsQueryParams): Promise<MenuItem[]> => {
-    const config = params ? { params } as any : undefined;
-    const response = await api.get<{ data: MenuItem[] } | MenuItem[]>("/menu-items", config);
+    const usp = new URLSearchParams();
+    // Always add cache-busting
+    usp.set("_t", String(Date.now()));
+    if (params) {
+      if (params.page !== undefined) usp.set("page", String(params.page));
+      if (params.limit !== undefined) usp.set("limit", String(params.limit));
+      if (params.search) usp.set("search", params.search);
+      if (params.category) usp.set("category", params.category);
+      if (params.sortBy) usp.set("sortBy", params.sortBy);
+      if (params.sortOrder) usp.set("sortOrder", params.sortOrder);
+      if (params.isActive !== undefined) usp.set("isActive", String(params.isActive));
+    }
+    const url = `/menu-items${usp.toString() ? `?${usp.toString()}` : ""}`;
+    const response = await api.get<{ data: MenuItem[] } | MenuItem[]>(url);
     // Handle both paginated response format and direct array format
     if (Array.isArray(response.data)) {
       return response.data;
