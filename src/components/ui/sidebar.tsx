@@ -13,7 +13,7 @@ import * as React from "react";
 
 const SIDEBAR_COOKIE_NAME = "sidebar:state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = "14.5rem";
+const SIDEBAR_WIDTH = "15rem";
 const SIDEBAR_WIDTH_MOBILE = "15rem";
 const SIDEBAR_WIDTH_ICON = "3.5rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
@@ -251,7 +251,7 @@ const SidebarSeparator = React.forwardRef<React.ElementRef<typeof Separator>, Re
 SidebarSeparator.displayName = "SidebarSeparator";
 
 const SidebarContent = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(({ className, ...props }, ref) => {
-  return <div ref={ref} data-sidebar="content" className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden transition-all duration-300 ease-in-out", className)} {...props} />;
+  return <div ref={ref} data-sidebar="content" className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-auto hide-scrollbar group-data-[collapsible=icon]:overflow-hidden transition-all duration-300 ease-in-out", className)} {...props} />;
 });
 SidebarContent.displayName = "SidebarContent";
 

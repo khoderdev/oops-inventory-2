@@ -471,12 +471,12 @@ All colors MUST be HSL.
 }
 
 /* Hide scrollbars on mobile for cleaner look */
-.hide-scrollbar-mobile {
+.hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 
-.hide-scrollbar-mobile::-webkit-scrollbar {
+.hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
