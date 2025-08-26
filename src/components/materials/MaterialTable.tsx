@@ -7,7 +7,7 @@ import { TanStackTable } from "@/components/ui/TanStackTable";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { MaterialTableProps, MaterialWithStock } from "@/types/inventory";
 import { highlightText } from "@/utils/highlightText";
-import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Edit, Plus, Search, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState, ColumnFiltersState } from "@tanstack/react-table";
@@ -40,7 +40,7 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
     setBulkEditData({});
     setShowBulkEditDialog(true);
   };
-  
+
   const handleBulkEditSubmit = async () => {
     const selectedRows = table?.getState().rowSelection || {};
     const selectedIds = Object.keys(selectedRows)
@@ -49,7 +49,7 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
         const material = paginatedMaterials[parseInt(index)];
         return material ? material.id.toString() : null;
       })
-      .filter(id => id !== null); 
+      .filter(id => id !== null);
     if (selectedIds.length === 0 || !onBulkEdit) return;
     if (!bulkEditData.categoryId) {
       toast({
@@ -64,12 +64,12 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
     try {
       setBulkEditLoading(true);
       const categoryId = Number(bulkEditData.categoryId);
-      console.log('🔄 Bulk updating materials with categoryId:', categoryId);
-      console.log('Selected material IDs:', selectedIds);
+      console.log("🔄 Bulk updating materials with categoryId:", categoryId);
+      console.log("Selected material IDs:", selectedIds);
       await onBulkEdit(selectedIds, categoryId);
       toast({
         title: "Success",
-        description: `Updated ${selectedIds.length} material${selectedIds.length === 1 ? '' : 's'} successfully`,
+        description: `Updated ${selectedIds.length} material${selectedIds.length === 1 ? "" : "s"} successfully`,
         duration: 1000
       });
       setShowBulkEditDialog(false);
@@ -86,19 +86,18 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
       setBulkEditLoading(false);
     }
   };
-  
-  
+
   const handleBulkDelete = async () => {
     const selectedRows = table.getState().rowSelection;
     const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
-    
+
     if (selectedIds.length === 0 || !onBulkDelete) return;
-    
+
     try {
       await onBulkDelete(selectedIds);
       toast({
         title: "Success",
-        description: `Deleted ${selectedIds.length} material${selectedIds.length === 1 ? '' : 's'} successfully`,
+        description: `Deleted ${selectedIds.length} material${selectedIds.length === 1 ? "" : "s"} successfully`,
         duration: 1000
       });
       table.setRowSelection({});
@@ -266,15 +265,7 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
             className="w-4 h-4"
           />
         ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            disabled={!row.getCanSelect()}
-            onChange={row.getToggleSelectedHandler()}
-            className="w-4 h-4"
-          />
-        )
+        cell: ({ row }) => <input type="checkbox" checked={row.getIsSelected()} disabled={!row.getCanSelect()} onChange={row.getToggleSelectedHandler()} className="w-4 h-4" />
       }),
       columnHelper.accessor("name", {
         header: ({ column }) => (
@@ -313,7 +304,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
           const category = getValue();
           const materialCategoryId = (row.original as any).categoryId;
 
-
           // Find category by ID first (most reliable for materials)
           let categoryInfo: Category | undefined;
           if (materialCategoryId && categoriesById.has(materialCategoryId)) {
@@ -336,11 +326,7 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
           // If no category found, try to map common beverage category IDs to existing categories
           if (!categoryInfo && materialCategoryId === 17) {
             // Try to find a beverage-related category
-            const beverageCategory = Array.from(categoriesById.values()).find(cat => 
-              cat.name.toLowerCase().includes('cold') || 
-              cat.name.toLowerCase().includes('drink') ||
-              cat.name.toLowerCase().includes('beverage')
-            );
+            const beverageCategory = Array.from(categoriesById.values()).find(cat => cat.name.toLowerCase().includes("cold") || cat.name.toLowerCase().includes("drink") || cat.name.toLowerCase().includes("beverage"));
             if (beverageCategory) {
               categoryInfo = beverageCategory;
             }
@@ -359,7 +345,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
           const displayName = categoryInfo?.name || (typeof category === "object" && category !== null && (category as any).name) || (typeof category === "string" && category ? category : "Unknown Category");
 
           const categoryValue = categoryInfo?.value || (typeof category === "object" && category !== null && (category as any).value) || (typeof category === "string" && category ? category : "unknown");
-
 
           return (
             <Badge variant="outline" className={`text-xs font-medium ${getCategoryColor(categoryValue)}`}>
@@ -489,24 +474,20 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
     state: {
       sorting,
       columnFilters,
-      rowSelection: Object.fromEntries(
-        Array.from(selectedItems).map(id => [id, true])
-      )
+      rowSelection: Object.fromEntries(Array.from(selectedItems).map(id => [id, true]))
     },
     enableRowSelection: true,
-    onRowSelectionChange: (updater) => {
+    onRowSelectionChange: updater => {
       // Convert the updater function or value to a new selection state
-      const newSelection = typeof updater === 'function' 
-        ? updater(Object.fromEntries(Array.from(selectedItems).map(id => [id, true])))
-        : updater;
-      
+      const newSelection = typeof updater === "function" ? updater(Object.fromEntries(Array.from(selectedItems).map(id => [id, true]))) : updater;
+
       // Convert the object back to a Set
       const newSelectedItems = new Set(
         Object.entries(newSelection)
           .filter(([_, selected]) => selected)
           .map(([id, _]) => Number(id))
       );
-      
+
       setSelectedItems(newSelectedItems);
     },
     onSortingChange: setSorting,
@@ -528,21 +509,19 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
       }));
     }
   }, [categories, table]);
-  
+
   // Define these functions after table is initialized
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       // Create a selection object with all visible materials selected
-      const allSelected = Object.fromEntries(
-        filteredMaterials.map(material => [material.id, true])
-      );
+      const allSelected = Object.fromEntries(filteredMaterials.map(material => [material.id, true]));
       table.setRowSelection(allSelected);
     } else {
       // Clear all selections
       table.setRowSelection({});
     }
   };
-  
+
   const handleClearSelection = () => {
     table.setRowSelection({});
   };
@@ -568,6 +547,90 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
     }
   }, []);
 
+  // Helper to consistently resolve category display for a material
+  const getCategoryDisplay = useCallback(
+    (material: MaterialWithStock) => {
+      const materialCategoryId = (material as any).categoryId;
+
+      let categoryInfo: Category | undefined;
+      if (materialCategoryId && categoriesById.has(materialCategoryId)) {
+        categoryInfo = categoriesById.get(materialCategoryId);
+      } else if (typeof material.category === "object" && material.category !== null) {
+        const categoryObj = material.category as any;
+        if (categoryObj.id && categoriesById.has(categoryObj.id)) {
+          categoryInfo = categoriesById.get(categoryObj.id);
+        } else if (categoryObj.value && categoriesByValue.has(categoryObj.value)) {
+          categoryInfo = categoriesByValue.get(categoryObj.value);
+        }
+      } else if (typeof material.category === "string" && material.category && categoriesByValue.has(material.category)) {
+        categoryInfo = categoriesByValue.get(material.category);
+      }
+
+      const name = categoryInfo?.name || (typeof material.category === "object" && material.category !== null && (material.category as any).name) || (typeof material.category === "string" ? material.category : "");
+      const value = categoryInfo?.value || (typeof material.category === "object" && material.category !== null && (material.category as any).value) || (typeof material.category === "string" ? material.category : "");
+      return { name, value };
+    },
+    [categoriesById, categoriesByValue]
+  );
+
+  const csvEscape = (val: unknown) => {
+    const s = val == null ? "" : String(val);
+    if (/[",\n]/.test(s)) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  };
+
+  const handleExportCSV = useCallback(() => {
+    // Prefer selected rows on the current page; otherwise export all filtered+sorted results
+    const selectedRows = table.getState().rowSelection || {};
+    const selectedMaterials: MaterialWithStock[] = Object.keys(selectedRows)
+      .filter(k => (selectedRows as any)[k])
+      .map(k => paginatedMaterials[parseInt(k, 10)])
+      .filter(Boolean) as MaterialWithStock[];
+
+    const dataToExport = selectedMaterials.length > 0 ? selectedMaterials : sortedMaterials;
+
+    if (!dataToExport || dataToExport.length === 0) {
+      toast({
+        title: "No data",
+        description: "There are no materials to export.",
+        variant: "destructive",
+        duration: 1000
+      });
+      return;
+    }
+
+    const headers = ["ID", "Name", "Category", "Base Unit", "Unit Type", "Input Unit", "POS Item"];
+
+    const rows = dataToExport.map(m => {
+      const cat = getCategoryDisplay(m);
+      return [m.id, m.name, cat.name || "", (m as any).baseUnit || "", (m as any).unitType || "", (m as any).inputUnit || (m as any).baseUnit || "", (m as any).isPOSItem ? "Yes" : "No"];
+    });
+
+    const csv = [headers.map(csvEscape).join(","), ...rows.map(r => r.map(csvEscape).join(","))].join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const filename = `materials_${selectedMaterials.length > 0 ? "selected_" : ""}export_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}.csv`;
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: "Export complete",
+      description: `Exported ${dataToExport.length} material${dataToExport.length === 1 ? "" : "s"} to CSV`,
+      duration: 1000
+    });
+  }, [table, paginatedMaterials, sortedMaterials, getCategoryDisplay]);
+
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
       <div className="h-full flex flex-col p-2 relative">
@@ -579,28 +642,28 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
             onClearSelection={handleClearSelection}
             bulkActions={[
               {
-                id: 'edit',
-                label: 'Edit',
+                id: "edit",
+                label: "Edit",
                 icon: <Edit />,
                 onClick: handleBulkEditOpen,
-                variant: 'outline'
+                variant: "outline"
               },
               {
-                id: 'delete',
-                label: 'Delete',
+                id: "delete",
+                label: "Delete",
                 icon: <Trash2 />,
-                variant: 'destructive',
+                variant: "destructive",
                 onClick: handleBulkDelete,
                 requiresConfirmation: true,
-                confirmationTitle: 'Delete Materials',
-                confirmationDescription: `Are you sure you want to delete ${selectedItems.size} material${selectedItems.size === 1 ? '' : 's'}? This action cannot be undone.`,
-                confirmationActionText: 'Delete'
+                confirmationTitle: "Delete Materials",
+                confirmationDescription: `Are you sure you want to delete ${selectedItems.size} material${selectedItems.size === 1 ? "" : "s"}? This action cannot be undone.`,
+                confirmationActionText: "Delete"
               }
             ]}
             className="mb-4"
           />
         )}
-        
+
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-4 px-5">
           {/* Title Section */}
@@ -664,6 +727,21 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
                   <SelectItem value="200">200 per page</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Export CSV */}
+            <div className="w-fit shrink-0">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={handleExportCSV} className="h-10 px-3">
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={5}>
+                  <p>{selectedItems.size > 0 ? "Export selected materials" : "Export all filtered materials"}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             {/* Pagination Controls */}
@@ -739,13 +817,13 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
                           // Use the table's row selection mechanism
                           const isSelected = selectedItems.has(Number(material.id));
                           const newSelection = { ...table.getState().rowSelection };
-                          
+
                           if (isSelected) {
                             delete newSelection[material.id];
                           } else {
                             newSelection[material.id] = true;
                           }
-                          
+
                           table.setRowSelection(newSelection);
                         }}
                         className="w-4 h-4 mr-2"
@@ -881,22 +959,10 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
         </div>
 
         {/* Standalone Bulk Edit Dialog */}
-        <BulkEditDialog
-          isOpen={showBulkEditDialog}
-          onClose={() => setShowBulkEditDialog(false)}
-          title="Bulk Edit Materials"
-          description={`Edit ${selectedItems.size} selected material${selectedItems.size === 1 ? '' : 's'}. Only the fields you modify will be updated.`}
-          onSubmit={handleBulkEditSubmit}
-          isLoading={bulkEditLoading}
-          submitText="Update Materials"
-        >
+        <BulkEditDialog isOpen={showBulkEditDialog} onClose={() => setShowBulkEditDialog(false)} title="Bulk Edit Materials" description={`Edit ${selectedItems.size} selected material${selectedItems.size === 1 ? "" : "s"}. Only the fields you modify will be updated.`} onSubmit={handleBulkEditSubmit} isLoading={bulkEditLoading} submitText="Update Materials">
           <div className="space-y-2">
             <Label>Category</Label>
-            <select
-              value={bulkEditData.categoryId || ''}
-              onChange={e => setBulkEditData(prev => ({ ...prev, categoryId: e.target.value ? Number(e.target.value) : null }))}
-              className="w-full p-2 border rounded"
-            >
+            <select value={bulkEditData.categoryId || ""} onChange={e => setBulkEditData(prev => ({ ...prev, categoryId: e.target.value ? Number(e.target.value) : null }))} className="w-full p-2 border rounded">
               <option value="">Select category...</option>
               {categories.map(category => (
                 <option key={category.id} value={category.id}>

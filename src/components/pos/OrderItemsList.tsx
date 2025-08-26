@@ -12,6 +12,12 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
   const isCompleted = isOrderCompleted || orderStatus === "paid" || orderStatus === "served";
   const [selectedItemForNotes, setSelectedItemForNotes] = React.useState<string | null>(null);
   const shouldShowLabels = leftPanelPixelWidth > 430;
+  
+  // Safely derive a department label from possible formats (object/string)
+  const getDeptLabel = (dept: Employee["department"] | string | null | undefined) => {
+    if (!dept) return "";
+    return typeof dept === "string" ? dept : dept.name || dept.code || "";
+  };
 
   const handleQuantityUpdate = (cartId: string, newQuantity: number) => {
     if (isCompleted) {
@@ -88,7 +94,7 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
           {shouldShowLabels && orderType === "table" && selectedTable && <span className="text-xs text-gray-500">({selectedTable.seats} seats)</span>}
           {shouldShowLabels && orderType === "employees" && selectedEmployee && (
             <span className="text-xs text-gray-500">
-              ({selectedEmployee.department} - {selectedEmployee.discountPercentage}% discount)
+              ({getDeptLabel(selectedEmployee.department)} - {selectedEmployee.discountPercentage}% discount)
             </span>
           )}
         </div>

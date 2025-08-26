@@ -825,7 +825,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           type: "percentage" as const,
           value: selectedEmployee.discountPercentage,
           amount: discountAmount,
-          reason: `Employee discount - ${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName} (${selectedEmployee.department})`
+          reason: `Employee discount - ${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName} (${selectedEmployee.department?.name || selectedEmployee.department?.code || ""})`
         };
         setAppliedDiscount(employeeDiscount);
         setDiscountAmount(discountAmount);
@@ -866,7 +866,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         if (existingItem) {
           newCart = currentCart.map(cartItem => {
             // Update by cartId or by matching item properties
-            const shouldUpdate = cartItem.id === cartId || (posItem.type === "menu_item" && cartItem.type === "menu_item" && Number(cartItem.menuItemId) === Number(posItem.menuItemId)) || (posItem.type === "stock_entry" && cartItem.type === "stock_entry" && String(cartItem.stockEntryId) === String(posItem.stockEntryId));
+            const shouldUpdate =
+              cartItem.id === cartId ||
+              (posItem.type === "menu_item" && cartItem.type === "menu_item" && Number(cartItem.menuItemId) === Number(posItem.menuItemId)) ||
+              // POSItem uses type "stock_entry" while POSCartItem uses type "material" for stock entries
+              (posItem.type === "stock_entry" && cartItem.type === "material" && String(cartItem.stockEntryId) === String(posItem.materialId));
 
             return shouldUpdate ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
           });
@@ -891,7 +895,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               originalItem: menuItem,
               posItem,
               stockEntryId: undefined,
-              menuItemId: typeof menuItemId === "string" ? parseInt(menuItemId) || 0 : menuItemId,
+              // Store as string to match POSCartItem type
+              menuItemId: String(menuItemId),
               printerId: menuItem?.printerId || posItem?.printerId,
               assignedPrinter: menuItem?.assignedPrinter || posItem?.assignedPrinter
             };
@@ -1066,7 +1071,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           type: "percentage" as const,
           value: discountValue,
           amount: discountAmount,
-          reason: `Employee discount - ${employee.user?.firstName} ${employee.user?.lastName} (${employee.department})`
+          reason: `Employee discount - ${employee.user?.firstName} ${employee.user?.lastName} (${employee.department?.name || employee.department?.code || ""})`
         };
         setAppliedDiscount(employeeDiscount);
         setDiscountAmount(discountAmount);

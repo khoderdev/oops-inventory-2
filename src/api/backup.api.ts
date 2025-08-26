@@ -118,7 +118,7 @@ class BackupApiClient {
   async createBackup(
     options: {
       name?: string;
-      formats?: ("custom" | "directory" | "sql")[];
+      formats?: BackupFormat[];
       includeData?: boolean;
       includeSchema?: boolean;
     } = {}

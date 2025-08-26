@@ -21,6 +21,19 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ isOpen, onCl
   const [searchTerm, setSearchTerm] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  // Safely derive a label and key from department which may be an object or a string
+  const getDeptLabel = (dept: Employee["department"] | string | null | undefined) => {
+    if (!dept) return "";
+    return typeof dept === "string" ? dept : dept.name || dept.code || "";
+  };
+
+  const getDeptKey = (dept: Employee["department"] | string | null | undefined) => {
+    const label = getDeptLabel(dept).trim().toLowerCase();
+    return label || "other";
+  };
+
+  const formatDeptLabel = (label: string) => (label ? label.charAt(0).toUpperCase() + label.slice(1) : "Dept");
+
   // Fetch employees when dialog opens
   useEffect(() => {
     if (isOpen) {
@@ -55,7 +68,13 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ isOpen, onCl
     const fullName = `${employee.user?.firstName || ""} ${employee.user?.lastName || ""}`.trim();
     const searchLower = searchTerm.toLowerCase();
 
-    return fullName.toLowerCase().includes(searchLower) || employee.employeeNumber.toLowerCase().includes(searchLower) || employee.department.toLowerCase().includes(searchLower) || employee.position.toLowerCase().includes(searchLower);
+    const deptLabel = getDeptLabel(employee.department);
+    return (
+      fullName.toLowerCase().includes(searchLower) ||
+      employee.employeeNumber.toLowerCase().includes(searchLower) ||
+      deptLabel.toLowerCase().includes(searchLower) ||
+      employee.position.toLowerCase().includes(searchLower)
+    );
   });
 
   const handleEmployeeSelect = (employee: Employee) => {
@@ -63,7 +82,7 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ isOpen, onCl
     onClose();
   };
 
-  const getDepartmentColor = (department: string) => {
+  const getDepartmentColor = (department: Employee["department"] | string | null | undefined) => {
     const colors: Record<string, string> = {
       kitchen: "bg-orange-100 text-orange-800",
       service: "bg-blue-100 text-blue-800",
@@ -72,7 +91,8 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ isOpen, onCl
       security: "bg-red-100 text-red-800",
       other: "bg-gray-100 text-gray-800"
     };
-    return colors[department] || colors.other;
+    const key = getDeptKey(department);
+    return colors[key] || colors.other;
   };
 
   const getEmployeeInitials = (employee: Employee) => {
@@ -196,7 +216,9 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ isOpen, onCl
                       </div>
 
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Badge className={`text-xs ${getDepartmentColor(employee.department)}`}>{employee.department.charAt(0).toUpperCase() + employee.department.slice(1)}</Badge>
+                        <Badge className={`text-xs ${getDepartmentColor(employee.department)}`}>
+                          {formatDeptLabel(getDeptLabel(employee.department))}
+                        </Badge>
                         <span>•</span>
                         <span>{employee.position}</span>
                         {employee.discountPercentage > 0 && (
