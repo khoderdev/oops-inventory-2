@@ -442,7 +442,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     const csvRows = settlements.map(s => {
       const employeeName = s.employee ? `${s.employee.firstName} ${s.employee.lastName}` : `Employee #${s.employeeId}`;
       const employeeNumber = s.employee?.employeeNumber ?? "-";
-      const department = s.employee?.department ?? "-";
+      const department = s.employee?.department?.name ?? "-";
       const period = `${getMonthName(s.settlementMonth)} ${s.settlementYear}`;
       const settlementDate = (() => {
         const d = new Date(s.settlementDate);
@@ -485,77 +485,70 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
   return (
-    <div className="space-y-6 p-4">
-      {/* <div className="flex items-center justify-between">
-        <Button className="gap-2" onClick={() => setSettlementFormOpen(true)} disabled={formLoading}>
-          <Plus className="h-4 w-4" />
-          Create Settlement
-        </Button>
-      </div> */}
-
+    <div className="space-y-4 p-3 sm:p-4">
       {settlementStats && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Settlements</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2">
+              <CardTitle className="text-xs font-medium">Total Settlements</CardTitle>
+              <Calendar className="h-3 w-3 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{settlementStats.totals.totalCount}</div>
-              <p className="text-xs text-muted-foreground">In selected period</p>
+            <CardContent className="p-2 pt-0">
+              <div className="text-lg font-bold">{settlementStats.totals.totalCount}</div>
+              <p className="text-[10px] text-muted-foreground">In selected period</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Base Salary</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2">
+              <CardTitle className="text-xs font-medium">Total Base Salary</CardTitle>
+              <DollarSign className="h-3 w-3 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(settlementStats.totals.totalBaseSalary)}</div>
-              <p className="text-xs text-muted-foreground">Before deductions</p>
+            <CardContent className="p-2 pt-0">
+              <div className="text-lg font-bold">{formatCurrency(settlementStats.totals.totalBaseSalary)}</div>
+              <p className="text-[10px] text-muted-foreground">Before deductions</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Deductions</CardTitle>
-              <DollarSign className="h-4 w-4 text-red-600" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2">
+              <CardTitle className="text-xs font-medium">Total Deductions</CardTitle>
+              <DollarSign className="h-3 w-3 text-red-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{formatCurrency(settlementStats.totals.totalDeductions)}</div>
-              <p className="text-xs text-muted-foreground">Employee usage costs</p>
+            <CardContent className="p-2 pt-0">
+              <div className="text-lg font-bold text-red-600">{formatCurrency(settlementStats.totals.totalDeductions)}</div>
+              <p className="text-[10px] text-muted-foreground">Employee usage costs</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Final Salary</CardTitle>
-              <DollarSign className="h-4 w-4 text-green-600" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2">
+              <CardTitle className="text-xs font-medium">Final Salary</CardTitle>
+              <DollarSign className="h-3 w-3 text-green-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(settlementStats.totals.totalFinalSalary)}</div>
-              <p className="text-xs text-muted-foreground">After deductions</p>
+            <CardContent className="p-2 pt-0">
+              <div className="text-lg font-bold text-green-600">{formatCurrency(settlementStats.totals.totalFinalSalary)}</div>
+              <p className="text-[10px] text-muted-foreground">After deductions</p>
             </CardContent>
           </Card>
         </div>
       )}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="p-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Filters</CardTitle>
-            <Button className="gap-2" onClick={() => setSettlementFormOpen(true)} disabled={formLoading}>
+            <CardTitle className="text-sm">Filters</CardTitle>
+            <Button size="sm" className="gap-1" onClick={() => setSettlementFormOpen(true)} disabled={formLoading}>
               <Plus className="h-4 w-4" />
               Create Settlement
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[200px]">
+        <CardContent className="pt-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex-1 min-w-[160px]">
               <Select value={internalSelectedEmployeeId?.toString() || "all"} onValueChange={handleEmployeeChange}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 px-2 text-xs">
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
@@ -569,9 +562,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
               </Select>
             </div>
 
-            <div className="min-w-[120px]">
+            <div className="min-w-[100px]">
               <Select value={selectedYear.toString()} onValueChange={value => setSelectedYear(parseInt(value))}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 px-2 text-xs">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -584,9 +577,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
               </Select>
             </div>
 
-            <div className="min-w-[140px]">
+            <div className="min-w-[120px]">
               <Select value={selectedMonth?.toString() || "all"} onValueChange={value => setSelectedMonth(value === "all" ? undefined : parseInt(value))}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 px-2 text-xs">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -600,9 +593,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
               </Select>
             </div>
 
-            <div className="min-w-[140px]">
+            <div className="min-w-[120px]">
               <Select value={filters.status || "all"} onValueChange={handleStatusFilter}>
-                <SelectTrigger>
+                <SelectTrigger className="h-8 px-2 text-xs">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -616,7 +609,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
               </Select>
             </div>
 
-            <Button variant="outline" className="gap-2" onClick={exportSettlements} disabled={loading || settlements.length === 0}>
+            <Button size="sm" variant="outline" className="gap-1" onClick={exportSettlements} disabled={loading || settlements.length === 0}>
               <Download className="h-4 w-4" />
               Export
             </Button>
