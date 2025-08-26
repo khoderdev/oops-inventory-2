@@ -681,7 +681,7 @@ const stockEntriesController = {
           } else {
             // Allow flexible waste recording - convert any valid unit
             console.log(`⚠️ Flexible waste unit conversion: ${unit} from ${stockEntry.purchasedUnit} for material ${material.name}`);
-            
+
             // Try to handle common unit conversions for packages
             if (unit === "piece" || unit === "item" || unit === "unit") {
               // Treat as base unit
@@ -1074,6 +1074,77 @@ const stockEntriesController = {
       });
     } catch (error) {
       console.error("Error bulk assigning printer:", error);
+      next(error);
+    }
+  },
+
+  // Calculate the total current stock value across all (optionally filtered) stock entries
+  getTotalCurrentStockValue: async (req, res, next) => {
+    try {
+      // Optional filters: materialId, isPOSItem. By default exclude zero/negative quantities.
+      const whereClause = buildFilterConditions(
+        req.query,
+        {
+          searchFields: [],
+          exactFilters: ["materialId", "isPOSItem"],
+          rangeFilters: []
+        },
+        Op
+      );
+
+      // Exclude non-positive quantities by default for value computation
+      if (req.query.includeZero !== "true") {
+        whereClause.purchasedIndividualQuantity = { [Op.gt]: 0 };
+      }
+
+      const stockEntries = await StockEntry.findAll({
+        where: whereClause,
+        attributes: [
+          "id",
+          "materialId",
+          "purchasedIndividualQuantity",
+          "costPerBaseUnit",
+          "totalCost"
+        ]
+      });
+
+      let totalValue = 0;
+      let negativeEntriesCount = 0;
+      for (const entry of stockEntries) {
+        const qtyRaw = Number(entry.purchasedIndividualQuantity) || 0;
+        // Guard against accidental negatives
+        if (qtyRaw < 0) negativeEntriesCount += 1;
+        const qty = Math.max(0, qtyRaw);
+
+        let cbu = entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined ? Number(entry.costPerBaseUnit) : undefined;
+        if ((cbu === undefined || isNaN(cbu) || cbu <= 0) && qty > 0) {
+          // Fallback: derive from totalCost when costPerBaseUnit is missing or invalid
+          const tc = Number(entry.totalCost) || 0;
+          cbu = tc > 0 ? tc / qty : 0;
+        }
+
+        const perEntryValue = qty > 0 && cbu > 0 ? qty * cbu : 0;
+        totalValue += perEntryValue;
+      }
+
+      const roundedTotal = Number(totalValue.toFixed(6));
+
+      if (negativeEntriesCount > 0) {
+        console.warn("[getTotalCurrentStockValue] Negative stock entries encountered:", negativeEntriesCount);
+      }
+
+      return res.status(200).json({
+        totalStockValue: roundedTotal,
+        entriesCount: stockEntries.length,
+        filters: {
+          materialId: req.query.materialId || "",
+          isPOSItem: req.query.isPOSItem || "",
+          includeZero: req.query.includeZero === "true"
+        },
+        computedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error calculating total current stock value:", error);
       next(error);
     }
   },

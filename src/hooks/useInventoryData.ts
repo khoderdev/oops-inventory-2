@@ -34,13 +34,13 @@ export const useInventoryData = () => {
 
       setState(prev => ({
         ...prev,
-        materials: materialsRes.data.map(material => ({
+        materials: materialsRes.map(material => ({
           ...material,
           id: material.id.toString(),
           createdAt: material.createdAt ? new Date(material.createdAt) : new Date(),
           updatedAt: material.updatedAt ? new Date(material.updatedAt) : new Date()
         })),
-        stockEntries: stockRes.data.map(entry => ({
+        stockEntries: stockRes.map(entry => ({
           ...entry,
           id: entry.id.toString(),
           materialId: entry.materialId.toString(),

@@ -40,10 +40,12 @@ interface QuickAction {
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
-  const { currentDay, userOrderStats, loading: dayOpsLoading } = useDayOperations();
+  const { currentDay, loading: dayOpsLoading } = useDayOperations();
   const { materialsWithStock, stockEntries, menuItems } = useInventoryStore();
   const [employees] = useAtom(employeesAtom);
   const [usageStats] = useAtom(usageStatsAtom);
+
+  // console.log("stockEntries", stockEntries);
 
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     totalMaterials: 0,

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { DollarSign, Utensils, Warehouse } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/dayOperationsFormattings";
+import { stockAPI, type TotalStockValueResponse } from "@/api/stock.api.ts.tsx";
 
 interface DashboardStats {
   totalMaterials: number;
@@ -19,6 +20,35 @@ interface KeyMetricsGridProps {
 }
 
 export const KeyMetricsGrid: React.FC<KeyMetricsGridProps> = ({ stats }) => {
+  const [stockValueSummary, setStockValueSummary] = useState<TotalStockValueResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+    stockAPI
+      .getTotalStockValue()
+      .then(data => {
+        if (mounted) setStockValueSummary(data);
+      })
+      .catch(err => {
+        console.warn("Failed to fetch total stock value:", err);
+        if (mounted) setError("Failed to load");
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const mainStockValue = stockValueSummary?.totalStockValue ?? stats.totalStockValue;
+  const entriesLabel = stockValueSummary ? String(stockValueSummary.entriesCount) : "-";
+  const computedAtLabel = stockValueSummary ? new Date(stockValueSummary.computedAt).toLocaleString() : "-";
+  const filtersLabel = stockValueSummary ? `materialId: ${stockValueSummary.filters.materialId || "Any"}, POS: ${stockValueSummary.filters.isPOSItem === "" ? "Any" : String(stockValueSummary.filters.isPOSItem)}, includeZero: ${stockValueSummary.filters.includeZero}` : "";
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <Card className="rounded-2xl">
@@ -38,7 +68,19 @@ export const KeyMetricsGrid: React.FC<KeyMetricsGridProps> = ({ stats }) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Stock Value</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalStockValue)}</p>
+              <p className="text-2xl font-bold text-gray-900">{formatCurrency(mainStockValue)}</p>
+              <div className="mt-1">
+                {loading ? (
+                  <p className="text-xs text-gray-400">Loading…</p>
+                ) : error ? (
+                  <p className="text-xs text-red-500">{error}</p>
+                ) : stockValueSummary ? (
+                  <>
+                    <p className="text-xs text-gray-500">Entries: {entriesLabel}</p>
+                    <p className="text-[10px] text-gray-400">Computed: {computedAtLabel}</p>
+                  </>
+                ) : null}
+              </div>
             </div>
             <DollarSign className="h-8 w-8 text-green-500" />
           </div>

@@ -19,6 +19,14 @@ router.get(
   stockEntriesController.getAllStockEntries
 );
 
+// Total current stock value (read-only, cached briefly)
+router.get(
+  "/total-value",
+  requirePermission("stock.read"),
+  cacheMiddleware(30, req => `stock-entries-total-value:${JSON.stringify(req.query)}`),
+  stockEntriesController.getTotalCurrentStockValue
+);
+
 router.get(
   "/with-printers",
   requirePermission("stock.read"),

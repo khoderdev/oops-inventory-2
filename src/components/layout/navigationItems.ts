@@ -10,13 +10,13 @@ export const navigationItems: NavigationItem[] = [
     permission: PERMISSIONS.DAY_OPERATIONS_READ
   },
   {
-    label: "Inventory Management",
+    label: "Inventory",
     icon: Package,
     href: "/inventory"
   },
 
   {
-    label: "Menu Management",
+    label: "Menu",
     icon: Utensils,
     href: "/menu"
   },
@@ -44,13 +44,9 @@ export const navigationItems: NavigationItem[] = [
     icon: Calendar,
     href: "/day-operations"
   },
+
   {
-    label: "Reports & Analytics",
-    icon: BarChart3,
-    href: "/reports"
-  },
-  {
-    label: "Employee Management",
+    label: "Employees",
     icon: UserCheck,
     children: [
       {
@@ -78,6 +74,12 @@ export const navigationItems: NavigationItem[] = [
         permission: PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW
       }
     ]
+  },
+
+  {
+    label: "Reports & Analytics",
+    icon: BarChart3,
+    href: "/reports"
   },
 
   {

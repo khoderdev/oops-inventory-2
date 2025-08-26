@@ -70,6 +70,18 @@ export interface BeverageNamesResponse {
   };
 }
 
+// Summary response for total current stock value
+export interface TotalStockValueResponse {
+  totalStockValue: number;
+  entriesCount: number;
+  filters: {
+    materialId: string | number | "";
+    isPOSItem: string | boolean | "";
+    includeZero: boolean;
+  };
+  computedAt: string; // ISO timestamp
+}
+
 export const stockAPI = {
   // Get stock entries with pagination support
   getStockEntries: async (params?: StockEntriesQueryParams): Promise<StockEntryWithMaterial[]> => {
@@ -167,6 +179,13 @@ export const stockAPI = {
       },
       headers: undefined
     });
+    return response.data;
+  },
+
+  // Get total current stock value summary
+  getTotalStockValue: async (params?: { materialId?: string | number; isPOSItem?: string | boolean; includeZero?: boolean }) => {
+    const config = params ? ({ params } as any) : undefined;
+    const response = await api.get<TotalStockValueResponse>("/stock-entries/total-value", config);
     return response.data;
   }
 };
