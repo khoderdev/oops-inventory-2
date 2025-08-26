@@ -191,7 +191,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
 
   return (
     <div className="h-full p-1 sm:p-2 lg:p-3 safe-area-padding">
-      <div ref={parentRef} className="h-full overflow-auto">
+      <div ref={parentRef} className="h-full overflow-auto hide-scrollbar-mobile">
         <div
           style={{
             height: virtualizer.getTotalSize(),

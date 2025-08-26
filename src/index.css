@@ -64,13 +64,13 @@ All colors MUST be HSL.
     --sidebar-ring: 217.2 91.2% 59.8%;
 
     /* Responsive spacing system */
-    --spacing-xs: 0.25rem;  /* 4px */
-    --spacing-sm: 0.5rem;   /* 8px */
-    --spacing-md: 1rem;     /* 16px */
-    --spacing-lg: 1.5rem;   /* 24px */
-    --spacing-xl: 2rem;     /* 32px */
-    --spacing-2xl: 3rem;    /* 48px */
-    --spacing-3xl: 4rem;    /* 64px */
+    --spacing-xs: 0.25rem; /* 4px */
+    --spacing-sm: 0.5rem; /* 8px */
+    --spacing-md: 1rem; /* 16px */
+    --spacing-lg: 1.5rem; /* 24px */
+    --spacing-xl: 2rem; /* 32px */
+    --spacing-2xl: 3rem; /* 48px */
+    --spacing-3xl: 4rem; /* 64px */
 
     /* Mobile-first breakpoints */
     --mobile-max: 767px;
@@ -81,9 +81,9 @@ All colors MUST be HSL.
 
     /* Touch-friendly sizing */
     --touch-target-min: 44px;
-    --button-height-sm: 2rem;   /* 32px */
+    --button-height-sm: 2rem; /* 32px */
     --button-height-md: 2.5rem; /* 40px */
-    --button-height-lg: 3rem;   /* 48px */
+    --button-height-lg: 3rem; /* 48px */
 
     /* Z-index system */
     --z-dropdown: 1000;
@@ -152,7 +152,9 @@ All colors MUST be HSL.
   }
 
   /* Ensure proper box sizing for all elements */
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     box-sizing: border-box;
   }
 
@@ -174,13 +176,13 @@ All colors MUST be HSL.
   .spacing-responsive {
     padding: var(--spacing-sm);
   }
-  
+
   @media (min-width: 768px) {
     .spacing-responsive {
       padding: var(--spacing-md);
     }
   }
-  
+
   @media (min-width: 1024px) {
     .spacing-responsive {
       padding: var(--spacing-lg);
@@ -211,7 +213,7 @@ All colors MUST be HSL.
   .text-responsive {
     font-size: 0.875rem; /* 14px */
   }
-  
+
   @media (min-width: 768px) {
     .text-responsive {
       font-size: 1rem; /* 16px */
@@ -226,25 +228,25 @@ All colors MUST be HSL.
     padding-left: var(--spacing-md);
     padding-right: var(--spacing-md);
   }
-  
+
   @media (min-width: 640px) {
     .container-responsive {
       max-width: 640px;
     }
   }
-  
+
   @media (min-width: 768px) {
     .container-responsive {
       max-width: 768px;
     }
   }
-  
+
   @media (min-width: 1024px) {
     .container-responsive {
       max-width: 1024px;
     }
   }
-  
+
   @media (min-width: 1280px) {
     .container-responsive {
       max-width: 1280px;
@@ -257,19 +259,19 @@ All colors MUST be HSL.
     grid-template-columns: 1fr;
     gap: var(--spacing-md);
   }
-  
+
   @media (min-width: 768px) {
     .grid-responsive {
       grid-template-columns: repeat(2, 1fr);
     }
   }
-  
+
   @media (min-width: 1024px) {
     .grid-responsive {
       grid-template-columns: repeat(3, 1fr);
     }
   }
-  
+
   @media (min-width: 1280px) {
     .grid-responsive {
       grid-template-columns: repeat(4, 1fr);
@@ -282,7 +284,7 @@ All colors MUST be HSL.
     flex-direction: column;
     gap: var(--spacing-md);
   }
-  
+
   @media (min-width: 768px) {
     .flex-responsive {
       flex-direction: row;
@@ -290,14 +292,30 @@ All colors MUST be HSL.
   }
 
   /* Z-index utilities */
-  .z-dropdown { z-index: var(--z-dropdown); }
-  .z-sticky { z-index: var(--z-sticky); }
-  .z-fixed { z-index: var(--z-fixed); }
-  .z-modal-backdrop { z-index: var(--z-modal-backdrop); }
-  .z-modal { z-index: var(--z-modal); }
-  .z-popover { z-index: var(--z-popover); }
-  .z-tooltip { z-index: var(--z-tooltip); }
-  .z-toast { z-index: var(--z-toast); }
+  .z-dropdown {
+    z-index: var(--z-dropdown);
+  }
+  .z-sticky {
+    z-index: var(--z-sticky);
+  }
+  .z-fixed {
+    z-index: var(--z-fixed);
+  }
+  .z-modal-backdrop {
+    z-index: var(--z-modal-backdrop);
+  }
+  .z-modal {
+    z-index: var(--z-modal);
+  }
+  .z-popover {
+    z-index: var(--z-popover);
+  }
+  .z-tooltip {
+    z-index: var(--z-tooltip);
+  }
+  .z-toast {
+    z-index: var(--z-toast);
+  }
 }
 
 /* Enhanced animations */
@@ -348,7 +366,8 @@ All colors MUST be HSL.
 }
 
 @keyframes pulse-gentle {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -420,18 +439,26 @@ All colors MUST be HSL.
 }
 
 .transition-colors-smooth {
-  transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  transition:
+    color 0.2s ease-in-out,
+    background-color 0.2s ease-in-out,
+    border-color 0.2s ease-in-out;
 }
 
 /* Mobile-specific optimizations */
 @media (max-width: 767px) {
   /* Larger touch targets on mobile */
-  button, [role="button"], input[type="button"], input[type="submit"] {
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"] {
     min-height: var(--touch-target-min);
   }
 
   /* Better mobile form inputs */
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     font-size: 16px; /* Prevents zoom on iOS */
   }
 
@@ -441,16 +468,16 @@ All colors MUST be HSL.
     max-height: 100vh;
     border-radius: 0;
   }
+}
 
-  /* Hide scrollbars on mobile for cleaner look */
-  .hide-scrollbar-mobile {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  
-  .hide-scrollbar-mobile::-webkit-scrollbar {
-    display: none;
-  }
+/* Hide scrollbars on mobile for cleaner look */
+.hide-scrollbar-mobile {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar-mobile::-webkit-scrollbar {
+  display: none;
 }
 
 /* High DPI display optimizations */
@@ -466,11 +493,11 @@ All colors MUST be HSL.
   .no-print {
     display: none !important;
   }
-  
+
   .print-break-before {
     page-break-before: always;
   }
-  
+
   .print-break-after {
     page-break-after: always;
   }
