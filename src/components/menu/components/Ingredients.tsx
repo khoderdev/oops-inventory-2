@@ -356,7 +356,7 @@ import { Input } from "../../ui/input";
 import { Selection } from "../../ui/Selection";
 import { IngredientsProps } from "@/types/menuItems";
 import { IngredientsTable } from "./IngredientsTable";
-import { Sauce } from "@/types/menuItems";
+import { Sauce } from "@/types/inventory";
 
 export function Ingredients({ ingredients = [], stockEntries = [], materials: materialsProp, menuItem, category = "", price = "0", onIngredientsChange, errors = {}, onErrorsChange, sauces = [] }: IngredientsProps & { sauces?: Sauce[] }) {
   const { materialsWithStock: materialsFromCtx } = useMenuItems();
