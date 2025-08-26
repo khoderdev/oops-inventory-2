@@ -630,3 +630,13 @@ export interface GroupedOrder {
   itemCount: number;
   isSettled: boolean;
 }
+
+
+export interface EmployeeSelectorProps {
+  selectedEmployeeId?: number | null;
+  onEmployeeSelect: (employee: Employee | null) => void;
+  placeholder?: string;
+  showAvatar?: boolean;
+  compact?: boolean;
+  className?: string;
+}

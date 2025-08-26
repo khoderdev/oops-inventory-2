@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
-import { backupAPI, BackupProgress } from "@/api/backup.api";
-import { CreateBackupDialogProps } from "@/types/backup-scheduler";
+import { backupAPI } from "@/api/backup.api";
+import { BackupProgress, CreateBackupDialogProps } from "@/types/backup-scheduler";
 
 const CreateBackupDialog: React.FC<CreateBackupDialogProps> = ({ open, onOpenChange, onBackupCreated }) => {
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ const CreateBackupDialog: React.FC<CreateBackupDialogProps> = ({ open, onOpenCha
   const [error, setError] = useState<string | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const backupIdRef = useRef<string | null>(null);
-
+ 
   useEffect(() => {
     return () => {
       if (progressIntervalRef.current) {

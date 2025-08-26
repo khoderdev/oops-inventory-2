@@ -1,4 +1,80 @@
-import { BackupInfo } from "@/api/backup.api";
+export interface BackupFormat {
+  type: "sql";
+  id: string;
+  path: string;
+  size: number;
+  filename: string;
+}
+
+export interface BackupInfo {
+  id: string;
+  name: string;
+  formats: BackupFormat[];
+  totalSize: number;
+  createdAt: string;
+  metadata?: {
+    database: string;
+    version: string;
+    tables: number;
+    records: number;
+  };
+}
+
+export interface BackupResponse {
+  success: boolean;
+  data: {
+    backup: BackupInfo;
+    message: string;
+  };
+  message: string;
+}
+
+export interface BackupListResponse {
+  success: boolean;
+  data: {
+    backups: BackupInfo[];
+    total: number;
+  };
+  message: string;
+}
+
+export interface RestoreResponse {
+  success: boolean;
+  data: {
+    message: string;
+    restoredTables: number;
+    restoredRecords: number;
+    duration: number;
+  };
+  message: string;
+}
+
+export interface BackupProgress {
+  status: "starting" | "in_progress" | "completed" | "failed";
+  progress: number;
+  message: string;
+  currentStep?: string;
+  estimatedTimeRemaining?: number;
+}
+
+export interface RestoreProgress {
+  status: "starting" | "in_progress" | "completed" | "failed";
+  progress: number;
+  message: string;
+  currentStep?: string;
+  tablesRestored: number;
+  recordsRestored: number;
+  estimatedTimeRemaining?: number;
+}
+
+export interface DatabaseInfo {
+  name: string;
+  size: number;
+  tables: number;
+  records: number;
+  version: string;
+  lastBackup?: string;
+}
 
 export interface BackupSchedule {
   id: string;
@@ -9,7 +85,7 @@ export interface BackupSchedule {
   intervalMinutes?: number; // For minutely frequency
   dayOfWeek?: number; // 0-6 for weekly (0 = Sunday)
   dayOfMonth?: number; // 1-31 for monthly
-  backupType: "custom" | "directory" | "sql";
+  backupType: "sql" | "custom" | "directory";
   includeData: boolean;
   includeSchema: boolean;
   retentionDays: number; // How many days to keep backups
@@ -27,7 +103,7 @@ export interface ScheduleCreateRequest {
   intervalMinutes?: number;
   dayOfWeek?: number;
   dayOfMonth?: number;
-  backupType: "custom" | "directory" | "sql";
+  backupType: "sql" | "custom" | "directory";
   includeData: boolean;
   includeSchema: boolean;
   retentionDays: number;
@@ -97,4 +173,20 @@ export interface DeleteConfirmationDialogProps {
   onOpenChange: (open: boolean) => void;
   backup: BackupInfo | null;
   onConfirm: () => void;
+}
+
+
+export interface BackupsTabProps {
+  backups: BackupInfo[];
+  lastRefresh: Date | null;
+  onOpenUpload: () => void;
+  onOpenCreate: () => void;
+  onDownload: (backup: BackupInfo, format: BackupFormat) => void;
+  onRestore: (backup: BackupInfo) => void;
+  onDelete: (backup: BackupInfo) => void;
+}
+
+export interface DatabaseInfoTabProps {
+  databaseInfo: DatabaseInfo | null;
+  backups: BackupInfo[];
 }

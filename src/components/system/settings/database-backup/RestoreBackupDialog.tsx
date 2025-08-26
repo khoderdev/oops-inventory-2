@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { backupAPI, BackupFormat, RestoreProgress } from "@/api/backup.api";
+import { backupAPI } from "@/api/backup.api";
 import { getBackupTypeIcon } from "./constants";
-import { RestoreBackupDialogProps } from "@/types/backup-scheduler";
+import { BackupFormat, RestoreBackupDialogProps, RestoreProgress } from "@/types/backup-scheduler";
 
 const RestoreBackupDialog: React.FC<RestoreBackupDialogProps> = ({ open, onOpenChange, backup, onRestoreCompleted }) => {
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,7 @@ const RestoreBackupDialog: React.FC<RestoreBackupDialogProps> = ({ open, onOpenC
 
   React.useEffect(() => {
     if (backup && backup.formats.length > 0) {
-      const preferredFormat = backup.formats.find(f => f.type === "custom") || backup.formats.find(f => f.type === "sql") || backup.formats[0];
+      const preferredFormat = backup.formats.find(f => f.type === "sql") || backup.formats[0];
       setSelectedFormat(preferredFormat);
     }
   }, [backup]);

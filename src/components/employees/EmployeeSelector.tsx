@@ -1,25 +1,15 @@
 import { employeeAPI } from "@/api/employee.api";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { employeesAtom } from "@/store/employeeAtoms";
-import type { Employee } from "@/types/employee";
+import type { Employee, EmployeeSelectorProps } from "@/types/employee";
 import { useAtom } from "jotai";
 import { ChevronDown, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
-interface EmployeeSelectorProps {
-  selectedEmployeeId?: number | null;
-  onEmployeeSelect: (employee: Employee | null) => void;
-  placeholder?: string;
-  showAvatar?: boolean;
-  compact?: boolean;
-  className?: string;
-} 
-
 export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmployeeId, onEmployeeSelect, placeholder = "Select employee", showAvatar = true, compact = false, className = "" }) => {
   const [employees, setEmployees] = useAtom(employeesAtom);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   // Load employees on mount
   useEffect(() => {
@@ -65,16 +55,9 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
     return (
       <Select value={selectedEmployeeId?.toString() || "none"} onValueChange={handleEmployeeChange}>
         <SelectTrigger className={`w-full ${className}`}>
-          <div className="flex items-center gap-2">
-            {showAvatar && selectedEmployee && (
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-xs">{getInitials(selectedEmployee.firstName, selectedEmployee.lastName)}</AvatarFallback>
-              </Avatar>
-            )}
-            <SelectValue placeholder={placeholder} />
-          </div>
+          <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent position="popper">
           <SelectItem value="none">
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-muted-foreground" />
@@ -105,7 +88,6 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
   return (
     <div className={`space-y-2 ${className}`}>
       <label className="text-sm font-medium">Current Employee</label>
-
       {selectedEmployee ? (
         <div className="flex items-center justify-between p-3 border rounded-lg bg-background">
           <div className="flex items-center gap-3">
@@ -125,7 +107,7 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
             <SelectTrigger className="w-auto border-0 bg-transparent p-1">
               <ChevronDown className="h-4 w-4" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper">
               <SelectItem value="none">
                 <div className="flex items-center gap-2">
                   <User className="h-4 w-4 text-muted-foreground" />
@@ -157,7 +139,7 @@ export const EmployeeSelector: React.FC<EmployeeSelectorProps> = ({ selectedEmpl
           <SelectTrigger className="w-full">
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent position="popper">
             <SelectItem value="none">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />

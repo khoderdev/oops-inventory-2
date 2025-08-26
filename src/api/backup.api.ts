@@ -1,82 +1,5 @@
 import api from "@/lib/http";
-
-export interface BackupFormat {
-  type: "custom" | "directory" | "sql";
-  id: string;
-  path: string;
-  size: number;
-  filename: string;
-}
-
-export interface BackupInfo {
-  id: string;
-  name: string;
-  formats: BackupFormat[];
-  totalSize: number;
-  createdAt: string;
-  metadata?: {
-    database: string;
-    version: string;
-    tables: number;
-    records: number;
-  };
-}
-
-export interface BackupResponse {
-  success: boolean;
-  data: {
-    backup: BackupInfo;
-    message: string;
-  };
-  message: string;
-}
-
-export interface BackupListResponse {
-  success: boolean;
-  data: {
-    backups: BackupInfo[];
-    total: number;
-  };
-  message: string;
-}
-
-export interface RestoreResponse {
-  success: boolean;
-  data: {
-    message: string;
-    restoredTables: number;
-    restoredRecords: number;
-    duration: number;
-  };
-  message: string;
-}
-
-export interface BackupProgress {
-  status: "starting" | "in_progress" | "completed" | "failed";
-  progress: number;
-  message: string;
-  currentStep?: string;
-  estimatedTimeRemaining?: number;
-}
-
-export interface RestoreProgress {
-  status: "starting" | "in_progress" | "completed" | "failed";
-  progress: number;
-  message: string;
-  currentStep?: string;
-  tablesRestored: number;
-  recordsRestored: number;
-  estimatedTimeRemaining?: number;
-}
-
-export interface DatabaseInfo {
-  name: string;
-  size: number;
-  tables: number;
-  records: number;
-  version: string;
-  lastBackup?: string;
-}
+import { DatabaseInfo, BackupResponse, BackupProgress, BackupListResponse, RestoreResponse, RestoreProgress, BackupInfo } from "@/types/backup-scheduler";
 
 class BackupApiClient {
   private cache = new Map<string, { data: unknown; timestamp: number }>();
@@ -105,7 +28,7 @@ class BackupApiClient {
     if (cached) return cached;
 
     try {
-      const response = await api.get('/backup/database-info');
+      const response = await api.get<{ success: boolean; data: DatabaseInfo; message?: string }>("/backup/database-info");
       const data = response.data.data;
       this.setCachedData(cacheKey, data);
       return data;
@@ -118,7 +41,7 @@ class BackupApiClient {
   async createBackup(
     options: {
       name?: string;
-      formats?: BackupFormat[];
+      formats?: string[];
       includeData?: boolean;
       includeSchema?: boolean;
     } = {}
@@ -126,12 +49,10 @@ class BackupApiClient {
     this.clearCache(); // Clear cache when creating new backup
 
     try {
-      // Default to all formats if none specified
-      if (!options.formats || options.formats.length === 0) {
-        options.formats = ["custom", "directory", "sql"];
-      }
-      
-      const response = await api.post('/backup/create', options);
+      // Sanitize formats and default to ["sql"] if none specified
+      const formats = (options.formats && options.formats.length > 0 ? options.formats : ["sql"]).filter(f => f === "sql");
+
+      const response = await api.post<BackupResponse, typeof options>("/backup/create", { ...options, formats });
       return response.data;
     } catch (error) {
       throw this.handleApiError(error, "Failed to create backup");
@@ -141,7 +62,7 @@ class BackupApiClient {
   // Get backup progress (for real-time updates)
   async getBackupProgress(backupId: string): Promise<BackupProgress> {
     try {
-      const response = await api.get(`/backup/progress/${backupId}`);
+      const response = await api.get<{ success: boolean; data: BackupProgress; message?: string }>(`/backup/progress/${backupId}`);
       return response.data.data;
     } catch (error) {
       throw this.handleApiError(error, "Failed to get backup progress");
@@ -155,7 +76,7 @@ class BackupApiClient {
     if (cached) return cached;
 
     try {
-      const response = await api.get("/backup/list");
+      const response = await api.get<BackupListResponse>("/backup/list");
       const data = response.data;
       this.setCachedData(cacheKey, data);
       return data;
@@ -169,7 +90,7 @@ class BackupApiClient {
     this.clearCache(); // Clear cache when deleting backup
 
     try {
-      const response = await api.delete(`/backup/${backupId}`);
+      const response = await api.delete<{ success: boolean; message: string }>(`/backup/${backupId}`);
       return response.data;
     } catch (error) {
       throw this.handleApiError(error, "Failed to delete backup");
@@ -189,7 +110,7 @@ class BackupApiClient {
     this.clearCache(); // Clear cache when restoring
 
     try {
-      const response = await api.post(`/backup/restore/${backupId}`, options);
+      const response = await api.post<RestoreResponse, typeof options>(`/backup/restore/${backupId}`, options);
       return response.data;
     } catch (error) {
       throw this.handleApiError(error, "Failed to restore backup");
@@ -199,7 +120,7 @@ class BackupApiClient {
   // Get restore progress (for real-time updates)
   async getRestoreProgress(restoreId: string): Promise<RestoreProgress> {
     try {
-      const response = await api.get(`/backup/restore-progress/${restoreId}`);
+      const response = await api.get<{ success: boolean; data: RestoreProgress; message?: string }>(`/backup/restore-progress/${restoreId}`);
       return response.data.data;
     } catch (error) {
       throw this.handleApiError(error, "Failed to get restore progress");
@@ -209,7 +130,7 @@ class BackupApiClient {
   // Download backup file
   async downloadBackup(backupId: string): Promise<Blob> {
     try {
-      const response = await api.get(`/backup/download/${backupId}`, {
+      const response = await api.get<Blob>(`/backup/download/${backupId}`, {
         responseType: "blob"
       });
       return response.data;
@@ -227,7 +148,7 @@ class BackupApiClient {
       formData.append("backup", file);
       if (name) formData.append("name", name);
 
-      const response = await api.post("/backup/upload", formData, {
+      const response = await api.post<BackupResponse, FormData>("/backup/upload", formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         }
@@ -245,7 +166,9 @@ class BackupApiClient {
     metadata: BackupInfo["metadata"];
   }> {
     try {
-      const response = await api.get(`/backup/validate/${backupId}`);
+      const response = await api.get<{ success: boolean; data: { valid: boolean; issues: string[]; metadata: BackupInfo["metadata"] }; message?: string }>(
+        `/backup/validate/${backupId}`
+      );
       return response.data.data;
     } catch (error) {
       throw this.handleApiError(error, "Failed to validate backup");
@@ -262,7 +185,9 @@ class BackupApiClient {
     nextRun?: string;
   }> {
     try {
-      const response = await api.get("/backup/schedule");
+      const response = await api.get<{ success: boolean; data: { enabled: boolean; frequency: "daily" | "weekly" | "monthly"; time: string; retentionDays: number; lastRun?: string; nextRun?: string } }>(
+        "/backup/schedule"
+      );
       return response.data.data;
     } catch (error) {
       throw this.handleApiError(error, "Failed to get schedule settings");
@@ -272,7 +197,7 @@ class BackupApiClient {
   // Update backup schedule settings
   async updateScheduleSettings(settings: { enabled: boolean; frequency: "daily" | "weekly" | "monthly"; time: string; retentionDays: number }): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await api.put("/backup/schedule", settings);
+      const response = await api.put<{ success: boolean; message: string }, typeof settings>("/backup/schedule", settings);
       return response.data;
     } catch (error) {
       throw this.handleApiError(error, "Failed to update schedule settings");
@@ -306,7 +231,6 @@ class BackupApiClient {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   }
-  
 
   // Format date for display
   formatDate(dateString: string): string {

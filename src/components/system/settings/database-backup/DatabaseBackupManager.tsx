@@ -1,7 +1,7 @@
 import { Loader2 } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { backupAPI, BackupFormat, BackupInfo, DatabaseInfo } from "@/api/backup.api";
+import { backupAPI } from "@/api/backup.api";
 import BackupScheduler from "@/components/system/settings/database-backup/BackupScheduler";
 import CreateBackupDialog from "./CreateBackupDialog";
 import DeleteConfirmationDialog from "./DeleteConfirmationDialog";
@@ -9,6 +9,7 @@ import RestoreBackupDialog from "./RestoreBackupDialog";
 import UploadBackupDialog from "./UploadBackupDialog";
 import BackupsTab from "./BackupsTab";
 import DatabaseInfoTab from "./DatabaseInfoTab";
+import { BackupFormat, BackupInfo, DatabaseInfo } from "@/types/backup-scheduler";
 
 const DatabaseBackupManager: React.FC = () => {
   const [backups, setBackups] = useState<BackupInfo[]>([]);
@@ -106,7 +107,7 @@ const DatabaseBackupManager: React.FC = () => {
             onOpenUpload={() => setUploadDialogOpen(true)}
             onOpenCreate={() => setCreateDialogOpen(true)}
             onDownload={handleDownloadBackup}
-            onRestore={(backup) => {
+            onRestore={backup => {
               setSelectedBackup(backup);
               setRestoreDialogOpen(true);
             }}

@@ -65,64 +65,54 @@ export const DepartmentForm: React.FC<DepartmentFormProps> = ({ mode, initialDat
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. Kitchen" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="code"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Code</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. KIT" {...field} onChange={e => field.onChange(normalizeCode(e.target.value))} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="costCenter"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Cost Center</FormLabel>
-                <FormControl>
-                  <Input placeholder="Optional" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="managerId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Manager</FormLabel>
-                <FormControl>
-                  <div>
-                    <EmployeeSelector compact selectedEmployeeId={field.value ?? undefined} onEmployeeSelect={emp => field.onChange(emp?.id ?? undefined)} placeholder="Select manager (optional)" />
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <div className="grid grid-cols-3 md:grid-cols-5 gap-4">
+          <div className="col-span-2">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. Kitchen" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="col-span-1">
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g. KIT" {...field} onChange={e => field.onChange(normalizeCode(e.target.value))} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="col-span-2">
+            <FormField
+              control={form.control}
+              name="managerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Manager</FormLabel>
+                  <FormControl>
+                    <div>
+                      <EmployeeSelector compact selectedEmployeeId={field.value ?? undefined} onEmployeeSelect={emp => field.onChange(emp?.id ?? undefined)} placeholder="Select manager (optional)" />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <FormField

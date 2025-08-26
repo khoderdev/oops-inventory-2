@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from "axios";
+import axios, { AxiosError, AxiosInstance, AxiosResponse, InternalAxiosRequestConfig, AxiosRequestConfig } from "axios";
 
 // Define API response interface
 interface ApiResponse<T> {
@@ -108,7 +108,7 @@ class ApiClient {
   }
 
   // Generic GET request
-  async get<T>(url: string, config?: InternalAxiosRequestConfig): Promise<ApiResponse<T>> {
+  async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
       const response = await this.instance.get<T>(url, config);
       return {
@@ -122,7 +122,7 @@ class ApiClient {
   }
 
   // Generic POST request
-  async post<T, D>(url: string, data: D, config?: InternalAxiosRequestConfig): Promise<ApiResponse<T>> {
+  async post<T, D>(url: string, data: D, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
       const response = await this.instance.post<T>(url, data, config);
       return {
@@ -136,7 +136,7 @@ class ApiClient {
   }
 
   // Generic PUT request
-  async put<T, D>(url: string, data: D, config?: InternalAxiosRequestConfig): Promise<ApiResponse<T>> {
+  async put<T, D>(url: string, data: D, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
       const response = await this.instance.put<T>(url, data, config);
       return {
@@ -150,7 +150,7 @@ class ApiClient {
   }
 
   // Generic PATCH request
-  async patch<T, D>(url: string, data: D, config?: InternalAxiosRequestConfig): Promise<ApiResponse<T>> {
+  async patch<T, D>(url: string, data: D, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
       const response = await this.instance.patch<T>(url, data, config);
       return {
@@ -164,7 +164,7 @@ class ApiClient {
   }
 
   // Generic DELETE request
-  async delete<T>(url: string, config?: InternalAxiosRequestConfig): Promise<ApiResponse<T>> {
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
     try {
       const response = await this.instance.delete<T>(url, config);
       return {

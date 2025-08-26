@@ -2,12 +2,8 @@ import React from "react";
 import { Database } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { backupAPI, BackupInfo, DatabaseInfo } from "@/api/backup.api";
-
-interface DatabaseInfoTabProps {
-  databaseInfo: DatabaseInfo | null;
-  backups: BackupInfo[];
-}
+import { backupAPI } from "@/api/backup.api";
+import { DatabaseInfoTabProps } from "@/types/backup-scheduler";
 
 const DatabaseInfoTab: React.FC<DatabaseInfoTabProps> = ({ databaseInfo, backups }) => {
   return (
@@ -96,9 +92,7 @@ const DatabaseInfoTab: React.FC<DatabaseInfoTabProps> = ({ databaseInfo, backups
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Backup Storage</p>
-                  <p className="text-lg font-semibold">
-                    {backupAPI.formatFileSize(backups.reduce((total, backup) => total + backup.totalSize, 0))}
-                  </p>
+                  <p className="text-lg font-semibold">{backupAPI.formatFileSize(backups.reduce((total, backup) => total + backup.totalSize, 0))}</p>
                 </div>
               </div>
             </CardContent>
