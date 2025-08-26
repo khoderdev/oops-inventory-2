@@ -116,6 +116,7 @@ export interface Material {
   baseUnit: string;
   unitType: UnitType;
   inputUnit?: string;
+  costPerBaseUnit: number;
   costPerUnit: number;
   packageQuantity?: number;
   description?: string;
@@ -799,7 +800,6 @@ export interface MenuItem {
   updatedAt: Date;
 }
 
-
 export interface CategoryOption {
   id: number | string;
   value: string;
@@ -1109,14 +1109,6 @@ export interface Sauce {
   updatedAt: Date;
 }
 
-export interface SauceIngredient {
-  materialId: string;
-  materialName?: string;
-  quantity: number;
-  unit: string;
-  cost: number;
-}
-
 export interface CreateSauceData {
   name: string;
   description?: string;
@@ -1181,6 +1173,7 @@ export interface SauceIngredient {
   unit: string;
   cost: number;
   material?: Material;
+  costPerUnit?: number;
 }
 
 export interface SauceCalculationResult {
@@ -1189,6 +1182,7 @@ export interface SauceCalculationResult {
   yieldUnit: string;
   costPerUnit: number;
   ingredients: Array<{
+    materialId: string;
     name: string;
     quantity: number;
     unit: string;

@@ -42,50 +42,38 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
   const watchedIngredients = form.watch("baseIngredients");
   const watchedYieldQuantity = form.watch("yieldQuantity");
 
-  // Materials with stock information and calculated cost per unit for ingredient selection
   const materialsWithStock = useMemo(() => {
-    return materials.map(material => {
-      const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
-      const totalStock = materialStockEntries.reduce((sum, entry) => sum + (entry.purchasedIndividualQuantity || 0), 0);
-      
-      // Calculate cost per unit from recent stock entries if not available
-      let costPerUnit = material.costPerUnit;
-      console.log(`📊 Material ${material.name} (ID: ${material.id}):`, {
-        originalCostPerUnit: material.costPerUnit,
-        stockEntriesCount: materialStockEntries.length,
-        stockEntries: materialStockEntries
-      });
-      
-      if (!costPerUnit && materialStockEntries.length > 0) {
-        // Get recent stock entries (last 5) and calculate weighted average
-        const recentEntries = materialStockEntries
-          .filter(entry => entry.purchasedIndividualQuantity > 0)
-          .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
-          .slice(0, 5);
-        
-        console.log(`📈 Recent entries for ${material.name}:`, recentEntries);
-        
-        if (recentEntries.length > 0) {
-          let totalValue = 0;
-          let totalQuantity = 0;
-          
-          recentEntries.forEach(entry => {
-            totalValue += entry.totalCost;
-            totalQuantity += entry.purchasedIndividualQuantity;
-          });
-          
-          costPerUnit = totalQuantity > 0 ? totalValue / totalQuantity : 0;
-          console.log(`💰 Calculated costPerUnit for ${material.name}:`, costPerUnit);
+    return materials
+      .map(material => {
+        const materialStockEntries = stockEntries.filter(entry => entry.materialId === material.id);
+        const totalStock = materialStockEntries.reduce((sum, entry) => sum + (entry.purchasedIndividualQuantity || 0), 0);
+        let costPerUnit = material.costPerBaseUnit != null ? parseFloat(material.costPerBaseUnit as any) : typeof material.costPerUnit === "string" ? parseFloat(material.costPerUnit) : material.costPerUnit;
+        if (!costPerUnit || isNaN(costPerUnit) || costPerUnit <= 0) {
+          const recentEntries = materialStockEntries
+            .filter(entry => entry.purchasedIndividualQuantity > 0)
+            .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+            .slice(0, 5);
+          if (recentEntries.length > 0) {
+            let totalValue = 0;
+            let totalQuantity = 0;
+            recentEntries.forEach(entry => {
+              totalValue += Number(entry.totalCost);
+              totalQuantity += entry.purchasedIndividualQuantity;
+            });
+            costPerUnit = totalQuantity > 0 ? totalValue / totalQuantity : 0;
+          } else {
+            console.warn(`⚠️ No valid cost data for ${material.name}`);
+            costPerUnit = 0;
+          }
         }
-      }
-      
-      return {
-        ...material,
-        costPerUnit: costPerUnit || 0,
-        hasStock: totalStock > 0,
-        availableStock: totalStock
-      };
-    }).filter(material => material.hasStock);
+        return {
+          ...material,
+          costPerUnit,
+          hasStock: totalStock > 0,
+          availableStock: totalStock
+        };
+      })
+      .filter(material => material.hasStock);
   }, [materials, stockEntries]);
 
   // Materials lookup for quick access (using enriched materials with cost data)
@@ -102,38 +90,34 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
         setCalculationResult(null);
         return;
       }
-
       const validIngredients = watchedIngredients.filter(ing => ing.materialId && ing.quantity > 0 && ing.unit);
-
       if (validIngredients.length === 0) {
         setCalculationResult(null);
         return;
       }
-
       setIsCalculating(true);
       try {
-        // Convert form ingredients to SauceIngredient format
         const sauceIngredients: SauceIngredient[] = validIngredients.map(ing => ({
           materialId: ing.materialId,
           quantity: ing.quantity,
           unit: ing.unit,
           cost: ing.cost || 0
         }));
-
-        // Calculate metrics with optional manual yield
         const manualYield = watchedYieldQuantity && parseFloat(watchedYieldQuantity) > 0 ? { quantity: parseFloat(watchedYieldQuantity), unit: form.getValues("unit") } : undefined;
-
-        const result = calculateSauceMetrics(sauceIngredients, materials, manualYield);
-        setCalculationResult(result);
-
-        // Auto-update yield if enabled and no manual yield provided
+        const result = calculateSauceMetrics(sauceIngredients, materialsWithStock, manualYield);
+        if (!result) {
+          console.error("❌ calculateSauceMetrics returned undefined");
+          setCalculationResult(null);
+        } else {
+          setCalculationResult(result);
+        }
         if (autoYieldEnabled && (!watchedYieldQuantity || parseFloat(watchedYieldQuantity) === 0)) {
-          const autoYield = autoUpdateSauceYield(sauceIngredients, materials, form.getValues("unit"));
+          const autoYield = autoUpdateSauceYield(sauceIngredients, materialsWithStock, form.getValues("unit"));
           form.setValue("yieldQuantity", autoYield.quantity.toString(), { shouldValidate: false });
           form.setValue("unit", autoYield.unit, { shouldValidate: false });
         }
       } catch (error) {
-        console.error("❌ Error calculating sauce metrics:", error);
+        console.error("❌ Error in calculateSauceMetricsAsync:", error);
         setCalculationResult(null);
       } finally {
         setIsCalculating(false);
@@ -141,22 +125,39 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
     };
 
     calculateSauceMetricsAsync();
-  }, [watchedIngredients, watchedYieldQuantity, materials, autoYieldEnabled, form]);
+  }, [watchedIngredients, watchedYieldQuantity, materialsWithStock, autoYieldEnabled, form]);
 
   // Update ingredient costs from calculation results
   useEffect(() => {
     if (calculationResult?.ingredients) {
-      calculationResult.ingredients.forEach((ingredient, index) => {
-        const fieldIndex = watchedIngredients?.findIndex(ing => {
-          const material = materialsById.get(ing.materialId);
-          return material?.name === ingredient.name;
-        });
-        if (fieldIndex !== undefined && fieldIndex >= 0) {
-          form.setValue(`baseIngredients.${fieldIndex}.cost`, ingredient.cost, { shouldValidate: false });
+      // Create a map of materialId to ingredient cost for quick lookup
+      const costMap = new Map<string, number>();
+      calculationResult.ingredients.forEach(ing => {
+        costMap.set(ing.materialId.toString(), ing.cost);
+      });
+
+      // Update each ingredient's cost in the form
+      const updatedIngredients = [...form.getValues("baseIngredients")];
+      let hasChanges = false;
+
+      updatedIngredients.forEach((ing, index) => {
+        if (ing.materialId && costMap.has(ing.materialId)) {
+          const newCost = costMap.get(ing.materialId) || 0;
+          if (ing.cost !== newCost) {
+            updatedIngredients[index] = {
+              ...ing,
+              cost: newCost
+            };
+            hasChanges = true;
+          }
         }
       });
+
+      if (hasChanges) {
+        form.setValue("baseIngredients", updatedIngredients, { shouldValidate: true });
+      }
     }
-  }, [calculationResult, watchedIngredients, materialsById, form]);
+  }, [calculationResult, form]);
 
   const handleSubmit = (data: SauceFormInputs) => {
     const processedData: SauceFormData = {
@@ -198,11 +199,11 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="flex items-center gap-1">
             <Calculator className="w-3 h-3" />
-            Total Cost: ${calculationResult?.totalCost.toFixed(2)}
+            Total Cost: ${calculationResult?.totalCost?.toFixed(2) ?? "0.00"}
           </Badge>
           <Badge variant="outline" className="flex items-center gap-1">
             <Utensils className="w-3 h-3" />
-            Cost/Unit: ${calculationResult?.costPerUnit.toFixed(4)}
+            Cost/Unit: ${calculationResult?.costPerUnit?.toFixed(4) ?? "0.0000"}
           </Badge>
         </div>
       </div>
@@ -299,16 +300,16 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Total Cost:</span>
-                  <span className="font-semibold">${calculationResult?.totalCost?.toFixed(2) || "0.00"}</span>
+                  <span className="font-semibold">${calculationResult?.totalCost?.toFixed(2) ?? "0.00"}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Cost per {calculationResult?.yieldUnit || form.watch("unit") || "unit"}:</span>
-                  <span className="font-semibold">${calculationResult?.costPerUnit?.toFixed(4) || "0.0000"}</span>
+                  <span className="text-sm text-gray-600">Cost per {calculationResult?.yieldUnit ?? form.watch("unit") ?? "unit"}:</span>
+                  <span className="font-semibold">${calculationResult?.costPerUnit?.toFixed(4) ?? "0.0000"}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Estimated Yield:</span>
                   <span className="font-semibold">
-                    {calculationResult?.estimatedYield?.toFixed(1) || form.watch("yieldQuantity") || "0"} {calculationResult?.yieldUnit || form.watch("unit") || "units"}
+                    {calculationResult?.estimatedYield?.toFixed(1) ?? form.watch("yieldQuantity") ?? "0"} {calculationResult?.yieldUnit ?? form.watch("unit") ?? "unit"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
@@ -324,7 +325,7 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                 </div>
               )}
 
-              {calculationResult?.calculationSteps && calculationResult.calculationSteps.length > 0 && (
+              {calculationResult?.calculationSteps && calculationResult.calculationSteps.length > 0 ? (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Info className="w-4 h-4 text-blue-600" />
@@ -336,6 +337,13 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                         {step}
                       </div>
                     ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-700">No calculation details available</span>
                   </div>
                 </div>
               )}
@@ -419,19 +427,17 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                             placeholder="0"
                             className="mt-1"
                             value={field.value || ""}
-                            onChange={(e) => {
+                            onChange={e => {
                               const quantity = parseFloat(e.target.value) || 0;
                               field.onChange(quantity);
                               const materialId = form.getValues(`baseIngredients.${index}.materialId`);
                               const unit = form.getValues(`baseIngredients.${index}.unit`);
-                              console.log(`🔄 Quantity changed for ingredient ${index}:`, { materialId, quantity, unit });
                               if (materialId && quantity > 0 && unit) {
                                 const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
-                                console.log(`🔍 Material found:`, material);
-                                console.log(`💵 Material costPerUnit:`, material?.costPerUnit);
-                                const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
-                                console.log(`💰 Calculated cost for ingredient ${index}:`, smartCost);
-                                form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
+                                if (material) {
+                                  const cost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
+                                  form.setValue(`baseIngredients.${index}.cost`, cost, { shouldValidate: true });
+                                }
                               }
                             }}
                           />
@@ -449,15 +455,13 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                             placeholder="g"
                             className="mt-1"
                             value={field.value || ""}
-                            onChange={(e) => {
+                            onChange={e => {
                               const unit = e.target.value;
                               field.onChange(unit);
                               const materialId = form.getValues(`baseIngredients.${index}.materialId`);
                               const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
-                              console.log(`🔄 Unit changed for ingredient ${index}:`, { materialId, quantity, unit });
                               if (materialId && quantity > 0 && unit) {
                                 const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
-                                console.log(`💰 Calculated cost for ingredient ${index}:`, smartCost);
                                 form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
                               }
                             }}

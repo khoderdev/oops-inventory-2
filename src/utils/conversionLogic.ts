@@ -601,60 +601,57 @@ export function estimateSauceYield(ingredients: SauceIngredient[], materials: Ma
     return convertMass(massInGrams, "g", targetUnit);
   }
 
-  return finalVolume; // Return in ml as fallback
+  return finalVolume;
 }
 
-/**
- * Calculates comprehensive sauce metrics with automatic yield estimation
- */
+// Calculates comprehensive sauce metrics with automatic yield estimation
 export function calculateSauceMetrics(ingredients: SauceIngredient[], materials: Material[], manualYield?: { quantity: number; unit: string }): SauceCalculationResult {
   const materialMap = new Map(materials.map(m => [m.id.toString(), m]));
   const steps: string[] = [];
   const processedIngredients: SauceCalculationResult["ingredients"] = [];
-
   let totalCost = 0;
 
-  // Process each ingredient
   for (const ingredient of ingredients) {
     const material = materialMap.get(ingredient.materialId);
     if (!material) {
+      console.warn(`⚠️ Material not found for ingredient ID: ${ingredient.materialId}`);
       steps.push(`⚠️ Material not found for ingredient: ${ingredient.materialId}`);
       continue;
     }
-
-    // Normalize ingredient to material's base unit for cost calculation
+    let ingredientCost = ingredient.cost;
     let normalizedQuantity = ingredient.quantity;
     let normalizedUnit = ingredient.unit;
-    let ingredientCost = 0;
-
-    // Convert to material's base unit for accurate cost calculation
-    if (ingredient.unit !== material.baseUnit) {
-      if (isMassUnit(ingredient.unit) && isMassUnit(material.baseUnit)) {
-        normalizedQuantity = convertMass(ingredient.quantity, ingredient.unit, material.baseUnit);
-        normalizedUnit = material.baseUnit;
-      } else if (isVolumeUnit(ingredient.unit) && isVolumeUnit(material.baseUnit)) {
-        normalizedQuantity = convertVolume(ingredient.quantity, ingredient.unit, material.baseUnit);
-        normalizedUnit = material.baseUnit;
-      } else if (material.unitType === "package") {
-        // Handle package conversions
-        if (ingredient.unit.toLowerCase() === "piece" || ingredient.unit.toLowerCase() === material.baseUnit) {
-          normalizedQuantity = ingredient.quantity;
-          normalizedUnit = material.baseUnit;
-        } else if (material.packageQuantity) {
-          // Convert package to pieces
-          normalizedQuantity = ingredient.quantity * material.packageQuantity;
-          normalizedUnit = material.baseUnit;
+    let costPerUnit = typeof material.costPerUnit === "string" ? parseFloat(material.costPerUnit) : material.costPerUnit || 0;
+    if (ingredientCost <= 0 || isNaN(ingredientCost)) {
+      if (costPerUnit <= 0 || isNaN(costPerUnit)) {
+        console.warn(`⚠️ Invalid costPerUnit for material ${material.name}: ${costPerUnit}`);
+        steps.push(`⚠️ Invalid cost for ${material.name} (costPerUnit: ${costPerUnit})`);
+        ingredientCost = 0;
+      } else {
+        try {
+          if (ingredient.unit !== material.baseUnit) {
+            if (isMassUnit(ingredient.unit) && isMassUnit(material.baseUnit)) {
+              normalizedQuantity = convertMass(ingredient.quantity, ingredient.unit, material.baseUnit);
+              normalizedUnit = material.baseUnit;
+            } else if (isVolumeUnit(ingredient.unit) && isVolumeUnit(material.baseUnit)) {
+              normalizedQuantity = convertVolume(ingredient.quantity, ingredient.unit, material.baseUnit);
+              normalizedUnit = material.baseUnit;
+            } else if (material.unitType === "package" && material.packageQuantity) {
+              normalizedQuantity = ingredient.quantity * material.packageQuantity;
+              normalizedUnit = material.baseUnit;
+            }
+          }
+          ingredientCost = normalizedQuantity * costPerUnit;
+        } catch (error) {
+          console.error(`❌ Error converting units for material ${material.name}:`, error);
+          steps.push(`⚠️ Error converting ${ingredient.unit} to ${material.baseUnit} for ${material.name}`);
+          ingredientCost = 0;
         }
       }
     }
-
-    // Calculate ingredient cost
-    const materialCostPerUnit = typeof material.costPerUnit === "string" ? parseFloat(material.costPerUnit) : material.costPerUnit || 0;
-
-    ingredientCost = normalizedQuantity * materialCostPerUnit;
     totalCost += ingredientCost;
-
     processedIngredients.push({
+      materialId: ingredient.materialId,
       name: material.name,
       quantity: ingredient.quantity,
       unit: ingredient.unit,
@@ -662,76 +659,103 @@ export function calculateSauceMetrics(ingredients: SauceIngredient[], materials:
       normalizedQuantity,
       normalizedUnit
     });
-
-    steps.push(`${material.name}: ${ingredient.quantity} ${ingredient.unit} ` + `${normalizedQuantity !== ingredient.quantity ? `(${formatVolume(normalizedQuantity)} ${normalizedUnit}) ` : ""}` + `× $${formatCurrencyUI(materialCostPerUnit)} = ${formatCurrency(ingredientCost)}`);
+    const conversionNote = normalizedQuantity !== ingredient.quantity ? ` (converted from ${ingredient.quantity} ${ingredient.unit})` : "";
+    steps.push(`${material.name}: ${normalizedQuantity} ${normalizedUnit}${conversionNote} × $${costPerUnit.toFixed(4)} = $${ingredientCost.toFixed(2)}`);
   }
-
-  // Determine yield
   let finalYield: number;
   let yieldUnit: string;
+  try {
+    if (manualYield?.quantity && !isNaN(manualYield.quantity)) {
+      finalYield = manualYield.quantity;
+      yieldUnit = manualYield.unit;
+      steps.push(`📏 Using manual yield: ${finalYield} ${yieldUnit}`);
+    } else {
+      const totalVolume = processedIngredients.reduce((sum, ing) => {
+        if (isVolumeUnit(ing.unit) || isVolumeUnit(ing.normalizedUnit)) {
+          return sum + (ing.normalizedQuantity || 0);
+        }
+        return sum;
+      }, 0);
 
-  if (manualYield && manualYield.quantity > 0) {
-    // Use manual yield if provided
-    finalYield = manualYield.quantity;
-    yieldUnit = manualYield.unit;
-    steps.push(`📏 Manual yield: ${finalYield} ${yieldUnit}`);
-  } else {
-    // Auto-calculate yield
-    yieldUnit = determineBestYieldUnit(ingredients, materials);
-    finalYield = estimateSauceYield(ingredients, materials, yieldUnit);
-    steps.push(`📏 Estimated yield: ${formatVolume(finalYield)} ${yieldUnit} (auto-calculated)`);
+      yieldUnit = totalVolume > 0 ? "ml" : "unit";
+      finalYield = totalVolume > 0 ? totalVolume : 1;
+      steps.push(`📏 Estimated yield: ${finalYield} ${yieldUnit} (auto-calculated)`);
+    }
+  } catch (error) {
+    console.error(`❌ Error calculating yield:`, error);
+    steps.push(`⚠️ Error calculating yield`);
+    finalYield = 1;
+    yieldUnit = "unit";
   }
-
-  // Calculate cost per unit
   const costPerUnit = finalYield > 0 ? totalCost / finalYield : 0;
-
-  steps.push(`💰 Total cost: ${formatCurrency(totalCost)}`);
-  steps.push(`📊 Cost per ${yieldUnit}: ${formatCurrency(costPerUnit)}`);
-
-  return {
+  steps.push(`💰 Total cost: $${totalCost.toFixed(2)}`);
+  steps.push(`📊 Cost per ${yieldUnit}: $${costPerUnit.toFixed(4)}`);
+  const result: SauceCalculationResult = {
     totalCost,
+    costPerUnit,
     estimatedYield: finalYield,
     yieldUnit,
-    costPerUnit,
     ingredients: processedIngredients,
     calculationSteps: steps
   };
+  return result;
 }
 
-/**
- * Updates ingredient cost when material or quantity changes
- */
 export function calculateIngredientCostSmart(materialId: string, quantity: number, unit: string, materials: Material[]): number {
   const material = materials.find(m => m.id.toString() === materialId);
-  if (!material || quantity <= 0) return 0;
+  if (!material) {
+    console.warn(`❌ Material not found for ID: ${materialId}`);
+    return 0;
+  }
+
+  if (quantity <= 0 || isNaN(quantity)) {
+    console.warn(`❌ Invalid quantity for material ${material.name}: ${quantity}`);
+    return 0;
+  }
 
   // Get material cost per unit
   const materialCostPerUnit = typeof material.costPerUnit === "string" ? parseFloat(material.costPerUnit) : material.costPerUnit || 0;
 
-  if (materialCostPerUnit <= 0) return 0;
+  if (materialCostPerUnit <= 0 || isNaN(materialCostPerUnit)) {
+    console.warn(`❌ Invalid costPerUnit for material ${material.name}: ${materialCostPerUnit}`);
+    return 0;
+  }
 
   // Convert quantity to material's base unit for accurate cost calculation
   let normalizedQuantity = quantity;
+  let normalizedUnit = unit;
 
   if (unit !== material.baseUnit) {
-    if (isMassUnit(unit) && isMassUnit(material.baseUnit)) {
-      normalizedQuantity = convertMass(quantity, unit, material.baseUnit);
-    } else if (isVolumeUnit(unit) && isVolumeUnit(material.baseUnit)) {
-      normalizedQuantity = convertVolume(quantity, unit, material.baseUnit);
-    } else if (material.unitType === "package") {
-      // Handle package conversions
-      if (unit.toLowerCase() === "piece" || unit.toLowerCase() === material.baseUnit) {
-        normalizedQuantity = quantity;
-      } else if (material.packageQuantity && unit === material.inputUnit) {
-        // Convert from input unit (e.g., box) to base unit (e.g., piece)
+    try {
+      if (isMassUnit(unit) && isMassUnit(material.baseUnit)) {
+        normalizedQuantity = convertMass(quantity, unit, material.baseUnit);
+        normalizedUnit = material.baseUnit;
+      } else if (isVolumeUnit(unit) && isVolumeUnit(material.baseUnit)) {
+        normalizedQuantity = convertVolume(quantity, unit, material.baseUnit);
+        normalizedUnit = material.baseUnit;
+      } else if (material.unitType === "package" && material.packageQuantity) {
         normalizedQuantity = quantity * material.packageQuantity;
+        normalizedUnit = material.baseUnit;
       }
+    } catch (error) {
+      console.error(`❌ Error converting ${unit} to ${material.baseUnit} for ${material.name}:`, error);
+      return 0;
     }
   }
 
-  return normalizedQuantity * materialCostPerUnit;
-}
+  const cost = normalizedQuantity * materialCostPerUnit;
+  console.log("💰 Cost Calculation:", {
+    material: material.name,
+    inputQuantity: quantity,
+    inputUnit: unit,
+    normalizedQuantity,
+    normalizedUnit,
+    materialCostPerUnit,
+    calculatedCost: cost
+  });
 
+  return cost;
+}
 /**
  * Auto-updates sauce yield when ingredients change
  */
