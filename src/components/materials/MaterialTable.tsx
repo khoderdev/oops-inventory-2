@@ -89,15 +89,28 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
 
   const handleBulkDelete = async () => {
     const selectedRows = table.getState().rowSelection;
-    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
+    const selectedRowIndices = Object.keys(selectedRows)
+      .filter(index => selectedRows[index])
+      .map(Number);
 
-    if (selectedIds.length === 0 || !onBulkDelete) return;
+    if (selectedRowIndices.length === 0 || !onBulkDelete) return;
+
+    // Get the actual material IDs from the currently displayed rows in the table
+    const selectedMaterialIds = selectedRowIndices
+      .map(rowIndex => {
+        // Get the actual row data from the table
+        const row = table.getRowModel().rowsById[rowIndex];
+        return row?.original?.id;
+      })
+      .filter((id): id is string => id !== undefined);
+
+    if (selectedMaterialIds.length === 0) return;
 
     try {
-      await onBulkDelete(selectedIds);
+      await onBulkDelete(selectedMaterialIds);
       toast({
         title: "Success",
-        description: `Deleted ${selectedIds.length} material${selectedIds.length === 1 ? "" : "s"} successfully`,
+        description: `Deleted ${selectedMaterialIds.length} material${selectedMaterialIds.length === 1 ? "" : "s"} successfully`,
         duration: 1000
       });
       table.setRowSelection({});
@@ -509,18 +522,6 @@ export function MaterialTable({ filteredMaterials, categories, onEditMaterial, o
       }));
     }
   }, [categories, table]);
-
-  // Define these functions after table is initialized
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      // Create a selection object with all visible materials selected
-      const allSelected = Object.fromEntries(filteredMaterials.map(material => [material.id, true]));
-      table.setRowSelection(allSelected);
-    } else {
-      // Clear all selections
-      table.setRowSelection({});
-    }
-  };
 
   const handleClearSelection = () => {
     table.setRowSelection({});

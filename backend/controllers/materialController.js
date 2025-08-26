@@ -3,6 +3,7 @@ import conversions from "../utils/conversions.js";
 import { Op } from "sequelize";
 import { parsePaginationParams, buildPaginationResponse, buildFilterConditions, parseFieldSelection } from "../utils/paginationHelpers.js";
 import { isValidCategory, getMaterialCategories } from "../utils/categoryHelpers.js";
+import sequelize from "../config/database.js";
 
 const materialController = {
   // Get all materials with stock information (with pagination and filtering)
@@ -393,25 +394,96 @@ const materialController = {
 
   // Bulk delete materials
   bulkDeleteMaterial: async (req, res, next) => {
+    const t = await sequelize.transaction();
     try {
       const { ids } = req.body;
+
       if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        await t.rollback();
         return res.status(400).json({ error: "Invalid request format" });
       }
-      const materials = await Material.findAll({ where: { id: ids } });
-      if (materials.length === 0) {
-        return res.status(404).json({ error: "Materials not found" });
+
+      // Convert string IDs to numbers and filter out any invalid values
+      const materialIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id) && id > 0);
+
+      if (materialIds.length === 0) {
+        await t.rollback();
+        return res.status(400).json({ error: "No valid material IDs provided" });
       }
-      await Material.destroy({ where: { id: ids } });
-      // Clear materials cache after deletion
-      import("../middleware/cacheMiddleware.js").then(({ clearCacheByPattern }) => {
-        clearCacheByPattern("materials");
+
+      // Check if materials exist
+      const materials = await Material.findAll({
+        where: { id: materialIds },
+        transaction: t
       });
-      res.status(204).send();
+
+      if (materials.length !== materialIds.length) {
+        const foundIds = materials.map(m => m.id);
+        const missingIds = materialIds.filter(id => !foundIds.includes(id));
+        console.warn(`Some materials not found: ${missingIds.join(", ")}`);
+      }
+
+      if (materials.length === 0) {
+        await t.rollback();
+        return res.status(404).json({ error: "No valid materials found to delete" });
+      }
+
+      // Delete the materials
+      await Material.destroy({
+        where: { id: materialIds },
+        transaction: t
+      });
+
+      // Commit the transaction
+      await t.commit();
+
+      // Let the route handler send the response and clear cache
+      next();
     } catch (err) {
+      await t.rollback();
+      console.error("Error in bulkDeleteMaterial:", err);
       next(err);
     }
   },
+  // bulkDeleteMaterial: async (req, res, next) => {
+  //   try {
+  //     const { ids } = req.body;
+  //     if (!ids || !Array.isArray(ids) || ids.length === 0) {
+  //       return res.status(400).json({ error: "Invalid request format" });
+  //     }
+
+  //     // Convert all IDs to numbers for consistent comparison
+  //     const numericIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+
+  //     // Find which IDs actually exist
+  //     const existingMaterials = await Material.findAll({
+  //       where: {
+  //         id: numericIds
+  //       }
+  //     });
+
+  //     const existingIds = existingMaterials.map(material => material.id);
+
+  //     // Delete only the existing ones
+  //     if (existingIds.length > 0) {
+  //       await Material.destroy({ where: { id: existingIds } });
+  //     }
+
+  //     // Clear materials cache after deletion
+  //     import("../middleware/cacheMiddleware.js").then(({ clearCacheByPattern }) => {
+  //       clearCacheByPattern("materials");
+  //     });
+
+  //     // Return success with details
+  //     res.status(200).json({
+  //       message: "Bulk delete completed",
+  //       deletedCount: existingIds.length,
+  //       notFoundIds: numericIds.filter(id => !existingIds.includes(id))
+  //     });
+  //   } catch (err) {
+  //     next(err);
+  //   }
+  // },
 
   // Bulk update materials categories
   bulkUpdateMaterialCategories: async (req, res, next) => {

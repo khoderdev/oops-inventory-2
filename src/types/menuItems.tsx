@@ -1,6 +1,6 @@
 import { ValidationResult } from "@/utils/dataValidation";
 import { Category } from "./categories";
-import { CreateMenuItemData, Material, MenuItem, MenuItemIngredient,  StockEntry } from "./inventory";
+import { CreateMenuItemData, Material, MenuItem, MenuItemIngredient,  Sauce,  StockEntry } from "./inventory";
 import { Table } from "@tanstack/react-table";
 
 export interface MenuItemsContextState {
@@ -122,6 +122,7 @@ export interface MenuItemFormProps {
   menuItem?: MenuItem;
   categories: Category[];
   stockEntries?: StockEntry[];
+  sauces?: Sauce[];
   onSubmit: (data: Omit<MenuItem, "id" | "createdAt" | "updatedAt" | "ingredients"> & { ingredients: MenuItemIngredient[] }) => void;
   onCancel: () => void;
 }
@@ -145,6 +146,7 @@ export interface IngredientsProps {
 export interface IngredientsTableProps {
   ingredients: MenuItemIngredient[];
   materials: Material[];
+  sauces?: Sauce[];
   menuItem?: MenuItem;
   calculateIngredientCost: (ingredient: Omit<MenuItemIngredient, "cost">) => number;
   getMaterialCostPerBaseUnit: (materialId: string) => number;

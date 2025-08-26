@@ -18,7 +18,7 @@ import { useState, useCallback, useMemo, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { activeTabAtom, showMaterialFormAtom, showStockFormAtom, selectedMaterialAtom, selectedStockEntryAtom } from "@/store/inventoryAtoms";
 
-export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry }: InventoryManagementPanelProps = {}) {
+export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMaterials, onDeleteStockEntry }: InventoryManagementPanelProps = {}) {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [stock, setStock] = useState<StockEntry[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -87,19 +87,11 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
   const fetchCategories = useCallback(async () => {
     try {
       // Fetch all category types to handle materials that might reference different category types
-      const [materialsResponse, beveragesResponse, menuItemsResponse] = await Promise.all([
-        getCategoriesByType("materials", true).catch(() => ({ totalItems: [] })),
-        getCategoriesByType("beverages", true).catch(() => ({ totalItems: [] })),
-        getCategoriesByType("menu_items", true).catch(() => ({ totalItems: [] }))
-      ]);
-      
+      const [materialsResponse, beveragesResponse, menuItemsResponse] = await Promise.all([getCategoriesByType("materials", true).catch(() => ({ totalItems: [] })), getCategoriesByType("beverages", true).catch(() => ({ totalItems: [] })), getCategoriesByType("menu_items", true).catch(() => ({ totalItems: [] }))]);
+
       // Combine all categories for materials that might reference any category type
-      const allCategories = [
-        ...(materialsResponse.totalItems || []),
-        ...(beveragesResponse.totalItems || []),
-        ...(menuItemsResponse.totalItems || [])
-      ];
-      
+      const allCategories = [...(materialsResponse.totalItems || []), ...(beveragesResponse.totalItems || []), ...(menuItemsResponse.totalItems || [])];
+
       const sortedCategories = [...allCategories];
       sortedCategories.sort((a, b) => a.name.localeCompare(b.name));
       setCategories(sortedCategories);
@@ -194,7 +186,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
         } else {
           // Ensure categoryId is a number if it exists
           const categoryId = data.categoryId ? Number(data.categoryId) : undefined;
-          
+
           await materialsAPI.createMaterial({
             ...data,
             categoryId,
@@ -355,6 +347,35 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
       }
     },
     [onDeleteMaterial, refresh]
+  );
+
+  const handleBulkDeleteMaterials = useCallback(
+    async (materialIds: string[]) => {
+      setOperationLoading(prev => ({ ...prev, [`bulk-delete-materials`]: true }));
+      try {
+        await materialsAPI.bulkDeleteMaterials(materialIds);
+        await refresh("materials");
+        await refresh("stock");
+        toast({
+          title: "Deleted",
+          description: "Materials deleted",
+          duration: 1000
+        });
+        if (onBulkDeleteMaterials) {
+          onBulkDeleteMaterials(materialIds);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to delete materials",
+          variant: "destructive",
+          duration: 1000
+        });
+      } finally {
+        setOperationLoading(prev => ({ ...prev, [`bulk-delete-materials`]: false }));
+      }
+    },
+    [onBulkDeleteMaterials, refresh]
   );
 
   const handleDeleteStockEntry = useCallback(
@@ -568,26 +589,48 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
     [refresh, setShowStockForm]
   );
 
-  const handleBulkDeleteMaterials = useCallback(
-    async (materialIds: string[]) => {
-      try {
-        await materialsAPI.bulkDeleteMaterials(materialIds);
-        await refresh("materials");
-        await refresh("stock");
-        return true;
-      } catch (error) {
-        console.error("❌ Error bulk deleting materials:", error);
-        toast({
-          title: "Error",
-          description: "Failed to delete materials",
-          variant: "destructive",
-          duration: 1000
-        });
-        return false;
-      }
-    },
-    [refresh]
-  );
+  // const handleBulkDeleteMaterials = useCallback(
+  //   async (materialIds: string[]) => {
+  //     try {
+  //       const response = await materialsAPI.bulkDeleteMaterials(materialIds);
+
+  //       // If backend returns details about the operation
+  //       if (response.data) {
+  //         const { deletedCount, notFoundIds } = response.data;
+
+  //         if (notFoundIds && notFoundIds.length > 0) {
+  //           toast({
+  //             title: "Partial Success",
+  //             description: `Deleted ${deletedCount} materials, ${notFoundIds.length} not found`,
+  //             variant: "default",
+  //             duration: 1000
+  //           });
+  //         } else {
+  //           toast({
+  //             title: "Success",
+  //             description: `Deleted ${deletedCount} material(s)`,
+  //             variant: "default",
+  //             duration: 1000
+  //           });
+  //         }
+  //       }
+
+  //       await refresh("materials");
+  //       await refresh("stock");
+  //       return true;
+  //     } catch (error) {
+  //       console.error("❌ Error bulk deleting materials:", error);
+  //       toast({
+  //         title: "Error",
+  //         description: "Failed to delete materials",
+  //         variant: "destructive",
+  //         duration: 1000
+  //       });
+  //       return false;
+  //     }
+  //   },
+  //   [refresh]
+  // );
 
   const handleBulkUpdateCategories = useCallback(
     async (materialIds: string[], categoryId: number) => {
@@ -640,47 +683,26 @@ export function InventoryManagementPanel({ onDeleteMaterial, onDeleteStockEntry 
             >
               <div className="flex items-center justify-center">
                 {/* Only show icon on small screens */}
-                <div className="block sm:hidden">
-                  {Icon ? <Icon className="w-5 h-5" /> : 
-                   iconImg && <img src={iconImg} alt={label} className="w-5 h-5" />}
-                </div>
-                
+                <div className="block sm:hidden">{Icon ? <Icon className="w-5 h-5" /> : iconImg && <img src={iconImg} alt={label} className="w-5 h-5" />}</div>
+
                 {/* Show icon and text on larger screens */}
                 <div className="hidden sm:flex items-center gap-2">
-                  {Icon ? <Icon className="w-5 h-5 flex-shrink-0" /> : 
-                   iconImg && <img src={iconImg} alt={label} className="w-5 h-5 flex-shrink-0" />}
+                  {Icon ? <Icon className="w-5 h-5 flex-shrink-0" /> : iconImg && <img src={iconImg} alt={label} className="w-5 h-5 flex-shrink-0" />}
                   <span>{label}</span>
                 </div>
               </div>
-              
+
               {loading && <Loader2 className="w-4 h-4 ml-1 animate-spin flex-shrink-0" />}
             </TabsTrigger>
           ))}
         </TabsList>
 
         <TabsContent value="material" className="flex-1 focus-visible:outline-none overflow-hidden ">
-          <MaterialTable 
-            filteredMaterials={materialsWithStock} 
-            categories={categories} 
-            onEditMaterial={handleEditMaterial} 
-            onAddStock={handleAddStock} 
-            onDeleteMaterial={handleDeleteMaterial}
-            onBulkDelete={handleBulkDeleteMaterials}
-            onBulkEdit={handleBulkUpdateCategories}
-          />
+          <MaterialTable filteredMaterials={materialsWithStock} categories={categories} onEditMaterial={handleEditMaterial} onAddStock={handleAddStock} onDeleteMaterial={handleDeleteMaterial} onBulkDelete={handleBulkDeleteMaterials} onBulkEdit={handleBulkUpdateCategories} />
         </TabsContent>
 
         <TabsContent value="stock" className="flex-1 focus-visible:outline-none overflow-hidden ">
-          <StockEntriesTable 
-            stockEntries={stock} 
-            materials={materials} 
-            loading={loading.stock} 
-            onRefresh={handleRefreshAll} 
-            onDeleteStockEntry={handleDeleteStockEntry} 
-            onTogglePOSVisibility={handleTogglePOSVisibility} 
-            onAssign={handleAssignPrinter} 
-            onBulkAssign={handleBulkAssignPrinter} 
-          />
+          <StockEntriesTable stockEntries={stock} materials={materials} loading={loading.stock} onRefresh={handleRefreshAll} onDeleteStockEntry={handleDeleteStockEntry} onTogglePOSVisibility={handleTogglePOSVisibility} onAssign={handleAssignPrinter} onBulkAssign={handleBulkAssignPrinter} />
         </TabsContent>
 
         <TabsContent value="categories" className="flex-1 focus-visible:outline-none overflow-hidden">

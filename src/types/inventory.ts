@@ -1497,6 +1497,7 @@ export interface DayOperationReport {
 
 export interface InventoryManagementPanelProps {
   onDeleteMaterial?: (id: string) => void;
+  onBulkDeleteMaterials?: (materialIds: string[]) => void;
   onDeleteStockEntry?: (id: string) => void;
   onCreateMenuItem?: (data: MenuItem) => void;
   onUpdateMenuItem?: (id: string, data: MenuItem) => void;

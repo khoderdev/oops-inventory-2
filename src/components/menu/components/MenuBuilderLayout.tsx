@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Search, AlertTriangle } from "lucide-react";
@@ -9,10 +9,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { MenuItemForm } from "../MenuItemForm";
 import MenuItemCardView from "../MenuItemCardView";
 import { TanStackTable } from "@/components/ui/TanStackTable";
-import { MenuItem } from "@/types/inventory";
+import { MenuItem, Sauce } from "@/types/inventory";
 import { MenuBuilderLayoutProps, mapToCategory } from "@/types/menuItems";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
+import { saucesAPI } from "@/api/sauces.api";
 
 const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
   searchTerm,
@@ -49,12 +50,36 @@ const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
   const { materialsWithStock } = useMenuItems();
   // Get live stock entries from inventory store
   const { stockEntries, fetchTabData } = useInventoryStore();
+  const [sauces, setSauces] = useState<Sauce[]>([]);
+  const [, setLoading] = useState(false);
+
+  
+    // Fetch sauces from API
+    const fetchSauces = useCallback(async () => {
+      setLoading(true);
+      try {
+        const response = await saucesAPI.getSauces({
+          limit: 10000,
+          _t: Date.now(),
+          sortBy: "name",
+          sortOrder: "ASC"
+        });
+  
+        if (response?.data) {
+          setSauces(response.data);
+        }
+      } finally {
+        setLoading(false);
+      }
+    }, []);
+  
 
   // Ensure fresh stock entries when the form opens
   React.useEffect(() => {
     if (showMenuItemForm) {
       fetchTabData("stock");
     }
+    fetchSauces();
   }, [showMenuItemForm, fetchTabData]);
   
   return (
@@ -156,6 +181,7 @@ const MenuBuilderLayoutComponent: React.FC<MenuBuilderLayoutProps> = ({
                   menuItem={editingMenuItem} 
                   categories={mapToCategory(menuItemCategories)} 
                   stockEntries={stockEntries}
+                  sauces={sauces}
                   onSubmit={editingMenuItem ? handleUpdateMenuItem : handleAddMenuItem} 
                   onCancel={handleCancel} 
                 />

@@ -5,13 +5,6 @@ import dotenv from "dotenv";
 // Load environment variables from .env file
 dotenv.config();
 
-const customLogger = (sql, timing) => {
-  const timestamp = new Date().toLocaleTimeString();
-  const method = sql.trim().split(" ")[0].toUpperCase();
-
-  console.log(chalk.gray(`[${timestamp}]`), chalk.cyan(`[${method}]`), chalk.white(sql), chalk.green(timing ? `(${timing}ms)` : ""));
-};
-
 // Production database URL
 const PRODUCTION_DATABASE_URL = "postgresql://inventory_db_n6g9_user:yOnU8Ma28mZNx3TBOx6Zj4usNMI8OVFa@dpg-d2jmt88dl3ps73cfqug0-a/inventory_db_n6g9";
 

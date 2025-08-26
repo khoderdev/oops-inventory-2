@@ -8,7 +8,7 @@ import { toast } from "../ui/use-toast";
 import { Ingredients } from "./components/Ingredients";
 import { MenuItemFormProps } from "@/types/menuItems";
 
-export function MenuItemForm({ menuItem, stockEntries, categories, onSubmit, onCancel }: MenuItemFormProps) {
+export function MenuItemForm({ menuItem, stockEntries, categories, sauces, onSubmit, onCancel }: MenuItemFormProps) {
   // Get materials from context
   const [name, setName] = useState(menuItem?.name || "");
   const [category, setCategory] = useState<MenuItemCategory | "">("");
@@ -24,6 +24,10 @@ export function MenuItemForm({ menuItem, stockEntries, categories, onSubmit, onC
     ingredients?: string;
     ingredientQuantity?: string;
   }>({});
+
+  useEffect(() => {
+    console.log("Saucesssss", sauces);
+  }, [sauces]);
 
   // Initialize category when menuItem or categories change
   useEffect(() => {

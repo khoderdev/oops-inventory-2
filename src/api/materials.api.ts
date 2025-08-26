@@ -1,6 +1,11 @@
 import api from "@/lib/http";
 import { CreateMaterialData, Material, UpdateMaterialData, MaterialWithStock } from "@/types/inventory";
 
+interface BulkDeleteResponse {
+  deletedCount: number;
+  notFoundIds: string[];
+}
+
 // Types for paginated responses
 interface PaginatedResponse<T> {
   data: T[];
@@ -81,7 +86,9 @@ export const materialsAPI = {
   deleteMaterial: (id: string) => api.delete<null>(`/materials/${id}`),
   
   // Bulk delete materials
-  bulkDeleteMaterials: (ids: string[]) => api.post<null, { ids: string[] }>("/materials/delete-all", { ids }),
+  bulkDeleteMaterials(ids: string[]): Promise<{ data: BulkDeleteResponse }> {
+    return api.post<BulkDeleteResponse, { ids: string[] }>("/materials/delete-all", { ids });
+  },
   
   // Bulk update materials categories
   bulkUpdateMaterialCategories: (ids: string[], categoryId: number) => 

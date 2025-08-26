@@ -61,13 +61,21 @@ router.delete("/:id", requirePermission("materials.delete"), auditAction("materi
 }, materialController.deleteMaterial);
 
 
-router.post("/delete-all", requirePermission("materials.delete"), auditAction("material_delete", "material"), (req, res, next) => {
-  // Clear materials cache after deletion
-  import("../middleware/cacheMiddleware.js").then(({ clearCacheByPattern }) => {
-    clearCacheByPattern("materials");
-  });
-  next();
-}, materialController.bulkDeleteMaterial);
+// Bulk delete materials
+router.post("/delete-all", 
+  requirePermission("materials.delete"), 
+  auditAction("material_delete", "material"), 
+  materialController.bulkDeleteMaterial,
+  (req, res, next) => {
+    // Clear materials cache after successful deletion
+    import("../middleware/cacheMiddleware.js").then(({ clearCacheByPattern }) => {
+      clearCacheByPattern("materials");
+      clearCacheByPattern("materials-with-stock");
+      clearCacheByPattern("material-categories");
+    });
+    res.status(204).send();
+  }
+);
 
 
 router.post("/update-all-categories", requirePermission("materials.update"), auditAction("material_update", "material"), (req, res, next) => {
