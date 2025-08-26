@@ -118,7 +118,7 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
       <SidebarInset
         className="flex flex-col min-h-screen transition-all duration-200 ease-out"
         style={{
-          marginLeft: isMobile ? "0px" : open ? "250px" : "55px",
+          marginLeft: isMobile ? "0px" : open ? "225px" : "55px",
           transition: "margin-left 150ms cubic-bezier(0.4, 0, 0.2, 1)"
         }}
       >

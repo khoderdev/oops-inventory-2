@@ -184,8 +184,9 @@ export const stockAPI = {
 
   // Get total current stock value summary
   getTotalStockValue: async (params?: { materialId?: string | number; isPOSItem?: string | boolean; includeZero?: boolean }) => {
-    const config = params ? ({ params } as any) : undefined;
-    const response = await api.get<TotalStockValueResponse>("/stock-entries/total-value", config);
+    // Always include a cache-busting timestamp to ensure instant freshness
+    const mergedParams = { ...(params || {}), _t: Date.now() } as any;
+    const response = await api.get<TotalStockValueResponse>("/stock-entries/total-value", { params: mergedParams } as any);
     return response.data;
   }
 };

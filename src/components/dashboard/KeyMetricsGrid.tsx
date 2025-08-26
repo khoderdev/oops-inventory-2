@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { DollarSign, Utensils, Warehouse } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/dayOperationsFormattings";
@@ -23,26 +23,42 @@ export const KeyMetricsGrid: React.FC<KeyMetricsGridProps> = ({ stats }) => {
   const [stockValueSummary, setStockValueSummary] = useState<TotalStockValueResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const firstLoadRef = useRef(true);
 
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
-    stockAPI
-      .getTotalStockValue()
-      .then(data => {
-        if (mounted) setStockValueSummary(data);
-      })
-      .catch(err => {
+    const fetchValue = async (withLoader: boolean) => {
+      try {
+        if (withLoader) {
+          setLoading(true);
+          setError(null);
+        }
+        const data = await stockAPI.getTotalStockValue();
+        if (mounted) {
+          setStockValueSummary(data);
+          // Clear any previous error on success
+          setError(null);
+        }
+      } catch (err) {
         console.warn("Failed to fetch total stock value:", err);
-        if (mounted) setError("Failed to load");
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
+        if (mounted && withLoader) setError("Failed to load");
+      } finally {
+        if (mounted && withLoader) setLoading(false);
+      }
+    };
+
+    // Initial and dependency-based refresh
+    const withLoader = firstLoadRef.current;
+    fetchValue(withLoader);
+    if (firstLoadRef.current) firstLoadRef.current = false;
+
+    // Light polling to keep it fresh without page refresh (no loader to avoid flicker)
+    const id = setInterval(() => fetchValue(false), 15000);
     return () => {
       mounted = false;
+      clearInterval(id);
     };
-  }, []);
+  }, [stats.totalMaterials, stats.totalStockEntries, stats.totalStockValue]);
 
   const mainStockValue = stockValueSummary?.totalStockValue ?? stats.totalStockValue;
   const entriesLabel = stockValueSummary ? String(stockValueSummary.entriesCount) : "-";
