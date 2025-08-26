@@ -5,12 +5,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TanStackTable } from "@/components/ui/TanStackTable";
 import { approveSettlementAtom, createSettlementAtom, deleteSettlementAtom, employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom, settlementStatsLoadingAtom } from "@/store/employeeAtoms";
 import { employeeAPI } from "@/api/employee.api";
 import type { CreateSettlementData, EmployeeSettlement, SettlementStatus } from "@/types/employee";
 import { useAtom } from "jotai";
-import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus, Trash2 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
 import { EmployeeSettlementForm } from "./EmployeeSettlementForm";
 import { statusColors } from "@/constants/constants";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,6 +60,13 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     return ["pending", "disputed", "cancelled"].includes(settlement.status);
   };
   const canForceDelete = user?.role === "admin";
+
+  // Table sorting & pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [sortBy, setSortBy] = useState<string>("settlementDate");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
+  const [sorting, setSorting] = useState<SortingState>([]);
 
   useEffect(() => {
     fetchEmployees();
@@ -484,6 +493,289 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
+  // Visible, sorted, and paginated data
+  const visibleSettlements = useMemo(() => {
+    return settlements;
+  }, [settlements]);
+
+  const sortedSettlements = useMemo(() => {
+    const arr = [...visibleSettlements];
+    arr.sort((a, b) => {
+      const dir = sortOrder === "ASC" ? 1 : -1;
+      const by = sortBy;
+      const safeStr = (v: any) => String(v ?? "").toLowerCase();
+      const safeNum = (v: any) => Number(v ?? 0);
+
+      switch (by) {
+        case "employee": {
+          const aName = safeStr(`${a.employee?.firstName ?? ""} ${a.employee?.lastName ?? ""}`);
+          const bName = safeStr(`${b.employee?.firstName ?? ""} ${b.employee?.lastName ?? ""}`);
+          return aName.localeCompare(bName) * dir;
+        }
+        case "period": {
+          const aKey = a.settlementYear * 12 + a.settlementMonth;
+          const bKey = b.settlementYear * 12 + b.settlementMonth;
+          return (aKey - bKey) * dir;
+        }
+        case "baseSalary":
+          return (safeNum(a.baseSalary) - safeNum(b.baseSalary)) * dir;
+        case "deductions":
+          return (safeNum(a.totalDeduction) - safeNum(b.totalDeduction)) * dir;
+        case "finalSalary":
+          return (safeNum(a.finalSalary) - safeNum(b.finalSalary)) * dir;
+        case "status":
+          return safeStr(a.status).localeCompare(safeStr(b.status)) * dir;
+        case "settlementDate":
+        default: {
+          const aTime = new Date(a.settlementDate).getTime();
+          const bTime = new Date(b.settlementDate).getTime();
+          return (aTime - bTime) * dir;
+        }
+      }
+    });
+    return arr;
+  }, [visibleSettlements, sortBy, sortOrder]);
+
+  const paginatedSettlements = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    return sortedSettlements.slice(startIndex, endIndex);
+  }, [sortedSettlements, currentPage, pageSize]);
+
+  const paginationInfo = useMemo(() => {
+    const totalItems = visibleSettlements.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const startIndex = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const endIndex = Math.min(currentPage * pageSize, totalItems);
+    return {
+      currentPage,
+      totalPages,
+      totalItems,
+      itemsPerPage: pageSize,
+      startIndex,
+      endIndex,
+      hasPreviousPage: currentPage > 1,
+      hasNextPage: currentPage < totalPages
+    };
+  }, [visibleSettlements.length, currentPage, pageSize]);
+
+  const handleSortChange = useCallback((newSortBy: string, newSortOrder: "ASC" | "DESC") => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+    setSorting([{ id: newSortBy, desc: newSortOrder === "DESC" }]);
+    setCurrentPage(1);
+  }, []);
+
+  const goToFirstPage = useCallback(() => setCurrentPage(1), []);
+  const goToPreviousPage = useCallback(() => setCurrentPage(prev => Math.max(1, prev - 1)), []);
+  const goToNextPage = useCallback(() => setCurrentPage(prev => Math.min(paginationInfo.totalPages, prev + 1)), [paginationInfo.totalPages]);
+  const goToLastPage = useCallback(() => setCurrentPage(paginationInfo.totalPages), [paginationInfo.totalPages]);
+  const handlePageSizeChange = useCallback((newSize: string) => {
+    const size = Number(newSize);
+    setPageSize(size);
+    setCurrentPage(1);
+  }, []);
+
+  // Columns
+  const columnHelper = createColumnHelper<EmployeeSettlement>();
+  const columns = useMemo<ColumnDef<EmployeeSettlement>[]>(
+    () => [
+      columnHelper.accessor(row => `${row.employee?.firstName ?? ""} ${row.employee?.lastName ?? ""}`.trim(), {
+        id: "employee",
+        header: () => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "employee" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("employee", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Employee
+            <span className="ml-2 text-xs">{sortBy === "employee" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
+        cell: ({ row }) => (
+          <div>
+            <div className="font-medium">{row.original.employee?.firstName} {row.original.employee?.lastName}</div>
+            <div className="text-xs text-muted-foreground">#{row.original.employee?.employeeNumber}</div>
+          </div>
+        ),
+        enableSorting: false,
+        size: 220
+      }),
+      columnHelper.display({
+        id: "period",
+        header: () => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "period" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("period", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Period
+            <span className="ml-2 text-xs">{sortBy === "period" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
+        cell: ({ row }) => (
+          <div>
+            <div className="font-medium">{getMonthName(row.original.settlementMonth)} {row.original.settlementYear}</div>
+            <div className="text-xs text-muted-foreground">{row.original.usageItemsCount} usage items</div>
+          </div>
+        ),
+        enableSorting: false,
+        size: 160
+      }),
+      columnHelper.accessor("baseSalary", {
+        id: "baseSalary",
+        header: () => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "baseSalary" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("baseSalary", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Base Salary
+            <span className="ml-2 text-xs">{sortBy === "baseSalary" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
+        cell: ({ getValue }) => <div className="font-mono">{formatCurrency(Number(getValue()))}</div>,
+        enableSorting: false,
+        size: 130
+      }),
+      columnHelper.display({
+        id: "deductions",
+        header: () => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "deductions" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("deductions", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Deductions
+            <span className="ml-2 text-xs">{sortBy === "deductions" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
+        cell: ({ row }) => <div className="font-mono text-red-600">-{formatCurrency(Number(row.original.totalDeduction))}</div>,
+        enableSorting: false,
+        size: 130
+      }),
+      columnHelper.accessor("finalSalary", {
+        id: "finalSalary",
+        header: () => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "finalSalary" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("finalSalary", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Final Salary
+            <span className="ml-2 text-xs">{sortBy === "finalSalary" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
+        cell: ({ getValue }) => <div className="font-mono font-medium">{formatCurrency(Number(getValue()))}</div>,
+        enableSorting: false,
+        size: 130
+      }),
+      columnHelper.accessor("status", {
+        id: "status",
+        header: () => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "status" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("status", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Status
+            <span className="ml-2 text-xs">{sortBy === "status" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
+        cell: ({ getValue }) => (
+          <Badge variant="secondary" className={statusColors[getValue() as SettlementStatus]}>
+            {String(getValue())}
+          </Badge>
+        ),
+        enableSorting: false,
+        size: 120
+      }),
+      columnHelper.accessor("settlementDate", {
+        id: "settlementDate",
+        header: () => (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              const newOrder = sortBy === "settlementDate" && sortOrder === "ASC" ? "DESC" : "ASC";
+              handleSortChange("settlementDate", newOrder);
+            }}
+            className="h-auto p-0 font-semibold hover:bg-transparent"
+          >
+            Settlement Date
+            <span className="ml-2 text-xs">{sortBy === "settlementDate" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
+          </Button>
+        ),
+        cell: ({ getValue }) => <div className="text-sm">{formatDate(String(getValue()))}</div>,
+        enableSorting: false,
+        size: 150
+      }),
+      columnHelper.display({
+        id: "actions",
+        header: () => <div className="w-full text-right">Actions</div>,
+        cell: ({ row }) => {
+          const settlement = row.original;
+          return (
+            <div className="flex items-center gap-2 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => handleViewDetails(settlement)} className="gap-1">
+                <Eye className="h-3 w-3" />
+                View
+              </Button>
+              {settlement.status === "pending" && (
+                <Button variant="ghost" size="sm" onClick={() => handleApprove(settlement.id)} className="gap-1 text-blue-600">
+                  <CheckCircle className="h-3 w-3" />
+                  Approve
+                </Button>
+              )}
+              {settlement.status === "approved" && (
+                <Button variant="ghost" size="sm" onClick={() => handleMarkAsPaid(settlement.id)} className="gap-1 text-green-600">
+                  <DollarSign className="h-3 w-3" />
+                  Mark Paid
+                </Button>
+              )}
+              {(canDeleteSettlement(settlement) || canForceDelete) && (
+                <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(settlement)} className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50">
+                  <Trash2 className="h-3 w-3" />
+                  Delete
+                </Button>
+              )}
+            </div>
+          );
+        },
+        enableSorting: false,
+        size: 220
+      })
+    ],
+    [sortBy, sortOrder, handleSortChange]
+  );
+
+  const table = useReactTable({
+    data: paginatedSettlements,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    manualSorting: true,
+    manualPagination: true
+  });
+
   return (
     <div className="space-y-4 p-3 sm:p-4">
       {settlementStats && (
@@ -624,95 +916,53 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Base Salary</TableHead>
-                  <TableHead>Deductions</TableHead>
-                  <TableHead>Final Salary</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Settlement Date</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 8 }).map((_, j) => (
-                        <TableCell key={j}>
-                          <div className="h-4 w-16 bg-muted rounded animate-pulse" />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : settlements.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      No settlements found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  settlements.map(settlement => (
-                    <TableRow key={settlement.id}>
-                      <TableCell>
-                        <div className="font-medium">
-                          {settlement.employee?.firstName} {settlement.employee?.lastName}
-                        </div>
-                        <div className="text-sm text-muted-foreground">#{settlement.employee?.employeeNumber}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">
-                          {getMonthName(settlement.settlementMonth)} {settlement.settlementYear}
-                        </div>
-                        <div className="text-sm text-muted-foreground">{settlement.usageItemsCount} usage items</div>
-                      </TableCell>
-                      <TableCell className="font-mono">{formatCurrency(settlement.baseSalary)}</TableCell>
-                      <TableCell className="font-mono text-red-600">-{formatCurrency(settlement.totalDeduction)}</TableCell>
-                      <TableCell className="font-mono font-medium">{formatCurrency(settlement.finalSalary)}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className={statusColors[settlement.status]}>
-                          {settlement.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">{formatDate(settlement.settlementDate)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center gap-2 justify-end">
-                          <Button variant="ghost" size="sm" onClick={() => handleViewDetails(settlement)} className="gap-1">
-                            <Eye className="h-3 w-3" />
-                            View
-                          </Button>
-
-                          {settlement.status === "pending" && (
-                            <Button variant="ghost" size="sm" onClick={() => handleApprove(settlement.id)} className="gap-1 text-blue-600">
-                              <CheckCircle className="h-3 w-3" />
-                              Approve
-                            </Button>
-                          )}
-
-                          {settlement.status === "approved" && (
-                            <Button variant="ghost" size="sm" onClick={() => handleMarkAsPaid(settlement.id)} className="gap-1 text-green-600">
-                              <DollarSign className="h-3 w-3" />
-                              Mark Paid
-                            </Button>
-                          )}
-
-                          {(canDeleteSettlement(settlement) || canForceDelete) && (
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(settlement)} className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50">
-                              <Trash2 className="h-3 w-3" />
-                              Delete
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <TanStackTable
+              table={table}
+              virtualized={false}
+              loading={loading}
+              emptyMessage="No settlements found"
+              stickyHeader={true}
+              maxHeight="calc(100vh - 340px)"
+              customHeaderAlignment={{ actions: "right" }}
+              customCellAlignment={{ actions: "right" }}
+            />
           </div>
+          {/* Pagination Controls */}
+          {paginationInfo.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-3">
+              <div className="text-xs text-muted-foreground">
+                Showing {paginationInfo.startIndex}–{paginationInfo.endIndex} of {paginationInfo.totalItems}
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
+                  <SelectTrigger className="h-8 px-2 text-xs w-[130px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 per page</SelectItem>
+                    <SelectItem value="25">25 per page</SelectItem>
+                    <SelectItem value="50">50 per page</SelectItem>
+                    <SelectItem value="100">100 per page</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="sm" onClick={goToFirstPage} disabled={!paginationInfo.hasPreviousPage} className="h-8 px-3">
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={goToPreviousPage} disabled={!paginationInfo.hasPreviousPage} className="h-8 px-3">
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="px-3 py-1 text-xs font-medium bg-gray-50 rounded border">{paginationInfo.currentPage}</span>
+                  <Button variant="outline" size="sm" onClick={goToNextPage} disabled={!paginationInfo.hasNextPage} className="h-8 px-3">
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={goToLastPage} disabled={!paginationInfo.hasNextPage} className="h-8 px-3">
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

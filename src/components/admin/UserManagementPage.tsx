@@ -233,40 +233,33 @@ const UserManagementPage: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <Users className="h-8 w-8" />
-            User Management
-          </h1>
-          <p className="text-gray-600 mt-1">Manage users, roles, permissions, and real-time sessions</p>
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => fetchUsers()} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          {hasPermission(PERMISSIONS.USERS_CREATE) && (
-            <Button onClick={() => setShowCreateModal(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add User
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="">
+            <TabsList>
+              <TabsTrigger value="users" className="flex items-center gap-2 rounded-lg">
+                <Users className="h-4 w-4" />
+                Users
+              </TabsTrigger>
+              <TabsTrigger value="sessions" className="flex items-center gap-2 rounded-lg">
+                <Wifi className="h-4 w-4" />
+                Live Sessions
+              </TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => fetchUsers()} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Refresh
             </Button>
-          )}
+            {hasPermission(PERMISSIONS.USERS_CREATE) && (
+              <Button onClick={() => setShowCreateModal(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-        <TabsList>
-          <TabsTrigger value="users" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            Users
-          </TabsTrigger>
-          <TabsTrigger value="sessions" className="flex items-center gap-2">
-            <Wifi className="h-4 w-4" />
-            Live Sessions
-          </TabsTrigger>
-        </TabsList>
 
         <TabsContent value="users" className="mt-6">
           {error && (

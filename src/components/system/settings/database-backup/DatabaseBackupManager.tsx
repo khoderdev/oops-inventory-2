@@ -11,6 +11,7 @@ import CreateBackupDialog from "./CreateBackupDialog";
 import DeleteConfirmationDialog from "./DeleteConfirmationDialog";
 import RestoreBackupDialog from "./RestoreBackupDialog";
 import UploadBackupDialog from "./UploadBackupDialog";
+import { Badge } from "@/components/ui/badge";
 
 const DatabaseBackupManager: React.FC = () => {
   const [backups, setBackups] = useState<BackupInfo[]>([]);
@@ -104,27 +105,6 @@ const DatabaseBackupManager: React.FC = () => {
 
   return (
     <div className="space-y-6 p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Database Backup Manager</h2>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4">
-            <p className="text-muted-foreground">Manage database backups and restore operations</p>
-            {lastRefresh && <p className="text-xs text-muted-foreground">Last refreshed: {lastRefresh.toLocaleTimeString()}</p>}
-          </div>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
-            <Database className="h-4 w-4 mr-2" />
-            Create Backup
-          </Button>
-        </div>
-      </div>
-
       <Tabs defaultValue="backups" className="space-y-4">
         <TabsList>
           <TabsTrigger value="backups">Backups</TabsTrigger>
@@ -133,16 +113,31 @@ const DatabaseBackupManager: React.FC = () => {
         </TabsList>
 
         <TabsContent value="backups" className="space-y-4">
-          {/* Quick Actions */}
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={() => setUploadDialogOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Backup
-            </Button>
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            <div className="flex flex-col w-fit">
+              <h2 className="text-2xl font-bold">Database Backup Manager</h2>
+              <div className="w-fit flex flex-col sm:flex-row sm:items-center sm:space-x-4">{lastRefresh && <p className="text-xs text-muted-foreground">Last refreshed: {lastRefresh.toLocaleTimeString()}</p>}</div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="flex w-fit items-center space-x-2">
+              <Button variant="outline" size="sm" onClick={() => setUploadDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Backup
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+              <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
+                <Database className="h-4 w-4 mr-2" />
+                Create Backup
+              </Button>
+            </div>
           </div>
 
           {/* Backups List */}
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
             {backups.length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center py-12">
@@ -157,7 +152,7 @@ const DatabaseBackupManager: React.FC = () => {
               </Card>
             ) : (
               backups.map(backup => (
-                <Card key={backup.id} className="hover:shadow-md transition-shadow">
+                <Card key={backup.id} className="hover:shadow-md transition-shadow rounded-xl">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-start space-x-3">
@@ -177,16 +172,18 @@ const DatabaseBackupManager: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     {/* Format Details */}
-                    <div className="mb-4">
+                    <div className="mb-4 ">
                       <p className="text-sm font-medium text-muted-foreground mb-3">Available Formats</p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="w-full ">
                         {backup.formats.map(format => (
-                          <div key={format.type} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border/50 hover:bg-muted/70 transition-colors">
-                            <div className="flex items-center space-x-2">
+                          <div key={format.type} className="w-full flex items-center justify-between ">
+                            <Badge className="space-x-2 hover:!bg-primary">
                               {getBackupTypeIcon(format.type)}
                               <span className="text-sm font-semibold">{format.type.toUpperCase()}</span>
-                            </div>
-                            <span className="text-sm font-medium text-muted-foreground">{backupAPI.formatFileSize(format.size)}</span>
+                            </Badge>
+                            <Badge variant="outline" className="">
+                              {backupAPI.formatFileSize(format.size)}
+                            </Badge>
                           </div>
                         ))}
                       </div>
@@ -194,40 +191,30 @@ const DatabaseBackupManager: React.FC = () => {
 
                     <Separator className="my-4" />
 
-                    {/* Action Buttons */}
-                    <div className="space-y-3">
-                      {/* Download Buttons */}
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground mb-2">Download Options</p>
-                        <div className="flex flex-wrap gap-2">
-                          {backup.formats.map(format => (
-                            <Button key={format.type} variant="outline" size="sm" onClick={() => handleDownloadBackup(backup, format)} className="flex-1 min-w-[100px]">
-                              <Download className="h-4 w-4 mr-2" />
-                              {format.type.toUpperCase()}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Management Actions */}
-                      <div className="flex items-center justify-end space-x-2 pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedBackup(backup);
-                            setRestoreDialogOpen(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                        >
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Restore
+                    {/* Management Actions */}
+                    <div className="flex items-center justify-center space-x-2 pt-2">
+                      {backup.formats.map(format => (
+                        <Button key={format.type} variant="outline" size="sm" onClick={() => handleDownloadBackup(backup, format)} className="flex-1 min-w-[100px]">
+                          <Download className="h-4 w-4 mr-2" />
+                          {format.type.toUpperCase()}
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDeleteBackup(backup)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </Button>
-                      </div>
+                      ))}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedBackup(backup);
+                          setRestoreDialogOpen(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Restore
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDeleteBackup(backup)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
