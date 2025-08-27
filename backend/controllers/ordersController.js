@@ -127,23 +127,42 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
       
       if (ingredient.type === 'sauce') {
         // Handle sauce deduction
-        const sauce = await Sauce.findByPk(ingredient.sauceId, { transaction });
-        if (!sauce) {
-          console.error(`❌ [${deductionId}] Sauce not found: ${ingredient.sauceId}`);
-          continue;
-        }
-        
-        const requiredQuantity = ingredient.quantity * orderQuantity;
-        console.log(`🥫 [${deductionId}] Deducting ${requiredQuantity} ${ingredient.unit} from sauce: ${sauce.name} (Current: ${sauce.availableQuantity} ${ingredient.unit})`);
-        
-        if (sauce.availableQuantity < requiredQuantity) {
-          console.warn(`⚠️ [${deductionId}] Insufficient stock for ${sauce.name}. Required: ${requiredQuantity}, Available: ${sauce.availableQuantity}`);
-          continue;
-        }
-        
-        sauce.availableQuantity -= requiredQuantity;
-        await sauce.save({ transaction });
-        console.log(`✅ [${deductionId}] Deducted ${requiredQuantity} ${ingredient.unit} from ${sauce.name}. New quantity: ${sauce.availableQuantity}`);
+        if (ingredient.sauce) {
+          const requiredQuantity = Number((ingredient.quantity * orderQuantity).toFixed(6));
+          
+          // Fetch the current sauce to get the current yield quantity
+          const sauce = await Sauce.findByPk(ingredient.sauceId, { transaction });
+          if (!sauce) {
+            console.warn(`⚠️ [${deductionId}] Sauce with ID ${ingredient.sauceId} not found`);
+            continue;
+          }
+          
+          const currentYield = parseFloat(sauce.yieldQuantity);
+          const minYield = 0.001; // Minimum allowed yield quantity
+          const newYield = Math.max(minYield, currentYield - requiredQuantity);
+          
+          console.log(`🥫 [${deductionId}] Deducting ${requiredQuantity} ${ingredient.unit} from sauce: ${ingredient.sauce.name} (Current yield: ${currentYield} ${sauce.unit})`);
+          
+          // Check if there's enough sauce available
+          if (currentYield < requiredQuantity) {
+            throw new Error(`Not enough ${ingredient.sauce.name} available. Required: ${requiredQuantity} ${ingredient.unit}, Available: ${currentYield} ${sauce.unit}`);
+          }
+          
+          // Update the sauce's yield quantity
+          await Sauce.update(
+            { 
+              yieldQuantity: newYield,
+              updatedAt: new Date()
+            },
+            { 
+              where: { id: ingredient.sauceId },
+              transaction,
+              validate: true
+            }
+          );
+          
+          console.log(`✅ [${deductionId}] Deducted ${requiredQuantity} ${sauce.unit} from ${ingredient.sauce.name}. New yield: ${newYield} ${sauce.unit}`);
+        } 
         continue;
       }
       
