@@ -1,12 +1,10 @@
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { useMenuItems } from "@/contexts/MenuItemsContext";
 import { MenuItemIngredient } from "@/types/inventory";
 import { IngredientsTableProps } from "@/types/menuItems";
 import { SortingState, createColumnHelper, ColumnDef, useReactTable, getCoreRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Trash2 } from "lucide-react";
 import { useRef, useState, useMemo, useCallback } from "react";
-import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Button } from "@/components/ui/button";
 
 export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients = [], menuItem, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = "0", sauces = [], calculateIngredientCost, materials }) => {
@@ -14,74 +12,44 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnHelper = createColumnHelper<MenuItemIngredient & { index: number }>();
 
-  // Function to get item name (material or sauce)
   const getMaterialCostPerBaseUnit = useCallback(
-    (materialId: string) => {
-      if (!materialId) return 0;
-
-      // Handle sauce case
-      if (materialId.startsWith("sauce-")) {
-        const sauceId = materialId.replace("sauce-", "");
+    (materialId: string | number) => {
+      if (materialId === null || materialId === undefined) return 0;
+      const idStr = String(materialId);
+      if (idStr.startsWith("sauce-")) {
+        const sauceId = idStr.replace("sauce-", "");
         const sauce = sauces.find(s => String(s.id) === sauceId);
         return sauce ? parseFloat(String(sauce.costPerUnit || 0)) : 0;
       }
-
-      // Handle material case
-      const materialIdNum = materialId.startsWith("material-") ? materialId.replace("material-", "") : materialId;
-
-      const material = materials.find(m => String(m.id) === String(materialIdNum) || `material-${m.id}` === materialId);
-
+      const materialIdNum = idStr.startsWith("material-") ? idStr.replace("material-", "") : idStr;
+      const material = materials.find(m => String(m.id) === String(materialIdNum) || `material-${m.id}` === idStr);
       return material ? parseFloat(String(material.costPerBaseUnit || 0)) : 0;
     },
     [materials, sauces]
   );
 
-  // Function to get item name (material or sauce)
+  // Helper to get item name
   const getItemName = useCallback(
-    (materialId: string) => {
-      if (!materialId) return "Unknown Item";
+    (ingredient: MenuItemIngredient) => {
+      if (!ingredient) return "Unknown Item";
 
-      // Handle sauce case
-      if (materialId.startsWith("sauce-")) {
-        const sauceId = materialId.replace("sauce-", "");
-        const sauce = sauces.find(s => String(s.id) === sauceId);
+      if (ingredient.type === "sauce") {
+        // For sauces, look up by sauceId
+        const sauce = sauces.find(s => String(s.id) === String(ingredient.materialId));
         return sauce?.name || "Unknown Sauce";
       }
 
-      // Handle material case - try multiple ID formats
-      const materialIdNum = materialId.startsWith("material-") ? materialId.replace("material-", "") : materialId;
-
-      // Try to find material with different ID formats
-      const material = materials.find(
-        m => String(m.id) === String(materialIdNum) || `material-${m.id}` === materialId || m.id === materialId // Add this line for direct ID matching
-      );
-
+      // For materials
+      const material = materials.find(m => String(m.id) === String(ingredient.materialId));
       return material?.name || "Unknown Material";
     },
     [materials, sauces]
   );
 
-  const DebugInfo = () => (
-    <div className="p-2 bg-yellow-100 border border-yellow-300 text-xs">
-      <h4>Debug Info:</h4>
-      <p>Ingredients count: {ingredients.length}</p>
-      <p>Materials count: {materials.length}</p>
-      <p>Sauces count: {sauces.length}</p>
-      <div>
-        {ingredients.map((ing, idx) => (
-          <div key={idx} className="mt-1">
-            Ingredient {idx}: {ing.materialId}, Qty: {ing.quantity}, Unit: {ing.unit}
-            <br />
-            Material Found: {materials.some(m => String(m.id) === ing.materialId || `material-${m.id}` === ing.materialId).toString()}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // Function to get item type for display
-  const getItemType = (materialId: string) => {
-    return materialId.startsWith("sauce-") ? "Sauce" : "Material";
+  // Helper to get item type
+  const getItemType = (ingredient: MenuItemIngredient) => {
+    if (!ingredient) return "Unknown";
+    return ingredient.type === "sauce" ? "Sauce" : "Material";
   };
 
   const columns = useMemo<ColumnDef<MenuItemIngredient & { index: number }>[]>(
@@ -91,8 +59,9 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
         id: "item",
         header: "Item",
         cell: ({ row }) => {
-          const itemName = getItemName(row.original.materialId);
-          const itemType = getItemType(row.original.materialId);
+          const ingredient = row.original;
+          const itemName = getItemName(ingredient);
+          const itemType = getItemType(ingredient);
           return (
             <div>
               <div className="font-medium truncate">{itemName}</div>
@@ -118,7 +87,6 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
       }),
 
       // Cost column
-      // Cost column - FIXED to use the same approach as working code
       columnHelper.display({
         id: "cost",
         header: "Cost",
@@ -141,111 +109,14 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
         },
         size: 120
       }),
-      // columnHelper.display({
-      //   id: "cost",
-      //   header: "Cost",
-      //   cell: ({ row }) => {
-      //     const ingredient = row.original;
-
-      //     // First try to use stored cost if available
-      //     const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
-      //     if (storedCost !== undefined && storedCost !== null) {
-      //       return <div className="text-right font-medium">{formatCurrency(storedCost)}</div>;
-      //     }
-
-      //     // Handle sauce cost calculation
-      //     if (ingredient.materialId.startsWith("sauce-")) {
-      //       const sauceId = ingredient.materialId.replace("sauce-", "");
-      //       const sauce = sauces.find(s => String(s.id) === sauceId);
-
-      //       if (!sauce) {
-      //         return <div className="text-right text-red-500 text-xs">Sauce not found</div>;
-      //       }
-
-      //       if (!sauce.costPerUnit) {
-      //         return <div className="text-right text-red-500 text-xs">No cost data</div>;
-      //       }
-
-      //       try {
-      //         // For sauces, assume the unit matches and calculate directly
-      //         const cost = ingredient.quantity * parseFloat(String(sauce.costPerUnit));
-      //         return <div className="text-right font-medium">{formatCurrency(cost)}</div>;
-      //       } catch (error) {
-      //         return <div className="text-right text-red-500 text-xs">Calculation error</div>;
-      //       }
-      //     }
-
-      //     // Handle material cost calculation - FIXED VERSION
-      //     const materialId = ingredient.materialId.startsWith("material-") ? ingredient.materialId.replace("material-", "") : ingredient.materialId;
-
-      //     const material = materials.find(m => String(m.id) === materialId);
-
-      //     if (!material) {
-      //       return <div className="text-right text-red-500 text-xs">Material not found</div>;
-      //     }
-
-      //     // Try multiple cost sources - FIXED
-      //     let costPerBaseUnit = 0;
-
-      //     // First try costPerBaseUnit directly
-      //     if (material.costPerBaseUnit) {
-      //       costPerBaseUnit = parseFloat(String(material.costPerBaseUnit));
-      //     }
-      //     // If not available, try to calculate from stock entries
-      //     else if (material.stockEntries && material.stockEntries.length > 0) {
-      //       // Calculate weighted average cost from stock entries
-      //       let totalCost = 0;
-      //       let totalQuantity = 0;
-
-      //       for (const entry of material.stockEntries) {
-      //         if (entry.costPerBaseUnit) {
-      //           const quantity = entry.purchasedQuantity || 0;
-      //           totalCost += parseFloat(String(entry.costPerBaseUnit)) * quantity;
-      //           totalQuantity += quantity;
-      //         }
-      //       }
-
-      //       if (totalQuantity > 0) {
-      //         costPerBaseUnit = totalCost / totalQuantity;
-      //       }
-      //     }
-
-      //     if (!costPerBaseUnit || costPerBaseUnit <= 0) {
-      //       return <div className="text-right text-red-500 text-xs">No cost data</div>;
-      //     }
-
-      //     try {
-      //       // Calculate cost with unit conversion
-      //       let conversionFactor = 1;
-      //       if (material.baseUnit !== ingredient.unit) {
-      //         conversionFactor = getConversionFactor(
-      //           ingredient.unit, // FIXED: source unit first
-      //           material.baseUnit, // then target unit
-      //           material.unitType || "piece",
-      //           material
-      //         );
-      //       }
-
-      //       const ingredientCost = costPerBaseUnit * ingredient.quantity * conversionFactor;
-      //       return (
-      //         <div className="text-right font-medium">
-      //           <span className="text-foreground">{formatCurrency(ingredientCost)}</span>
-      //         </div>
-      //       );
-      //     } catch (error) {
-      //       console.error("Unit conversion error:", error);
-      //       return <div className="text-right text-red-500 text-xs">Unit conversion error</div>;
-      //     }
-      //   },
-      //   size: 120
-      // }),
 
       // Actions column
       columnHelper.display({
         id: "actions",
         header: "",
         cell: ({ row }) => {
-          const itemName = getItemName(row.original.materialId);
+          const ingredient = row.original;
+          const itemName = getItemName(ingredient);
           return (
             <div className="text-right">
               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600" onClick={() => handleRemoveIngredient(row.original.index)} aria-label={`Remove ${itemName}`}>
@@ -285,7 +156,6 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
 
   return (
     <div className="mb-4 border rounded-md overflow-hidden">
-      <DebugInfo />
       <div className="flex flex-1 flex-col min-h-0 h-[250px]">
         {/* Table Header */}
         <div className="flex-shrink-0 border-b bg-muted/30 sticky top-0 z-10">

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
 import { Category } from "./categories";
+import { MenuItemSauce } from "./menuItems";
 
 // Interface for pagination metadata
 export interface PaginationInfo {
@@ -777,6 +778,7 @@ export interface MenuItem {
   price: number;
   ingredients: MenuItemIngredient[];
   menuItemIngredients?: MenuItemIngredient[];
+  menuItemSauces: MenuItemSauce[];
   isPOSItem?: boolean;
   image?: string;
   printerId?: number | null;
@@ -829,6 +831,7 @@ export interface BeverageItemFormProps {
 }
 
 export interface MenuItemIngredient {
+  type: string;
   materialId: string;
   quantity: number;
   unit: string;
