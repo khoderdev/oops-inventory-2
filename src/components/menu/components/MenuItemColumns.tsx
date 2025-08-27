@@ -71,22 +71,27 @@ export const useMenuItemColumns = ({ searchTerm, categories, calculateMenuItemCo
     columnHelper.display({
       id: "ingredients",
       header: "Ingredients",
-      cell: ({ row }) => <div className="text-left font-medium">{row.original.ingredients?.length || 0}</div>,
+      cell: ({ row }) => {
+        // Count both materials and sauces
+        const materialCount = row.original.menuItemIngredients?.length || 0;
+        const sauceCount = row.original.menuItemSauces?.length || 0;
+        return <div className="text-left font-medium">{materialCount + sauceCount}</div>;
+      },
       enableSorting: false,
       size: 100
     }),
 
     // Cost column
-    columnHelper.display({
-      id: "cost",
-      header: "Cost",
-      cell: ({ row }) => {
-        const ingredients = row.original.ingredients || [];
-        const totalCost = calculateMenuItemCost(ingredients);
-        return <div className="text-left font-medium">{formatCurrency(totalCost)}</div>;
-      },
-      size: 96
-    }),
+    // columnHelper.display({
+    //   id: "cost",
+    //   header: "Cost",
+    //   cell: ({ row }) => {
+    //     const ingredients = row.original.ingredients || [];
+    //     const totalCost = calculateMenuItemCost(ingredients);
+    //     return <div className="text-left font-medium">{formatCurrency(totalCost)}</div>;
+    //   },
+    //   size: 96
+    // }),
 
     // Price column
     columnHelper.accessor("price", {
