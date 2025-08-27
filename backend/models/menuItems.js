@@ -2,6 +2,7 @@ import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 import Material from "./materials.js";
 import Printer from "./Printer.js";
+import Sauce from "./Sauce.js";
 
 const MenuItem = sequelize.define(
   "MenuItem",
@@ -157,4 +158,57 @@ const MenuItemIngredient = sequelize.define(
   }
 );
 
-export { MenuItem, MenuItemIngredient };
+// Junction table for Sauce-MenuItem relationship (sauce as ingredient)
+const MenuItemSauce = sequelize.define(
+  "MenuItemSauce",
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true
+    },
+    menuItemId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: MenuItem,
+        key: "id"
+      }
+    },
+    sauceId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: Sauce,
+        key: "id"
+      }
+    },
+    quantity: {
+      type: DataTypes.DECIMAL(10, 3),
+      allowNull: false,
+      validate: {
+        min: { args: [0], msg: "Quantity must be non-negative" }
+      }
+    },
+    unit: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        notEmpty: { msg: "Unit cannot be empty" }
+      }
+    },
+    cost: {
+      type: DataTypes.DECIMAL(10, 6),
+      allowNull: false,
+      validate: {
+        min: { args: [0], msg: "Cost cannot be negative" }
+      }
+    }
+  },
+  {
+    tableName: "menuItemSauces",
+    timestamps: false
+  }
+);
+
+export { MenuItem, MenuItemIngredient, MenuItemSauce };

@@ -344,12 +344,13 @@
 //     </div>
 //   );
 // }
+
 import { MenuItemIngredient } from "@/types/inventory";
 import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Plus } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -376,6 +377,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
       id: `material-${material.id}`,
       name: material.name,
       baseUnit: material.baseUnit,
+      costPerBaseUnit: material.costPerBaseUnit,
       type: "material" as const,
       originalItem: material
     }));
@@ -391,12 +393,17 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     return [...materialItems, ...sauceItems];
   }, [materials, sauces]);
 
+  useEffect(() => {
+    console.log("🔎 All materials:", materials);
+    console.log("📦 All stockEntries:", stockEntries);
+    console.log("🥫 All sauces:", sauces);
+  }, [materials, stockEntries, sauces]);
+
   const availableItems = useMemo(() => {
     const usedMaterialIds = new Set((ingredients || []).map(i => i.materialId));
     const excludedCategories = ["beverages", "cold", "hot", "alcohol"];
 
-    return allSelectableItems.filter(item => {
-      // For materials, apply the category filter
+    const result = allSelectableItems.filter(item => {
       if (item.type === "material") {
         const material = item.originalItem;
         let categoryName = "";
@@ -412,21 +419,64 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
         return !usedMaterialIds.has(`material-${material.id}`) && !excludedCategories.includes(categoryName);
       }
 
-      // For sauces, just check if they're already used
       return !usedMaterialIds.has(`sauce-${item.originalItem.id}`);
     });
+
+    console.log("✅ Available items for selection:", result);
+    return result;
   }, [allSelectableItems, ingredients]);
 
   const filteredItems = useMemo(() => {
     if (!materialSearchTerm.trim()) {
+      console.log("🔍 Filtered items (no search term):", availableItems);
       return availableItems;
     }
-    return availableItems.filter(item => item.name.toLowerCase().includes(materialSearchTerm.toLowerCase()));
+    const result = availableItems.filter(item => item.name.toLowerCase().includes(materialSearchTerm.toLowerCase()));
+    console.log(`🔍 Filtered items for search "${materialSearchTerm}":`, result);
+    return result;
   }, [availableItems, materialSearchTerm]);
+
+  // const availableItems = useMemo(() => {
+  //   const usedMaterialIds = new Set((ingredients || []).map(i => i.materialId));
+  //   const excludedCategories = ["beverages", "cold", "hot", "alcohol"];
+
+  //   return allSelectableItems.filter(item => {
+  //     // For materials, apply the category filter
+  //     if (item.type === "material") {
+  //       const material = item.originalItem;
+  //       let categoryName = "";
+
+  //       if (typeof material.category === "string") {
+  //         categoryName = material.category.toLowerCase();
+  //       } else if (typeof material.category === "object" && material.category?.name) {
+  //         categoryName = material.category.name.toLowerCase();
+  //       } else if (typeof material.category === "object" && material.category?.value) {
+  //         categoryName = material.category.value.toLowerCase();
+  //       }
+
+  //       return !usedMaterialIds.has(`material-${material.id}`) && !excludedCategories.includes(categoryName);
+  //     }
+
+  //     // For sauces, just check if they're already used
+  //     return !usedMaterialIds.has(`sauce-${item.originalItem.id}`);
+  //   });
+  // }, [allSelectableItems, ingredients]);
+
+  // const filteredItems = useMemo(() => {
+  //   if (!materialSearchTerm.trim()) {
+  //     return availableItems;
+  //   }
+  //   return availableItems.filter(item => item.name.toLowerCase().includes(materialSearchTerm.toLowerCase()));
+  // }, [availableItems, materialSearchTerm]);
+
+  console.log("availableItems", availableItems);
 
   const calculateIngredientCost = useCallback(
     (ingredient: Omit<MenuItemIngredient, "cost">) => {
-      // Check if this is a sauce
+      // ✅ Helper to normalize IDs (remove "material-" prefix if present)
+      const normalizeId = (id: string) => (id.startsWith("material-") ? id.replace("material-", "") : id);
+
+      // --- SAUCE CASE ---
       if (ingredient.materialId.startsWith("sauce-")) {
         const sauceId = ingredient.materialId.replace("sauce-", "");
         const sauce = sauces.find(s => String(s.id) === sauceId);
@@ -436,11 +486,11 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
           return 0;
         }
 
-        // Calculate cost based on sauce's cost per unit
         try {
           const conversionFactor = getConversionFactor(ingredient.unit, sauce.unit, "volume", { baseUnit: sauce.unit } as any);
 
           const finalCost = ingredient.quantity * parseFloat(String(sauce.costPerUnit)) * conversionFactor;
+
           return isNaN(finalCost) ? 0 : finalCost;
         } catch (error) {
           console.error(`Error calculating cost for sauce ${sauce.name}:`, error);
@@ -448,27 +498,29 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
         }
       }
 
-      // Original logic for materials
+      // --- MATERIAL CASE ---
       try {
-        const material = (materials || []).find(m => String(m.id) === String(ingredient.materialId));
+        const materialId = normalizeId(ingredient.materialId);
+
+        const material = (materials || []).find(m => String(m.id) === materialId);
         if (!material) {
           console.warn(`Material not found for ID: ${ingredient.materialId}`);
           return 0;
         }
 
-        const allStockEntries = (stockEntries || []).filter(entry => String(entry.materialId) === String(ingredient.materialId));
+        const allStockEntries = (stockEntries || []).filter(entry => String(entry.materialId) === materialId);
         if (allStockEntries.length === 0) {
           console.warn(`No stock entries found for material ${material.name}`);
           return 0;
         }
 
-        let costPerUnit = 0;
         let totalWeightedCost = 0;
         let totalQuantity = 0;
 
-        for (const [index, entry] of allStockEntries.entries()) {
+        for (const entry of allStockEntries) {
           let quantity = entry.purchasedIndividualQuantity || 0;
 
+          // Convert purchased quantity into base units if needed
           if (quantity <= 0 && entry.purchasedQuantity) {
             try {
               const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
@@ -508,12 +560,12 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
           }
         }
 
-        if (totalQuantity > 0) {
-          costPerUnit = totalWeightedCost / totalQuantity;
-        } else {
+        if (totalQuantity <= 0) {
           console.warn(`No valid quantity data for material ${material.name}`);
           return 0;
         }
+
+        const costPerUnit = totalWeightedCost / totalQuantity;
 
         try {
           const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
@@ -534,47 +586,78 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
 
   const getMaterialCostPerBaseUnit = useCallback(
     (materialId: string) => {
-      // Check if this is a sauce
+      // ✅ Normalize IDs (strip "material-" if present)
+      const normalizeId = (id: string) => (id.startsWith("material-") ? id.replace("material-", "") : id);
+
+      // --- SAUCE CASE ---
       if (materialId.startsWith("sauce-")) {
         const sauceId = materialId.replace("sauce-", "");
         const sauce = sauces.find(s => String(s.id) === sauceId);
         return sauce ? parseFloat(String(sauce.costPerUnit)) : 0;
       }
 
-      // Original logic for materials
-      const material = (materials || []).find(m => String(m.id) === String(materialId));
+      // --- MATERIAL CASE ---
+      const normalizedId = normalizeId(materialId);
+
+      const material = (materials || []).find(m => String(m.id) === normalizedId);
       if (!material) {
+        console.warn(`Material not found for ID: ${materialId}`);
         return 0;
       }
-      const allStockEntries = (stockEntries || []).filter(entry => String(entry.materialId) === String(materialId));
+
+      const allStockEntries = (stockEntries || []).filter(entry => String(entry.materialId) === normalizedId);
       if (allStockEntries.length === 0) {
+        console.warn(`No stock entries found for material ${material.name}`);
         return 0;
       }
+
       let totalWeightedCost = 0;
       let totalQuantity = 0;
+
       for (const entry of allStockEntries) {
         let quantity = entry.purchasedIndividualQuantity || 0;
+
+        // Convert purchased quantity → base units if missing
         if (quantity <= 0 && entry.purchasedQuantity) {
-          const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-          quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
+          try {
+            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+            quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
+          } catch (error) {
+            console.error(`Error converting units for ${material.name}:`, error);
+            continue;
+          }
         }
+
         if (quantity <= 0) continue;
+
         let unitCost = 0;
+
         if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
           unitCost = entry.costPerBaseUnit;
         } else if (entry.totalCost && entry.totalCost > 0) {
           unitCost = parseFloat(String(entry.totalCost)) / quantity;
         } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-          unitCost = parseFloat(String(entry.costPerPurchasedUnit)) / conversionFactor;
+          try {
+            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+            unitCost = parseFloat(String(entry.costPerPurchasedUnit)) / conversionFactor;
+          } catch (error) {
+            console.error(`Error converting cost units for ${material.name}:`, error);
+            continue;
+          }
         }
+
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
           totalQuantity += quantity;
         }
       }
 
-      return totalQuantity > 0 ? totalWeightedCost / totalQuantity : 0;
+      if (totalQuantity <= 0) {
+        console.warn(`No valid quantity data for material ${material.name}`);
+        return 0;
+      }
+
+      return totalWeightedCost / totalQuantity;
     },
     [stockEntries, materials, sauces]
   );
@@ -652,11 +735,11 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
       setSelectedMaterialId(itemId);
       setMaterialSearchTerm(itemName || "");
 
-      // Determine if this is a material or sauce and set the type
       if (itemId.startsWith("sauce-")) {
         setSelectedItemType("sauce");
         const sauceId = itemId.replace("sauce-", "");
         const sauce = sauces.find(s => String(s.id) === sauceId);
+        console.log("🥫 Selected sauce:", sauce);
         if (sauce) {
           setIngredientUnit(sauce.unit);
         }
@@ -664,6 +747,11 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
         setSelectedItemType("material");
         const materialId = itemId.replace("material-", "");
         const material = (materials || []).find(m => String(m.id) === materialId);
+        const materialStocks = (stockEntries || []).filter(se => String(se.materialId) === materialId);
+
+        console.log("🧾 Selected material:", material);
+        console.log("📦 Related stock entries:", materialStocks);
+
         if (material) {
           setIngredientUnit(material.baseUnit);
         } else {
@@ -671,8 +759,35 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
         }
       }
     },
-    [materials, sauces]
+    [materials, sauces, stockEntries]
   );
+
+  // const handleMaterialSelect = useCallback(
+  //   (itemId: string, itemName?: string) => {
+  //     setSelectedMaterialId(itemId);
+  //     setMaterialSearchTerm(itemName || "");
+
+  //     // Determine if this is a material or sauce and set the type
+  //     if (itemId.startsWith("sauce-")) {
+  //       setSelectedItemType("sauce");
+  //       const sauceId = itemId.replace("sauce-", "");
+  //       const sauce = sauces.find(s => String(s.id) === sauceId);
+  //       if (sauce) {
+  //         setIngredientUnit(sauce.unit);
+  //       }
+  //     } else {
+  //       setSelectedItemType("material");
+  //       const materialId = itemId.replace("material-", "");
+  //       const material = (materials || []).find(m => String(m.id) === materialId);
+  //       if (material) {
+  //         setIngredientUnit(material.baseUnit);
+  //       } else {
+  //         setIngredientUnit("");
+  //       }
+  //     }
+  //   },
+  //   [materials, sauces]
+  // );
 
   const handleMaterialSearchChange = useCallback((value: string) => {
     setMaterialSearchTerm(value);
@@ -710,7 +825,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
         <Selection
-          label="Material or Sauce"
+          label="Items"
           searchTerm={materialSearchTerm}
           onSearchChange={handleMaterialSearchChange}
           onKeyDown={handleKeyDown}
@@ -719,7 +834,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
           getDisplayValue={item => item.name}
           getItemId={item => item.id}
           estimateItemSizePx={56}
-          placeholder={availableItems.length === 0 ? "All items used" : "Search materials or sauces..."}
+          placeholder={availableItems.length === 0 ? "All items used" : "Search items..."}
           noResultsText={`No items found matching "{searchTerm}"`}
           inputRef={materialSelectRef}
           itemRenderer={({ item, onSelect }) => (

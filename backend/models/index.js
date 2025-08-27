@@ -11,7 +11,7 @@ import Employee from "./Employee.js";
 import EmployeeSettlement from "./EmployeeSettlement.js";
 import EmployeeUsage from "./EmployeeUsage.js";
 import Material from "./materials.js";
-import { MenuItem, MenuItemIngredient } from "./menuItems.js";
+import { MenuItem, MenuItemIngredient, MenuItemSauce } from "./menuItems.js";
 import Sauce from "./Sauce.js";
 import SauceIngredient from "./SauceIngredient.js";
 import Variants from "./Variants.js";
@@ -405,7 +405,6 @@ Employee.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-
 // Department ↔ Employee (One-to-Many)
 Department.hasMany(Employee, {
   foreignKey: "departmentId",
@@ -767,6 +766,55 @@ Variants.belongsTo(MenuItem, {
   onUpdate: "CASCADE"
 });
 
+// MenuItem ↔ Sauce (through MenuItemSauce)
+MenuItem.belongsToMany(Sauce, {
+  through: MenuItemSauce,
+  foreignKey: "menuItemId",
+  otherKey: "sauceId",
+  as: "sauces",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+Sauce.belongsToMany(MenuItem, {
+  through: MenuItemSauce,
+  foreignKey: "sauceId",
+  otherKey: "menuItemId",
+  as: "menuItems",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// MenuItem ↔ MenuItemSauce
+MenuItem.hasMany(MenuItemSauce, {
+  foreignKey: "menuItemId",
+  as: "menuItemSauces",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+MenuItemSauce.belongsTo(MenuItem, {
+  foreignKey: "menuItemId",
+  as: "menuItem",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Sauce ↔ MenuItemSauce
+Sauce.hasMany(MenuItemSauce, {
+  foreignKey: "sauceId",
+  as: "menuItemSauces",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+MenuItemSauce.belongsTo(Sauce, {
+  foreignKey: "sauceId",
+  as: "sauce",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
 // Sauce ↔ SauceIngredient
 Sauce.hasMany(SauceIngredient, {
   foreignKey: "sauceId",
@@ -839,4 +887,4 @@ Sauce.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };
+export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient,MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };

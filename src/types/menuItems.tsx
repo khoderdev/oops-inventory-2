@@ -164,3 +164,10 @@ export interface BeveragesMenuColumnsProps {
   handleEditBeverageItem: (item: MenuItem) => void;
   handleDeleteBeverageItem: (id: string) => void;
 }
+
+export interface MenuItemSauce {
+  sauceId: string;
+  quantity: number;
+  unit: string;
+  cost: number;
+}

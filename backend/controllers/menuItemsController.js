@@ -1,5 +1,5 @@
 import sequelize from "../config/database.js";
-import { MenuItem, MenuItemIngredient, Variants } from "../models/index.js";
+import { MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, Variants } from "../models/index.js";
 import Category from "../models/Category.js";
 import Material from "../models/materials.js";
 import { v4 as uuidv4 } from "uuid";
@@ -21,32 +21,42 @@ const menuItemsController = {
             include: [{ model: Material, as: "material" }]
           },
           {
+            model: MenuItemSauce,
+            as: "menuItemSauces",
+            attributes: ["id", "menuItemId", "sauceId", "quantity", "unit", "cost"]
+          },
+          {
             model: Variants,
             as: "variants",
             attributes: ["id", "name", "volume", "unit", "price", "isActive", "sortOrder"],
             where: { isActive: true },
             required: false,
-            order: [["sortOrder", "ASC"], ["name", "ASC"]]
+            order: [
+              ["sortOrder", "ASC"],
+              ["name", "ASC"]
+            ]
           }
         ]
       });
+
       const formattedMenuItems = menuItems.map(item => ({
         ...item.get(),
         ingredients: item.menuItemIngredients.map(ingredient => ({
           materialId: ingredient.materialId,
           quantity: ingredient.quantity,
           unit: ingredient.unit,
-          cost: ingredient.cost
+          cost: ingredient.cost,
+          type: "material"
         })),
         variants: item.variants || []
       }));
+
       res.status(200).json(formattedMenuItems);
     } catch (error) {
       next(error);
     }
   },
 
-  // Get menu item by ID with ingredients
   getMenuItemById: async (req, res, next) => {
     try {
       const { id } = req.params;
@@ -69,7 +79,10 @@ const menuItemsController = {
             attributes: ["id", "name", "volume", "unit", "price", "isActive", "sortOrder"],
             where: { isActive: true },
             required: false,
-            order: [["sortOrder", "ASC"], ["name", "ASC"]]
+            order: [
+              ["sortOrder", "ASC"],
+              ["name", "ASC"]
+            ]
           }
         ]
       });
@@ -93,7 +106,7 @@ const menuItemsController = {
     }
   },
 
-  // Create new menu item with ingredients and variants
+  // Create new menu item with ingredients, sauces, and variants
   createMenuItem: async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
@@ -106,12 +119,14 @@ const menuItemsController = {
         image,
         imageBase64,
         ingredients,
+        sauces,
         isBeverage,
         unit,
         availableQuantity,
         costPerUnit,
         variants
       } = req.body;
+
       const priceValue = typeof price === "string" ? parseFloat(price) : price;
       if (isNaN(priceValue)) {
         await transaction.rollback();
@@ -129,6 +144,7 @@ const menuItemsController = {
         await transaction.rollback();
         return res.status(400).json({ error: "Price cannot be negative" });
       }
+
       let categoryId = null;
       let categoryValue = null;
       if (typeof category === "object" && category !== null && category.id) {
@@ -141,6 +157,7 @@ const menuItemsController = {
             categoryId = parsedCategory.id;
             categoryValue = parsedCategory.name || parsedCategory.value;
           } else {
+            // Handle string category value
           }
         } catch (e) {
           let categoryRecord = await Category.findOne({
@@ -162,14 +179,17 @@ const menuItemsController = {
         if (categoryRecord && categoryRecord.isActive) {
           categoryValue = categoryRecord.value;
         } else {
+          // Category not found or inactive
         }
       }
+
       if (!categoryId) {
         await transaction.rollback();
         return res.status(400).json({
           error: `Invalid menu item category: ${JSON.stringify(category)}. Please use a valid category from the database.`
         });
       }
+
       const categoryRecord = await Category.findOne({
         where: { id: categoryId, isActive: true }
       });
@@ -179,6 +199,7 @@ const menuItemsController = {
           error: `Category with ID ${categoryId} not found or inactive.`
         });
       }
+
       let parsedIngredients = null;
       if (ingredients) {
         if (typeof ingredients === "string") {
@@ -192,8 +213,33 @@ const menuItemsController = {
           parsedIngredients = ingredients;
         }
       }
-      const noIngredientsCategories = ['alcohol', 'cold', 'hot', 'shisha'];
+
+      // Parse sauces
+      let parsedSauces = null;
+      if (sauces) {
+        if (typeof sauces === "string") {
+          try {
+            parsedSauces = JSON.parse(sauces);
+          } catch (e) {
+            await transaction.rollback();
+            return res.status(400).json({ error: "Invalid sauces format - must be valid JSON" });
+          }
+        } else if (Array.isArray(sauces)) {
+          parsedSauces = sauces;
+        }
+      }
+
+      const noIngredientsCategories = ["alcohol", "cold", "hot", "shisha"];
       const requiresIngredients = !noIngredientsCategories.includes(categoryValue?.toLowerCase());
+      const hasIngredients = parsedIngredients && parsedIngredients.length > 0;
+      const hasSauces = parsedSauces && parsedSauces.length > 0;
+      if (requiresIngredients && !hasIngredients && !hasSauces) {
+        await transaction.rollback();
+        return res.status(400).json({
+          error: `${categoryValue} items require either ingredients or sauces. Please add at least one ingredient or sauce.`
+        });
+      }
+
       let beverageData = {};
       if (isBeverage !== undefined) {
         beverageData.isBeverage = Boolean(isBeverage);
@@ -217,6 +263,7 @@ const menuItemsController = {
         }
         beverageData.costPerUnit = cost;
       }
+
       let parsedVariants = null;
       if (variants) {
         if (typeof variants === "string") {
@@ -230,6 +277,8 @@ const menuItemsController = {
           parsedVariants = variants;
         }
       }
+
+      // Validate ingredients if provided
       if (parsedIngredients && parsedIngredients.length > 0) {
         for (const ingredient of parsedIngredients) {
           if (!ingredient.materialId || ingredient.quantity === undefined || !ingredient.unit || ingredient.cost === undefined) {
@@ -250,14 +299,33 @@ const menuItemsController = {
           }
         }
       } else {
-        if (requiresIngredients) {
-          await transaction.rollback();
-          return res.status(400).json({ 
-            error: `Ingredients are required for ${categoryValue} items. Please add at least one ingredient.` 
-          });
-        }
         parsedIngredients = [];
       }
+
+      // Validate sauces if provided
+      if (parsedSauces && parsedSauces.length > 0) {
+        for (const sauce of parsedSauces) {
+          if (!sauce.sauceId || sauce.quantity === undefined || !sauce.unit || sauce.cost === undefined) {
+            await transaction.rollback();
+            return res.status(400).json({ error: "All sauce fields are required" });
+          }
+          if (sauce.quantity <= 0) {
+            await transaction.rollback();
+            return res.status(400).json({ error: "Sauce quantity must be positive" });
+          }
+          if (sauce.unit.trim() === "") {
+            await transaction.rollback();
+            return res.status(400).json({ error: "Sauce unit cannot be empty" });
+          }
+          if (sauce.cost < 0) {
+            await transaction.rollback();
+            return res.status(400).json({ error: "Sauce cost cannot be negative" });
+          }
+        }
+      } else {
+        parsedSauces = [];
+      }
+
       let imageUrl = null;
       if (req.file) {
         imageUrl = `/uploads/menu/${req.file.filename}`;
@@ -266,6 +334,7 @@ const menuItemsController = {
       } else if (image) {
         imageUrl = image;
       }
+
       const menuItem = await MenuItem.create(
         {
           name,
@@ -278,14 +347,12 @@ const menuItemsController = {
         },
         { transaction }
       );
+
+      // Create material ingredients
       if (parsedIngredients && parsedIngredients.length > 0) {
         const ingredientData = parsedIngredients.map(ingredient => {
-          const cost = typeof ingredient.cost === 'string' 
-            ? parseFloat(ingredient.cost).toFixed(6) 
-            : parseFloat(ingredient.cost).toFixed(6);
-          const quantity = typeof ingredient.quantity === 'string'
-            ? parseFloat(ingredient.quantity).toFixed(6)
-            : parseFloat(ingredient.quantity).toFixed(6);
+          const cost = typeof ingredient.cost === "string" ? parseFloat(ingredient.cost).toFixed(6) : parseFloat(ingredient.cost).toFixed(6);
+          const quantity = typeof ingredient.quantity === "string" ? parseFloat(ingredient.quantity).toFixed(6) : parseFloat(ingredient.quantity).toFixed(6);
           return {
             menuItemId: menuItem.id,
             materialId: ingredient.materialId,
@@ -296,6 +363,23 @@ const menuItemsController = {
         });
         await MenuItemIngredient.bulkCreate(ingredientData, { transaction });
       }
+
+      // Create sauce ingredients
+      if (parsedSauces && parsedSauces.length > 0) {
+        const sauceData = parsedSauces.map(sauce => {
+          const cost = typeof sauce.cost === "string" ? parseFloat(sauce.cost).toFixed(6) : parseFloat(sauce.cost).toFixed(6);
+          const quantity = typeof sauce.quantity === "string" ? parseFloat(sauce.quantity).toFixed(6) : parseFloat(sauce.quantity).toFixed(6);
+          return {
+            menuItemId: menuItem.id,
+            sauceId: sauce.sauceId,
+            quantity: quantity,
+            unit: sauce.unit,
+            cost: cost
+          };
+        });
+        await MenuItemSauce.bulkCreate(sauceData, { transaction });
+      }
+
       if (parsedVariants && typeof parsedVariants === "object") {
         const variantEntries = Object.entries(parsedVariants);
         if (variantEntries.length > 0) {
@@ -324,6 +408,7 @@ const menuItemsController = {
           await Variants.bulkCreate(variantData, { transaction });
         }
       }
+
       const createdMenuItem = await MenuItem.findByPk(menuItem.id, {
         include: [
           {
@@ -338,12 +423,20 @@ const menuItemsController = {
             include: [{ model: Material, as: "material" }]
           },
           {
+            model: MenuItemSauce,
+            as: "menuItemSauces",
+            attributes: ["id", "menuItemId", "sauceId", "quantity", "unit", "cost"]
+          },
+          {
             model: Variants,
             as: "variants",
             attributes: ["id", "name", "volume", "unit", "price", "isActive", "sortOrder"],
             where: { isActive: true },
             required: false,
-            order: [["sortOrder", "ASC"], ["name", "ASC"]]
+            order: [
+              ["sortOrder", "ASC"],
+              ["name", "ASC"]
+            ]
           }
         ],
         transaction
@@ -351,8 +444,16 @@ const menuItemsController = {
 
       const formattedMenuItem = {
         ...createdMenuItem.get(),
+        ingredients: createdMenuItem.menuItemIngredients.map(ingredient => ({
+          materialId: ingredient.materialId,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          cost: ingredient.cost,
+          type: "material"
+        })),
         variants: createdMenuItem.variants || []
       };
+
       await transaction.commit();
       res.status(201).json(formattedMenuItem);
     } catch (error) {
@@ -522,7 +623,7 @@ const menuItemsController = {
         }
         beverageData.costPerUnit = cost;
       }
-      
+
       await menuItem.update(
         {
           name: name !== undefined ? name : menuItem.name,
@@ -542,12 +643,8 @@ const menuItemsController = {
         });
         if (parsedIngredients.length > 0) {
           const ingredientData = parsedIngredients.map(ingredient => {
-            const cost = typeof ingredient.cost === 'string' 
-              ? parseFloat(ingredient.cost).toFixed(6) 
-              : parseFloat(ingredient.cost).toFixed(6);
-            const quantity = typeof ingredient.quantity === 'string'
-              ? parseFloat(ingredient.quantity).toFixed(6)
-              : parseFloat(ingredient.quantity).toFixed(6);
+            const cost = typeof ingredient.cost === "string" ? parseFloat(ingredient.cost).toFixed(6) : parseFloat(ingredient.cost).toFixed(6);
+            const quantity = typeof ingredient.quantity === "string" ? parseFloat(ingredient.quantity).toFixed(6) : parseFloat(ingredient.quantity).toFixed(6);
             return {
               menuItemId: id,
               materialId: ingredient.materialId,
@@ -721,32 +818,31 @@ const menuItemsController = {
     }
   },
 
-  // Bulk update category for multiple menu items
   // Get menu items by type (food or beverage)
   getMenuItemsByType: async (req, res, next) => {
     try {
       const { type } = req.params;
       const { isActive } = req.query;
-      
+
       // Validate type parameter
-      if (!['food', 'beverage'].includes(type)) {
+      if (!["food", "beverage"].includes(type)) {
         return res.status(400).json({ error: "Type must be either 'food' or 'beverage'" });
       }
-      
+
       // Build where clause
       const whereClause = {
-        isBeverage: type === 'beverage'
+        isBeverage: type === "beverage"
       };
-      
+
       // Add isActive filter if provided
       if (isActive !== undefined) {
-        whereClause.isActive = isActive === 'true';
+        whereClause.isActive = isActive === "true";
       }
-      
+
       // Log the request for debugging
       console.log(`Getting ${type} menu items. Query params:`, req.query);
-      console.log('Where clause:', whereClause);
-      
+      console.log("Where clause:", whereClause);
+
       const menuItems = await MenuItem.findAll({
         where: whereClause,
         include: [
@@ -762,16 +858,24 @@ const menuItemsController = {
             include: [{ model: Material, as: "material" }]
           },
           {
+            model: MenuItemSauce,
+            as: "menuItemSauces",
+            attributes: ["id", "menuItemId", "sauceId", "quantity", "unit", "cost"]
+          },
+          {
             model: Variants,
             as: "variants",
             attributes: ["id", "name", "volume", "unit", "price", "isActive", "sortOrder"],
             where: { isActive: true },
             required: false,
-            order: [["sortOrder", "ASC"], ["name", "ASC"]]
+            order: [
+              ["sortOrder", "ASC"],
+              ["name", "ASC"]
+            ]
           }
         ]
       });
-      
+
       const formattedMenuItems = menuItems.map(item => ({
         ...item.get(),
         ingredients: item.menuItemIngredients.map(ingredient => ({
@@ -781,9 +885,16 @@ const menuItemsController = {
           cost: ingredient.cost,
           material: ingredient.material
         })),
+        sauces: item.menuItemSauces.map(sauce => ({
+          // Only include these properties, exclude the nested sauce object
+          sauceId: sauce.sauceId,
+          quantity: sauce.quantity,
+          unit: sauce.unit,
+          cost: sauce.cost
+        })),
         variants: item.variants || []
       }));
-      
+
       res.status(200).json(formattedMenuItems);
     } catch (error) {
       next(error);
@@ -817,6 +928,11 @@ const menuItemsController = {
             include: [{ model: Material, as: "material" }]
           },
           {
+            model: MenuItemSauce,
+            as: "menuItemSauces",
+            include: [{ model: Sauce, as: "sauce" }]
+          },
+          {
             model: Printer,
             as: "assignedPrinter",
             required: false
@@ -830,6 +946,13 @@ const menuItemsController = {
           quantity: ingredient.quantity,
           unit: ingredient.unit,
           cost: ingredient.cost
+        })),
+        sauces: item.menuItemSauces.map(sauce => ({
+          sauceId: sauce.sauceId,
+          quantity: sauce.quantity,
+          unit: sauce.unit,
+          cost: sauce.cost,
+          sauce: sauce.sauce
         }))
       }));
       res.status(200).json({
@@ -861,12 +984,7 @@ const menuItemsController = {
   createBeverageVariants: async (req, res, next) => {
     const transaction = await sequelize.transaction();
     try {
-      const { 
-        baseMenuItem,
-        selectedVariants,
-        priceAdjustments,
-        nameFormat
-      } = req.body;
+      const { baseMenuItem, selectedVariants, priceAdjustments, nameFormat } = req.body;
       if (!baseMenuItem || !baseMenuItem.id) {
         await transaction.rollback();
         return res.status(400).json({ error: "Base menu item is required" });

@@ -29,7 +29,7 @@ const materialController = {
       );
 
       // Parse field selection for optimized transfer
-      const selectedFields = parseFieldSelection(fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "categoryId", "createdAt", "updatedAt"]);
+      const selectedFields = parseFieldSelection(fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "categoryId", "costPerBaseUnit", "createdAt", "updatedAt"]);
 
       // Base query options
       const queryOptions = {

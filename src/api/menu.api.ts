@@ -37,6 +37,21 @@ const processMenuItemData = (menuItemData: CreateMenuItemData | UpdateMenuItemDa
   
   const processedData = { ...menuItemData };
   
+  // Process ingredients to ensure material IDs are in the correct format
+  if (processedData.ingredients && Array.isArray(processedData.ingredients)) {
+    processedData.ingredients = processedData.ingredients.map(ingredient => {
+      if (ingredient.materialId && typeof ingredient.materialId === 'string' && ingredient.materialId.startsWith('material-')) {
+        const materialId = ingredient.materialId.replace('material-', '');
+        console.log('🔧 Processed material ID:', { 
+          from: ingredient.materialId, 
+          to: materialId 
+        });
+        return { ...ingredient, materialId };
+      }
+      return ingredient;
+    });
+  }
+
   // Preserve the category object structure for backend
   if (processedData.category && typeof processedData.category === 'object') {
     const originalCategory = processedData.category;
@@ -85,29 +100,65 @@ export const menuAPI = {
   },
   getMenuItem: (id: string) => api.get<MenuItem>(`/menu-items/${id}`),
   createMenuItem: (menuItemData: CreateMenuItemData) => {
+    // Process the data first
     const data = processMenuItemData(menuItemData);
+    
+    // Ensure ingredients have the correct format
+    const processedData = {
+      ...data,
+      ingredients: data.ingredients?.map(ingredient => ({
+        ...ingredient,
+        // Ensure materialId is a number if it's a numeric string
+        materialId: typeof ingredient.materialId === 'string' && !isNaN(Number(ingredient.materialId)) 
+          ? Number(ingredient.materialId) 
+          : ingredient.materialId
+      })) || []
+    };
     
     // Debug logging to see what's being sent to API
     console.log("🌐 API: Sending to backend:", {
       dataType: 'JSON',
       originalData: menuItemData,
-      processedData: data
+      processedData: processedData,
+      ingredientsCheck: processedData.ingredients?.map(i => ({
+        materialId: i.materialId,
+        type: typeof i.materialId
+      }))
     });
     
-    return api.post<MenuItem, CreateMenuItemData>("/menu-items", data as CreateMenuItemData);
+    // Update the createMenuItem function to ensure proper logging and data processing
+    console.log("🌐 API: Creating menu item with processed data:", processedData);
+    return api.post<MenuItem, CreateMenuItemData>('/menu-items', processedData as CreateMenuItemData);
   },
   updateMenuItem: (id: string, menuItemData: UpdateMenuItemData) => {
+    // Process the data first
     const data = processMenuItemData(menuItemData);
+    
+    // Ensure ingredients have the correct format
+    const processedData = {
+      ...data,
+      ingredients: data.ingredients?.map(ingredient => ({
+        ...ingredient,
+        // Ensure materialId is a number if it's a numeric string
+        materialId: typeof ingredient.materialId === 'string' && !isNaN(Number(ingredient.materialId)) 
+          ? Number(ingredient.materialId) 
+          : ingredient.materialId
+      })) || []
+    };
     
     // Debug logging to see what's being sent to API
     console.log("🌐 API: Updating menu item:", {
       id,
       dataType: 'JSON',
       originalData: menuItemData,
-      processedData: data
+      processedData: processedData,
+      ingredientsCheck: processedData.ingredients?.map(i => ({
+        materialId: i.materialId,
+        type: typeof i.materialId
+      }))
     });
     
-    return api.put<MenuItem, UpdateMenuItemData>(`/menu-items/${id}`, data as UpdateMenuItemData);
+    return api.put<MenuItem, UpdateMenuItemData>(`/menu-items/${id}`, processedData as UpdateMenuItemData);
   },
   deleteMenuItem: (id: string) => {
     const idStr = String(id).trim();
