@@ -9,8 +9,7 @@ import { useRef, useState, useMemo, useCallback } from "react";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Button } from "@/components/ui/button";
 
-export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients = [], menuItem, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = "0", sauces = [] }) => {
-  const { materialsWithStock: materials } = useMenuItems();
+export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients = [], menuItem, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = "0", sauces = [], calculateIngredientCost, materials }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnHelper = createColumnHelper<MenuItemIngredient & { index: number }>();
@@ -119,6 +118,7 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
       }),
 
       // Cost column
+      // Cost column - FIXED to use the same approach as working code
       columnHelper.display({
         id: "cost",
         header: "Cost",
@@ -131,92 +131,114 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
             return <div className="text-right font-medium">{formatCurrency(storedCost)}</div>;
           }
 
-          // Handle sauce cost calculation
-          if (ingredient.materialId.startsWith("sauce-")) {
-            const sauceId = ingredient.materialId.replace("sauce-", "");
-            const sauce = sauces.find(s => String(s.id) === sauceId);
-
-            if (!sauce) {
-              return <div className="text-right text-red-500 text-xs">Sauce not found</div>;
-            }
-
-            if (!sauce.costPerUnit) {
-              return <div className="text-right text-red-500 text-xs">No cost data</div>;
-            }
-
-            try {
-              // For sauces, assume the unit matches and calculate directly
-              const cost = ingredient.quantity * parseFloat(String(sauce.costPerUnit));
-              return <div className="text-right font-medium">{formatCurrency(cost)}</div>;
-            } catch (error) {
-              return <div className="text-right text-red-500 text-xs">Calculation error</div>;
-            }
-          }
-
-          // Handle material cost calculation - FIXED VERSION
-          const materialId = ingredient.materialId.startsWith("material-") ? ingredient.materialId.replace("material-", "") : ingredient.materialId;
-
-          const material = materials.find(m => String(m.id) === materialId);
-
-          if (!material) {
-            return <div className="text-right text-red-500 text-xs">Material not found</div>;
-          }
-
-          // Try multiple cost sources - FIXED
-          let costPerBaseUnit = 0;
-
-          // First try costPerBaseUnit directly
-          if (material.costPerBaseUnit) {
-            costPerBaseUnit = parseFloat(String(material.costPerBaseUnit));
-          }
-          // If not available, try to calculate from stock entries
-          else if (material.stockEntries && material.stockEntries.length > 0) {
-            // Calculate weighted average cost from stock entries
-            let totalCost = 0;
-            let totalQuantity = 0;
-
-            for (const entry of material.stockEntries) {
-              if (entry.costPerBaseUnit) {
-                const quantity = entry.purchasedQuantity || 0;
-                totalCost += parseFloat(String(entry.costPerBaseUnit)) * quantity;
-                totalQuantity += quantity;
-              }
-            }
-
-            if (totalQuantity > 0) {
-              costPerBaseUnit = totalCost / totalQuantity;
-            }
-          }
-
-          if (!costPerBaseUnit || costPerBaseUnit <= 0) {
-            return <div className="text-right text-red-500 text-xs">No cost data</div>;
-          }
-
+          // Use the same calculateIngredientCost function that's used for the total
           try {
-            // Calculate cost with unit conversion
-            let conversionFactor = 1;
-            if (material.baseUnit !== ingredient.unit) {
-              conversionFactor = getConversionFactor(
-                ingredient.unit, // FIXED: source unit first
-                material.baseUnit, // then target unit
-                material.unitType || "piece",
-                material
-              );
-            }
-
-            const ingredientCost = costPerBaseUnit * ingredient.quantity * conversionFactor;
-            return (
-              <div className="text-right font-medium">
-                <span className="text-foreground">{formatCurrency(ingredientCost)}</span>
-              </div>
-            );
+            const cost = calculateIngredientCost(ingredient);
+            return <div className="text-right font-medium">{formatCurrency(cost)}</div>;
           } catch (error) {
-            console.error("Unit conversion error:", error);
-            return <div className="text-right text-red-500 text-xs">Unit conversion error</div>;
+            return <div className="text-right text-red-500 text-xs">Calculation error</div>;
           }
         },
         size: 120
       }),
+      // columnHelper.display({
+      //   id: "cost",
+      //   header: "Cost",
+      //   cell: ({ row }) => {
+      //     const ingredient = row.original;
+
+      //     // First try to use stored cost if available
+      //     const storedCost = menuItem?.ingredients?.find(i => i.materialId === ingredient.materialId)?.cost;
+      //     if (storedCost !== undefined && storedCost !== null) {
+      //       return <div className="text-right font-medium">{formatCurrency(storedCost)}</div>;
+      //     }
+
+      //     // Handle sauce cost calculation
+      //     if (ingredient.materialId.startsWith("sauce-")) {
+      //       const sauceId = ingredient.materialId.replace("sauce-", "");
+      //       const sauce = sauces.find(s => String(s.id) === sauceId);
+
+      //       if (!sauce) {
+      //         return <div className="text-right text-red-500 text-xs">Sauce not found</div>;
+      //       }
+
+      //       if (!sauce.costPerUnit) {
+      //         return <div className="text-right text-red-500 text-xs">No cost data</div>;
+      //       }
+
+      //       try {
+      //         // For sauces, assume the unit matches and calculate directly
+      //         const cost = ingredient.quantity * parseFloat(String(sauce.costPerUnit));
+      //         return <div className="text-right font-medium">{formatCurrency(cost)}</div>;
+      //       } catch (error) {
+      //         return <div className="text-right text-red-500 text-xs">Calculation error</div>;
+      //       }
+      //     }
+
+      //     // Handle material cost calculation - FIXED VERSION
+      //     const materialId = ingredient.materialId.startsWith("material-") ? ingredient.materialId.replace("material-", "") : ingredient.materialId;
+
+      //     const material = materials.find(m => String(m.id) === materialId);
+
+      //     if (!material) {
+      //       return <div className="text-right text-red-500 text-xs">Material not found</div>;
+      //     }
+
+      //     // Try multiple cost sources - FIXED
+      //     let costPerBaseUnit = 0;
+
+      //     // First try costPerBaseUnit directly
+      //     if (material.costPerBaseUnit) {
+      //       costPerBaseUnit = parseFloat(String(material.costPerBaseUnit));
+      //     }
+      //     // If not available, try to calculate from stock entries
+      //     else if (material.stockEntries && material.stockEntries.length > 0) {
+      //       // Calculate weighted average cost from stock entries
+      //       let totalCost = 0;
+      //       let totalQuantity = 0;
+
+      //       for (const entry of material.stockEntries) {
+      //         if (entry.costPerBaseUnit) {
+      //           const quantity = entry.purchasedQuantity || 0;
+      //           totalCost += parseFloat(String(entry.costPerBaseUnit)) * quantity;
+      //           totalQuantity += quantity;
+      //         }
+      //       }
+
+      //       if (totalQuantity > 0) {
+      //         costPerBaseUnit = totalCost / totalQuantity;
+      //       }
+      //     }
+
+      //     if (!costPerBaseUnit || costPerBaseUnit <= 0) {
+      //       return <div className="text-right text-red-500 text-xs">No cost data</div>;
+      //     }
+
+      //     try {
+      //       // Calculate cost with unit conversion
+      //       let conversionFactor = 1;
+      //       if (material.baseUnit !== ingredient.unit) {
+      //         conversionFactor = getConversionFactor(
+      //           ingredient.unit, // FIXED: source unit first
+      //           material.baseUnit, // then target unit
+      //           material.unitType || "piece",
+      //           material
+      //         );
+      //       }
+
+      //       const ingredientCost = costPerBaseUnit * ingredient.quantity * conversionFactor;
+      //       return (
+      //         <div className="text-right font-medium">
+      //           <span className="text-foreground">{formatCurrency(ingredientCost)}</span>
+      //         </div>
+      //       );
+      //     } catch (error) {
+      //       console.error("Unit conversion error:", error);
+      //       return <div className="text-right text-red-500 text-xs">Unit conversion error</div>;
+      //     }
+      //   },
+      //   size: 120
+      // }),
 
       // Actions column
       columnHelper.display({
