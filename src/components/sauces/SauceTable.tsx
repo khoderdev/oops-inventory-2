@@ -62,9 +62,11 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
       header: "Yield",
       cell: ({ row }) => {
         const sauce = row.original;
+        const isLowYield = sauce.yieldQuantity < 10; // Consider yield low if less than 10 units
         return (
-          <span className="font-medium">
+          <span className={`font-medium ${isLowYield ? 'text-red-600 font-semibold' : ''}`}>
             {sauce.yieldQuantity} {sauce.unit}
+            {isLowYield && ' (Low)'}
           </span>
         );
       }
