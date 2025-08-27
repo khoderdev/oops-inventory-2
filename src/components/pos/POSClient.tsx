@@ -1997,7 +1997,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             </div>
 
             {/* Product Grid - Scrollable */}
-            <div className="flex-1 min-h-0 !bg-gray-50 p-2">
+            <div className="flex-1 min-h-0 !bg-gray-50 p-2 pb-10">
               {/* Remount ItemsGrid when switching views or when panel width changes to force re-measure */}
               <ItemsGrid
                 key={`${activeView}-${rightPanelPixelWidth}`}
@@ -2009,7 +2009,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}
-            <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
+            <div className="hidden lg:flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
               <ActionBar
                 onSaveOrder={handleManualSave}
                 onPrintReceipt={handlePrintReceipt}

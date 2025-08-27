@@ -118,7 +118,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
   // Product item component with optimized rendering
   const ProductItem: React.FC<{ item: POSItem }> = React.memo(({ item }) => (
     <Card
-      className="group relative items-card cursor-pointer select-none transition-all duration-200 hover:shadow-md hover:shadow-primary/10 hover:-translate-y-0.5 border border-gray-200 hover:border-primary/30 rounded-md bg-white/95 backdrop-blur-sm overflow-hidden btn-touch"
+      className="group relative items-card cursor-pointer select-none transition-all duration-200 hover:shadow-md hover:shadow-primary/10 border border-gray-200 hover:border-primary/30 rounded-md bg-white/95 backdrop-blur-sm overflow-hidden btn-touch"
       onClick={() => onAddToCart(item)}
       style={{
         height: gridConfig.itemHeight
@@ -131,7 +131,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
             <img src={item.image.startsWith("data:") ? item.image : `http://localhost:3000${item.image}`} alt={item.name} className="w-full h-full object-contain transition-transform duration-200 group-hover:scale-105" onError={e => handleImageError(e, item.type)} loading="lazy" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
-              <div className="p-1.5 rounded-full bg-white/80 shadow-sm transition-transform duration-200 group-hover:scale-105">{item.type === "menu_item" ? <ShoppingCart className="w-4 h-4 text-primary" /> : <Package className="w-4 h-4 text-primary" />}</div>
+              <div className="p-1.5 rounded-full bg-white/80 shadow-sm">{item.type === "menu_item" ? <ShoppingCart className="w-4 h-4 text-primary" /> : <Package className="w-4 h-4 text-primary" />}</div>
             </div>
           )}
 

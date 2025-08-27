@@ -1,6 +1,5 @@
-import { DataTypes, Op } from "sequelize";
+import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
-import Attendance from "./Attendance.js";
 
 const Employee = sequelize.define(
   "Employee",
@@ -90,7 +89,7 @@ const Employee = sequelize.define(
       },
       comment: "Reference to department"
     },
-    
+
     position: {
       type: DataTypes.STRING(100),
       allowNull: false,
@@ -265,6 +264,30 @@ Employee.prototype.isCurrentlyActive = function () {
   return this.isActive && !this.terminationDate;
 };
 
+// Instance method to get current attendance record
+Employee.prototype.getCurrentAttendance = async function () {
+  const Attendance = sequelize.models.Attendance;
+  return await Attendance.findOne({
+    where: {
+      employeeId: this.id,
+      status: "checked_in"
+    },
+    order: [["checkIn", "DESC"]]
+  });
+};
+
+// Instance method to check in employee
+Employee.prototype.checkIn = async function (notes = null) {
+  const Attendance = sequelize.models.Attendance;
+  const attendance = await Attendance.create({
+    employeeId: this.id,
+    status: "checked_in",
+    notes: notes,
+    checkIn: new Date()
+  });
+  return attendance;
+};
+
 // Static methods
 Employee.getActiveEmployees = function () {
   return this.findAll({
@@ -277,7 +300,7 @@ Employee.getActiveEmployees = function () {
         model: sequelize.models.User,
         as: "user",
         attributes: ["id", "username", "firstName", "lastName", "role"],
-        required: false // LEFT JOIN - include employees without users
+        required: false
       }
     ],
     order: [["employeeNumber", "ASC"]]
@@ -321,6 +344,24 @@ Employee.findByPhone = function (phone) {
   });
 };
 
+Employee.findByUserId = function (userId) {
+  return this.findOne({
+    where: {
+      userId,
+      isActive: true,
+      terminationDate: null
+    },
+    include: [
+      {
+        model: sequelize.models.User,
+        as: "user",
+        attributes: ["id", "username", "firstName", "lastName", "role"],
+        required: false
+      }
+    ]
+  });
+};
+
 Employee.searchEmployees = function (searchTerm) {
   return this.findAll({
     where: {
@@ -335,23 +376,23 @@ Employee.searchEmployees = function (searchTerm) {
 };
 
 // Static method to generate a unique attendance code
-Employee.generateAttendanceCode = async function() {
-  const characters = '0123456789';
+Employee.generateAttendanceCode = async function () {
+  const characters = "0123456789";
   let code;
   let isUnique = false;
-  
+
   while (!isUnique) {
-    code = '';
+    code = "";
     for (let i = 0; i < 4; i++) {
       code += characters.charAt(Math.floor(Math.random() * characters.length));
     }
-    
+
     const existing = await Employee.findOne({ where: { attendanceCode: code } });
     if (!existing) {
       isUnique = true;
     }
   }
-  
+
   return code;
 };
 

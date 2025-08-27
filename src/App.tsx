@@ -20,6 +20,7 @@ import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
 import { EmployeeUsageView } from "./components/employees/EmployeeUsageView";
 import { PermissionsTest } from "./PermissionsTest";
 import AttendanceWidget from "./components/attendance/AttendanceWidget";
+import PermissionWrapper from "./components/auth/PermissionWrapper";
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -233,13 +234,13 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     }
                   />
                   <Route
-                    path="/attendance"
+                    path="/employees/attendance"
                     element={
-                      <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
+                      <PermissionWrapper requiredPermission={PERMISSIONS.EMPLOYEE_ATTENDANCE_VIEW}>
                         <AuthenticatedLayout pageTitle="Attendance" showSearch={true} showNotifications={true}>
                           <AttendanceWidget employeeId="1" />
                         </AuthenticatedLayout>
-                      </ProtectedRoute>
+                      </PermissionWrapper>
                     }
                   />
 

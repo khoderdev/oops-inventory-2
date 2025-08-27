@@ -72,6 +72,12 @@ export const navigationItems: NavigationItem[] = [
         href: "/employees/settlements",
         icon: Calendar,
         permission: PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW
+      },
+      {
+        label: "Attendance",
+        href: "/employees/attendance",
+        icon: Calendar,
+        permission: PERMISSIONS.EMPLOYEE_ATTENDANCE_VIEW
       }
     ]
   },

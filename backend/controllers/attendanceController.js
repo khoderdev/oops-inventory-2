@@ -1,26 +1,23 @@
 import { Op } from "sequelize";
-import { AuditLog,User, Employee, Attendance } from "../models/index.js";
+import { AuditLog, User, Employee, Attendance } from "../models/index.js";
 
 const attendanceController = {
   // Check in an employee
   checkIn: async (req, res) => {
     const { employeeId, code, notes } = req.body;
-    
+
     try {
       // Find employee by ID or code
       const employee = await Employee.findOne({
         where: {
-          [Op.or]: [
-            { id: employeeId },
-            { attendanceCode: code }
-          ]
+          [Op.or]: [{ id: employeeId }, { attendanceCode: code }]
         }
       });
 
       if (!employee) {
         return res.status(404).json({
           success: false,
-          message: 'Employee not found or invalid code'
+          message: "Employee not found or invalid code"
         });
       }
 
@@ -29,27 +26,31 @@ const attendanceController = {
       if (currentAttendance) {
         return res.status(400).json({
           success: false,
-          message: 'Employee is already checked in',
+          message: "Employee is already checked in",
           checkInTime: currentAttendance.checkIn
         });
       }
 
       // Check in the employee
       const attendance = await employee.checkIn(notes);
-      
+
       // Log the action
       await AuditLog.logUserAction(
         req.user?.id || null,
-        'check_in',
-        'attendance',
+        "check_in",
+        "attendance",
         attendance.id,
-        { employeeId: employee.id, checkIn: attendance.checkIn },
-        req
+        {
+          employeeId: employee.id,
+          checkIn: attendance.checkIn,
+          ipAddress: req.ip || req.connection?.remoteAddress || 'unknown',
+          userAgent: req.get('User-Agent') || 'unknown'
+        }
       );
 
       res.status(200).json({
         success: true,
-        message: 'Successfully checked in',
+        message: "Successfully checked in",
         data: {
           employee: {
             id: employee.id,
@@ -60,10 +61,10 @@ const attendanceController = {
         }
       });
     } catch (error) {
-      console.error('Check-in error:', error);
+      console.error("Check-in error:", error);
       res.status(500).json({
         success: false,
-        message: 'Failed to check in',
+        message: "Failed to check in",
         error: error.message
       });
     }
@@ -72,22 +73,19 @@ const attendanceController = {
   // Check out an employee
   checkOut: async (req, res) => {
     const { employeeId, code, notes } = req.body;
-    
+
     try {
       // Find employee by ID or code
       const employee = await Employee.findOne({
         where: {
-          [Op.or]: [
-            { id: employeeId },
-            { attendanceCode: code }
-          ]
+          [Op.or]: [{ id: employeeId }, { attendanceCode: code }]
         }
       });
 
       if (!employee) {
         return res.status(404).json({
           success: false,
-          message: 'Employee not found or invalid code'
+          message: "Employee not found or invalid code"
         });
       }
 
@@ -96,31 +94,32 @@ const attendanceController = {
       if (!currentAttendance) {
         return res.status(400).json({
           success: false,
-          message: 'Employee is not checked in'
+          message: "Employee is not checked in"
         });
       }
 
       // Check out the employee
       await currentAttendance.checkOutEmployee();
-      
+
       // Log the action
       await AuditLog.logUserAction(
         req.user?.id || null,
-        'check_out',
-        'attendance',
+        "check_out",
+        "attendance",
         currentAttendance.id,
-        { 
-          employeeId: employee.id, 
+        {
+          employeeId: employee.id,
           checkIn: currentAttendance.checkIn,
           checkOut: currentAttendance.checkOut,
-          duration: (currentAttendance.checkOut - currentAttendance.checkIn) / 1000 / 60 // in minutes
-        },
-        req
+          duration: (currentAttendance.checkOut - currentAttendance.checkIn) / 1000 / 60, // in minutes
+          ipAddress: req.ip || req.connection?.remoteAddress || 'unknown',
+          userAgent: req.get('User-Agent') || 'unknown'
+        }
       );
 
       res.status(200).json({
         success: true,
-        message: 'Successfully checked out',
+        message: "Successfully checked out",
         data: {
           employee: {
             id: employee.id,
@@ -133,10 +132,10 @@ const attendanceController = {
         }
       });
     } catch (error) {
-      console.error('Check-out error:', error);
+      console.error("Check-out error:", error);
       res.status(500).json({
         success: false,
-        message: 'Failed to check out',
+        message: "Failed to check out",
         error: error.message
       });
     }
@@ -146,11 +145,11 @@ const attendanceController = {
   getEmployeeAttendance: async (req, res) => {
     const { employeeId } = req.params;
     const { startDate, endDate, page = 1, limit = 30 } = req.query;
-    
+
     try {
       const offset = (page - 1) * limit;
       const where = { employeeId };
-      
+
       // Add date range filter if provided
       if (startDate && endDate) {
         where.checkIn = {
@@ -163,11 +162,11 @@ const attendanceController = {
         include: [
           {
             model: Employee,
-            as: 'employee',
-            attributes: ['id', 'firstName', 'lastName', 'employeeNumber']
+            as: "employee",
+            attributes: ["id", "firstName", "lastName", "employeeNumber"]
           }
         ],
-        order: [['checkIn', 'DESC']],
+        order: [["checkIn", "DESC"]],
         limit: parseInt(limit),
         offset: parseInt(offset)
       });
@@ -185,10 +184,10 @@ const attendanceController = {
         }
       });
     } catch (error) {
-      console.error('Get attendance error:', error);
+      console.error("Get attendance error:", error);
       res.status(500).json({
         success: false,
-        message: 'Failed to get attendance records',
+        message: "Failed to get attendance records",
         error: error.message
       });
     }
@@ -197,17 +196,17 @@ const attendanceController = {
   // Generate or get attendance code for an employee
   generateAttendanceCode: async (req, res) => {
     const { employeeId } = req.params;
-    
+
     try {
       const employee = await Employee.findByPk(employeeId);
-      
+
       if (!employee) {
         return res.status(404).json({
           success: false,
-          message: 'Employee not found'
+          message: "Employee not found"
         });
       }
-      
+
       // If employee already has a code, return it
       if (employee.attendanceCode) {
         return res.status(200).json({
@@ -216,24 +215,17 @@ const attendanceController = {
             employeeId: employee.id,
             code: employee.attendanceCode
           },
-          message: 'Using existing attendance code'
+          message: "Using existing attendance code"
         });
       }
-      
+
       // Generate and save new code
       const code = await Employee.generateAttendanceCode();
       employee.attendanceCode = code;
       await employee.save();
-      
+
       // Log the action
-      await AuditLog.logUserAction(
-        req.user?.id || null,
-        'generate_code',
-        'attendance',
-        employee.id,
-        { code },
-        req
-      );
+      await AuditLog.logUserAction(req.user?.id || null, "generate_code", "attendance", employee.id, { code }, req);
 
       res.status(200).json({
         success: true,
@@ -241,13 +233,13 @@ const attendanceController = {
           employeeId: employee.id,
           code
         },
-        message: 'Generated new attendance code'
+        message: "Generated new attendance code"
       });
     } catch (error) {
-      console.error('Generate code error:', error);
+      console.error("Generate code error:", error);
       res.status(500).json({
         success: false,
-        message: 'Failed to generate attendance code',
+        message: "Failed to generate attendance code",
         error: error.message
       });
     }
@@ -260,25 +252,28 @@ const attendanceController = {
         include: [
           {
             model: Attendance,
-            as: 'attendances',
+            as: "attendances",
             where: {
-              status: 'checked_in'
+              status: "checked_in"
             },
             required: false,
             limit: 1,
-            order: [['checkIn', 'DESC']]
+            order: [["checkIn", "DESC"]]
           },
           {
             model: User,
-            as: 'user',
-            attributes: ['id', 'username', 'firstName', 'lastName'],
+            as: "user",
+            attributes: ["id", "username", "firstName", "lastName"],
             required: false
           }
         ],
         where: {
           isActive: true
         },
-        order: [['firstName', 'ASC'], ['lastName', 'ASC']]
+        order: [
+          ["firstName", "ASC"],
+          ["lastName", "ASC"]
+        ]
       });
 
       const status = employees.map(employee => ({
@@ -297,10 +292,71 @@ const attendanceController = {
         data: status
       });
     } catch (error) {
-      console.error('Get current attendance status error:', error);
+      console.error("Get current attendance status error:", error);
       res.status(500).json({
         success: false,
-        message: 'Failed to get current attendance status',
+        message: "Failed to get current attendance status",
+        error: error.message
+      });
+    }
+  },
+
+  // Get attendance status for a specific employee
+  getEmployeeStatus: async (req, res) => {
+    const { employeeId } = req.query;
+
+    console.log('🔍 getEmployeeStatus: Called with employeeId:', employeeId, 'type:', typeof employeeId);
+
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: "Employee ID is required"
+      });
+    }
+
+    try {
+      console.log('🔍 getEmployeeStatus: Looking for employee with ID:', employeeId);
+      const employee = await Employee.findByPk(employeeId);
+
+      if (!employee) {
+        console.log('🔍 getEmployeeStatus: Employee not found with ID:', employeeId);
+        return res.status(404).json({
+          success: false,
+          message: "Employee not found"
+        });
+      }
+
+      console.log('🔍 getEmployeeStatus: Employee found:', employee.firstName, employee.lastName);
+
+      // Get current attendance record (if checked in)
+      console.log('🔍 getEmployeeStatus: Getting current attendance for employeeId:', employeeId);
+      const currentAttendance = await employee.getCurrentAttendance();
+      console.log('🔍 getEmployeeStatus: Current attendance result:', currentAttendance);
+
+      // Get last check-in time (whether currently checked in or not)
+      console.log('🔍 getEmployeeStatus: Getting last attendance record');
+      const lastAttendance = await Attendance.findOne({
+        where: { employeeId },
+        order: [["checkIn", "DESC"]]
+      });
+      console.log('🔍 getEmployeeStatus: Last attendance result:', lastAttendance);
+
+      const status = {
+        isCheckedIn: !!currentAttendance,
+        lastCheckIn: lastAttendance?.checkIn || null
+      };
+
+      console.log('🔍 getEmployeeStatus: Final status object:', status);
+
+      res.status(200).json({
+        success: true,
+        data: status
+      });
+    } catch (error) {
+      console.error("Get employee status error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get employee attendance status",
         error: error.message
       });
     }

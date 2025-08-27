@@ -28,8 +28,34 @@ router.put("/settlements/:id/approve", requirePermission("employee.settlementApp
 router.put("/settlements/:id/pay", requirePermission("employee.settlementProcess"), markAsPaid);
 router.delete("/settlements/:id", requirePermission("employee.settlementDelete"), deleteSettlement);
 
-// Employee stats route (specific route before parameterized routes)
-router.get("/stats", requirePermission("employee.read"), getEmployeeStats);
+// Employee by user ID route (specific route before parameterized routes)
+router.get("/by-user/:userId", requirePermission("employee.read"), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { Employee } = await import("../models/index.js");
+
+    const employee = await Employee.findByUserId(userId);
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found for this user"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: employee
+    });
+  } catch (error) {
+    console.error("Get employee by user ID error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to get employee",
+      error: error.message
+    });
+  }
+});
 
 // Employee CRUD routes (parameterized routes last)
 router.get("/", requirePermission("employee.read"), getAllEmployees);

@@ -322,6 +322,7 @@ export const PERMISSIONS = {
   EMPLOYEE_MANAGE_SALARY: "employee.manageSalary",
   EMPLOYEE_USAGE_RECORD: "employee.usageRecord",
   EMPLOYEE_USAGE_VIEW: "employee.usageView",
+  EMPLOYEE_ATTENDANCE_VIEW: "employee.attendanceView",
   EMPLOYEE_SETTLEMENT_CREATE: "employee.settlementCreate",
   EMPLOYEE_SETTLEMENT_APPROVE: "employee.settlementApprove",
   EMPLOYEE_SETTLEMENT_PROCESS: "employee.settlementProcess",
@@ -519,6 +520,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.EMPLOYEE_READ,
     PERMISSIONS.EMPLOYEE_USAGE_RECORD,
     PERMISSIONS.EMPLOYEE_USAGE_VIEW,
+    PERMISSIONS.EMPLOYEE_ATTENDANCE_VIEW,
 
     // Basic Customer Service
     PERMISSIONS.CUSTOMERS_READ

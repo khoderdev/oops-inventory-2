@@ -377,6 +377,7 @@ User.prototype.getRolePermissions = function () {
       "employee.settlementProcess": true,
       "employee.settlementView": true,
       "employee.settlementDelete": true,
+      "employee.attendanceView": true,
 
       // === COMMUNICATION ===
       "communication.announcements": true,
@@ -565,6 +566,7 @@ User.prototype.getRolePermissions = function () {
       "employee.settlementProcess": false,
       "employee.settlementView": true,
       "employee.settlementDelete": true,
+      "employee.attendanceView": true,
 
       // === COMMUNICATION ===
       "communication.announcements": true,
@@ -696,6 +698,7 @@ User.prototype.getRolePermissions = function () {
       "employee.settlementApprove": false,
       "employee.settlementProcess": false,
       "employee.settlementView": false,
+      "employee.attendanceView": true,
 
       // === SAUCE MANAGEMENT ===
       "sauces.create": false,

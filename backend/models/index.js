@@ -888,7 +888,7 @@ Sauce.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-// Employee ↔ Attendance
+// Employee Attendance
 Employee.hasMany(Attendance, {
   foreignKey: 'employeeId',
   as: 'attendances',

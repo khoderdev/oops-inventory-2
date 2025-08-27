@@ -64,7 +64,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredPermi
 
   // Role-based path restrictions for staff users
   if (user?.role === "staff") {
-    const allowedPaths = ["/pos"];
+    const allowedPaths = ["/pos", "/employees/attendance"];
     const currentPath = location.pathname;
     const isAllowedPath = allowedPaths.some(path => currentPath.startsWith(path));
     

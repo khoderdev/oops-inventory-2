@@ -6,7 +6,7 @@ export const attendanceApi = {
 
   checkOut: (employeeId: string, code: string) => api.post<AttendanceRecord, { employeeId: string; code: string }>(`/attendance/check-out`, { employeeId, code }),
 
-  getStatus: (employeeId: string) => api.get<{ isCheckedIn: boolean; lastCheckIn?: string }>(`/attendance/status?employeeId=${employeeId}`),
+  getStatus: (employeeId: string) => api.get<{ success: true; data: { isCheckedIn: boolean; lastCheckIn?: string } }>(`/attendance/status?employeeId=${employeeId}`),
 
   getEmployeeAttendance: (employeeId: string, params?: any) => api.get<{ records: AttendanceRecord[]; total: number }>(`/attendance/employee/${employeeId}`, { params }),
 
