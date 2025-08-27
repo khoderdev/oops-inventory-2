@@ -17,7 +17,6 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
   const materials = materialsProp ?? materialsFromCtx;
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
-  const [, setShowMaterialDropdown] = useState(false);
   const [ingredientQuantity, setIngredientQuantity] = useState("");
   const [ingredientUnit, setIngredientUnit] = useState("");
   const [selectedItemType, setSelectedItemType] = useState<"material" | "sauce">("material");
@@ -30,27 +29,6 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     const sauceItems = (sauces || []).map(s => ({ ...s, type: "sauce", id: s.id.toString() }));
     return [...materialItems, ...sauceItems];
   }, [materials, sauces]);
-
-  // const allSelectableItems = useMemo(() => {
-  //   const materialItems = (materials || []).map(material => ({
-  //     id: material.id.toString(), // Use numeric ID directly
-  //     name: material.name,
-  //     baseUnit: material.baseUnit,
-  //     costPerBaseUnit: material.costPerBaseUnit,
-  //     type: "material" as const,
-  //     originalItem: material
-  //   }));
-
-  //   const sauceItems = (sauces || []).map(sauce => ({
-  //     id: sauce.id.toString(), // Use numeric ID directly
-  //     name: sauce.name,
-  //     baseUnit: sauce.unit,
-  //     type: "sauce" as const,
-  //     originalItem: sauce
-  //   }));
-
-  //   return [...materialItems, ...sauceItems];
-  // }, [materials, sauces]);
 
   const availableItems = useMemo(() => {
     const usedMaterialIds = new Set((ingredients || []).map(i => i.materialId));
@@ -281,55 +259,6 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     setIngredientUnit("");
   }, [selectedMaterialId, ingredientQuantity, ingredientUnit, ingredients, onIngredientsChange, allSelectableItems]);
 
-  // const handleAddIngredient = useCallback(() => {
-  //   if (!selectedMaterialId || !ingredientQuantity || !ingredientUnit) {
-  //     const newErrors = {
-  //       ...errors,
-  //       ingredientQuantity: !ingredientQuantity ? "Quantity is required" : undefined
-  //     };
-  //     onErrorsChange?.(newErrors);
-  //     return;
-  //   }
-  //   const quantity = parseFloat(ingredientQuantity);
-  //   if (isNaN(quantity) || quantity <= 0) {
-  //     const newErrors = { ...errors, ingredientQuantity: "Valid quantity is required" };
-  //     onErrorsChange?.(newErrors);
-  //     return;
-  //   }
-
-  //   const cost = calculateIngredientCost({
-  //     materialId: selectedMaterialId,
-  //     quantity,
-  //     unit: ingredientUnit
-  //   });
-
-  //   const newIngredient: MenuItemIngredient = {
-  //     materialId: selectedMaterialId,
-  //     quantity,
-  //     unit: ingredientUnit,
-  //     cost
-  //   };
-
-  //   const newIngredients = [...ingredients, newIngredient];
-  //   onIngredientsChange(newIngredients);
-  //   setSelectedMaterialId("");
-  //   setSelectedItemType("material");
-  //   setMaterialSearchTerm("");
-  //   setShowMaterialDropdown(false);
-  //   setIngredientQuantity("");
-  //   setIngredientUnit("");
-  //   const newErrors = { ...errors, ingredientQuantity: undefined, ingredients: undefined };
-  //   onErrorsChange?.(newErrors);
-  //   setTimeout(() => {
-  //     if (ingredientsInputSectionRef.current) {
-  //       ingredientsInputSectionRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-  //     }
-  //     if (materialSelectRef.current) {
-  //       materialSelectRef.current.focus();
-  //     }
-  //   }, 0);
-  // }, [selectedMaterialId, ingredientQuantity, ingredientUnit, ingredients, onIngredientsChange, calculateIngredientCost, errors, onErrorsChange]);
-
   const handleRemoveIngredient = useCallback(
     (index: number) => {
       const newIngredients = ingredients.filter((_, i) => i !== index);
@@ -417,7 +346,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
             <button key={item.id} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(item.id, item.name)} onMouseDown={e => e.preventDefault()}>
               <div className="font-medium">{item.name}</div>
               <div className="text-sm text-muted-foreground">
-                {item.type === "sauce" ? "Sauce" : "Material"} • Base unit: {item.baseUnit}
+                {item.type === "sauce" ? "Sauce" : "Material"}
               </div>
             </button>
           )}

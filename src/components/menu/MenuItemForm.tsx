@@ -190,7 +190,7 @@ export function MenuItemForm({ menuItem, stockEntries, categories, sauces, onSub
       name: name.trim(),
       category: selectedCategory,
       price: Number(price),
-      ingredients: submitIngredients, // ✅ single array with materials or sauces
+      ingredients: submitIngredients, // single array with materials or sauces
       isPOSItem,
       image,
       imageFile,
@@ -201,105 +201,6 @@ export function MenuItemForm({ menuItem, stockEntries, categories, sauces, onSub
 
     onSubmit(submitData);
   }, [ingredients, name, category, price, isPOSItem, image, categories, onSubmit]);
-
-  // const handleSubmit = useCallback(() => {
-  //   if (!validateForm()) {
-  //     return;
-  //   }
-
-  //   try {
-  //     const selectedCategory = Array.isArray(categories) ? categories.find(cat => cat.value === category) : undefined;
-  //     if (!selectedCategory && category) {
-  //       console.error("Invalid category selected:", category);
-  //       toast({
-  //         title: "Error",
-  //         description: "Selected category is not valid. Please select a valid category.",
-  //         variant: "destructive",
-  //         duration: 1000
-  //       });
-  //       return;
-  //     }
-
-  //     let categoryToSubmit: number | MenuItemCategory | { id: number; name: string; value: string } | null = null;
-  //     if (selectedCategory) {
-  //       categoryToSubmit = {
-  //         id: selectedCategory.id,
-  //         name: selectedCategory.name,
-  //         value: selectedCategory.value
-  //       };
-  //     } else if (category) {
-  //       categoryToSubmit = category as MenuItemCategory;
-  //     }
-
-  //     // Prepare materials (ingredients) for submission
-  //     const submitIngredients = separatedIngredients
-  //       .filter(ingredient => {
-  //         const materialId = parseInt(ingredient.materialId);
-  //         return !isNaN(materialId) && materialId > 0;
-  //       })
-  //       .map(ingredient => ({
-  //         ...ingredient,
-  //         materialId: parseInt(ingredient.materialId),
-  //         quantity: typeof ingredient.quantity === "string" ? parseFloat(ingredient.quantity) : ingredient.quantity,
-  //         cost: typeof ingredient.cost === "string" ? parseFloat(ingredient.cost) : ingredient.cost
-  //       }));
-
-  //     // Prepare sauces for submission (separate array)
-  //     const submitSauces = separatedSauces
-  //       .filter(sauce => {
-  //         const sauceId = parseInt(sauce.sauceId);
-  //         return !isNaN(sauceId) && sauceId > 0;
-  //       })
-  //       .map(sauce => ({
-  //         ...sauce,
-  //         sauceId: parseInt(sauce.sauceId),
-  //         quantity: typeof sauce.quantity === "string" ? parseFloat(sauce.quantity) : sauce.quantity,
-  //         cost: typeof sauce.cost === "string" ? parseFloat(sauce.cost) : sauce.cost
-  //       }));
-
-  //     // Check if we have any ingredients after validation
-  //     const noIngredientsCategories = ["alcohol", "cold", "hot", "shisha"];
-  //     const requiresIngredients = !noIngredientsCategories.includes(typeof categoryToSubmit === "object" && categoryToSubmit !== null ? categoryToSubmit.value.toLowerCase() : typeof categoryToSubmit === "string" ? categoryToSubmit.toLowerCase() : "");
-
-  //     if (requiresIngredients && submitIngredients.length === 0 && submitSauces.length === 0) {
-  //       toast({
-  //         title: "Error",
-  //         description: "Please add at least one valid ingredient or sauce.",
-  //         variant: "destructive",
-  //         duration: 1000
-  //       });
-  //       return;
-  //     }
-
-  //     const submitData = {
-  //       name: name.trim(),
-  //       category: categoryToSubmit,
-  //       price: parseFloat(price),
-  //       ingredients: submitIngredients, // Only materials
-  //       sauces: submitSauces, // Only sauces (separate array)
-  //       isPOSItem,
-  //       image,
-  //       imageFile,
-  //       unit: "",
-  //       availableQuantity: 0,
-  //       costPerUnit: 0
-  //     };
-
-  //     onSubmit(submitData);
-  //     setName("");
-  //     setCategory("");
-  //     setPrice("");
-  //     setIsPOSItem(true);
-  //     setImage(undefined);
-  //     setImageFile(undefined);
-  //     setIngredients([]);
-  //     setErrors({});
-  //     onCancel();
-  //   } catch (error) {
-  //     console.error("Error submitting form:", error);
-  //     onCancel();
-  //   }
-  // }, [name, category, price, isPOSItem, image, separatedIngredients, separatedSauces, onSubmit, onCancel, validateForm, categories]);
 
   const handleCancel = useCallback(() => {
     onCancel();
