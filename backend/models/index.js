@@ -30,6 +30,7 @@ import SystemLogs from "./StockEntryLogSimple.js";
 import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";
+import Attendance from "./Attendance.js";
 
 // Material ↔ StockEntry
 Material.hasMany(StockEntry, {
@@ -887,4 +888,34 @@ Sauce.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient,MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };
+// Employee ↔ Attendance
+Employee.hasMany(Attendance, {
+  foreignKey: 'employeeId',
+  as: 'attendances',
+  onDelete: 'CASCADE',
+  onUpdate: 'CASCADE'
+});
+
+Attendance.belongsTo(Employee, {
+  foreignKey: 'employeeId',
+  as: 'employee',
+  onDelete: 'CASCADE',
+  onUpdate: 'CASCADE'
+});
+
+// User ↔ Attendance (for recordedBy)
+User.hasMany(Attendance, {
+  foreignKey: 'recordedById',
+  as: 'recordedAttendances',
+  onDelete: 'SET NULL',
+  onUpdate: 'CASCADE'
+});
+
+Attendance.belongsTo(User, {
+  foreignKey: 'recordedById',
+  as: 'recordedBy',
+  onDelete: 'SET NULL',
+  onUpdate: 'CASCADE'
+});
+
+export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting, Attendance };

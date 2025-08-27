@@ -1,5 +1,6 @@
-import { DataTypes } from "sequelize";
+import { DataTypes, Op } from "sequelize";
 import sequelize from "../config/database.js";
+import Attendance from "./Attendance.js";
 
 const Employee = sequelize.define(
   "Employee",
@@ -173,6 +174,18 @@ const Employee = sequelize.define(
       allowNull: true,
       comment: "Additional notes about the employee"
     },
+    attendanceCode: {
+      type: DataTypes.STRING(10),
+      allowNull: true,
+      comment: "Unique code for employee check-in/check-out"
+    },
+    isClockedIn: {
+      type: DataTypes.VIRTUAL,
+      async get() {
+        const attendance = await this.getCurrentAttendance();
+        return !!attendance;
+      }
+    },
     createdBy: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -319,6 +332,27 @@ Employee.searchEmployees = function (searchTerm) {
       ["lastName", "ASC"]
     ]
   });
+};
+
+// Static method to generate a unique attendance code
+Employee.generateAttendanceCode = async function() {
+  const characters = '0123456789';
+  let code;
+  let isUnique = false;
+  
+  while (!isUnique) {
+    code = '';
+    for (let i = 0; i < 4; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    
+    const existing = await Employee.findOne({ where: { attendanceCode: code } });
+    if (!existing) {
+      isUnique = true;
+    }
+  }
+  
+  return code;
 };
 
 export default Employee;

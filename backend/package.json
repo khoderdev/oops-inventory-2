@@ -8,7 +8,8 @@
     "sync": "node ./config/sync.js",
     "backup": "node scripts/pgDumpFixed.js",
     "seed": "node scripts/runSeed.js",
-    "truncate": "node scripts/truncateTables.js"
+    "truncate": "node scripts/truncateTables.js",
+    "migrate": "node scripts/runMigrations.js"
   },
   "author": "",
   "license": "ISC",

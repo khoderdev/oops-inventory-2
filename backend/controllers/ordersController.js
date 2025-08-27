@@ -7,13 +7,8 @@ import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js"
 const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => {
   const deductionId = Math.random().toString(36).substr(2, 9);
   try {
-    console.log(`🔍 [${deductionId}] Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
-    
-    // Fetch menu item with both ingredients and sauces
-    console.log(`🔍 [${deductionId}] Fetching menu item with ID: ${menuItemId}`);
-    // First, get the menu item with basic info
     const menuItem = await MenuItem.findByPk(menuItemId, {
-      attributes: ['id', 'name', 'description', 'price', 'unit'],
+      attributes: ["id", "name", "description", "price", "unit"],
       transaction
     });
 
@@ -21,27 +16,27 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
       console.error(`❌ [${deductionId}] Menu item not found: ${menuItemId}`);
       return;
     }
-
-    console.log(`✅ [${deductionId}] Found menu item: ${menuItem.name} (ID: ${menuItem.id})`);
-
-    // Then get ingredients and sauces separately to avoid complex joins that might fail
     const [menuItemIngredients, menuItemSauces] = await Promise.all([
       MenuItemIngredient.findAll({
         where: { menuItemId },
-        include: [{
-          model: Material,
-          as: 'material',
-          attributes: ['id', 'name'] // Only include existing columns
-        }],
+        include: [
+          {
+            model: Material,
+            as: "material",
+            attributes: ["id", "name"]
+          }
+        ],
         transaction
       }),
       MenuItemSauce.findAll({
         where: { menuItemId },
-        include: [{
-          model: Sauce,
-          as: 'sauce',
-          attributes: ['id', 'name'] // Removed availableQuantity as it doesn't exist
-        }],
+        include: [
+          {
+            model: Sauce,
+            as: "sauce",
+            attributes: ["id", "name"]
+          }
+        ],
         transaction
       })
     ]);
@@ -55,118 +50,49 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
       return;
     }
 
-    console.log(`✅ [${deductionId}] Found menu item: ${menuItem.name} (ID: ${menuItem.id})`);
-    
-    // Log all ingredients and sauces
-    console.log(`📋 [${deductionId}] Menu item details:`, {
-      name: menuItem.name,
-      hasIngredients: menuItem.menuItemIngredients?.length > 0,
-      ingredientCount: menuItem.menuItemIngredients?.length || 0,
-      hasSauces: menuItem.menuItemSauces?.length > 0,
-      sauceCount: menuItem.menuItemSauces?.length || 0
-    });
-
-    // Log each ingredient with details
-    if (menuItem.menuItemIngredients?.length > 0) {
-      console.log(`📦 [${deductionId}] Ingredients for ${menuItem.name}:`);
-      menuItem.menuItemIngredients.forEach((ing, idx) => {
-        console.log(`   ${idx + 1}. ${ing.quantity} ${ing.unit} of ${ing.material?.name || 'Unknown'} (Material ID: ${ing.materialId})`);
-        console.log(`      - Material details:`, {
-          id: ing.material?.id,
-          name: ing.material?.name,
-          unit: ing.material?.unit,
-          purchaseUnit: ing.material?.purchaseUnit,
-          conversionFactor: ing.material?.conversionFactor
-        });
-      });
-    }
-
-    // Log each sauce with details
-    if (menuItem.menuItemSauces?.length > 0) {
-      console.log(`🥫 [${deductionId}] Sauces for ${menuItem.name}:`);
-      menuItem.menuItemSauces.forEach((sauce, idx) => {
-        console.log(`   ${idx + 1}. ${sauce.quantity} ${sauce.unit} of ${sauce.sauce?.name || 'Unknown'} (Sauce ID: ${sauce.sauceId})`);
-        console.log(`      - Sauce details:`, {
-          id: sauce.sauce?.id,
-          name: sauce.sauce?.name,
-          availableQuantity: sauce.sauce?.availableQuantity
-        });
-      });
-    }
-
     // Combine ingredients + sauces for deduction
-    const allIngredients = [
-      ...(menuItem.menuItemIngredients || []).map(i => ({ ...i.toJSON(), type: 'ingredient' })),
-      ...(menuItem.menuItemSauces || []).map(s => ({ ...s.toJSON(), type: 'sauce' }))
-    ];
+    const allIngredients = [...(menuItem.menuItemIngredients || []).map(i => ({ ...i.toJSON(), type: "ingredient" })), ...(menuItem.menuItemSauces || []).map(s => ({ ...s.toJSON(), type: "sauce" }))];
 
     if (allIngredients.length === 0) {
-      console.log(`🍾 [${deductionId}] No ingredients or sauces found for menu item "${menuItem.name}"`);
       const matchingMaterial = await Material.findOne({
         where: { name: { [Op.iLike]: `%${menuItem.name}%` } },
         transaction
       });
       if (matchingMaterial) {
-        console.log(`🔄 [${deductionId}] Found matching material by name: ${matchingMaterial.name} (ID: ${matchingMaterial.id})`);
         await deductStockFromMaterial(matchingMaterial.id, orderQuantity, menuItem.name, transaction);
-      } else {
-        console.log(`ℹ️ [${deductionId}] No matching material found for: ${menuItem.name}`);
       }
       return;
     }
 
-    console.log(`📋 [${deductionId}] Processing ${allIngredients.length} ingredients/sauces for "${menuItem.name}"`);
-
     for (const [index, ingredient] of allIngredients.entries()) {
-      console.log(`
-🔍 [${deductionId}] Processing ${ingredient.type} ${index + 1}/${allIngredients.length}:`);
-      console.log(`   - Type: ${ingredient.type}`);
-      console.log(`   - Name: ${ingredient.material?.name || ingredient.sauce?.name || 'Unknown'}`);
-      console.log(`   - ID: ${ingredient.materialId || ingredient.sauceId}`);
-      console.log(`   - Required: ${ingredient.quantity} ${ingredient.unit} × ${orderQuantity} = ${ingredient.quantity * orderQuantity} ${ingredient.unit}`);
-      
-      if (ingredient.type === 'sauce') {
-        // Handle sauce deduction
+      if (ingredient.type === "sauce") {
         if (ingredient.sauce) {
           const requiredQuantity = Number((ingredient.quantity * orderQuantity).toFixed(6));
-          
-          // Fetch the current sauce to get the current yield quantity
           const sauce = await Sauce.findByPk(ingredient.sauceId, { transaction });
           if (!sauce) {
             console.warn(`⚠️ [${deductionId}] Sauce with ID ${ingredient.sauceId} not found`);
             continue;
           }
-          
           const currentYield = parseFloat(sauce.yieldQuantity);
           const minYield = 0.001; // Minimum allowed yield quantity
           const newYield = Math.max(minYield, currentYield - requiredQuantity);
-          
-          console.log(`🥫 [${deductionId}] Deducting ${requiredQuantity} ${ingredient.unit} from sauce: ${ingredient.sauce.name} (Current yield: ${currentYield} ${sauce.unit})`);
-          
-          // Check if there's enough sauce available
           if (currentYield < requiredQuantity) {
             throw new Error(`Not enough ${ingredient.sauce.name} available. Required: ${requiredQuantity} ${ingredient.unit}, Available: ${currentYield} ${sauce.unit}`);
           }
-          
-          // Update the sauce's yield quantity
           await Sauce.update(
-            { 
+            {
               yieldQuantity: newYield,
               updatedAt: new Date()
             },
-            { 
+            {
               where: { id: ingredient.sauceId },
               transaction,
               validate: true
             }
           );
-          
-          console.log(`✅ [${deductionId}] Deducted ${requiredQuantity} ${sauce.unit} from ${ingredient.sauce.name}. New yield: ${newYield} ${sauce.unit}`);
-        } 
+        }
         continue;
       }
-      
-      // Handle regular material/ingredient deduction
       const material = ingredient.material;
       if (!material) {
         console.warn(`⚠️ [${deductionId}] No material found for ${ingredient.type} ID ${ingredient.id}`);
@@ -175,65 +101,42 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
 
       const materialId = material.id;
       const requiredQuantity = ingredient.quantity * orderQuantity;
-      // Use the unit from the ingredient if available, otherwise default to 'unit' or 'piece'
-      const unit = ingredient.unit || 'unit';
+      const unit = ingredient.unit || "unit";
 
-      console.log(`📦 [${deductionId}] Looking for stock entries for material: ${material.name} (ID: ${materialId})`);
-      
       const stockEntries = await StockEntry.findAll({
         where: {
           materialId,
-          [Op.or]: [
-            { purchasedIndividualQuantity: { [Op.gt]: 0 } }, 
-            { purchasedIndividualQuantity: null, purchasedQuantity: { [Op.gt]: 0 } }
-          ]
+          [Op.or]: [{ purchasedIndividualQuantity: { [Op.gt]: 0 } }, { purchasedIndividualQuantity: null, purchasedQuantity: { [Op.gt]: 0 } }]
         },
         order: [["purchaseDate", "ASC"]],
         transaction
       });
 
-      console.log(`📊 [${deductionId}] Found ${stockEntries.length} stock entries for ${material.name}`);
-      
       if (stockEntries.length === 0) {
         console.warn(`⚠️ [${deductionId}] No available stock entries found for material: ${material.name}`);
         continue;
       }
 
       let remainingToDeduct = requiredQuantity;
-      console.log(`➖ [${deductionId}] Need to deduct ${remainingToDeduct} ${unit} of ${material.name}`);
-
       for (const [idx, stockEntry] of stockEntries.entries()) {
         if (remainingToDeduct <= 0) break;
-
         const availableQuantity = stockEntry.purchasedIndividualQuantity ?? stockEntry.purchasedQuantity ?? 0;
         const deductAmount = Math.min(remainingToDeduct, availableQuantity);
         const newQuantity = Math.max(0, availableQuantity - deductAmount);
-
-        console.log(`   📦 Stock Entry #${idx + 1}:`);
-        console.log(`      - Current Quantity: ${availableQuantity} ${stockEntry.purchasedIndividualUnit || stockEntry.purchasedUnit || 'units'}`);
-        console.log(`      - Will deduct: ${deductAmount} ${unit}`);
-        console.log(`      - New Quantity: ${newQuantity} ${stockEntry.purchasedIndividualUnit || stockEntry.purchasedUnit || 'units'}`);
-
         if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
-          console.log(`      - Updating purchasedIndividualQuantity from ${stockEntry.purchasedIndividualQuantity} to ${newQuantity}`);
           await stockEntry.update({ purchasedIndividualQuantity: newQuantity }, { transaction });
         } else {
-          console.log(`      - Updating purchasedQuantity from ${stockEntry.purchasedQuantity} to ${newQuantity}`);
           await stockEntry.update({ purchasedQuantity: newQuantity }, { transaction });
         }
 
         remainingToDeduct -= deductAmount;
-        console.log(`      ✅ Deducted ${deductAmount} ${unit}. Remaining to deduct: ${remainingToDeduct} ${unit}`);
       }
-
       if (remainingToDeduct > 0) {
         console.warn(`⚠️ [${deductionId}] Insufficient stock for ${material.name}. Short by: ${remainingToDeduct} ${unit}`);
       } else {
         console.log(`✅ [${deductionId}] Successfully deducted all required stock for ${material.name}`);
       }
     }
-
-    console.log(`🎉 Stock deduction completed for menu item: ${menuItem.name}`);
   } catch (error) {
     console.error(`❌ Error deducting ingredient stock for menu item ID ${menuItemId}:`, error);
     throw error;
@@ -243,8 +146,6 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
 // Restore stock for a menu item's ingredients
 const restoreIngredientStock = async (menuItemId, quantity, transaction) => {
   try {
-    console.log(`🔄 Restoring stock for menu item ID: ${menuItemId}, quantity: ${quantity}`);
-    // Fetch menu item with ingredients and sauces
     const menuItem = await MenuItem.findByPk(menuItemId, {
       include: [
         {
@@ -265,16 +166,10 @@ const restoreIngredientStock = async (menuItemId, quantity, transaction) => {
       console.warn(`❌ Menu item not found for stock restoration: ${menuItemId}`);
       return;
     }
-
-    // Combine ingredients + sauces for restoration
     const allIngredients = [...(menuItem.menuItemIngredients || []), ...(menuItem.menuItemSauces || [])];
-    
     if (allIngredients.length === 0) {
-      console.log(`🍾 No ingredients or sauces found for menu item "${menuItem.name}"`);
       return;
     }
-
-    console.log(`📋 Found ${allIngredients.length} ingredients/sauces to restore for "${menuItem.name}"`);
 
     for (const ingredient of allIngredients) {
       const material = ingredient.material;
@@ -286,8 +181,6 @@ const restoreIngredientStock = async (menuItemId, quantity, transaction) => {
       const materialId = material.id;
       const restoredQuantity = ingredient.quantity * quantity;
       const unit = ingredient.unit;
-
-      // Find the most recent stock entry to restore to
       const stockEntry = await StockEntry.findOne({
         where: { materialId },
         order: [["purchaseDate", "DESC"]],
@@ -297,29 +190,27 @@ const restoreIngredientStock = async (menuItemId, quantity, transaction) => {
       if (stockEntry) {
         const currentQuantity = stockEntry.purchasedIndividualQuantity ?? stockEntry.purchasedQuantity ?? 0;
         const newQuantity = currentQuantity + restoredQuantity;
-        
+
         if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
           await stockEntry.update({ purchasedIndividualQuantity: newQuantity }, { transaction });
         } else {
           await stockEntry.update({ purchasedQuantity: newQuantity }, { transaction });
         }
-        console.log(`🔄 Restored ${restoredQuantity} ${unit} to material ID ${materialId} (${material.name})`);
       } else {
-        // If no stock entry exists, create a new one
-        await StockEntry.create({
-          materialId,
-          purchaseDate: new Date(),
-          purchasedQuantity: restoredQuantity,
-          purchasedUnit: unit,
-          costPerUnit: 0, // Default cost, should be updated with actual cost
-          supplier: 'System Restore',
-          notes: `Restored from order adjustment - ${new Date().toISOString()}`
-        }, { transaction });
-        console.log(`🆕 Created new stock entry for material ID ${materialId} with ${restoredQuantity} ${unit}`);
+        await StockEntry.create(
+          {
+            materialId,
+            purchaseDate: new Date(),
+            purchasedQuantity: restoredQuantity,
+            purchasedUnit: unit,
+            costPerUnit: 0, // Default cost, should be updated with actual cost
+            supplier: "System Restore",
+            notes: `Restored from order adjustment - ${new Date().toISOString()}`
+          },
+          { transaction }
+        );
       }
     }
-
-    console.log(`✅ Stock restoration completed for menu item: ${menuItem.name}`);
   } catch (error) {
     console.error(`❌ Error restoring stock for menu item ID ${menuItemId}:`, error);
     throw error;
@@ -329,9 +220,6 @@ const restoreIngredientStock = async (menuItemId, quantity, transaction) => {
 // Restore stock for a material
 const restoreStockFromMaterial = async (materialId, quantity, itemName, transaction) => {
   try {
-    console.log(`🔄 Restoring ${quantity} units to material ID: ${materialId} (${itemName})`);
-    
-    // Find the most recent stock entry for this material
     const stockEntry = await StockEntry.findOne({
       where: { materialId },
       order: [["purchaseDate", "DESC"]],
@@ -339,28 +227,26 @@ const restoreStockFromMaterial = async (materialId, quantity, itemName, transact
     });
 
     if (stockEntry) {
-      // Add the quantity back to the most recent stock entry
       const currentQuantity = stockEntry.purchasedIndividualQuantity ?? stockEntry.purchasedQuantity ?? 0;
       const newQuantity = currentQuantity + quantity;
-      
       if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
         await stockEntry.update({ purchasedIndividualQuantity: newQuantity }, { transaction });
       } else {
         await stockEntry.update({ purchasedQuantity: newQuantity }, { transaction });
       }
-      console.log(`✅ Restored ${quantity} units to material ID ${materialId}`);
     } else {
-      // If no stock entry exists, create a new one
-      await StockEntry.create({
-        materialId,
-        purchaseDate: new Date(),
-        purchasedQuantity: quantity,
-        purchasedUnit: 'piece', // Default unit, adjust as needed
-        costPerUnit: 0, // Default cost, should be updated with actual cost
-        supplier: 'System Restore',
-        notes: `Restored from order adjustment - ${new Date().toISOString()}`
-      }, { transaction });
-      console.log(`🆕 Created new stock entry for material ID ${materialId} with ${quantity} units`);
+      await StockEntry.create(
+        {
+          materialId,
+          purchaseDate: new Date(),
+          purchasedQuantity: quantity,
+          purchasedUnit: "piece",
+          costPerUnit: 0, // Default cost, should be updated with actual cost
+          supplier: "System Restore",
+          notes: `Restored from order adjustment - ${new Date().toISOString()}`
+        },
+        { transaction }
+      );
     }
   } catch (error) {
     console.error(`❌ Error restoring stock for material ID ${materialId}:`, error);
@@ -371,20 +257,13 @@ const restoreStockFromMaterial = async (materialId, quantity, itemName, transact
 // Restore stock for a sauce
 const restoreStockFromSauce = async (sauceId, quantity, itemName, transaction) => {
   try {
-    console.log(`🔄 Restoring ${quantity} units to sauce ID: ${sauceId} (${itemName})`);
-    
-    // Find the sauce
     const sauce = await Sauce.findByPk(sauceId, { transaction });
     if (!sauce) {
       console.warn(`❌ Sauce not found: ${sauceId}`);
       return;
     }
-
-    // Update the sauce's available quantity
     const newQuantity = (sauce.availableQuantity || 0) + quantity;
     await sauce.update({ availableQuantity: newQuantity }, { transaction });
-    
-    console.log(`✅ Restored ${quantity} units to sauce ID ${sauceId}`);
   } catch (error) {
     console.error(`❌ Error restoring stock for sauce ID ${sauceId}:`, error);
     throw error;
@@ -394,24 +273,15 @@ const restoreStockFromSauce = async (sauceId, quantity, itemName, transaction) =
 // Deduct stock for a sauce
 const deductStockFromSauce = async (sauceId, quantity, itemName, transaction) => {
   try {
-    console.log(`🥫 Deducting ${quantity} units from sauce ID: ${sauceId} (${itemName})`);
-    
-    // Find the sauce
     const sauce = await Sauce.findByPk(sauceId, { transaction });
     if (!sauce) {
       throw new Error(`Sauce not found: ${sauceId}`);
     }
-
-    // Check if there's enough stock
     if (sauce.availableQuantity < quantity) {
       throw new Error(`Insufficient stock for sauce ${itemName}. Available: ${sauce.availableQuantity}, Required: ${quantity}`);
     }
-
-    // Update the sauce's available quantity
     const newQuantity = sauce.availableQuantity - quantity;
     await sauce.update({ availableQuantity: newQuantity }, { transaction });
-    
-    console.log(`✅ Deducted ${quantity} units from sauce ID ${sauceId}`);
   } catch (error) {
     console.error(`❌ Error deducting stock for sauce ID ${sauceId}:`, error);
     throw error;
@@ -420,7 +290,6 @@ const deductStockFromSauce = async (sauceId, quantity, itemName, transaction) =>
 
 const deductStockFromMaterial = async (materialId, requiredQuantity, itemName, transaction) => {
   try {
-    console.log(`🥤 Deducting ${requiredQuantity} units directly from material ID: ${materialId} for "${itemName}"`);
     const stockEntries = await StockEntry.findAll({
       where: {
         materialId: materialId,
@@ -430,21 +299,16 @@ const deductStockFromMaterial = async (materialId, requiredQuantity, itemName, t
       transaction
     });
     if (stockEntries.length === 0) {
-      console.log(`⚠️ No stock available for material ID: ${materialId} (${itemName})`);
       return;
     }
     let remainingToDeduct = requiredQuantity;
-    console.log(`📦 Found ${stockEntries.length} stock entries for material ID: ${materialId}`);
     for (const stockEntry of stockEntries) {
       if (remainingToDeduct <= 0) break;
       const availableQuantity = stockEntry.purchasedIndividualQuantity || stockEntry.purchasedQuantity || 0;
       const deductAmount = Math.min(remainingToDeduct, availableQuantity);
-      console.log(`📊 Stock Entry Details: ID=${stockEntry.id}, purchasedQuantity=${stockEntry.purchasedQuantity}, purchasedUnit=${stockEntry.purchasedUnit}, purchasedIndividualQuantity=${stockEntry.purchasedIndividualQuantity}, purchasedIndividualUnit=${stockEntry.purchasedIndividualUnit}`);
       if (deductAmount <= 0) {
-        console.log(`⚠️ No quantity to deduct from stock entry ID: ${stockEntry.id}`);
         continue;
       }
-      console.log(`📉 Deducting ${deductAmount} from stock entry ID: ${stockEntry.id} (Available: ${availableQuantity})`);
       const newQuantity = Math.max(0, availableQuantity - deductAmount);
       if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
         await stockEntry.update({ purchasedIndividualQuantity: newQuantity }, { transaction });
@@ -452,12 +316,6 @@ const deductStockFromMaterial = async (materialId, requiredQuantity, itemName, t
         await stockEntry.update({ purchasedQuantity: newQuantity }, { transaction });
       }
       remainingToDeduct -= deductAmount;
-      console.log(`✅ Updated stock entry ID: ${stockEntry.id} - New quantity: ${newQuantity}, Remaining to deduct: ${remainingToDeduct}`);
-    }
-    if (remainingToDeduct > 0) {
-      console.log(`⚠️ Insufficient stock for ${itemName}. Short by: ${remainingToDeduct} units`);
-    } else {
-      console.log(`✅ Successfully deducted all required stock for ${itemName}`);
     }
   } catch (error) {
     console.error(`❌ Error deducting stock for material ID ${materialId}:`, error);
@@ -508,8 +366,6 @@ export const ordersController = {
       if (recentOrder && items.length > 0 && recentOrder.items.length === items.length) {
         const itemsMatch = items.every(item => recentOrder.items.some(orderItem => orderItem.menuItemId === item.menuItemId && orderItem.materialId === item.materialId && orderItem.name === item.name && orderItem.quantity === item.quantity && Math.abs(parseFloat(orderItem.unitPrice) - parseFloat(item.unitPrice)) < 0.01));
         if (itemsMatch) {
-          console.log(`🔄 Duplicate order detected - returning existing order ${recentOrder.orderNumber} (ID: ${recentOrder.id}) instead of creating new one`);
-          console.log(`🔄 Duplicate check details: userId=${userId}, orderType=${orderType}, tableId=${tableId}, itemsCount=${items.length}`);
           await transaction.commit();
           return res.status(200).json({
             success: true,
@@ -561,18 +417,11 @@ export const ordersController = {
             const orderItem = await OrderItem.create(orderItemData, { transaction });
             try {
               if (item.type === "menu_item" && item.menuItemId) {
-                console.log(`🍽️ Processing menu item for stock deduction: ${item.name} (ID: ${item.menuItemId}), Quantity: ${item.quantity}`);
                 await deductIngredientStock(item.menuItemId, item.quantity, transaction);
-                console.log(`✅ Stock deduction completed for menu item: ${item.name}`);
               } else if (item.type === "material" && item.materialId) {
-                console.log(`📦 Processing direct material for stock deduction: ${item.name} (ID: ${item.materialId}), Quantity: ${item.quantity}`);
                 await deductStockFromMaterial(item.materialId, item.quantity, item.name, transaction);
-                console.log(`✅ Stock deduction completed for material: ${item.name}`);
               } else if (item.type === "sauce" && item.sauceId) {
-                console.log(`🥫 Processing sauce for stock deduction: ${item.name} (ID: ${item.sauceId}), Quantity: ${item.quantity}`);
-                // Assuming we have a similar function for sauces
                 await deductStockFromSauce(item.sauceId, item.quantity, item.name, transaction);
-                console.log(`✅ Stock deduction completed for sauce: ${item.name}`);
               }
             } catch (stockError) {
               console.error(`❌ Stock deduction failed for ${item.type} ${item.name}:`, stockError);
