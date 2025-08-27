@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { attendanceApi } from '../api/attendance.api';
-import { AttendanceRecord, AttendanceStatus, AttendanceSummary } from '../types/attendance';
+import { AttendanceRecord, AttendanceStatus } from '../types/attendance';
 
 export function useAttendance(employeeId: string) {
   const [isLoading, setIsLoading] = useState(false);
@@ -62,28 +62,3 @@ export function useAttendance(employeeId: string) {
     error,
   };
 }
-
-// Usage example in a component:
-/*
-function AttendanceButton() {
-  const { checkIn, checkOut, status, isLoading } = useAttendance('employee123');
-  
-  const handleClick = async () => {
-    try {
-      if (status?.isClockedIn) {
-        await checkOut('CODE123');
-      } else {
-        await checkIn('CODE123');
-      }
-    } catch (err) {
-      console.error('Attendance action failed:', err);
-    }
-  };
-
-  return (
-    <button onClick={handleClick} disabled={isLoading}>
-      {isLoading ? 'Processing...' : status?.isClockedIn ? 'Check Out' : 'Check In'}
-    </button>
-  );
-}
-*/

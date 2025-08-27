@@ -1,12 +1,5 @@
+import { AttendanceRecord } from "@/types/attendance";
 import api from "../lib/http";
-
-type AttendanceRecord = {
-  id: string;
-  employeeId: string;
-  checkIn: string;
-  checkOut?: string;
-  status: "checked-in" | "checked-out";
-};
 
 export const attendanceApi = {
   checkIn: (employeeId: string, code: string) => api.post<AttendanceRecord, { employeeId: string; code: string }>(`/attendance/check-in`, { employeeId, code }),

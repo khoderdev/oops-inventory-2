@@ -4,7 +4,7 @@ export interface AttendanceRecord {
   employeeName?: string;
   checkIn: string;
   checkOut?: string;
-  status: 'checked-in' | 'checked-out' | 'on-break';
+  status: "checked-in" | "checked-out" | "on-break";
   duration?: number; // in minutes
   recordedById?: string;
   recordedByName?: string;
@@ -33,11 +33,11 @@ export interface AttendanceSummary {
 export interface AttendanceFilters {
   startDate?: string;
   endDate?: string;
-  status?: 'checked-in' | 'checked-out' | 'on-break';
+  status?: "checked-in" | "checked-out" | "on-break";
   employeeId?: string;
   departmentId?: string;
   page?: number;
   limit?: number;
-  sortBy?: 'checkIn' | 'checkOut' | 'employeeName' | 'duration';
-  sortOrder?: 'asc' | 'desc';
+  sortBy?: "checkIn" | "checkOut" | "employeeName" | "duration";
+  sortOrder?: "asc" | "desc";
 }
