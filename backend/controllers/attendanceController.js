@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { AuditLog, Employee } from "../models/index.js";
+import { AuditLog,User, Employee, Attendance } from "../models/index.js";
 
 const attendanceController = {
   // Check in an employee
@@ -260,7 +260,7 @@ const attendanceController = {
         include: [
           {
             model: Attendance,
-            as: 'attendanceRecords',
+            as: 'attendances',
             where: {
               status: 'checked_in'
             },
@@ -287,8 +287,8 @@ const attendanceController = {
         fullName: employee.getFullName(),
         department: employee.department,
         position: employee.position,
-        isClockedIn: employee.attendanceRecords && employee.attendanceRecords.length > 0,
-        lastCheckIn: employee.attendanceRecords && employee.attendanceRecords[0]?.checkIn,
+        isClockedIn: employee.attendances && employee.attendances.length > 0,
+        lastCheckIn: employee.attendances && employee.attendances[0]?.checkIn,
         user: employee.user
       }));
 

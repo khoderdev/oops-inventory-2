@@ -493,7 +493,6 @@ export const deleteEmployee = async (req, res) => {
 };
 
 // Get employee statistics
-// Get employee statistics
 export const getEmployeeStats = async (req, res) => {
   try {
     const [activeCount, inactiveCount, departmentCounts, monthlyUsages, pendingSettlements] = await Promise.all([

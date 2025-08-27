@@ -5,8 +5,9 @@ import { Delete } from "lucide-react";
 
 interface LockScreenProps {
   onSignIn?: (pin: string) => void;
-  onClockIn?: (pin: string) => void;
-  onClockOut?: (pin: string) => void;
+  onCheckIn?: (pin: string) => void;
+  onCheckOut?: (pin: string) => void;
+  isCheckedIn?: boolean;
   onClear?: () => void;
   businessName?: string;
   region?: string;
@@ -14,7 +15,7 @@ interface LockScreenProps {
   className?: string;
 }
 
-const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut, onClear, businessName = "/oops-logo.png", region = "oOps Resto-Café", version = "1.0.0", className }) => {
+const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onCheckIn, onCheckOut, isCheckedIn, onClear, businessName = "/oops-logo.png", region = "oOps Resto-Café", version = "1.0.0", className }) => {
   const [pin, setPin] = useState("");
 
   useEffect(() => {
@@ -61,16 +62,16 @@ const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut
     }
   };
 
-  const handleClockIn = () => {
+  const handleCheckIn = () => {
     if (pin.length > 0) {
-      onClockIn?.(pin);
+      onCheckIn?.(pin);
       setPin("");
     }
   };
 
-  const handleClockOut = () => {
+  const handleCheckOut = () => {
     if (pin.length > 0) {
-      onClockOut?.(pin);
+      onCheckOut?.(pin);
       setPin("");
     }
   };
@@ -154,7 +155,7 @@ const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut
           <Button variant="secondary" className="aspect-square text-xl md:text-2xl font-semibold bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-sm w-16 h-16 md:w-20 md:h-20" onClick={() => handleNumberPress("9")}>
             9
           </Button>
-          <Button className="aspect-square text-sm md:text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white w-16 h-16 md:w-20 md:h-20" onClick={handleClockIn}>
+          <Button className="aspect-square text-sm md:text-base font-semibold bg-blue-600 hover:bg-blue-700 text-white w-16 h-16 md:w-20 md:h-20" onClick={handleCheckIn}>
             IN
           </Button>
 
@@ -168,7 +169,7 @@ const LockScreen: React.FC<LockScreenProps> = ({ onSignIn, onClockIn, onClockOut
           <Button variant="secondary" className="aspect-square text-xl md:text-2xl font-semibold bg-white/20 hover:bg-white/30 text-white border-none backdrop-blur-sm w-16 h-16 md:w-20 md:h-20" onClick={handleBackspace}>
             <Delete className="!w-7 !h-7" />
           </Button>
-          <Button className="aspect-square text-sm md:text-base font-semibold bg-gray-600 hover:bg-gray-700 text-white w-16 h-16 md:w-20 md:h-20" onClick={handleClockOut}>
+          <Button className="aspect-square text-sm md:text-base font-semibold bg-gray-600 hover:bg-gray-700 text-white w-16 h-16 md:w-20 md:h-20" onClick={handleCheckOut}>
             OUT
           </Button>
         </div>

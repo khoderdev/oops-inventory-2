@@ -14,7 +14,7 @@ export interface AttendanceRecord {
 }
 
 export interface AttendanceStatus {
-  isClockedIn: boolean;
+  isCheckedIn: boolean;
   lastCheckIn?: string;
   currentShift?: {
     startTime: string;
@@ -23,8 +23,8 @@ export interface AttendanceStatus {
 }
 
 export interface AttendanceSummary {
-  clockedIn: number;
-  clockedOut: number;
+  checkedIn: number;
+  checkedOut: number;
   onBreak: number;
   totalEmployees: number;
   recentActivity: AttendanceRecord[];

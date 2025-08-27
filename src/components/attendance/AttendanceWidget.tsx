@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAttendance } from "../../hooks/useAttendance";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "../ui/card";
-import { Clock, CheckCircle, XCircle, Loader2, Calendar, MapPin } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
+import { Clock, CheckCircle, XCircle, Loader2, Calendar } from "lucide-react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -50,7 +50,7 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ employeeId }
     setIsSubmitting(true);
 
     try {
-      if (status?.isClockedIn) {
+      if (status?.isCheckedIn) {
         await checkOut(code);
         setMessage({ type: "success", text: "Successfully checked out!" });
       } else {
@@ -73,16 +73,16 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ employeeId }
 
   const getStatusText = () => {
     if (isLoading) return "Loading status...";
-    return status?.isClockedIn ? "Currently Clocked In" : "Currently Clocked Out";
+    return status?.isCheckedIn ? "Currently Clocked In" : "Currently Clocked Out";
   };
 
   const getStatusVariant = () => {
-    return status?.isClockedIn ? "default" : "secondary";
+    return status?.isCheckedIn ? "default" : "secondary";
   };
 
   const getStatusIcon = () => {
     if (isLoading) return <Loader2 className="h-4 w-4 animate-spin" />;
-    return status?.isClockedIn ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-gray-500" />;
+    return status?.isCheckedIn ? <CheckCircle className="h-4 w-4 text-green-500" /> : <XCircle className="h-4 w-4 text-gray-500" />;
   };
 
   return (
@@ -136,7 +136,7 @@ export const AttendanceWidget: React.FC<AttendanceWidgetProps> = ({ employeeId }
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Processing...
               </>
-            ) : status?.isClockedIn ? (
+            ) : status?.isCheckedIn ? (
               "Check Out"
             ) : (
               "Check In"

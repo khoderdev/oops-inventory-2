@@ -13,7 +13,7 @@ export function useAttendance(employeeId: string) {
       setIsLoading(true);
       const record = await attendanceApi.checkIn(employeeId, code);
       setCurrentRecord(record.data);
-      setStatus({ isClockedIn: true, lastCheckIn: record.data.checkIn });
+      setStatus({ isCheckedIn: true, lastCheckIn: record.data.checkIn });
       return record.data;
     } catch (err: any) {
       setError(err.message || 'Failed to check in');
@@ -28,7 +28,7 @@ export function useAttendance(employeeId: string) {
       setIsLoading(true);
       const record = await attendanceApi.checkOut(employeeId, code);
       setCurrentRecord(record.data);
-      setStatus({ isClockedIn: false });
+      setStatus({ isCheckedIn: false });
       return record.data;
     } catch (err: any) {
       setError(err.message || 'Failed to check out');
@@ -42,7 +42,7 @@ export function useAttendance(employeeId: string) {
     try {
       setIsLoading(true);
       const status = await attendanceApi.getStatus(employeeId);
-      setStatus(status.data);
+      setStatus({ isCheckedIn: status.data.isCheckedIn, lastCheckIn: status.data.lastCheckIn });
       return status.data;
     } catch (err: any) {
       setError(err.message || 'Failed to get status');
