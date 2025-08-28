@@ -59,7 +59,7 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
     },
     {
       accessorKey: "yieldQuantity",
-      header: "Yield",
+      header: "Total Qty",
       cell: ({ row }) => {
         const sauce = row.original;
         const isLowYield = sauce.yieldQuantity < 10; // Consider yield low if less than 10 units
@@ -103,7 +103,7 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
       cell: ({ row }) => {
         const sauce = row.original;
         return (
-          <div className="flex flex-col space-y-1">
+          <div className="flex  space-x-2">
             <Badge variant={sauce.isActive ? "default" : "secondary"}>{sauce.isActive ? "Active" : "Inactive"}</Badge>
             {sauce.isPOSItem && (
               <Badge variant="outline" className="text-xs">
