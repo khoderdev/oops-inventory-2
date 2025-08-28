@@ -16,7 +16,6 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
   const [selectedSauce, setSelectedSauce] = useState<Sauce | null>(null);
   const [, setOperationLoading] = useState<Record<string, boolean>>({});
 
-  // Fetch sauces from API
   const fetchSauces = useCallback(async () => {
     setLoading(true);
     try {
@@ -28,26 +27,33 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
       });
 
       if (response?.data) {
-        setSauces(response.data);
+        const transformedSauces = response.data.map(sauce => ({
+          ...sauce,
+          baseIngredients:
+            sauce.ingredients?.map(ing => ({
+              materialId: ing.materialId,
+              quantity: parseFloat(ing.quantity) || 0,
+              unit: ing.unit,
+              cost: parseFloat(ing.cost) || 0
+            })) || []
+        }));
+
+        setSauces(transformedSauces);
       }
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Load sauces on component mount
   useEffect(() => {
     fetchSauces();
   }, [fetchSauces]);
 
-  // Handle sauce form submission
   const handleSauceSubmit = useCallback(
     async (data: SauceFormData) => {
       const operationKey = selectedSauce ? `update-${selectedSauce.id}` : "create";
       setOperationLoading(prev => ({ ...prev, [operationKey]: true }));
-
       try {
-        // Convert form data to API format
         const sauceData = {
           name: data.name,
           description: data.description,
@@ -63,9 +69,7 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
           preparationTime: data.preparationTime ? parseInt(data.preparationTime) : undefined,
           isPOSItem: true
         };
-
         if (selectedSauce) {
-          // Update existing sauce
           await saucesAPI.updateSauce(selectedSauce.id, sauceData as UpdateSauceData);
           toast({
             title: "Updated",
@@ -73,7 +77,6 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
             duration: 2000
           });
         } else {
-          // Create new sauce
           await saucesAPI.createSauce(sauceData as CreateSauceData);
           toast({
             title: "Created",
@@ -81,15 +84,9 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
             duration: 2000
           });
         }
-
-        // Refresh sauces list
         await fetchSauces();
-
-        // Close form and reset state
         setShowSauceForm(false);
         setSelectedSauce(null);
-
-        // Trigger parent refresh if needed
         if (onRefresh) {
           onRefresh();
         }
@@ -108,13 +105,12 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
     [selectedSauce, fetchSauces, onRefresh]
   );
 
-  // Handle sauce editing
   const handleEditSauce = useCallback((sauce: Sauce) => {
+    console.log("Editing sauce:", sauce);
     setSelectedSauce(sauce);
     setShowSauceForm(true);
   }, []);
 
-  // Handle sauce deletion
   const handleDeleteSauce = useCallback(
     async (sauceId: string) => {
       const operationKey = `delete-${sauceId}`;

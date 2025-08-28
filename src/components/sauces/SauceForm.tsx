@@ -189,6 +189,40 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
     }
   };
 
+  // In SauceForm component, update the useEffect
+  useEffect(() => {
+    if (sauce) {
+      // Transform the sauce data to match form expectations
+      form.reset({
+        name: sauce.name || "",
+        description: sauce.description || "",
+        category: sauce.category || "",
+        baseIngredients: sauce.baseIngredients?.map(ing => ({
+          materialId: ing.materialId.toString(), // Ensure string format
+          quantity: typeof ing.quantity === "string" ? parseFloat(ing.quantity) : ing.quantity,
+          unit: ing.unit || "",
+          cost: typeof ing.cost === "string" ? parseFloat(ing.cost) : ing.cost
+        })) || [{ materialId: "", quantity: 0, unit: "", cost: 0 }],
+        yieldQuantity: sauce.yieldQuantity?.toString() || "",
+        unit: sauce.unit || "ml",
+        preparationTime: sauce.preparationTime?.toString() || "",
+        isPOSItem: sauce.isPOSItem || false
+      });
+    } else {
+      // Reset to empty form for new sauce
+      form.reset({
+        name: "",
+        description: "",
+        category: "",
+        baseIngredients: [{ materialId: "", quantity: 0, unit: "", cost: 0 }],
+        yieldQuantity: "",
+        unit: "ml",
+        preparationTime: "",
+        isPOSItem: false
+      });
+    }
+  }, [sauce, form]);
+
   return (
     <div className=" mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -377,7 +411,7 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                         control={form.control}
                         render={({ field }) => (
                           <Select
-                            value={field.value || ""}
+                            value={field.value?.toString() || ""}
                             onValueChange={value => {
                               if (!value) return;
                               field.onChange(value);
