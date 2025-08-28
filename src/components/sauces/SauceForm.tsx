@@ -509,9 +509,9 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                       <Input type="number" step="0.01" {...form.register(`baseIngredients.${index}.cost`, { valueAsNumber: true })} placeholder="0.00" className="mt-1" readOnly />
                     </div>
 
-                    <div className="flex items-end">
-                      <Button type="button" onClick={() => removeIngredient(index)} size="sm" variant="outline" disabled={fields.length <= 1} className="w-full">
-                        <Minus className="w-4 h-4" />
+                    <div className="flex items-end justify-center">
+                      <Button className="!bg-transparent !border-none !hover:bg-transparent !hover:border-none" onClick={() => removeIngredient(index)} disabled={fields.length <= 1}>
+                        <Minus className="!w-6 !h-6 cursor-pointer text-red-500" />
                       </Button>
                     </div>
                   </div>

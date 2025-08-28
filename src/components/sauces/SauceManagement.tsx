@@ -106,7 +106,6 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
   );
 
   const handleEditSauce = useCallback((sauce: Sauce) => {
-    console.log("Editing sauce:", sauce);
     setSelectedSauce(sauce);
     setShowSauceForm(true);
   }, []);

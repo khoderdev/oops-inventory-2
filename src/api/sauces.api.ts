@@ -9,7 +9,7 @@ export interface SaucesQueryParams {
   isActive?: boolean;
   sortBy?: string;
   sortOrder?: "ASC" | "DESC";
-  _t?: number; // Cache busting parameter
+  _t?: number;
 }
 
 export interface SaucesResponse {
