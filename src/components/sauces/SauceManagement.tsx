@@ -235,7 +235,7 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
 
       {/* Sauce Form Dialog */}
       <Dialog open={showSauceForm} onOpenChange={setShowSauceForm} modal={true}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] sm:max-w-[90vw] lg:max-w-[80vw] xl:max-w-[70vw] rounded-lg p-0" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
+        <DialogContent className="max-w-[95vw] max-h-[100vh] sm:max-w-[90vw] lg:max-w-[80vw] xl:max-w-[70vw] rounded-lg p-0" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
           <DialogHeader className="px-6 py-4 border-b">
             <DialogTitle className="flex items-center gap-2 text-lg">
               <ChefHat className="h-5 w-5" />
@@ -243,7 +243,7 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
             </DialogTitle>
           </DialogHeader>
 
-          <ScrollArea className="max-h-[calc(95vh-80px)]">
+          <ScrollArea className="max-h-[calc(98vh-80px)]">
             <div className="p-0">
               <SauceForm sauce={selectedSauce || undefined} materials={materials} stockEntries={stockEntries} onSubmit={handleSauceSubmit} onCancel={handleFormCancel} />
             </div>

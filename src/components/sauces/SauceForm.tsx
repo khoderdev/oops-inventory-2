@@ -225,21 +225,15 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
 
   return (
     <div className=" mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">{sauce ? "Edit Sauce" : "Create New Sauce"}</h2>
-          <p className="text-gray-600 mt-1">{sauce ? "Update sauce recipe and details" : "Create a new sauce recipe from available materials"}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Calculator className="w-3 h-3" />
-            Total Cost: ${calculationResult?.totalCost?.toFixed(2) ?? "0.00"}
-          </Badge>
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Utensils className="w-3 h-3" />
-            Cost/Unit: ${calculationResult?.costPerUnit?.toFixed(4) ?? "0.0000"}
-          </Badge>
-        </div>
+      <div className="flex items-center justify-end gap-2">
+        <Badge variant="outline" className="flex items-center gap-1">
+          <Calculator className="w-3 h-3" />
+          Total Cost: ${calculationResult?.totalCost?.toFixed(2) ?? "0.00"}
+        </Badge>
+        <Badge variant="outline" className="flex items-center gap-1">
+          <Utensils className="w-3 h-3" />
+          Cost/Unit: ${calculationResult?.costPerUnit?.toFixed(4) ?? "0.0000"}
+        </Badge>
       </div>
 
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
@@ -400,7 +394,7 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="max-h-96">
+            <ScrollArea className="scroll-area">
               <div className="space-y-4">
                 {fields.map((field, index) => (
                   <div key={field.id} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
