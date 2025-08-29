@@ -99,9 +99,23 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   // Handlers
   const handleEditBeverageItem = useCallback((menuItem: MenuItem) => {
     console.log('Editing menu item:', menuItem);
-    setEditingBeverageItem(menuItem);
+    // Create a deep copy of the menu item to avoid reference issues
+    const menuItemCopy = JSON.parse(JSON.stringify(menuItem));
+    
+    // Ensure the category is properly set
+    if (menuItemCopy.category) {
+      // If category is a string, try to find the full category object
+      if (typeof menuItemCopy.category === 'string') {
+        const categoryObj = categories.find(cat => cat.id === menuItemCopy.category || cat.name === menuItemCopy.category);
+        if (categoryObj) {
+          menuItemCopy.category = categoryObj;
+        }
+      }
+    }
+    
+    setEditingBeverageItem(menuItemCopy);
     setShowBeverageItemForm(true);
-  }, []);
+  }, [categories]);
 
   const handleAddBeverageItem = useCallback(() => {
     setEditingBeverageItem(null);
@@ -304,8 +318,11 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
 
             {/* Beverage Item Form Dialog */}
             <BeverageItemFormDialog
+              key={editingBeverageItem?.id || 'new'}
               open={showBeverageItemForm}
-              onOpenChange={handleCloseModal}
+              onOpenChange={(isOpen) => {
+                if (!isOpen) handleCloseModal();
+              }}
               editingBeverageItem={editingBeverageItem}
               categories={beverageCategories}
               stockEntries={stockEntries}
