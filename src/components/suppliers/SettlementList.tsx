@@ -55,25 +55,33 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
     ...(supplierId && { supplierId })
   });
 
-  // Memoize the formatted settlements data
+  // Memoize the formatted settlements data with proper null checks
   const formattedSettlements = useMemo<FormattedSettlement[]>(() => {
-    if (!response?.data?.data) return [];
+    // Return empty array if no data is available yet
+    if (!response?.data?.data || !Array.isArray(response.data.data)) {
+      return [];
+    }
     
-    return response.data.data.map(settlement => ({
-      ...settlement,
-      formattedDate: formatDate(settlement.paymentDate),
-      formattedAmount: formatCurrency(settlement.amount),
-      formattedMethod: settlement.paymentMethod || 'N/A',
-      // Ensure all required SupplierSettlement properties are included
-      id: settlement.id,
-      supplierId: settlement.supplierId,
-      amount: settlement.amount,
-      paymentDate: settlement.paymentDate,
-      paymentMethod: settlement.paymentMethod,
-      referenceNumber: settlement.referenceNumber,
-      createdAt: settlement.createdAt,
-      updatedAt: settlement.updatedAt
-    }));
+    return response.data.data.map(settlement => {
+      // Add null checks for required fields
+      if (!settlement) return null;
+      
+      return {
+        ...settlement,
+        formattedDate: settlement.paymentDate ? formatDate(settlement.paymentDate) : 'N/A',
+        formattedAmount: typeof settlement.amount === 'number' ? formatCurrency(settlement.amount) : 'N/A',
+        formattedMethod: settlement.paymentMethod || 'N/A',
+        // Ensure all required SupplierSettlement properties are included with defaults
+        id: settlement.id || 0,
+        supplierId: settlement.supplierId || 0,
+        amount: typeof settlement.amount === 'number' ? settlement.amount : 0,
+        paymentDate: settlement.paymentDate || new Date().toISOString(),
+        paymentMethod: settlement.paymentMethod || 'N/A',
+        referenceNumber: settlement.referenceNumber || '',
+        createdAt: settlement.createdAt || new Date().toISOString(),
+        updatedAt: settlement.updatedAt || new Date().toISOString()
+      };
+    }).filter(Boolean) as FormattedSettlement[]; // Filter out any null entries
   }, [response?.data?.data]);
 
   // Memoize the success handler
@@ -133,34 +141,32 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
   );
 
   // Memoize the table instance
-  const table = useMemo(() => 
-    useReactTable<FormattedSettlement>({
-      data: Array.isArray(formattedSettlements) ? formattedSettlements : [],
-      columns,
-      getCoreRowModel: getCoreRowModel(),
-      getPaginationRowModel: getPaginationRowModel(),
-      initialState: {
-        pagination: {
-          pageSize: 10
-        }
+  const tableData = useMemo(() => Array.isArray(formattedSettlements) ? formattedSettlements : [], [formattedSettlements]);
+  const table = useReactTable({
+    data: tableData,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 10
       }
-    }),
-    [formattedSettlements, columns]
-  );
+    }
+  });
 
   // Memoize dialog content to prevent unnecessary re-renders
   const dialogContent = useMemo(() => {
     if (!supplierId) return null;
     
     return (
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[90vw]">
         <DialogHeader>
           <DialogTitle>New Payment Settlement</DialogTitle>
           {supplierName && <p className="text-sm text-muted-foreground">For {supplierName}</p>}
         </DialogHeader>
         <div className="py-4">
           <SettlementForm 
-            key={supplierId} // Force re-mount when supplier changes
+            key={supplierId} 
             supplierId={Number(supplierId)} 
             onSuccess={handleSuccess} 
           />
