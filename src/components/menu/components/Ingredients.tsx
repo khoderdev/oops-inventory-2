@@ -3,7 +3,7 @@ import { formatCurrency, formatNumber } from "@/utils/conversionLogic";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Plus } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
@@ -54,11 +54,21 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     return result;
   }, [allSelectableItems, ingredients]);
 
+  // const filteredItems = useMemo(() => {
+  //   if (!materialSearchTerm.trim()) {
+  //     return availableItems;
+  //   }
+  //   const result = availableItems.filter(item => item.name.toLowerCase().includes(materialSearchTerm.toLowerCase()));
+  //   return result;
+  // }, [availableItems, materialSearchTerm]);
+
   const filteredItems = useMemo(() => {
     if (!materialSearchTerm.trim()) {
+      console.log("Available items (no search term):", availableItems);
       return availableItems;
     }
     const result = availableItems.filter(item => item.name.toLowerCase().includes(materialSearchTerm.toLowerCase()));
+    console.log("Filtered items for search term:", materialSearchTerm, result);
     return result;
   }, [availableItems, materialSearchTerm]);
 
@@ -229,14 +239,64 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     return isNaN(total) ? 0 : total;
   }, [ingredients, calculateIngredientCost, menuItem]);
 
+  // const handleAddIngredient = useCallback(() => {
+  //   if (!selectedMaterialId || !ingredientQuantity || !ingredientUnit) return;
+
+  //   const quantity = parseFloat(ingredientQuantity);
+  //   if (isNaN(quantity) || quantity <= 0) return;
+
+  //   const selectedItem = allSelectableItems.find(item => item.id === selectedMaterialId);
+  //   if (!selectedItem) return;
+
+  //   const cost = calculateIngredientCost({
+  //     materialId: selectedMaterialId,
+  //     quantity,
+  //     unit: ingredientUnit,
+  //     type: selectedItem.type
+  //   });
+
+  //   const newIngredient: MenuItemIngredient = {
+  //     materialId: selectedMaterialId, // we keep this for both, will convert to sauceId in submit
+  //     quantity,
+  //     unit: ingredientUnit,
+  //     cost,
+  //     type: selectedItem.type // "material" or "sauce"
+  //   };
+
+  //   onIngredientsChange([...ingredients, newIngredient]);
+  //   setSelectedMaterialId("");
+  //   setIngredientQuantity("");
+  //   setIngredientUnit("");
+  // }, [selectedMaterialId, ingredientQuantity, ingredientUnit, ingredients, onIngredientsChange, allSelectableItems]);
+
   const handleAddIngredient = useCallback(() => {
-    if (!selectedMaterialId || !ingredientQuantity || !ingredientUnit) return;
+    if (!selectedMaterialId || !ingredientQuantity || !ingredientUnit) {
+      console.log("Cannot add ingredient - missing required fields:", {
+        selectedMaterialId,
+        ingredientQuantity,
+        ingredientUnit
+      });
+      return;
+    }
 
     const quantity = parseFloat(ingredientQuantity);
-    if (isNaN(quantity) || quantity <= 0) return;
+    if (isNaN(quantity) || quantity <= 0) {
+      console.log("Cannot add ingredient - invalid quantity:", ingredientQuantity);
+      return;
+    }
 
     const selectedItem = allSelectableItems.find(item => item.id === selectedMaterialId);
-    if (!selectedItem) return;
+    if (!selectedItem) {
+      console.log("Cannot add ingredient - selected item not found:", selectedMaterialId);
+      return;
+    }
+
+    console.log("Adding ingredient:", {
+      selectedItem,
+      quantity,
+      unit: ingredientUnit,
+      type: selectedItem.type
+    });
 
     const cost = calculateIngredientCost({
       materialId: selectedMaterialId,
@@ -245,19 +305,34 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
       type: selectedItem.type
     });
 
+    console.log("Calculated cost:", cost);
+
     const newIngredient: MenuItemIngredient = {
-      materialId: selectedMaterialId, // we keep this for both, will convert to sauceId in submit
+      materialId: selectedMaterialId,
       quantity,
       unit: ingredientUnit,
       cost,
-      type: selectedItem.type // "material" or "sauce"
+      type: selectedItem.type
     };
+
+    console.log("New ingredient object:", newIngredient);
 
     onIngredientsChange([...ingredients, newIngredient]);
     setSelectedMaterialId("");
     setIngredientQuantity("");
     setIngredientUnit("");
   }, [selectedMaterialId, ingredientQuantity, ingredientUnit, ingredients, onIngredientsChange, allSelectableItems]);
+
+  // Add this to see the initial available items
+  useEffect(() => {
+    console.log("Initial available items:", availableItems);
+    console.log("All selectable items:", allSelectableItems);
+  }, [availableItems, allSelectableItems]);
+
+  // Add this to see when ingredients change
+  useEffect(() => {
+    console.log("Current ingredients:", ingredients);
+  }, [ingredients]);
 
   const handleRemoveIngredient = useCallback(
     (index: number) => {
@@ -269,6 +344,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
 
   const handleMaterialSelect = useCallback(
     (itemId: string, itemName?: string) => {
+      console.log("Item selected:", { itemId, itemName });
       setSelectedMaterialId(itemId);
       setMaterialSearchTerm(itemName || "");
 
@@ -276,23 +352,54 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
       const isSauce = sauces.some(sauce => sauce.id.toString() === itemId);
 
       if (isSauce) {
+        console.log("Selected item is a sauce");
         setSelectedItemType("sauce");
         const sauce = sauces.find(s => s.id.toString() === itemId);
         if (sauce) {
           setIngredientUnit(sauce.unit);
+          console.log("Sauce unit set to:", sauce.unit);
         }
       } else {
+        console.log("Selected item is a material");
         setSelectedItemType("material");
         const material = (materials || []).find(m => String(m.id) === itemId);
         if (material) {
           setIngredientUnit(material.baseUnit);
+          console.log("Material base unit set to:", material.baseUnit);
         } else {
           setIngredientUnit("");
+          console.log("Material not found, unit cleared");
         }
       }
     },
     [materials, sauces]
   );
+  // const handleMaterialSelect = useCallback(
+  //   (itemId: string, itemName?: string) => {
+  //     setSelectedMaterialId(itemId);
+  //     setMaterialSearchTerm(itemName || "");
+
+  //     // Check if this is a sauce by looking for it in the sauces array
+  //     const isSauce = sauces.some(sauce => sauce.id.toString() === itemId);
+
+  //     if (isSauce) {
+  //       setSelectedItemType("sauce");
+  //       const sauce = sauces.find(s => s.id.toString() === itemId);
+  //       if (sauce) {
+  //         setIngredientUnit(sauce.unit);
+  //       }
+  //     } else {
+  //       setSelectedItemType("material");
+  //       const material = (materials || []).find(m => String(m.id) === itemId);
+  //       if (material) {
+  //         setIngredientUnit(material.baseUnit);
+  //       } else {
+  //         setIngredientUnit("");
+  //       }
+  //     }
+  //   },
+  //   [materials, sauces]
+  // );
 
   const handleMaterialSearchChange = useCallback((value: string) => {
     setMaterialSearchTerm(value);
@@ -345,9 +452,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
           itemRenderer={({ item, onSelect }) => (
             <button key={item.id} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(item.id, item.name)} onMouseDown={e => e.preventDefault()}>
               <div className="font-medium">{item.name}</div>
-              <div className="text-sm text-muted-foreground">
-                {item.type === "sauce" ? "Sauce" : "Material"}
-              </div>
+              <div className="text-sm text-muted-foreground">{item.type === "sauce" ? "Sauce" : "Material"}</div>
             </button>
           )}
         />
