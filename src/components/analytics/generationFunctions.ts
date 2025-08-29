@@ -126,16 +126,82 @@ export async function generateCostAnalysisReport(materials: Material[], stockEnt
 }
 
 export async function generateSupplierPerformanceReport(stockEntries: StockEntry[], materials: Material[]) {
-  const report = reportGenerator.generateInventoryReport(materials, stockEntries);
-  return report.supplierAnalysis.map(supplier => ({
-    supplier: supplier.supplier,
-    totalorders: supplier.totalPurchases,
-    totalvalue: supplier.totalValue,
-    materialscount: supplier.materialCount,
-    avgordervalue: supplier.averageOrderValue,
-    lastpurchase: supplier.lastPurchaseDate,
-    rating: supplier.totalValue > 10000 ? "A" : supplier.totalValue > 5000 ? "B" : "C"
-  }));
+  // Debug log the input data
+  console.log('generateSupplierPerformanceReport input:', {
+    stockEntriesCount: stockEntries?.length,
+    materialsCount: materials?.length,
+    sampleStockEntry: stockEntries?.[0],
+    sampleMaterial: materials?.[0]
+  });
+
+  // Group stock entries by supplier
+  const supplierMap = new Map<string, {
+    totalValue: number;
+    purchaseCount: number;
+    materialIds: Set<string>;
+    lastPurchaseDate: Date | null;
+  }>();
+
+  stockEntries.forEach(entry => {
+    try {
+      const supplier = entry.supplier?.trim() || 'Unknown';
+      const material = materials.find(m => m.id === entry.materialId);
+      const entryValue = Number(entry.totalCost) || 0;
+
+      if (!supplierMap.has(supplier)) {
+        supplierMap.set(supplier, {
+          totalValue: 0,
+          purchaseCount: 0,
+          materialIds: new Set(),
+          lastPurchaseDate: null
+        });
+      }
+
+      const supplierData = supplierMap.get(supplier)!;
+      supplierData.totalValue = Number((supplierData.totalValue + entryValue).toFixed(2));
+      supplierData.purchaseCount += 1;
+      
+      if (material?.id) {
+        supplierData.materialIds.add(material.id);
+      }
+
+      if (entry.purchaseDate) {
+        const purchaseDate = new Date(entry.purchaseDate);
+        if (isValid(purchaseDate)) {
+          if (!supplierData.lastPurchaseDate || purchaseDate > supplierData.lastPurchaseDate) {
+            supplierData.lastPurchaseDate = purchaseDate;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error processing stock entry:', { entry, error });
+    }
+  });
+
+  // Convert the map to an array of report items
+  const result = Array.from(supplierMap.entries()).map(([supplier, data]) => {
+    const avgOrderValue = data.purchaseCount > 0 
+      ? Number((data.totalValue / data.purchaseCount).toFixed(2))
+      : 0;
+
+    return {
+      'Supplier': supplier,
+      'Total Orders': data.purchaseCount,
+      'Total Value': `$${Number(data.totalValue).toFixed(2)}`,
+      'Materials Count': data.materialIds.size,
+      'Avg Order Value': `$${avgOrderValue.toFixed(2)}`,
+      'Last Purchase': data.lastPurchaseDate ? format(data.lastPurchaseDate, 'MMM d, yyyy') : 'N/A',
+      'Rating': data.totalValue > 10000 ? "A" : data.totalValue > 5000 ? "B" : "C"
+    };
+  });
+
+  // Debug log the output data
+  console.log('generateSupplierPerformanceReport output:', {
+    resultCount: result.length,
+    sampleResult: result[0]
+  });
+
+  return result;
 }
 
 export async function generateExpiryAlertsReport(stockEntries: StockEntry[], materials: Material[]) {

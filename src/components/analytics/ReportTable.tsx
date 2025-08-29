@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { ReportTableProps } from "@/types/inventory";
 import { getTableHeaders } from "@/utils/getTableHeaders";
 import { FileText, TrendingUp } from "lucide-react";
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { getColumnAlignment, getInitialWidth, getResponsiveColumnClasses } from "./columnFunctions";
 import { formatCellValue } from "./formatCellValue";
@@ -11,8 +11,6 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
   const headers = getTableHeaders(reportType);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const [isResizing, setIsResizing] = useState<string | null>(null);
-  const [, setIsAutoFitting] = useState<string | null>(null);
-  const tableRef = useRef<HTMLTableElement>(null);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
   const doubleClickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -23,6 +21,14 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
     },
     [columnWidths]
   );
+
+  useEffect(() => {
+    console.log('ReportTable received data:', {
+      reportType,
+      data: data || [],
+      dataLength: data?.length || 0
+    });
+  }, [data, reportType]);
 
   const handleResizeStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent, header: string) => {
@@ -65,48 +71,6 @@ export function ReportTable({ reportType, data }: ReportTableProps) {
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
   }, []);
-
-  // const autoFitAllColumns = useCallback(() => {
-  //   if (!tableRef.current) return;
-
-  //   setIsAutoFitting("all");
-
-  //   const calculateOptimalWidth = (columnHeader: string) => {
-  //     let maxWidth = getInitialWidth(columnHeader);
-  //     const measurer = document.createElement("div");
-  //     measurer.style.position = "absolute";
-  //     measurer.style.visibility = "hidden";
-  //     measurer.style.whiteSpace = "nowrap";
-  //     measurer.style.fontSize = "14px";
-  //     measurer.style.fontWeight = "bold";
-  //     document.body.appendChild(measurer);
-  //     measurer.textContent = columnHeader;
-  //     const headerWidth = measurer.offsetWidth + 60;
-  //     maxWidth = Math.max(maxWidth, headerWidth);
-  //     measurer.style.fontWeight = "normal";
-
-  //     data.slice(0, Math.min(20, data.length)).forEach(row => {
-  //       const cellValue = formatCellValue(row, columnHeader, reportType);
-  //       if (cellValue && typeof cellValue === "string") {
-  //         measurer.textContent = cellValue;
-  //         const contentWidth = measurer.offsetWidth + 40;
-  //         maxWidth = Math.max(maxWidth, contentWidth);
-  //       }
-  //     });
-  //     document.body.removeChild(measurer);
-  //     return Math.min(Math.max(maxWidth, 80), 400);
-  //   };
-
-  //   const newColumnWidths: Record<string, number> = {};
-  //   headers.forEach(header => {
-  //     newColumnWidths[header] = calculateOptimalWidth(header);
-  //   });
-  //   setColumnWidths(newColumnWidths);
-
-  //   setTimeout(() => {
-  //     setIsAutoFitting(null);
-  //   }, 300);
-  // }, [headers, data, reportType]);
 
   React.useEffect(() => {
     if (isResizing) {
