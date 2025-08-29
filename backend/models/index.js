@@ -30,6 +30,10 @@ import SystemLogs from "./StockEntryLogSimple.js";
 import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";
+import Supplier from "./Supplier.js";
+import SupplierSettlement from "./SupplierSettlement.js";
+import SupplierInvoice from "./SupplierInvoice.js";
+
 
 // Material ↔ StockEntry
 Material.hasMany(StockEntry, {
@@ -887,4 +891,60 @@ Sauce.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient,MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };
+// Supplier ↔ SupplierSettlement
+Supplier.hasMany(SupplierSettlement, {
+  foreignKey: "supplierId",
+  as: "settlements",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+SupplierSettlement.belongsTo(Supplier, {
+  foreignKey: "supplierId",
+  as: "supplier",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Supplier ↔ SupplierInvoice
+Supplier.hasMany(SupplierInvoice, {
+  foreignKey: "supplierId",
+  as: "invoices",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+SupplierInvoice.belongsTo(Supplier, {
+  foreignKey: "supplierId",
+  as: "supplier",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Supplier ↔ StockEntry (for tracking which supplier provided materials)
+StockEntry.belongsTo(Supplier, {
+  foreignKey: "supplierId",
+  as: "supplier",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Supplier.hasMany(StockEntry, {
+  foreignKey: "supplierId",
+  as: "stockEntries",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// User ↔ SupplierSettlement (who processed the payment)
+User.hasMany(SupplierSettlement, {
+  foreignKey: "settledBy",
+  as: "processedSettlements",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+SupplierSettlement.belongsTo(User, {
+  foreignKey: "settledBy",
+  as: "processedBy",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient,MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting, Supplier, SupplierSettlement, SupplierInvoice };

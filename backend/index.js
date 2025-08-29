@@ -16,6 +16,7 @@ import categoriesRoutes from "./routes/categories.js";
 import dayOperationsRoutes from "./routes/dayOperations.js";
 import dayOperationReportsRoutes from "./routes/dayOperationReports.js";
 import employeeRoutes from "./routes/employees.js";
+import supplierRoutes from "./routes/supplier.js";
 import logsRoutes from "./routes/logs.js";
 import materialRoutes from "./routes/materials.js";
 import menuItemsRoutes from "./routes/menuItems.js";
@@ -36,6 +37,7 @@ import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
 import { seedTables } from "./utils/seedTables.js";
 import { seedPrinters } from "./seeds/seedPrinters.js";
+
 
 process.on("uncaughtException", error => {
   console.error("🚨 Uncaught Exception:", error.message);
@@ -159,6 +161,7 @@ app.use("/api/backup-scheduler", backupSchedulerRoutes);
 app.use("/api/printers", printersRoutes);
 app.use("/api/variants", variantsRoutes);
 app.use("/api/departments", departmentRoutes);
+app.use("/api/suppliers", supplierRoutes);
 
 app.use(errorHandler);
 

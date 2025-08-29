@@ -77,6 +77,25 @@ export const navigationItems: NavigationItem[] = [
   },
 
   {
+    label: "Suppliers",
+    icon: UserCheck,
+    children: [
+      {
+        label: "Suppliers",
+        href: "/suppliers",
+        icon: Building,
+        permission: PERMISSIONS.DEPARTMENT_READ
+      },
+      {
+        label: "Settlements",
+        href: "/suppliers/settlements",
+        icon: Calendar,
+        permission: PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW
+      }
+    ]
+  },
+
+  {
     label: "Reports & Analytics",
     icon: BarChart3,
     href: "/reports"

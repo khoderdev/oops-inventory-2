@@ -2,6 +2,7 @@ import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 import Material from "./materials.js";
 import Printer from "./Printer.js";
+import Supplier from "./Supplier.js";
 
 const StockEntry = sequelize.define(
   "StockEntry",
@@ -19,9 +20,15 @@ const StockEntry = sequelize.define(
         key: "id"
       }
     },
-    supplier: {
-      type: DataTypes.STRING,
-      allowNull: true
+    supplierId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: Supplier,
+        key: "id"
+      },
+      onUpdate: "CASCADE",
+      onDelete: "SET NULL"
     },
     purchasedQuantity: {
       type: DataTypes.DECIMAL(10, 0),
@@ -51,7 +58,7 @@ const StockEntry = sequelize.define(
       type: DataTypes.DECIMAL(10, 6),
       allowNull: true,
       get() {
-        const rawValue = this.getDataValue('costPerPurchasedUnit');
+        const rawValue = this.getDataValue("costPerPurchasedUnit");
         if (rawValue === null || rawValue === undefined) return null;
         // Remove trailing zeros and unnecessary decimal point
         return parseFloat(rawValue).toString();
@@ -65,7 +72,7 @@ const StockEntry = sequelize.define(
       type: DataTypes.DECIMAL(10, 6),
       allowNull: true,
       get() {
-        const rawValue = this.getDataValue('totalCost');
+        const rawValue = this.getDataValue("totalCost");
         if (rawValue === null || rawValue === undefined) return null;
         // For currency, keep 2 decimal places but remove trailing zeros
         const formatted = parseFloat(rawValue).toFixed(2);

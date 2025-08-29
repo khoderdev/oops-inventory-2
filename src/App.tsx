@@ -19,6 +19,8 @@ import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
 import { EmployeeUsageView } from "./components/employees/EmployeeUsageView";
 import { PermissionsTest } from "./PermissionsTest";
+import { SupplierList } from "./components/suppliers/SupplierList";
+import { SettlementList } from "./components/suppliers/SettlementList";
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -227,6 +229,27 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                       <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
                         <AuthenticatedLayout pageTitle="Employee Settlements" showSearch={true} showNotifications={true}>
                           <EmployeeSettlements />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/suppliers"
+                    element={
+                      <ProtectedRoute>
+                        <AuthenticatedLayout pageTitle="Suppliers" showSearch={true} showNotifications={true}>
+                          <SupplierList />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/suppliers/settlements"
+                    element={
+                      <ProtectedRoute>
+                        <AuthenticatedLayout pageTitle="Settlements" showSearch={true} showNotifications={true}>
+                          <SettlementList />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
                     }
