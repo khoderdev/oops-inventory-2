@@ -312,9 +312,15 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
       return;
     }
 
-    const selectedItem = allSelectableItems.find(item => item.id === selectedMaterialId);
+    // Look for the item using the PREFIXED ID format
+    const selectedItem = allSelectableItems.find(item => {
+      // Create the prefixed ID to match against
+      const prefixedId = `${selectedItemType}-${selectedMaterialId}`;
+      return item.id === prefixedId;
+    });
+
     if (!selectedItem) {
-      console.log("Cannot add ingredient - selected item not found:", selectedMaterialId);
+      console.log("Cannot add ingredient - selected item not found with prefixed ID:", `${selectedItemType}-${selectedMaterialId}`);
       return;
     }
 
@@ -326,7 +332,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     });
 
     const cost = calculateIngredientCost({
-      materialId: selectedMaterialId,
+      materialId: selectedMaterialId, // This should still be the raw ID (without prefix)
       quantity,
       unit: ingredientUnit,
       type: selectedItem.type
@@ -335,7 +341,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     console.log("Calculated cost:", cost);
 
     const newIngredient: MenuItemIngredient = {
-      materialId: selectedMaterialId,
+      materialId: selectedMaterialId, // Store the raw ID
       quantity,
       unit: ingredientUnit,
       cost,
@@ -348,7 +354,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     setSelectedMaterialId("");
     setIngredientQuantity("");
     setIngredientUnit("");
-  }, [selectedMaterialId, ingredientQuantity, ingredientUnit, ingredients, onIngredientsChange, allSelectableItems]);
+  }, [selectedMaterialId, selectedItemType, ingredientQuantity, ingredientUnit, ingredients, onIngredientsChange, allSelectableItems]);
 
   // Add this to see the initial available items
   useEffect(() => {
