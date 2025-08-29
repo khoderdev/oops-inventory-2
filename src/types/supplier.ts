@@ -5,12 +5,10 @@ export interface Supplier {
   email?: string;
   phone?: string;
   address?: string;
-  taxId?: string;
   paymentTerms: number;
   accountBalance: number;
   creditLimit: number;
   isActive: boolean;
-  notes?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -24,7 +22,6 @@ export interface SupplierSettlement {
   referenceNumber?: string;
   paymentDate: string;
   status: "pending" | "completed" | "failed" | "cancelled";
-  notes?: string;
   settledBy?: number;
   processedBy?: User;
   createdAt: string;
@@ -40,7 +37,6 @@ export interface SupplierInvoice {
   totalAmount: number;
   paidAmount: number;
   status: "draft" | "sent" | "overdue" | "partial" | "paid" | "cancelled";
-  notes?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -51,18 +47,15 @@ export interface CreateSupplierData {
   email?: string;
   phone?: string;
   address?: string;
-  taxId?: string;
   paymentTerms?: number;
   creditLimit?: number;
-  notes?: string;
 }
 
-export interface UpdateSupplierData extends Omit<CreateSupplierData, 'id'> {
-  id: number;
+export interface UpdateSupplierData extends CreateSupplierData {
+  id?: number;
   isActive?: boolean;
   paymentTerms?: number;
   creditLimit?: number;
-  notes?: string;
 }
 
 export interface CreateSettlementData {

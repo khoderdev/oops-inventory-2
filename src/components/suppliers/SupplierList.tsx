@@ -272,10 +272,6 @@ export function SupplierList() {
                     <p className="text-sm">{viewingSupplier.phone || '-'}</p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium">Tax ID</p>
-                    <p className="text-sm">{viewingSupplier.taxId || '-'}</p>
-                  </div>
-                  <div className="space-y-1">
                     <p className="text-sm font-medium">Payment Terms</p>
                     <p className="text-sm">{viewingSupplier.paymentTerms ? `${viewingSupplier.paymentTerms} days` : '-'}</p>
                   </div>
@@ -287,16 +283,6 @@ export function SupplierList() {
                     <p className="text-sm whitespace-pre-line">{viewingSupplier.address}</p>
                   </div>
                 )}
-
-                {viewingSupplier.notes && (
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Notes</p>
-                    <p className="text-sm text-muted-foreground whitespace-pre-line">
-                      {viewingSupplier.notes}
-                    </p>
-                  </div>
-                )}
-
                 <div className="flex justify-between pt-4 border-t">
                   <div>
                     <p className="text-xs text-muted-foreground">
@@ -324,22 +310,44 @@ export function SupplierList() {
 
       {/* Add/Edit Supplier Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[625px]">
+        <DialogContent className="sm:max-w-[625px] flex flex-col max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <div className="space-y-4">
-              <SupplierForm 
-                supplier={editingSupplier} 
-                onSubmit={handleSubmit}
-                isSubmitting={createMutation.isPending || updateMutation.isPending}
-                onCancel={() => {
-                  setIsDialogOpen(false);
-                  setEditingSupplier(null);
-                }}
-              />
-            </div>
+          <div className="flex-1 overflow-y-auto py-4">
+            <SupplierForm 
+              supplier={editingSupplier} 
+              onSubmit={handleSubmit}
+              isSubmitting={createMutation.isPending || updateMutation.isPending}
+              onCancel={() => {
+                setIsDialogOpen(false);
+                setEditingSupplier(null);
+              }}
+              hideButtons
+            />
+          </div>
+          <div className=" bottom-0 bg-background border-t pt-4 flex justify-end space-x-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => {
+                setIsDialogOpen(false);
+                setEditingSupplier(null);
+              }}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="button"
+              onClick={() => {
+                const form = document.querySelector('form');
+                if (form) form.requestSubmit();
+              }}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {editingSupplier ? 'Update Supplier' : 'Create Supplier'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

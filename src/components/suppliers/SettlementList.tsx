@@ -1,20 +1,44 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { TanStackTable } from "@/components/ui/TanStackTable";
 import { useSupplierSettlements } from "@/hooks/useSuppliers";
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
-import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef } from "@tanstack/react-table";
+import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, Row } from "@tanstack/react-table";
 import { SupplierSettlement } from "@/types/supplier";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SettlementForm } from "./SettlementForm";
 import { useToast } from "@/components/ui/use-toast";
+
+// Extend the SupplierSettlement type with formatted fields
+interface FormattedSettlement extends SupplierSettlement {
+  formattedDate: string;
+  formattedAmount: string;
+  formattedMethod: string;
+}
 
 interface SettlementListProps {
   supplierId?: string | number;
   supplierName?: string;
   onSettlementCreated?: () => void;
 }
+
+// Format date for display
+const formatDate = (dateString: string) => {
+  try {
+    return format(new Date(dateString), "MMM d, yyyy");
+  } catch (error) {
+    return "Invalid date";
+  }
+};
+
+// Format currency for display
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD"
+  }).format(amount);
+};
 
 export function SettlementList({ supplierId, supplierName, onSettlementCreated }: SettlementListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -31,72 +55,119 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
     ...(supplierId && { supplierId })
   });
 
-  const settlements = response?.data?.data || [];
+  // Memoize the formatted settlements data
+  const formattedSettlements = useMemo<FormattedSettlement[]>(() => {
+    if (!response?.data?.data) return [];
+    
+    return response.data.data.map(settlement => ({
+      ...settlement,
+      formattedDate: formatDate(settlement.paymentDate),
+      formattedAmount: formatCurrency(settlement.amount),
+      formattedMethod: settlement.paymentMethod || 'N/A',
+      // Ensure all required SupplierSettlement properties are included
+      id: settlement.id,
+      supplierId: settlement.supplierId,
+      amount: settlement.amount,
+      paymentDate: settlement.paymentDate,
+      paymentMethod: settlement.paymentMethod,
+      referenceNumber: settlement.referenceNumber,
+      createdAt: settlement.createdAt,
+      updatedAt: settlement.updatedAt
+    }));
+  }, [response?.data?.data]);
 
-  const handleSuccess = () => {
+  // Memoize the success handler
+  const handleSuccess = useCallback(() => {
     setIsDialogOpen(false);
     refetch();
-    if (onSettlementCreated) {
-      onSettlementCreated();
-    }
+    onSettlementCreated?.();
     toast({
       title: "Success",
-      description: supplierId ? "Settlement created successfully" : "Settlement created successfully",
+      description: "Settlement created successfully",
       variant: "default"
     });
-  };
+  }, [refetch, onSettlementCreated, toast]);
 
-  const columns = useMemo<ColumnDef<SupplierSettlement>[]>(
+  // Memoize the columns definition
+  const columns = useMemo<ColumnDef<FormattedSettlement>[]>(
     () => [
       {
-        accessorKey: "id",
-        header: "ID",
-        size: 80
-      },
-      {
-        accessorKey: "supplierName",
-        header: "Supplier",
-        cell: ({ row }) => row.original.supplier?.name || "N/A",
-        size: 200
-      },
-      {
-        accessorKey: "paymentMethod",
-        header: "Method",
-        size: 120,
-        cell: ({ row }) => <span className="capitalize">{String(row.original.paymentMethod).toLowerCase()}</span>
+        accessorKey: "referenceNumber",
+        header: "Reference #",
+        size: 150
       },
       {
         accessorKey: "paymentDate",
         header: "Date",
-        cell: ({ row }) => formatDate(row.original.paymentDate),
-        size: 150
-      },
-      {
-        accessorKey: "referenceNumber",
-        header: "Reference",
-        size: 150
+        cell: (info) => {
+          const row = info.row.original;
+          return row.formattedDate;
+        },
+        size: 120
       },
       {
         accessorKey: "amount",
         header: "Amount",
-        cell: ({ row }) => formatCurrency(row.original.amount),
+        cell: (info) => {
+          const row = info.row.original;
+          return row.formattedAmount;
+        },
         size: 120
+      },
+      {
+        accessorKey: "paymentMethod",
+        header: "Method",
+        cell: (info) => {
+          const row = info.row.original;
+          return row.formattedMethod;
+        },
+        size: 100
+      },
+      {
+        accessorKey: "notes",
+        header: "Notes",
+        size: 200
       }
     ],
     []
   );
 
-  const table = useReactTable({
-    data: settlements,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: {
-      pagination: {
-        pageSize: 10
+  // Memoize the table instance
+  const table = useMemo(() => 
+    useReactTable<FormattedSettlement>({
+      data: Array.isArray(formattedSettlements) ? formattedSettlements : [],
+      columns,
+      getCoreRowModel: getCoreRowModel(),
+      getPaginationRowModel: getPaginationRowModel(),
+      initialState: {
+        pagination: {
+          pageSize: 10
+        }
       }
-    }
-  });
+    }),
+    [formattedSettlements, columns]
+  );
+
+  // Memoize dialog content to prevent unnecessary re-renders
+  const dialogContent = useMemo(() => {
+    if (!supplierId) return null;
+    
+    return (
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>New Payment Settlement</DialogTitle>
+          {supplierName && <p className="text-sm text-muted-foreground">For {supplierName}</p>}
+        </DialogHeader>
+        <div className="py-4">
+          <SettlementForm 
+            key={supplierId} // Force re-mount when supplier changes
+            supplierId={Number(supplierId)} 
+            onSuccess={handleSuccess} 
+          />
+        </div>
+      </DialogContent>
+    );
+  }, [supplierId, supplierName, handleSuccess]);
 
   if (error) {
     return <div className="p-4 text-red-500">Error loading settlements: {error.message}</div>;
@@ -118,7 +189,11 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
           {supplierId ? "Payment Settlements" : "All Payment Settlements"}
           {supplierName && ` - ${supplierName}`}
         </h3>
-        <Button onClick={() => setIsDialogOpen(true)} disabled={!supplierId} title={!supplierId ? "Please select a supplier first" : ""}>
+        <Button 
+          onClick={() => setIsDialogOpen(true)} 
+          disabled={!supplierId} 
+          title={!supplierId ? "Please select a supplier first" : ""}
+        >
           <Plus className="mr-2 h-4 w-4" />
           New Settlement
         </Button>
@@ -133,38 +208,16 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
       />
 
       {supplierId && (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>New Payment Settlement</DialogTitle>
-              {supplierName && <p className="text-sm text-muted-foreground">For {supplierName}</p>}
-            </DialogHeader>
-            <div className="py-4">
-              <SettlementForm supplierId={Number(supplierId)} onSuccess={handleSuccess} />
-            </div>
-          </DialogContent>
+        <Dialog 
+          open={!!supplierId && isDialogOpen} 
+          onOpenChange={setIsDialogOpen}
+        >
+          {dialogContent}
         </Dialog>
       )}
     </div>
   );
 }
-
-// Format date for display
-const formatDate = (dateString: string) => {
-  try {
-    return format(new Date(dateString), "MMM d, yyyy");
-  } catch (error) {
-    return "Invalid date";
-  }
-};
-
-// Format currency for display
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD"
-  }).format(amount);
-};
 
 // Export the columns separately if needed elsewhere
 export const settlementColumns = [
