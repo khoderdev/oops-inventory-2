@@ -200,10 +200,8 @@ export const useSupplierForm = (initialData?: Partial<Supplier>) => {
     email: initialData?.email || "",
     phone: initialData?.phone || "",
     address: initialData?.address || "",
-    taxId: initialData?.taxId || "",
     paymentTerms: initialData?.paymentTerms || 30,
     creditLimit: initialData?.creditLimit || 0,
-    notes: initialData?.notes || ""
   });
 
   const updateField = (field: keyof CreateSupplierData, value: any) => {
@@ -220,10 +218,8 @@ export const useSupplierForm = (initialData?: Partial<Supplier>) => {
       email: "",
       phone: "",
       address: "",
-      taxId: "",
       paymentTerms: 30,
       creditLimit: 0,
-      notes: ""
     });
   };
 
@@ -242,7 +238,6 @@ export const useSettlementForm = () => {
     paymentMethod: "cash" as const,
     referenceNumber: "",
     paymentDate: new Date().toISOString().split("T")[0],
-    notes: "",
     invoiceIds: []
   });
 
@@ -259,7 +254,6 @@ export const useSettlementForm = () => {
       paymentMethod: "cash",
       referenceNumber: "",
       paymentDate: new Date().toISOString().split("T")[0],
-      notes: "",
       invoiceIds: []
     });
   };

@@ -309,14 +309,17 @@ const supplierController = {
     try {
       const { id } = req.params;
 
+      // For testing, return all invoices regardless of status
       const invoices = await SupplierInvoice.findAll({
         where: {
-          supplierId: id,
-          status: { [Op.in]: ["sent", "overdue", "partial"] }
+          supplierId: id
+          // Temporarily removed status filter for testing
+          // status: { [Op.in]: ["sent", "overdue", "partial"] }
         },
         order: [["dueDate", "ASC"]]
       });
 
+      console.log(`Found ${invoices.length} invoices for supplier ${id}:`, JSON.stringify(invoices, null, 2));
       res.status(200).json(invoices);
     } catch (err) {
       next(err);

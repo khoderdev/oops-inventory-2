@@ -29,6 +29,7 @@ export interface SupplierSettlement {
 }
 
 export interface SupplierInvoice {
+
   id: number;
   supplierId: number;
   invoiceNumber: string;
@@ -36,6 +37,7 @@ export interface SupplierInvoice {
   dueDate: string;
   totalAmount: number;
   paidAmount: number;
+  amountDue: string;
   status: "draft" | "sent" | "overdue" | "partial" | "paid" | "cancelled";
   createdAt: string;
   updatedAt: string;

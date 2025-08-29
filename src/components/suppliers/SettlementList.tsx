@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { TanStackTable } from "@/components/ui/TanStackTable";
-import { useSupplierSettlements } from "@/hooks/useSuppliers";
+import { useCreateSettlement, useOutstandingInvoices, useSupplierSettlements } from "@/hooks/useSuppliers";
 import { format } from "date-fns";
 import { Plus } from "lucide-react";
 import { useReactTable, getCoreRowModel, getPaginationRowModel, ColumnDef, Row } from "@tanstack/react-table";
@@ -42,17 +42,24 @@ const formatCurrency = (amount: number) => {
 
 export function SettlementList({ supplierId, supplierName, onSettlementCreated }: SettlementListProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | number | undefined>(supplierId);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const createSettlement = useCreateSettlement();
+
+  // Fetch outstanding invoices for the selected supplier
+  const { data: outstandingInvoices, refetch: refetchInvoices } = useOutstandingInvoices(selectedSupplierId?.toString() || "");
 
   const {
     data: response,
     isLoading,
     error,
     refetch
-  } = useSupplierSettlements(supplierId, {
+  } = useSupplierSettlements(supplierId || "", {
     page: 1,
     limit: 100,
-    ...(supplierId && { supplierId })
+    sortBy: "paymentDate",
+    sortOrder: "DESC"
   });
 
   // Memoize the formatted settlements data with proper null checks
@@ -61,33 +68,38 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
     if (!response?.data?.data || !Array.isArray(response.data.data)) {
       return [];
     }
-    
-    return response.data.data.map(settlement => {
-      // Add null checks for required fields
-      if (!settlement) return null;
-      
-      return {
-        ...settlement,
-        formattedDate: settlement.paymentDate ? formatDate(settlement.paymentDate) : 'N/A',
-        formattedAmount: typeof settlement.amount === 'number' ? formatCurrency(settlement.amount) : 'N/A',
-        formattedMethod: settlement.paymentMethod || 'N/A',
-        // Ensure all required SupplierSettlement properties are included with defaults
-        id: settlement.id || 0,
-        supplierId: settlement.supplierId || 0,
-        amount: typeof settlement.amount === 'number' ? settlement.amount : 0,
-        paymentDate: settlement.paymentDate || new Date().toISOString(),
-        paymentMethod: settlement.paymentMethod || 'N/A',
-        referenceNumber: settlement.referenceNumber || '',
-        createdAt: settlement.createdAt || new Date().toISOString(),
-        updatedAt: settlement.updatedAt || new Date().toISOString()
-      };
-    }).filter(Boolean) as FormattedSettlement[]; // Filter out any null entries
+
+    return response.data.data
+      .map(settlement => {
+        // Add null checks for required fields
+        if (!settlement) return null;
+
+        return {
+          ...settlement,
+          formattedDate: settlement.paymentDate ? formatDate(settlement.paymentDate) : "N/A",
+          formattedAmount: typeof settlement.amount === "number" ? formatCurrency(settlement.amount) : "N/A",
+          formattedMethod: settlement.paymentMethod || "N/A",
+          // Ensure all required SupplierSettlement properties are included with defaults
+          id: settlement.id || 0,
+          supplierId: settlement.supplierId || 0,
+          amount: typeof settlement.amount === "number" ? settlement.amount : 0,
+          paymentDate: settlement.paymentDate || new Date().toISOString(),
+          paymentMethod: settlement.paymentMethod || "N/A",
+          referenceNumber: settlement.referenceNumber || "",
+          createdAt: settlement.createdAt || new Date().toISOString(),
+          updatedAt: settlement.updatedAt || new Date().toISOString()
+        };
+      })
+      .filter(Boolean) as FormattedSettlement[]; // Filter out any null entries
   }, [response?.data?.data]);
 
   // Memoize the success handler
   const handleSuccess = useCallback(() => {
+    console.log("Settlement created successfully, refreshing data...");
     setIsDialogOpen(false);
-    refetch();
+    refetch().catch(err => {
+      console.error("Error refetching settlements:", err);
+    });
     onSettlementCreated?.();
     toast({
       title: "Success",
@@ -107,7 +119,7 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
       {
         accessorKey: "paymentDate",
         header: "Date",
-        cell: (info) => {
+        cell: info => {
           const row = info.row.original;
           return row.formattedDate;
         },
@@ -116,7 +128,7 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
       {
         accessorKey: "amount",
         header: "Amount",
-        cell: (info) => {
+        cell: info => {
           const row = info.row.original;
           return row.formattedAmount;
         },
@@ -125,7 +137,7 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
       {
         accessorKey: "paymentMethod",
         header: "Method",
-        cell: (info) => {
+        cell: info => {
           const row = info.row.original;
           return row.formattedMethod;
         },
@@ -141,7 +153,7 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
   );
 
   // Memoize the table instance
-  const tableData = useMemo(() => Array.isArray(formattedSettlements) ? formattedSettlements : [], [formattedSettlements]);
+  const tableData = useMemo(() => (Array.isArray(formattedSettlements) ? formattedSettlements : []), [formattedSettlements]);
   const table = useReactTable({
     data: tableData,
     columns,
@@ -154,26 +166,86 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
     }
   });
 
+  const handleSubmit = async (data: any) => {
+    try {
+      setIsSubmitting(true);
+      // Convert string values to numbers where needed
+      const submissionData = {
+        ...data,
+        amount: parseFloat(data.amount),
+        supplierId: Number(selectedSupplierId),
+        invoiceIds: data.invoiceIds?.map((id: string) => Number(id)) || []
+      };
+
+      await createSettlement.mutateAsync(submissionData);
+
+      toast({
+        title: "Success",
+        description: "Settlement created successfully",
+        variant: "default"
+      });
+
+      setIsDialogOpen(false);
+      refetch();
+      onSettlementCreated?.();
+    } catch (error) {
+      console.error("Error creating settlement:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create settlement",
+        variant: "destructive"
+      });
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDebugForm = () => {
+    console.log("=== Form Debug Info ===");
+    console.log("1. Selected supplier ID:", selectedSupplierId);
+    console.log("2. Outstanding invoices:", outstandingInvoices);
+  };
+
   // Memoize dialog content to prevent unnecessary re-renders
-  const dialogContent = useMemo(() => {
-    if (!supplierId) return null;
-    
-    return (
-      <DialogContent className="sm:max-w-[90vw]">
+  const dialogContent = useMemo(
+    () => (
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle>New Payment Settlement</DialogTitle>
-          {supplierName && <p className="text-sm text-muted-foreground">For {supplierName}</p>}
+          <DialogTitle>Record Supplier Payment</DialogTitle>
         </DialogHeader>
-        <div className="py-4">
-          <SettlementForm 
-            key={supplierId} 
-            supplierId={Number(supplierId)} 
-            onSuccess={handleSuccess} 
-          />
+        <SettlementForm
+          supplierId={supplierId}
+          selectedSupplierId={selectedSupplierId}
+          setSelectedSupplierId={setSelectedSupplierId}
+          onSubmit={handleSubmit}
+          onCancel={() => setIsDialogOpen(false)}
+          isSubmitting={isSubmitting}
+          debugForm={handleDebugForm}
+          outstandingInvoices={outstandingInvoices}
+          onSuccess={() => {
+            setIsDialogOpen(false);
+            handleSuccess();
+          }}
+        />
+
+        <div className="flex justify-end space-x-4 pt-4 border-t">
+          <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <div className="flex gap-2">
+            <Button type="submit" form="settlement-form" disabled={isSubmitting || !selectedSupplierId}>
+              {isSubmitting ? "Processing..." : "Record Payment"}
+            </Button>
+            <Button type="button" variant="outline" onClick={handleDebugForm}>
+              Debug Form
+            </Button>
+          </div>
         </div>
       </DialogContent>
-    );
-  }, [supplierId, supplierName, handleSuccess]);
+    ),
+    [supplierId, selectedSupplierId, handleSubmit, isSubmitting, handleDebugForm, outstandingInvoices, handleSuccess]
+  );
 
   if (error) {
     return <div className="p-4 text-red-500">Error loading settlements: {error.message}</div>;
@@ -191,17 +263,9 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">
-          {supplierId ? "Payment Settlements" : "All Payment Settlements"}
-          {supplierName && ` - ${supplierName}`}
-        </h3>
-        <Button 
-          onClick={() => setIsDialogOpen(true)} 
-          disabled={!supplierId} 
-          title={!supplierId ? "Please select a supplier first" : ""}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Settlement
+        <h2 className="text-2xl font-bold">Settlements{supplierName ? ` for ${supplierName}` : ""}</h2>
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" /> Add Settlement
         </Button>
       </div>
 
@@ -213,14 +277,9 @@ export function SettlementList({ supplierId, supplierName, onSettlementCreated }
         }}
       />
 
-      {supplierId && (
-        <Dialog 
-          open={!!supplierId && isDialogOpen} 
-          onOpenChange={setIsDialogOpen}
-        >
-          {dialogContent}
-        </Dialog>
-      )}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        {dialogContent}
+      </Dialog>
     </div>
   );
 }
