@@ -14,6 +14,8 @@ import { Plus, Minus, Calculator, Utensils, Info } from "lucide-react";
 import { SauceFormProps, Material, SauceFormData, SauceCalculationResult, SauceIngredient } from "@/types/inventory";
 import { SAUCE_CATEGORIES, SAUCE_UNITS, SauceFormInputs, sauceFormSchema } from "./constants";
 import { calculateSauceMetrics, autoUpdateSauceYield, calculateIngredientCostSmart } from "@/utils/conversionLogic";
+import { Selection } from "../ui/Selection";
+import { VirtualSelect } from "../ui/VirtualSelect";
 
 export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCancel }: SauceFormProps) {
   const [isCalculating, setIsCalculating] = useState(false);
@@ -321,7 +323,7 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calculator className="w-5 h-5" />
-                Smart Cost Analysis
+                Cost Analysis
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -394,52 +396,43 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="scroll-area">
+            {/* <ScrollArea className="scroll-area"> */}
               <div className="space-y-4">
                 {fields.map((field, index) => (
                   <div key={field.id} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
                     <div className="md:col-span-2">
                       <Label>Material *</Label>
-                      <Controller
-                        name={`baseIngredients.${index}.materialId`}
-                        control={form.control}
-                        render={({ field }) => (
-                          <Select
-                            value={field.value?.toString() || ""}
-                            onValueChange={value => {
-                              if (!value) return;
-                              field.onChange(value);
-                              requestAnimationFrame(() => {
-                                const material = materialsById.get(value);
-                                if (material) {
-                                  form.setValue(`baseIngredients.${index}.unit`, material.baseUnit, { shouldValidate: false });
-                                  const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
-                                  const unit = material.baseUnit;
-                                  if (quantity > 0) {
-                                    const smartCost = calculateIngredientCostSmart(value.toString(), quantity, unit, materialsWithStock);
-                                    form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
-                                  }
-                                }
+                      <VirtualSelect
+                        items={materialsWithStock.map(material => ({
+                          id: material.id,
+                          label: `${material.name} (${material.baseUnit})`
+                        }))}
+                        value={(() => {
+                          const materialId = form.getValues(`baseIngredients.${index}.materialId`);
+                          if (!materialId) return null;
+                          const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
+                          return material ? { id: material.id, label: `${material.name} (${material.baseUnit})` } : null;
+                        })()}
+                        onChange={value => {
+                          const material = materialsWithStock.find(m => m.id === value.id);
+                          if (material) {
+                            form.setValue(`baseIngredients.${index}.materialId`, material.id.toString());
+                            form.setValue(`baseIngredients.${index}.unit`, material.baseUnit, {
+                              shouldValidate: false
+                            });
+
+                            const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
+                            if (quantity > 0) {
+                              const smartCost = calculateIngredientCostSmart(material.id.toString(), quantity, material.baseUnit, materialsWithStock);
+                              form.setValue(`baseIngredients.${index}.cost`, smartCost, {
+                                shouldValidate: false
                               });
-                            }}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select material" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {materialsWithStock.map(material => (
-                                <SelectItem key={material.id} value={material.id.toString()}>
-                                  <div className="flex justify-between items-center w-full">
-                                    <span>
-                                      {material.name} ({material.baseUnit})
-                                    </span>
-                                    <span className={`text-xs ml-2 ${material.hasStock ? "text-green-600" : "text-red-500"}`}>{material.availableStock > 0 ? `${material.availableStock.toFixed(2)} available` : "No stock"}</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                            }
+                          }
+                        }}
+                        placeholder="Select material"
+                        height={200}
+                        rowHeight={40}
                       />
                     </div>
 
@@ -511,7 +504,7 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            {/* </ScrollArea> */}
           </CardContent>
         </Card>
 
