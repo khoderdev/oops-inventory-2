@@ -207,14 +207,14 @@ export async function generateSupplierPerformanceReport(stockEntries: StockEntry
 export async function generateExpiryAlertsReport(stockEntries: StockEntry[], materials: Material[]) {
   const report = reportGenerator.generateInventoryReport(materials, stockEntries);
   return report.expiryAlerts.map(alert => ({
-    material: alert.materialName,
-    supplier: alert.supplier,
-    expirydate: alert.expiryDate,
-    daysuntilexpiry: alert.daysUntilExpiry,
-    quantity: alert.quantity,
-    unit: alert.unit,
-    value: alert.value,
-    urgency: alert.urgency
+    'Material': alert.materialName,
+    'Supplier': alert.supplier,
+    'Expiry Date': alert.expiryDate ? format(new Date(alert.expiryDate), 'MMM d, yyyy') : 'N/A',
+    'Days Until Expiry': alert.daysUntilExpiry,
+    'Quantity': alert.quantity,
+    'Unit': alert.unit,
+    'Value': `$${Number(alert.value || 0).toFixed(2)}`,
+    'Urgency': alert.urgency
   }));
 }
 
