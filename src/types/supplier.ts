@@ -1,4 +1,6 @@
 export interface Supplier {
+  status: string;
+  settlements: SupplierSettlement[];
   id: number;
   name: string;
   contactPerson?: string;
@@ -64,7 +66,7 @@ export interface UpdateSupplierData extends CreateSupplierData {
 }
 
 export interface CreateSettlementData {
-  amount: number;
+  amount: string; // Changed to string to match backend DECIMAL(15,2) field
   paymentMethod: PaymentMethod;
   referenceNumber?: string;
   paymentDate?: string;

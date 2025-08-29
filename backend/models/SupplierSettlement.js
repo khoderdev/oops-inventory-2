@@ -29,7 +29,7 @@ const SupplierSettlement = sequelize.define(
     paymentMethod: {
       type: DataTypes.ENUM('cash', 'bank_transfer', 'check', 'digital_wallet', 'other'),
       allowNull: false,
-      defaultValue: 'bank_transfer'
+      defaultValue: 'cash'
     },
     referenceNumber: {
       type: DataTypes.STRING,

@@ -239,7 +239,7 @@ export function SupplierList() {
 
       {/* View Supplier Dialog */}
       <Dialog open={!!viewingSupplier} onOpenChange={(open) => !open && setViewingSupplier(null)}>
-        <DialogContent className="sm:max-w-[625px] max-h-[90vh] flex flex-col">
+        <DialogContent className="sm:max-w-[925px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <div className="flex items-center space-x-2">
               <Eye className="h-5 w-5 text-muted-foreground" />
@@ -254,7 +254,7 @@ export function SupplierList() {
 
       {/* Add/Edit Supplier Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[625px] flex flex-col max-h-[90vh]">
+        <DialogContent className="sm:max-w-[925px] flex flex-col max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>{editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}</DialogTitle>
           </DialogHeader>

@@ -21,6 +21,8 @@ import { EmployeeUsageView } from "./components/employees/EmployeeUsageView";
 import { PermissionsTest } from "./PermissionsTest";
 import { SupplierList } from "./components/suppliers/SupplierList";
 import { SettlementList } from "./components/suppliers/SettlementList";
+import SupplierManagement from "./components/supplier/SupplierManagement";
+import CreateSettlementForm from "./components/supplier/CreateSettlementForm";
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -239,7 +241,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     element={
                       <ProtectedRoute>
                         <AuthenticatedLayout pageTitle="Suppliers" showSearch={true} showNotifications={true}>
-                          <SupplierList />
+                          <SupplierManagement />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
                     }
@@ -249,7 +251,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     element={
                       <ProtectedRoute>
                         <AuthenticatedLayout pageTitle="Settlements" showSearch={true} showNotifications={true}>
-                          <SettlementList />
+                          <CreateSettlementForm />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
                     }

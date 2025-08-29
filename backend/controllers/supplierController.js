@@ -87,7 +87,7 @@ const supplierController = {
             {
               model: User,
               as: "processedBy",
-              attributes: ["id", "name", "email"]
+              attributes: ["id", "firstName", "lastName"]
             }
           ],
           attributes: ["id", "amount", "paymentMethod", "referenceNumber", "paymentDate", "status", "notes"]
@@ -233,16 +233,21 @@ const supplierController = {
         });
 
         for (const invoice of invoices) {
-          const remainingInvoiceAmount = invoice.totalAmount - invoice.paidAmount;
-          const amountToApply = Math.min(amount, remainingInvoiceAmount);
+          const total = parseFloat(invoice.totalAmount);
+          const paid = parseFloat(invoice.paidAmount);
+          const remainingInvoiceAmount = total - paid;
+
+          const amountToApply = Math.min(parseFloat(amount), remainingInvoiceAmount);
 
           if (amountToApply > 0) {
+            // Update the paid amount by adding the amount to apply to the current paid amount
+            const newPaidAmount = parseFloat(paid) + parseFloat(amountToApply);
             await invoice.update(
               {
-                paidAmount: sequelize.literal(`paidAmount + ${amountToApply}`),
-                status: invoice.totalAmount - (invoice.paidAmount + amountToApply) <= 0 ? "paid" : "partial"
+                paidAmount: newPaidAmount,
+                status: total - newPaidAmount <= 0 ? "paid" : "partial"
               },
-              { transaction: t }
+              { transaction: t, silent: true }
             );
           }
         }
@@ -331,13 +336,40 @@ const supplierController = {
     try {
       const { ids, isActive } = req.body;
 
-      if (!ids || !Array.isArray(ids) || ids.length === 0 || typeof isActive !== "boolean") {
-        return res.status(400).json({ error: "Invalid request format" });
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "No supplier IDs provided" });
       }
 
-      await Supplier.update({ isActive }, { where: { id: ids } });
+      const [updatedCount] = await Supplier.update(
+        { isActive },
+        { where: { id: { [Op.in]: ids } } }
+      );
 
-      res.status(200).json({ message: "Supplier status updated successfully" });
+      res.json({ updatedCount });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // Get supplier summary statistics
+  getSupplierSummary: async (req, res, next) => {
+    try {
+      const totalSuppliers = await Supplier.count();
+      const activeSuppliers = await Supplier.count({ where: { isActive: true } });
+      
+      // Get total account balance for all suppliers
+      const totalAccountBalance = await Supplier.sum('accountBalance');
+      
+      // Get total credit limit for all suppliers
+      const totalCreditLimit = await Supplier.sum('creditLimit');
+
+      res.json({
+        totalSuppliers,
+        activeSuppliers,
+        inactiveSuppliers: totalSuppliers - activeSuppliers,
+        totalAccountBalance: parseFloat(totalAccountBalance || 0).toFixed(2),
+        totalCreditLimit: parseFloat(totalCreditLimit || 0).toFixed(2)
+      });
     } catch (err) {
       next(err);
     }

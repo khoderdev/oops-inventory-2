@@ -59,8 +59,20 @@ export const supplierAPI = {
 
   // Get outstanding invoices for a supplier
   getOutstandingInvoices: async (supplierId: string | number): Promise<SupplierInvoice[]> => {
-    const response = await api.get<SupplierInvoice[]>(`/suppliers/${supplierId}/invoices/outstanding`);
-    return response.data;
+    try {
+      console.log(`[supplierAPI] Fetching outstanding invoices for supplier ${supplierId}`);
+      const response = await api.get<SupplierInvoice[]>(`/suppliers/${supplierId}/invoices/outstanding`);
+      console.log(`[supplierAPI] Successfully fetched ${response.data?.length || 0} invoices`);
+      return response.data || [];
+    } catch (error: any) {
+      console.error(`[supplierAPI] Error fetching outstanding invoices for supplier ${supplierId}:`, {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      });
+      throw error; // Re-throw to be handled by the query
+    }
   },
 
   // Bulk update supplier status

@@ -44,19 +44,40 @@ export function SettlementList({ supplierId, supplierName }: { supplierId?: stri
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   const createSettlement = useCreateSettlement();
-  const { data: outstandingInvoices, refetch: refetchInvoices, isLoading: isLoadingInvoices } = useOutstandingInvoices(supplierId ? supplierId.toString() : "");
+  
+  console.log("[SettlementList] Rendering with supplierId:", supplierId);
+  
+  const { 
+    data: outstandingInvoices, 
+    refetch: refetchInvoices, 
+    isLoading: isLoadingInvoices,
+    error: invoicesError 
+  } = useOutstandingInvoices(supplierId ? supplierId.toString() : "");
+  
+  console.log("[SettlementList] Outstanding invoices data:", {
+    data: outstandingInvoices,
+    isLoading: isLoadingInvoices,
+    error: invoicesError
+  });
+  
   const {
     data: response,
     isLoading,
-    refetch
+    refetch,
+    error: settlementsError
   } = useSupplierSettlements(supplierId || "", {
     page: 1,
     limit: 100,
     sortBy: "paymentDate",
     sortOrder: "DESC"
   });
-
-  console.log("Outstanding Invoices:", outstandingInvoices);
+  
+  if (invoicesError) {
+    console.error("[SettlementList] Error loading outstanding invoices:", invoicesError);
+  }
+  if (settlementsError) {
+    console.error("[SettlementList] Error loading settlements:", settlementsError);
+  }
 
   const formattedSettlements = useMemo<FormattedSettlement[]>(() => {
     if (!response?.data?.data) return [];

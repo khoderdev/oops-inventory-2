@@ -154,9 +154,21 @@ export const useCreateSettlement = () => {
 export const useOutstandingInvoices = (supplierId: number | string) => {
   return useQuery({
     queryKey: supplierKeys.outstandingInvoices(supplierId),
-    queryFn: () => supplierAPI.getOutstandingInvoices(supplierId),
+    queryFn: async () => {
+      try {
+        console.log(`[useOutstandingInvoices] Fetching outstanding invoices for supplier ${supplierId}...`);
+        const data = await supplierAPI.getOutstandingInvoices(supplierId);
+        console.log(`[useOutstandingInvoices] Successfully fetched ${data?.length || 0} invoices`);
+        return data || [];
+      } catch (error) {
+        console.error(`[useOutstandingInvoices] Error fetching invoices for supplier ${supplierId}:`, error);
+        return []; // Return empty array instead of throwing to prevent UI errors
+      }
+    },
     enabled: !!supplierId,
-    staleTime: 1 * 60 * 1000 // 1 minute
+    staleTime: 1 * 60 * 1000, // 1 minute
+    retry: 2,
+    refetchOnWindowFocus: false
   });
 };
 
@@ -201,7 +213,7 @@ export const useSupplierForm = (initialData?: Partial<Supplier>) => {
     phone: initialData?.phone || "",
     address: initialData?.address || "",
     paymentTerms: initialData?.paymentTerms || 30,
-    creditLimit: initialData?.creditLimit || 0,
+    creditLimit: initialData?.creditLimit || 0
   });
 
   const updateField = (field: keyof CreateSupplierData, value: any) => {
@@ -219,7 +231,7 @@ export const useSupplierForm = (initialData?: Partial<Supplier>) => {
       phone: "",
       address: "",
       paymentTerms: 30,
-      creditLimit: 0,
+      creditLimit: 0
     });
   };
 
@@ -237,14 +249,17 @@ export const useSettlementForm = () => {
     amount: 0,
     paymentMethod: "cash" as const,
     referenceNumber: "",
-    paymentDate: new Date().toISOString().split("T")[0],
+    paymentDate: new Date().toISOString().split("T")[0], // YYYY-MM-DD
     invoiceIds: []
   });
 
-  const updateField = (field: keyof CreateSettlementData, value: any) => {
+  const updateField = <K extends keyof CreateSettlementData>(
+    field: K,
+    value: CreateSettlementData[K] | ((prev: CreateSettlementData[K]) => CreateSettlementData[K])
+  ) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: typeof value === 'function' ? value(prev[field]) : value
     }));
   };
 
@@ -258,10 +273,34 @@ export const useSettlementForm = () => {
     });
   };
 
+  /** Prepares the payload for backend submission */
+  const getPayloadForSubmit = (): CreateSettlementData => {
+    // Ensure amount is a number and handle any potential string inputs
+    const amount = typeof formData.amount === 'string' 
+      ? parseFloat(formData.amount) || 0
+      : formData.amount;
+      
+    // Ensure paymentDate is a valid date string
+    const paymentDate = formData.paymentDate 
+      ? new Date(formData.paymentDate).toISOString() 
+      : new Date().toISOString();
+      
+    return {
+      ...formData,
+      amount, // Send as number for backend validation
+      paymentDate,
+      // Ensure invoiceIds is always an array of numbers
+      invoiceIds: Array.isArray(formData.invoiceIds) 
+        ? formData.invoiceIds.map(id => Number(id)) 
+        : []
+    };
+  };
+
   return {
     formData,
     updateField,
     resetForm,
-    setFormData
+    setFormData,
+    getPayloadForSubmit
   };
 };
