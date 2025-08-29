@@ -345,6 +345,11 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
   const handleMaterialSelect = useCallback(
     (itemId: string, itemName?: string) => {
       console.log("Item selected:", { itemId, itemName });
+      console.log("handleMaterialSelect called with:", {
+        itemId,
+        itemName,
+        allSelectableItems: allSelectableItems.map(item => ({ id: item.id, name: item.name, type: item.type }))
+      });
       setSelectedMaterialId(itemId);
       setMaterialSearchTerm(itemName || "");
 
@@ -449,8 +454,27 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
           placeholder={availableItems.length === 0 ? "All items used" : "Search items..."}
           noResultsText={`No items found matching "{searchTerm}"`}
           inputRef={materialSelectRef}
+          // itemRenderer={({ item, onSelect }) => (
+          //   <button key={item.id} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(item.id, item.name)} onMouseDown={e => e.preventDefault()}>
+          //     <div className="font-medium">{item.name}</div>
+          //     <div className="text-sm text-muted-foreground">{item.type === "sauce" ? "Sauce" : "Material"}</div>
+          //   </button>
+          // )}
           itemRenderer={({ item, onSelect }) => (
-            <button key={item.id} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(item.id, item.name)} onMouseDown={e => e.preventDefault()}>
+            <button
+              key={item.id}
+              type="button"
+              className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0"
+              onClick={() => {
+                console.log("Item clicked in dropdown:", {
+                  id: item.id,
+                  name: item.name,
+                  type: item.type
+                });
+                onSelect(item.id, item.name);
+              }}
+              onMouseDown={e => e.preventDefault()}
+            >
               <div className="font-medium">{item.name}</div>
               <div className="text-sm text-muted-foreground">{item.type === "sauce" ? "Sauce" : "Material"}</div>
             </button>
