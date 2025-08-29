@@ -1,10 +1,17 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal, Eye, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import type { Supplier } from "@/types/supplier";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const columns: ColumnDef<Supplier>[] = [
   {
@@ -94,15 +101,46 @@ id: "updatedAt",
   },
   {
     id: "actions",
-    cell: ({ row }) => (
-      <div className="flex justify-end">
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/suppliers/${row.original.id}`}>
-            <span className="sr-only">View supplier details</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Link>
-        </Button>
-      </div>
-    ),
+    cell: ({ row, table }) => {
+      const supplier = row.original;
+      const meta = table.options.meta as any;
+      
+      return (
+        <div className="flex justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-8 w-8 p-0">
+                <span className="sr-only">Open menu</span>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem
+                onClick={() => meta?.onView?.(supplier)}
+                className="cursor-pointer"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                <span>View</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => meta?.onEdit?.(supplier)}
+                className="cursor-pointer"
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                <span>Edit</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => meta?.onDelete?.(supplier)}
+                className="cursor-pointer text-red-600 hover:!text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Delete</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      );
+    },
   },
 ];

@@ -1,28 +1,31 @@
-import { useState, useMemo} from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Eye } from "lucide-react";
 import { columns } from "./columns/supplier-columns";
 import { TanStackTable } from "../../components/ui/TanStackTable";
 import { useReactTable, getCoreRowModel, getPaginationRowModel } from "@tanstack/react-table";
 import type { Supplier } from "@/types/supplier";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SupplierForm } from "./SupplierForm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supplierAPI } from "@/api/supplier.api";
 import type { CreateSupplierData, UpdateSupplierData } from "@/types/supplier";
+import { format } from "date-fns";
+import { Badge } from "../ui/badge";
+import { toast } from "@/hooks/use-toast";
 
 export function SupplierList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [viewingSupplier, setViewingSupplier] = useState<Supplier | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [deletingSupplier, setDeletingSupplier] = useState<Supplier | null>(null);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10
   });
 
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const createMutation = useMutation({
@@ -32,6 +35,7 @@ export function SupplierList() {
       toast({
         title: "Success",
         description: "Supplier created successfully",
+        duration: 1000,
       });
     },
   });
@@ -43,9 +47,31 @@ export function SupplierList() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      setEditingSupplier(null);
       toast({
         title: "Success",
         description: "Supplier updated successfully",
+        duration: 1000,
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => supplierAPI.deleteSupplier(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      setDeletingSupplier(null);
+      toast({
+        title: "Success",
+        description: "Supplier deleted successfully",
+        duration: 1000,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to delete supplier",
+        variant: "destructive",
       });
     },
   });
@@ -69,9 +95,29 @@ export function SupplierList() {
         title: "Error",
         description: "An error occurred while saving the supplier.",
         variant: "destructive",
+        duration: 1000,
       });
     }
   };
+
+  const handleView = useCallback((supplier: Supplier) => {
+    setViewingSupplier(supplier);
+  }, []);
+
+  const handleEdit = useCallback((supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setIsDialogOpen(true);
+  }, []);
+
+  const handleDelete = useCallback((supplier: Supplier) => {
+    setDeletingSupplier(supplier);
+  }, []);
+
+  const confirmDelete = useCallback(() => {
+    if (deletingSupplier?.id) {
+      deleteMutation.mutate(deletingSupplier.id);
+    }
+  }, [deletingSupplier, deleteMutation]);
 
   // Use the paginated query
   const { data, isLoading, isError, refetch } = useQuery({
@@ -121,9 +167,11 @@ export function SupplierList() {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     manualPagination: true,
-    debugTable: true,
-    debugHeaders: true,
-    debugColumns: true,
+    meta: {
+      onView: handleView,
+      onEdit: handleEdit,
+      onDelete: handleDelete,
+    },
   });
 
   if (isError) {
@@ -139,11 +187,6 @@ export function SupplierList() {
     setIsDialogOpen(false);
     setEditingSupplier(null);
     refetch();
-  };
-
-  const handleEdit = (supplier: Supplier) => {
-    setEditingSupplier(supplier);
-    setIsDialogOpen(true);
   };
 
   const handleAddNew = () => {
@@ -189,10 +232,97 @@ export function SupplierList() {
           loading={isLoading} 
           className="w-full"
           emptyMessage={isError ? "Error loading suppliers" : "No suppliers found"}
-          onRowClick={(row) => handleEdit(row.original as Supplier)}
+          // onRowClick={(row) => handleEdit(row.original as Supplier)}
         />
       </div>
 
+      {/* View Supplier Dialog */}
+      <Dialog open={!!viewingSupplier} onOpenChange={(open) => !open && setViewingSupplier(null)}>
+        <DialogContent className="sm:max-w-[625px]">
+          <DialogHeader>
+            <div className="flex items-center space-x-2">
+              <Eye className="h-5 w-5 text-muted-foreground" />
+              <DialogTitle>Supplier Details</DialogTitle>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {viewingSupplier && (
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-medium">{viewingSupplier.name}</h3>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-muted-foreground">
+                      {viewingSupplier.contactPerson || 'No contact person'}
+                    </span>
+                    {viewingSupplier.isActive ? (
+                      <Badge variant="default">Active</Badge>
+                    ) : (
+                      <Badge variant="secondary">Inactive</Badge>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Email</p>
+                    <p className="text-sm">{viewingSupplier.email || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Phone</p>
+                    <p className="text-sm">{viewingSupplier.phone || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Tax ID</p>
+                    <p className="text-sm">{viewingSupplier.taxId || '-'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Payment Terms</p>
+                    <p className="text-sm">{viewingSupplier.paymentTerms ? `${viewingSupplier.paymentTerms} days` : '-'}</p>
+                  </div>
+                </div>
+
+                {viewingSupplier.address && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Address</p>
+                    <p className="text-sm whitespace-pre-line">{viewingSupplier.address}</p>
+                  </div>
+                )}
+
+                {viewingSupplier.notes && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Notes</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line">
+                      {viewingSupplier.notes}
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex justify-between pt-4 border-t">
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Created: {viewingSupplier.createdAt ? format(new Date(viewingSupplier.createdAt), 'PPpp') : 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Last Updated: {viewingSupplier.updatedAt ? format(new Date(viewingSupplier.updatedAt), 'PPpp') : 'N/A'}
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setEditingSupplier(viewingSupplier);
+                      setViewingSupplier(null);
+                    }}
+                  >
+                    Edit Supplier
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add/Edit Supplier Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[625px]">
           <DialogHeader>
@@ -210,6 +340,34 @@ export function SupplierList() {
                 }}
               />
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingSupplier} onOpenChange={(open) => !open && setDeletingSupplier(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Supplier</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold">{deletingSupplier?.name}</span>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeletingSupplier(null)}
+              disabled={deleteMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDelete}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
