@@ -281,7 +281,7 @@ const supplierController = {
           {
             model: User,
             as: "processedBy",
-            attributes: ["id", "name", "email"]
+            attributes: ["id", "firstName", "lastName"]
           }
         ]
       };

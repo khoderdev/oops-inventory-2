@@ -9,7 +9,7 @@ export function SupplierSummary() {
   if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
+        {[1, 2, 3, 4].map(i => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-[100px]" />
@@ -32,7 +32,7 @@ export function SupplierSummary() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "USD"
     }).format(amount);
   };
 
@@ -41,26 +41,26 @@ export function SupplierSummary() {
       title: "Total Suppliers",
       value: summary.totalSuppliers,
       description: `${summary.activeSuppliers} active, ${summary.inactiveSuppliers} inactive`,
-      icon: Users,
+      icon: Users
     },
     {
       title: "Total Outstanding",
       value: formatCurrency(summary.totalOutstandingBalance),
       description: "Across all suppliers",
-      icon: DollarSign,
+      icon: DollarSign
     },
     {
       title: "Avg. Days to Pay",
       value: summary.avgDaysToPay.toFixed(1),
       description: "Average payment period",
-      icon: CreditCard,
+      icon: CreditCard
     },
     {
       title: "Active Contracts",
       value: summary.activeContracts,
       description: "With active agreements",
-      icon: Activity,
-    },
+      icon: Activity
+    }
   ];
 
   return (

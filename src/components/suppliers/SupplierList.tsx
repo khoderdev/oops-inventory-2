@@ -14,6 +14,7 @@ import type { CreateSupplierData, UpdateSupplierData } from "@/types/supplier";
 import { format } from "date-fns";
 import { Badge } from "../ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { SupplierDetail } from "./SupplierDetail";
 
 export function SupplierList() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -196,15 +197,8 @@ export function SupplierList() {
   
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 p-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Suppliers</h2>
-        <Button onClick={handleAddNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Supplier
-        </Button>
-      </div>
-
       <div className="relative">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input 
@@ -215,6 +209,13 @@ export function SupplierList() {
           onChange={e => setSearchTerm(e.target.value)} 
         />
       </div>
+        <Button onClick={handleAddNew}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Supplier
+        </Button>
+      </div>
+
+     
 
       <div className="border rounded-md p-4">
         <div className="mb-4 text-sm text-gray-500">
@@ -238,72 +239,15 @@ export function SupplierList() {
 
       {/* View Supplier Dialog */}
       <Dialog open={!!viewingSupplier} onOpenChange={(open) => !open && setViewingSupplier(null)}>
-        <DialogContent className="sm:max-w-[625px]">
+        <DialogContent className="sm:max-w-[625px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <div className="flex items-center space-x-2">
               <Eye className="h-5 w-5 text-muted-foreground" />
               <DialogTitle>Supplier Details</DialogTitle>
             </div>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            {viewingSupplier && (
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-medium">{viewingSupplier.name}</h3>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-muted-foreground">
-                      {viewingSupplier.contactPerson || 'No contact person'}
-                    </span>
-                    {viewingSupplier.isActive ? (
-                      <Badge variant="default">Active</Badge>
-                    ) : (
-                      <Badge variant="secondary">Inactive</Badge>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Email</p>
-                    <p className="text-sm">{viewingSupplier.email || '-'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Phone</p>
-                    <p className="text-sm">{viewingSupplier.phone || '-'}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Payment Terms</p>
-                    <p className="text-sm">{viewingSupplier.paymentTerms ? `${viewingSupplier.paymentTerms} days` : '-'}</p>
-                  </div>
-                </div>
-
-                {viewingSupplier.address && (
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">Address</p>
-                    <p className="text-sm whitespace-pre-line">{viewingSupplier.address}</p>
-                  </div>
-                )}
-                <div className="flex justify-between pt-4 border-t">
-                  <div>
-                    <p className="text-xs text-muted-foreground">
-                      Created: {viewingSupplier.createdAt ? format(new Date(viewingSupplier.createdAt), 'PPpp') : 'N/A'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Last Updated: {viewingSupplier.updatedAt ? format(new Date(viewingSupplier.updatedAt), 'PPpp') : 'N/A'}
-                    </p>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setEditingSupplier(viewingSupplier);
-                      setViewingSupplier(null);
-                    }}
-                  >
-                    Edit Supplier
-                  </Button>
-                </div>
-              </div>
-            )}
+          <div className="flex-1 overflow-y-auto">
+            {viewingSupplier && <SupplierDetail supplier={viewingSupplier} />}
           </div>
         </DialogContent>
       </Dialog>

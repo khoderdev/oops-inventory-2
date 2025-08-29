@@ -1,27 +1,35 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { useSupplier } from "@/hooks/useSuppliers";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
-import { Pencil, ArrowLeft, DollarSign, FileText, Calendar, CreditCard, AlertCircle } from "lucide-react";
+import { Pencil, ArrowLeft, DollarSign, Calendar, CreditCard, AlertCircle } from "lucide-react";
 import { SettlementList } from "./SettlementList";
 import { OutstandingInvoices } from "./OutstandingInvoices";
 
-export function SupplierDetail() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+interface SupplierDetailProps {
+  supplier: {
+    id: string | number;
+    name: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+    isActive: boolean;
+    paymentTerms?: number;
+    creditLimit?: number;
+    createdAt: string;
+  };
+}
 
-  const {
-    data: supplier,
-    isLoading,
-    isError
-  } = useSupplier(id || "", {
-    includeInvoices: true,
-    includeSettlements: true
-  });
+export function SupplierDetail({ supplier }: SupplierDetailProps) {
+  const navigate = useNavigate();
+  const isLoading = false;
+  const isError = false;
+  
+  // Debug: Log the creditLimit value and type
+  console.log('creditLimit value:', supplier.creditLimit, 'type:', typeof supplier.creditLimit);
 
   if (isLoading) {
     return (
@@ -92,7 +100,7 @@ export function SupplierDetail() {
               </div>
               <div className="flex items-center">
                 <DollarSign className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span>Credit Limit: ${supplier.creditLimit?.toFixed(2)}</span>
+                <span>Credit Limit: ${typeof supplier.creditLimit === 'number' ? supplier.creditLimit.toFixed(2) : '0.00'}</span>
               </div>
             </div>
           </CardContent>
@@ -104,10 +112,6 @@ export function SupplierDetail() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <div className="flex items-center">
-                <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Tax ID: {supplier.taxId || "N/A"}</span>
-              </div>
               <div className="flex items-center">
                 <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">Member since {format(new Date(supplier.createdAt), "MMM d, yyyy")}</span>

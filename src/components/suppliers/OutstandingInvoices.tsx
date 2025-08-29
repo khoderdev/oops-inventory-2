@@ -1,76 +1,109 @@
-import { DataTable } from "@/components/ui/data-table";
-import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useOutstandingInvoices } from "@/hooks/useSuppliers";
 import { Link } from "react-router-dom";
-import { DollarSign, FileText, Calendar as CalendarIcon } from "lucide-react";
+import { DollarSign, FileText } from "lucide-react";
+import { useMemo } from "react";
+import { useReactTable, getCoreRowModel, createColumnHelper, ColumnDef } from "@tanstack/react-table";
+import { TanStackTable } from "@/components/ui/TanStackTable";
+
+interface SupplierInvoice {
+  id: string | number;
+  invoiceNumber: string;
+  issueDate: string;
+  dueDate: string;
+  totalAmount: string;
+  amountPaid: string;
+  amountDue: string;
+  supplierId?: string | number;
+  status?: string;
+}
+
+const columnHelper = createColumnHelper<SupplierInvoice>();
 
 export function OutstandingInvoices({ supplierId }: { supplierId: string | number }) {
-  const { data: outstandingInvoices, isLoading } = useOutstandingInvoices(supplierId);
+  const { data: outstandingInvoices = [], isLoading } = useOutstandingInvoices(supplierId);
 
-  const columns = [
+  const columns = useMemo<ColumnDef<SupplierInvoice>[]>(() => [
     {
       accessorKey: "invoiceNumber",
       header: "Invoice #",
-      cell: ({ row }: any) => (
+      cell: (info) => (
         <div className="flex items-center">
           <FileText className="mr-2 h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{row.original.invoiceNumber}</span>
+          <span className="font-medium">{info.getValue() as string}</span>
         </div>
       ),
+      size: 150,
     },
     {
       accessorKey: "issueDate",
       header: "Issued",
-      cell: ({ row }: any) => format(new Date(row.original.issueDate), "MMM d, yyyy"),
+      cell: (info) => format(new Date(info.getValue() as string), "MMM d, yyyy"),
+      size: 120,
     },
     {
       accessorKey: "dueDate",
       header: "Due",
-      cell: ({ row }: any) => format(new Date(row.original.dueDate), "MMM d, yyyy"),
+      cell: (info) => format(new Date(info.getValue() as string), "MMM d, yyyy"),
+      size: 120,
     },
     {
       accessorKey: "totalAmount",
       header: "Total",
-      cell: ({ row }: any) => (
+      cell: (info) => (
         <div className="font-medium">
           {new Intl.NumberFormat("en-US", {
             style: "currency",
             currency: "USD",
-          }).format(parseFloat(row.original.totalAmount))}
+          }).format(parseFloat(info.getValue() as string))}
         </div>
       ),
+      size: 120,
     },
     {
       accessorKey: "amountPaid",
       header: "Paid",
-      cell: ({ row }: any) =>
+      cell: (info) =>
         new Intl.NumberFormat("en-US", {
           style: "currency",
           currency: "USD",
-        }).format(parseFloat(row.original.amountPaid || 0)),
+        }).format(parseFloat((info.getValue() as string) || "0")),
+      size: 120,
     },
     {
       accessorKey: "amountDue",
       header: "Balance",
-      cell: ({ row }: any) => (
+      cell: (info) => (
         <div className="font-medium">
           {new Intl.NumberFormat("en-US", {
             style: "currency",
             currency: "USD",
-          }).format(parseFloat(row.original.amountDue))}
+          }).format(parseFloat(info.getValue() as string))}
         </div>
       ),
+      size: 120,
     },
     {
       id: "actions",
-      cell: ({ row }: any) => (
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/invoices/${row.original.id}`}>View</Link>
-        </Button>
+      cell: ({ row }) => (
+        <div className="flex justify-end">
+          <Link
+            to={`/invoices/${row.original.id}`}
+            className="text-sm font-medium text-primary hover:underline"
+          >
+            View
+          </Link>
+        </div>
       ),
+      size: 80,
     },
-  ];
+  ], []);
+
+  const table = useReactTable({
+    data: outstandingInvoices,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -92,22 +125,32 @@ export function OutstandingInvoices({ supplierId }: { supplierId: string | numbe
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">Outstanding Invoices</h3>
-        <Button asChild>
-          <Link to={`/suppliers/${supplierId}/settlements/new`}>
-            Record Payment
-          </Link>
-        </Button>
+        <Link
+          to={`/suppliers/${supplierId}/settlements/new`}
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+        >
+          Record Payment
+        </Link>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={outstandingInvoices}
-        isLoading={isLoading}
-        pagination={{
-          pageIndex: 0,
-          pageSize: 10,
+      <TanStackTable
+        table={table}
+        emptyMessage="No outstanding invoices found"
+        maxHeight="calc(100vh - 300px)"
+        stickyHeader
+        showSortIcons
+        customHeaderAlignment={{
+          totalAmount: "right",
+          amountPaid: "right",
+          amountDue: "right",
+          actions: "right"
         }}
-        onPaginationChange={() => {}}
+        customCellAlignment={{
+          totalAmount: "right",
+          amountPaid: "right",
+          amountDue: "right",
+          actions: "right"
+        }}
       />
     </div>
   );
