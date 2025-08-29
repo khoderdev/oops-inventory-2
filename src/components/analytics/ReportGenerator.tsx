@@ -35,7 +35,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
   const [dateToOpen, setDateToOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | "all">("all");
   const [categories, setCategories] = useState<string[]>([]);
-  const [categoryAnalysisView, setCategoryAnalysisView] = useState<"materials" | "sales">("materials");
+  const [categoryAnalysisView, setCategoryAnalysisView] = useState<"materials" | "sales">("sales");
   const [categoryAnalysisData, setCategoryAnalysisData] = useState<{
     materials: Record<string, unknown>[];
     sales: Record<string, unknown>[];
@@ -54,7 +54,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     setDateToOpen(false);
     setSelectedCategory("all");
     setCategories([]);
-    setCategoryAnalysisView("materials");
+    setCategoryAnalysisView("sales");
     setCategoryAnalysisData({ materials: [], sales: [] });
     setAllSalesData([]);
     setAllMenuItems([]);
@@ -221,7 +221,8 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
           const materialsAnalysis = await generateCategoryAnalysisReport(materials, filteredData?.stockEntries || []);
           const salesAnalysis = await generateCategorySalesAnalysisReport(salesDataForAnalysis);
           setCategoryAnalysisData({ materials: materialsAnalysis, sales: salesAnalysis });
-          reportResults = materialsAnalysis;
+          // Default to showing sales data first
+          reportResults = salesAnalysis;
           break;
         }
         case "menu-profitability":
@@ -277,7 +278,7 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     setSelectedCategory("all");
     setReportData([]);
     setHasGenerated(false);
-    setCategoryAnalysisView("materials");
+    setCategoryAnalysisView("sales");
     setCategoryAnalysisData({ materials: [], sales: [] });
 
     toast({

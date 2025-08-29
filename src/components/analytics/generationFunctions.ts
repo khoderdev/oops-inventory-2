@@ -218,7 +218,7 @@ export async function generateExpiryAlertsReport(stockEntries: StockEntry[], mat
   }));
 }
 
-export async function generateCategoryAnalysisReport(materials: Material[], stockEntries: StockEntry[]) {
+export async function generateCategoryAnalysisReport(materials: Material[], stockEntries: StockEntry[], salesData?: SaleRecord[]) {
   const report = reportGenerator.generateInventoryReport(materials, stockEntries);
   
   // Calculate total value across all categories
@@ -226,18 +226,38 @@ export async function generateCategoryAnalysisReport(materials: Material[], stoc
     (sum, category) => sum + (Number(category.totalValue) || 0), 0
   );
 
+  // Process sales data if available
+  let salesByCategory: Record<string, { salesCount: number; salesVolume: number }> = {};
+  
+  if (salesData && salesData.length > 0) {
+    salesData.forEach(sale => {
+      if (sale.menuItems) {
+        sale.menuItems.forEach(menuItem => {
+          // Get the category from the menu item's category or use 'Uncategorized' as fallback
+          const category = (menuItem as any).category || 'Uncategorized';
+          if (!salesByCategory[category]) {
+            salesByCategory[category] = { salesCount: 0, salesVolume: 0 };
+          }
+          salesByCategory[category].salesCount += menuItem.quantity || 0;
+          salesByCategory[category].salesVolume += menuItem.totalPrice || 0;
+        });
+      }
+    });
+  }
+
   return report.categoryBreakdown.map(category => {
     const categoryTotal = Number(category.totalValue) || 0;
     const percentage = totalValue > 0 ? (categoryTotal / totalValue) * 100 : 0;
+    const salesData = salesByCategory[category.category] || { salesCount: 0, salesVolume: 0 };
     
     return {
       Category: category.category,
+      "Sales Count": salesData.salesCount,
+      "Sales Volume": salesData.salesVolume,
       "Materials Count": category.materialCount,
       "Total Value": categoryTotal,
       "Avg Value": Number(category.averageValue) || 0,
-      "Percentage": parseFloat(percentage.toFixed(2)),
-      "Purchase Volume": Math.floor(Math.random() * 1000),
-      "Sales Volume": Math.floor(Math.random() * 800)
+      "Percentage": parseFloat(percentage.toFixed(2))
     };
   });
 }
