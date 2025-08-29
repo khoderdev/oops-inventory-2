@@ -2,12 +2,13 @@ import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, ChefHat } from "lucide-react";
+import { Plus, ChefHat, Trash2 } from "lucide-react";
 import { SauceTable } from "./SauceTable";
 import { SauceForm } from "./SauceForm";
 import { saucesAPI } from "@/api/sauces.api";
 import { Sauce, SauceManagementProps, SauceFormData, CreateSauceData, UpdateSauceData } from "@/types/inventory";
 import { toast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export function SauceManagement({ materials, stockEntries, onRefresh }: SauceManagementProps) {
   const [sauces, setSauces] = useState<Sauce[]>([]);
@@ -15,6 +16,8 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
   const [showSauceForm, setShowSauceForm] = useState(false);
   const [selectedSauce, setSelectedSauce] = useState<Sauce | null>(null);
   const [, setOperationLoading] = useState<Record<string, boolean>>({});
+  const [selectedSauceIds, setSelectedSauceIds] = useState<string[]>([]);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
   const fetchSauces = useCallback(async () => {
     setLoading(true);
@@ -74,14 +77,14 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
           toast({
             title: "Updated",
             description: `${data.name} updated successfully`,
-            duration: 2000
+            duration: 1000
           });
         } else {
           await saucesAPI.createSauce(sauceData as CreateSauceData);
           toast({
             title: "Created",
             description: `${data.name} created successfully`,
-            duration: 2000
+            duration: 1000
           });
         }
         await fetchSauces();
@@ -170,17 +173,9 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
     async (sauce: Sauce) => {
       const operationKey = `toggle-pos-${sauce.id}`;
       setOperationLoading(prev => ({ ...prev, [operationKey]: true }));
-
       try {
         await saucesAPI.togglePOSVisibility(sauce.id, !sauce.isPOSItem);
         await fetchSauces();
-
-        toast({
-          title: "Updated",
-          description: `${sauce.name} ${!sauce.isPOSItem ? "added to" : "removed from"} POS`,
-          duration: 2000
-        });
-
         if (onRefresh) {
           onRefresh();
         }
@@ -211,6 +206,28 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
     setSelectedSauce(null);
   }, []);
 
+  // Handle selection change from child component
+  const handleSelectionChange = useCallback((selectedIds: string[]) => {
+    setSelectedSauceIds(selectedIds);
+  }, []);
+
+  const handleBulkDelete = () => {
+    if (selectedSauceIds.length === 0) {
+      return;
+    }
+    setBulkDeleteDialogOpen(true);
+  };
+
+  const confirmBulkDelete = useCallback(async () => {
+    try {
+      await handleBulkDeleteSauces(selectedSauceIds);
+      setSelectedSauceIds([]);
+      setBulkDeleteDialogOpen(false);
+    } catch (error) {
+      console.error("Error during bulk delete:", error);
+    }
+  }, [selectedSauceIds, handleBulkDeleteSauces]);
+
   return (
     <div className="h-full flex flex-col space-y-6 p-6">
       {/* Header with Statistics */}
@@ -222,16 +239,40 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
           </h1>
           <p className="text-gray-600 mt-1">Create and manage sauce recipes from your inventory materials</p>
         </div>
-        <Button onClick={handleCreateSauce} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Create New Sauce
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedSauceIds.length > 0 && (
+            <Button onClick={handleBulkDelete} variant="destructive" size="sm">
+              <Trash2 className="w-4 h-4 mr-1" />
+              Delete Selected ({selectedSauceIds.length})
+            </Button>
+          )}
+          <Button onClick={handleCreateSauce} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Create New Sauce
+          </Button>
+        </div>
       </div>
 
       {/* Sauce Table */}
       <div className="flex-1 overflow-">
-        <SauceTable sauces={sauces} materials={materials} onEditSauce={handleEditSauce} onDeleteSauce={handleDeleteSauce} onBulkDelete={handleBulkDeleteSauces} onTogglePOSVisibility={handleTogglePOSVisibility} />
+        <SauceTable sauces={sauces} materials={materials} onEditSauce={handleEditSauce} onDeleteSauce={handleDeleteSauce} onBulkDelete={handleBulkDeleteSauces} onTogglePOSVisibility={handleTogglePOSVisibility} onSelectionChange={handleSelectionChange} />
       </div>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Multiple Sauces</AlertDialogTitle>
+            <AlertDialogDescription>Are you sure you want to delete {selectedSauceIds.length} selected sauce(s)? This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkDelete} className="bg-red-600 hover:bg-red-700">
+              Delete All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Sauce Form Dialog */}
       <Dialog open={showSauceForm} onOpenChange={setShowSauceForm} modal={true}>

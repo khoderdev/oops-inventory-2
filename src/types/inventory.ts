@@ -1096,6 +1096,7 @@ export interface DailyReportsProps {
 //-----------------------------------------------------------------------------
 
 export interface Sauce {
+  isSelected: boolean;
   ingredients: SauceIngredient[];
   id: string;
   name: string;

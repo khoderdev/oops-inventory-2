@@ -1,22 +1,28 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ColumnDef, flexRender, getCoreRowModel, useReactTable, getSortedRowModel, SortingState, getFilteredRowModel } from "@tanstack/react-table";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MoreHorizontal, Edit, Trash2, Eye, EyeOff, ChefHat } from "lucide-react";
 import { Sauce, SauceTableProps } from "@/types/inventory";
 import { toast } from "@/hooks/use-toast";
 
-export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, onTogglePOSVisibility }: SauceTableProps) {
+export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onTogglePOSVisibility, onSelectionChange }: SauceTableProps & { onSelectionChange?: (selectedIds: string[]) => void }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sauceToDelete, setSauceToDelete] = useState<Sauce | null>(null);
-  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+
+  useEffect(() => {
+    if (onSelectionChange) {
+      const selectedIds = table.getFilteredSelectedRowModel().rows.map(row => row.original.id);
+      onSelectionChange(selectedIds);
+    }
+  }, [rowSelection, onSelectionChange]);
 
   const columns: ColumnDef<Sauce>[] = [
     {
@@ -62,7 +68,7 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
       header: "Total Qty",
       cell: ({ row }) => {
         const sauce = row.original;
-        const isLowYield = sauce.yieldQuantity < 10; // Consider yield low if less than 10 units
+        const isLowYield = sauce.yieldQuantity < 10;
         return (
           <span className={`font-medium ${isLowYield ? "text-red-600 font-semibold" : ""}`}>
             {sauce.yieldQuantity} {sauce.unit}
@@ -178,31 +184,6 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
   });
 
   const selectedRows = table.getFilteredSelectedRowModel().rows;
-  const selectedSauceIds = selectedRows.map(row => row.original.id);
-
-  const handleBulkDelete = () => {
-    if (selectedSauceIds.length === 0) {
-      toast({
-        title: "No Selection",
-        description: "Please select sauces to delete",
-        variant: "destructive",
-        duration: 2000
-      });
-      return;
-    }
-    setBulkDeleteDialogOpen(true);
-  };
-
-  const confirmBulkDelete = () => {
-    onBulkDelete(selectedSauceIds);
-    setRowSelection({});
-    setBulkDeleteDialogOpen(false);
-    toast({
-      title: "Deleted",
-      description: `${selectedSauceIds.length} sauce(s) deleted successfully`,
-      duration: 2000
-    });
-  };
 
   const confirmDelete = () => {
     if (sauceToDelete) {
@@ -212,7 +193,7 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
       toast({
         title: "Deleted",
         description: `${sauceToDelete.name} deleted successfully`,
-        duration: 2000
+        duration: 1000
       });
     }
   };
@@ -220,21 +201,6 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
   return (
     <div className="space-y-4">
       {/* Header with filters and actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {selectedSauceIds.length > 0 && (
-                <Button onClick={handleBulkDelete} variant="destructive" size="sm">
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete Selected ({selectedSauceIds.length})
-                </Button>
-              )}
-            </div>
-          </CardTitle>
-        </CardHeader>
-      </Card>
-
       <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="rounded-md border">
@@ -301,22 +267,6 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
               Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Bulk Delete Confirmation Dialog */}
-      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Multiple Sauces</AlertDialogTitle>
-            <AlertDialogDescription>Are you sure you want to delete {selectedSauceIds.length} selected sauce(s)? This action cannot be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmBulkDelete} className="bg-red-600 hover:bg-red-700">
-              Delete All
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
