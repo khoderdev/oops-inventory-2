@@ -415,25 +415,40 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                           // Clear the field properly
                           form.setValue(`baseIngredients.${index}.materialId`, "");
                           form.setValue(`baseIngredients.${index}.unit`, "");
-                          form.setValue(`baseIngredients.${index}.cost`, 0, { shouldValidate: false });
+                          form.setValue(`baseIngredients.${index}.cost`, 0, { shouldValidate: true });
+
+                          // Update the ingredients array to trigger sauce metrics calculation
+                          const currentIngredients = [...form.getValues("baseIngredients")];
+                          currentIngredients[index] = {
+                            ...currentIngredients[index],
+                            materialId: "",
+                            unit: "",
+                            cost: 0
+                          };
+                          form.setValue("baseIngredients", currentIngredients, { shouldValidate: true });
                           return;
                         }
 
-                        // Otherwise handle material selection
+                        // Handle material selection
                         const material = materialsWithStock.find(m => m.id === value.id);
                         if (material) {
-                          form.setValue(`baseIngredients.${index}.materialId`, material.id.toString());
-                          form.setValue(`baseIngredients.${index}.unit`, material.baseUnit, {
-                            shouldValidate: false
-                          });
-
                           const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
-                          if (quantity > 0) {
-                            const smartCost = calculateIngredientCostSmart(material.id.toString(), quantity, material.baseUnit, materialsWithStock);
-                            form.setValue(`baseIngredients.${index}.cost`, smartCost, {
-                              shouldValidate: false
-                            });
-                          }
+                          const smartCost = quantity > 0 ? calculateIngredientCostSmart(material.id.toString(), quantity, material.baseUnit, materialsWithStock) : 0;
+
+                          // Update all fields at once
+                          const currentIngredients = [...form.getValues("baseIngredients")];
+                          currentIngredients[index] = {
+                            ...currentIngredients[index],
+                            materialId: material.id.toString(),
+                            unit: material.baseUnit,
+                            cost: smartCost,
+                            quantity: quantity
+                          };
+
+                          form.setValue(`baseIngredients.${index}.materialId`, material.id.toString(), { shouldValidate: true });
+                          form.setValue(`baseIngredients.${index}.unit`, material.baseUnit, { shouldValidate: true });
+                          form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: true });
+                          form.setValue("baseIngredients", currentIngredients, { shouldValidate: true });
                         }
                       }}
                       placeholder="Select item"
@@ -457,13 +472,28 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                           onChange={e => {
                             const quantity = parseFloat(e.target.value) || 0;
                             field.onChange(quantity);
+
                             const materialId = form.getValues(`baseIngredients.${index}.materialId`);
                             const unit = form.getValues(`baseIngredients.${index}.unit`);
-                            if (materialId && quantity > 0 && unit) {
+
+                            if (materialId && unit) {
                               const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
                               if (material) {
                                 const cost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
+
+                                // Update the ingredients array to trigger sauce metrics calculation
+                                const currentIngredients = [...form.getValues("baseIngredients")];
+                                currentIngredients[index] = {
+                                  ...currentIngredients[index],
+                                  quantity,
+                                  cost,
+                                  materialId,
+                                  unit
+                                };
+
+                                // Update both the specific field and the entire array
                                 form.setValue(`baseIngredients.${index}.cost`, cost, { shouldValidate: true });
+                                form.setValue("baseIngredients", currentIngredients, { shouldValidate: true });
                               }
                             }
                           }}
@@ -485,11 +515,29 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
                           onChange={e => {
                             const unit = e.target.value;
                             field.onChange(unit);
+
                             const materialId = form.getValues(`baseIngredients.${index}.materialId`);
                             const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
-                            if (materialId && quantity > 0 && unit) {
-                              const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
-                              form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
+
+                            if (materialId && quantity > 0) {
+                              const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
+                              if (material) {
+                                const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
+
+                                // Update the ingredients array to trigger sauce metrics calculation
+                                const currentIngredients = [...form.getValues("baseIngredients")];
+                                currentIngredients[index] = {
+                                  ...currentIngredients[index],
+                                  unit,
+                                  cost: smartCost,
+                                  materialId,
+                                  quantity
+                                };
+
+                                // Update both the specific field and the entire array
+                                form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: true });
+                                form.setValue("baseIngredients", currentIngredients, { shouldValidate: true });
+                              }
                             }
                           }}
                         />
