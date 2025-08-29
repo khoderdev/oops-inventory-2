@@ -150,8 +150,8 @@ export function MenuItemForm({ menuItem, stockEntries, categories, sauces, onSub
   }, [menuItem]);
 
   const handleImageChange = useCallback((imageValue: string | undefined, file?: File) => {
-    setImage(imageValue);
-    setImageFile(file);
+    setImage(imageValue || undefined); // Ensure undefined is set when image is removed
+    setImageFile(file || undefined); // Clear the file when image is removed
   }, []);
 
   const handleSubmit = useCallback(() => {
@@ -186,21 +186,30 @@ export function MenuItemForm({ menuItem, stockEntries, categories, sauces, onSub
       }
     });
 
-    const submitData = {
+    // Create the submit data object
+    const submitData: any = {
       name: name.trim(),
       category: selectedCategory,
       price: Number(price),
-      ingredients: submitIngredients, // single array with materials or sauces
+      ingredients: submitIngredients,
       isPOSItem,
-      image,
-      imageFile,
       unit: "",
       availableQuantity: 0,
       costPerUnit: 0
     };
 
+    // Only include image and imageFile if image exists
+    if (image) {
+      submitData.image = image;
+      submitData.imageFile = imageFile;
+    } else {
+      // Explicitly set to null to remove the image
+      submitData.image = null;
+      submitData.imageFile = null;
+    }
+
     onSubmit(submitData);
-  }, [ingredients, name, category, price, isPOSItem, image, categories, onSubmit]);
+  }, [ingredients, name, category, price, isPOSItem, image, categories, onSubmit, imageFile, validateForm]);
 
   const handleCancel = useCallback(() => {
     onCancel();

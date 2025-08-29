@@ -423,9 +423,16 @@ const menuItemsController = {
 
       // --- Handle image ---
       let imageUrl = menuItem.image;
-      if (req.file) imageUrl = `/uploads/menu/${req.file.filename}`;
-      else if (imageBase64 && imageBase64.startsWith("data:image/")) imageUrl = imageBase64;
-      else if (image) imageUrl = image;
+      if (image === null || image === '') {
+        // Explicitly set to null to remove the image
+        imageUrl = null;
+      } else if (req.file) {
+        imageUrl = `/uploads/menu/${req.file.filename}`;
+      } else if (imageBase64 && imageBase64.startsWith("data:image/")) {
+        imageUrl = imageBase64;
+      } else if (image) {
+        imageUrl = image;
+      }
 
       // --- Update MenuItem ---
       await menuItem.update(
