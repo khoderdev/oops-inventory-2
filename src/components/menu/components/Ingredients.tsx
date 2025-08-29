@@ -24,9 +24,23 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
   const ingredientsInputSectionRef = useRef<HTMLDivElement>(null);
 
   // Combine materials and sauces into a single array for selection
+  // const allSelectableItems = useMemo(() => {
+  //   const materialItems = (materials || []).map(m => ({ ...m, type: "material", id: m.id.toString() }));
+  //   const sauceItems = (sauces || []).map(s => ({ ...s, type: "sauce", id: s.id.toString() }));
+  //   return [...materialItems, ...sauceItems];
+  // }, [materials, sauces]);
+
   const allSelectableItems = useMemo(() => {
-    const materialItems = (materials || []).map(m => ({ ...m, type: "material", id: m.id.toString() }));
-    const sauceItems = (sauces || []).map(s => ({ ...s, type: "sauce", id: s.id.toString() }));
+    const materialItems = (materials || []).map(m => ({
+      ...m,
+      type: "material",
+      id: `material-${m.id}` // Add prefix
+    }));
+    const sauceItems = (sauces || []).map(s => ({
+      ...s,
+      type: "sauce",
+      id: `sauce-${s.id}` // Add prefix
+    }));
     return [...materialItems, ...sauceItems];
   }, [materials, sauces]);
 
@@ -64,11 +78,24 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
 
   const filteredItems = useMemo(() => {
     if (!materialSearchTerm.trim()) {
-      console.log("Available items (no search term):", availableItems);
+      console.log(
+        "Available items:",
+        availableItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          type: item.type
+        }))
+      );
       return availableItems;
     }
+
     const result = availableItems.filter(item => item.name.toLowerCase().includes(materialSearchTerm.toLowerCase()));
-    console.log("Filtered items for search term:", materialSearchTerm, result);
+
+    console.log(
+      "Search results for '" + materialSearchTerm + "':",
+      result.map(item => ({ id: item.id, name: item.name, type: item.type }))
+    );
+
     return result;
   }, [availableItems, materialSearchTerm]);
 
@@ -342,43 +369,43 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     [ingredients, onIngredientsChange]
   );
 
-  const handleMaterialSelect = useCallback(
-    (itemId: string, itemName?: string) => {
-      console.log("Item selected:", { itemId, itemName });
-      console.log("handleMaterialSelect called with:", {
-        itemId,
-        itemName,
-        allSelectableItems: allSelectableItems.map(item => ({ id: item.id, name: item.name, type: item.type }))
-      });
-      setSelectedMaterialId(itemId);
-      setMaterialSearchTerm(itemName || "");
+  // const handleMaterialSelect = useCallback(
+  //   (itemId: string, itemName?: string) => {
+  //     console.log("Item selected:", { itemId, itemName });
+  //     console.log("handleMaterialSelect called with:", {
+  //       itemId,
+  //       itemName,
+  //       allSelectableItems: allSelectableItems.map(item => ({ id: item.id, name: item.name, type: item.type }))
+  //     });
+  //     setSelectedMaterialId(itemId);
+  //     setMaterialSearchTerm(itemName || "");
 
-      // Check if this is a sauce by looking for it in the sauces array
-      const isSauce = sauces.some(sauce => sauce.id.toString() === itemId);
+  //     // Check if this is a sauce by looking for it in the sauces array
+  //     const isSauce = sauces.some(sauce => sauce.id.toString() === itemId);
 
-      if (isSauce) {
-        console.log("Selected item is a sauce");
-        setSelectedItemType("sauce");
-        const sauce = sauces.find(s => s.id.toString() === itemId);
-        if (sauce) {
-          setIngredientUnit(sauce.unit);
-          console.log("Sauce unit set to:", sauce.unit);
-        }
-      } else {
-        console.log("Selected item is a material");
-        setSelectedItemType("material");
-        const material = (materials || []).find(m => String(m.id) === itemId);
-        if (material) {
-          setIngredientUnit(material.baseUnit);
-          console.log("Material base unit set to:", material.baseUnit);
-        } else {
-          setIngredientUnit("");
-          console.log("Material not found, unit cleared");
-        }
-      }
-    },
-    [materials, sauces]
-  );
+  //     if (isSauce) {
+  //       console.log("Selected item is a sauce");
+  //       setSelectedItemType("sauce");
+  //       const sauce = sauces.find(s => s.id.toString() === itemId);
+  //       if (sauce) {
+  //         setIngredientUnit(sauce.unit);
+  //         console.log("Sauce unit set to:", sauce.unit);
+  //       }
+  //     } else {
+  //       console.log("Selected item is a material");
+  //       setSelectedItemType("material");
+  //       const material = (materials || []).find(m => String(m.id) === itemId);
+  //       if (material) {
+  //         setIngredientUnit(material.baseUnit);
+  //         console.log("Material base unit set to:", material.baseUnit);
+  //       } else {
+  //         setIngredientUnit("");
+  //         console.log("Material not found, unit cleared");
+  //       }
+  //     }
+  //   },
+  //   [materials, sauces]
+  // );
   // const handleMaterialSelect = useCallback(
   //   (itemId: string, itemName?: string) => {
   //     setSelectedMaterialId(itemId);
@@ -406,12 +433,59 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
   //   [materials, sauces]
   // );
 
+  const handleMaterialSelect = useCallback(
+    (itemId: string, itemName?: string) => {
+      console.log("Item selected with prefixed ID:", itemId);
+
+      // Extract the actual ID by removing the prefix
+      let actualId = itemId;
+      let type = "material";
+
+      if (itemId.startsWith("material-")) {
+        actualId = itemId.replace("material-", "");
+        type = "material";
+      } else if (itemId.startsWith("sauce-")) {
+        actualId = itemId.replace("sauce-", "");
+        type = "sauce";
+      }
+
+      setSelectedMaterialId(actualId);
+      setSelectedItemType(type as "material" | "sauce");
+      setMaterialSearchTerm(itemName || "");
+
+      if (type === "sauce") {
+        const sauce = sauces.find(s => String(s.id) === actualId);
+        if (sauce) {
+          setIngredientUnit(sauce.unit);
+        }
+      } else {
+        const material = (materials || []).find(m => String(m.id) === actualId);
+        if (material) {
+          setIngredientUnit(material.baseUnit);
+        } else {
+          setIngredientUnit("");
+        }
+      }
+    },
+    [materials, sauces]
+  );
+
   const handleMaterialSearchChange = useCallback((value: string) => {
     setMaterialSearchTerm(value);
     setSelectedMaterialId("");
     setSelectedItemType("material");
     setIngredientUnit("");
   }, []);
+
+  useEffect(() => {
+    const materialIds = (materials || []).map(m => String(m.id));
+    const sauceIds = (sauces || []).map(s => String(s.id));
+
+    const duplicateIds = materialIds.filter(id => sauceIds.includes(id));
+    if (duplicateIds.length > 0) {
+      console.warn("ID conflicts between materials and sauces:", duplicateIds);
+    }
+  }, [materials, sauces]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
