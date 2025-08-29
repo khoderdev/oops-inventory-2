@@ -22,7 +22,7 @@ import { PermissionsTest } from "./PermissionsTest";
 import { SupplierList } from "./components/suppliers/SupplierList";
 import { SettlementList } from "./components/suppliers/SettlementList";
 import SupplierManagement from "./components/supplier/SupplierManagement";
-import CreateSettlementForm from "./components/supplier/CreateSettlementForm";
+import SupplierSettlementsPage from "./pages/SupplierSettlementsPage";
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -251,7 +251,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     element={
                       <ProtectedRoute>
                         <AuthenticatedLayout pageTitle="Settlements" showSearch={true} showNotifications={true}>
-                          <CreateSettlementForm />
+                          <SupplierSettlementsPage />
                         </AuthenticatedLayout>
                       </ProtectedRoute>
                     }
