@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { MenuItem, MenuItemCategory } from "@/types/inventory";
+import { MenuItem, MenuItemCategory, StockEntry } from "@/types/inventory";
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
 import { Input } from "../ui/input";
@@ -17,6 +17,7 @@ import { useBeveragesMenuColumns } from "./components/BeveragesMenuColumns";
 
 const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const { fetchTabData } = useInventoryStore();
+  const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
   const [showBeverageItemForm, setShowBeverageItemForm] = useState(false);
@@ -97,6 +98,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
 
   // Handlers
   const handleEditBeverageItem = useCallback((menuItem: MenuItem) => {
+    console.log('Editing menu item:', menuItem);
     setEditingBeverageItem(menuItem);
     setShowBeverageItemForm(true);
   }, []);
@@ -110,6 +112,49 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
     setShowBeverageItemForm(false);
     setEditingBeverageItem(null);
   }, []);
+
+  const handleUpdateBeverageItem = useCallback(
+    async (id: string, data: any) => {
+      try {
+        // Ensure categoryId is included in the update data
+        let categoryId = data.categoryId;
+        
+        if (!categoryId && editingBeverageItem?.category) {
+          const category = editingBeverageItem.category;
+          if (typeof category === 'object' && category !== null) {
+            categoryId = (category as any)?.id || (category as any)?._id;
+          } else {
+            categoryId = category;
+          }
+        }
+        
+        const updateData = {
+          ...data,
+          categoryId: categoryId
+        };
+        
+        console.log('Updating menu item with data:', { id, updateData });
+        await onUpdateBeverageItem(id, updateData);
+        
+        toast({
+          title: "Success",
+          description: "Beverage item updated successfully",
+          variant: "default",
+          duration: 1000
+        });
+        handleCloseModal();
+      } catch (error) {
+        console.error("Error updating beverage item:", error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to update beverage item",
+          variant: "destructive",
+          duration: 1000
+        });
+      }
+    },
+    [onUpdateBeverageItem, editingBeverageItem, handleCloseModal]
+  );
 
   const handleDeleteBeverageItem = useCallback(
     (id: string) => {
@@ -263,13 +308,11 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
               onOpenChange={handleCloseModal}
               editingBeverageItem={editingBeverageItem}
               categories={beverageCategories}
+              stockEntries={stockEntries}
               onSubmit={
                 editingBeverageItem
-                  ? data => {
-                      onUpdateBeverageItem(editingBeverageItem.id, data);
-                      handleCloseModal();
-                    }
-                  : data => {
+                  ? (data) => handleUpdateBeverageItem(editingBeverageItem.id, data)
+                  : (data) => {
                       onCreateBeverageItem(data);
                       handleCloseModal();
                     }

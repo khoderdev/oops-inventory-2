@@ -13,7 +13,26 @@ import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient, Menu
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, materials = [], stockEntries = [], onSubmit, onCancel, enableVariants = false }) => {
   const [name, setName] = useState(menuItem?.name || "");
-  const [categoryId, setCategoryId] = useState<string>(typeof menuItem?.category === "object" && menuItem.category !== null && "id" in menuItem.category ? String(menuItem.category.id) : "");
+  const [categoryId, setCategoryId] = useState<string>(() => {
+    if (!menuItem?.category) return "";
+    
+    // Handle case where category is already an ID
+    if (typeof menuItem.category === 'string') {
+      return menuItem.category;
+    }
+    
+    // Handle case where category is an object with id
+    if (typeof menuItem.category === 'object' && menuItem.category !== null) {
+      if ('id' in menuItem.category) {
+        return String(menuItem.category.id);
+      }
+      if ('_id' in menuItem.category) {
+        return String(menuItem.category._id);
+      }
+    }
+    
+    return "";
+  });
   const [price, setPrice] = useState(menuItem?.price?.toString() || "");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
@@ -64,14 +83,40 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       setCategoryId("");
       return;
     }
-    if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
-      setCategoryId(String(menuItem.category.id));
-    } else if (typeof menuItem.category === "string") {
-      const categoryObj = categories.find(cat => cat.name === menuItem.category);
-      if (categoryObj) {
-        setCategoryId(String(categoryObj.id));
+
+    // If category is already an ID
+    if (typeof menuItem.category === 'string') {
+      setCategoryId(menuItem.category);
+      return;
+    }
+
+    // If category is an object
+    if (typeof menuItem.category === 'object' && menuItem.category !== null) {
+      // Try to find by id
+      if ('id' in menuItem.category) {
+        setCategoryId(String(menuItem.category.id));
+        return;
+      }
+      // Try to find by _id
+      if ('_id' in menuItem.category) {
+        setCategoryId(String(menuItem.category._id));
+        return;
+      }
+      // Try to find by name
+      if ('name' in menuItem.category) {
+        const categoryObj = categories.find(cat => 
+          cat.name === menuItem.category?.name || 
+          cat.id === (menuItem.category as any).id
+        );
+        if (categoryObj) {
+          setCategoryId(String(categoryObj.id));
+          return;
+        }
       }
     }
+
+    // If we get here, we couldn't determine the category
+    setCategoryId("");
   }, [menuItem?.category, categories]);
 
   useEffect(() => {
@@ -108,18 +153,32 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     validateForm();
   }, [name, categoryId, price, validateForm]);
 
-  // Initialize form data when editing existing menu item
+  // Initialize form data when editing existing menu item or when beverageStockEntries changes
   useEffect(() => {
     if (menuItem) {
+      console.log('Initializing form with menuItem:', menuItem);
       setName(menuItem.name || "");
       setPrice(menuItem.price?.toString() || "");
       setIsPOSItem(menuItem.isPOSItem ?? true);
       setImage(menuItem.image);
-      if (menuItem.isBeverage && beverageStockEntries.length > 0) {
-        const matchingStock = beverageStockEntries.find(entry => String(entry.id) === String(menuItem.isBeverage));
-        if (matchingStock) {
-          setSelectedBeverageStock(matchingStock);
-          setBeverageSearchTerm(matchingStock.material?.name || "");
+      
+      // Handle beverage stock selection
+      if (menuItem.isBeverage) {
+        if (beverageStockEntries.length > 0) {
+          const matchingStock = beverageStockEntries.find(entry => 
+            String(entry.id) === String(menuItem.isBeverage) ||
+            entry.material?.name?.toLowerCase() === menuItem.name?.toLowerCase()
+          );
+          
+          if (matchingStock) {
+            console.log('Found matching stock entry:', matchingStock);
+            setSelectedBeverageStock(matchingStock);
+            setBeverageSearchTerm(matchingStock.material?.name || "");
+          } else {
+            console.log('No matching stock entry found for beverage:', menuItem.isBeverage);
+          }
+        } else {
+          console.log('No beverage stock entries loaded yet');
         }
       }
       if (menuItem.menuItemIngredients && Array.isArray(menuItem.menuItemIngredients)) {
@@ -203,7 +262,11 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   }, []);
 
   const handleSubmit = useCallback(() => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      console.log('Form validation failed');
+      return;
+    }
+    
     const selectedCategoryObj = categories.find(cat => cat.id === categoryId);
     if (!selectedCategoryObj && categoryId) {
       toast({
@@ -213,11 +276,15 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       });
       return;
     }
+    
+    console.log('Submitting form with category:', selectedCategoryObj);
 
     // Prepare form data matching BeverageItemFormProps.onSubmit signature
     const formData: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
       imageFile?: File;
+      id?: string | number; // Add id for updates
     } = {
+      ...(menuItem?.id && { id: menuItem.id }), // Include ID for updates
       name,
       category: selectedCategoryObj
         ? {
