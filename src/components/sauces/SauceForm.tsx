@@ -9,12 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, Minus, Calculator, Utensils, Info } from "lucide-react";
 import { SauceFormProps, Material, SauceFormData, SauceCalculationResult, SauceIngredient } from "@/types/inventory";
 import { SAUCE_CATEGORIES, SAUCE_UNITS, SauceFormInputs, sauceFormSchema } from "./constants";
 import { calculateSauceMetrics, autoUpdateSauceYield, calculateIngredientCostSmart } from "@/utils/conversionLogic";
-import { Selection } from "../ui/Selection";
 import { VirtualSelect } from "../ui/VirtualSelect";
 
 export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCancel }: SauceFormProps) {
@@ -396,115 +394,122 @@ export function SauceForm({ sauce, materials, stockEntries = [], onSubmit, onCan
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {/* <ScrollArea className="scroll-area"> */}
-              <div className="space-y-4">
-                {fields.map((field, index) => (
-                  <div key={field.id} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
-                    <div className="md:col-span-2">
-                      <Label>Material *</Label>
-                      <VirtualSelect
-                        items={materialsWithStock.map(material => ({
-                          id: material.id,
-                          label: `${material.name} (${material.baseUnit})`
-                        }))}
-                        value={(() => {
-                          const materialId = form.getValues(`baseIngredients.${index}.materialId`);
-                          if (!materialId) return null;
-                          const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
-                          return material ? { id: material.id, label: `${material.name} (${material.baseUnit})` } : null;
-                        })()}
-                        onChange={value => {
-                          const material = materialsWithStock.find(m => m.id === value.id);
-                          if (material) {
-                            form.setValue(`baseIngredients.${index}.materialId`, material.id.toString());
-                            form.setValue(`baseIngredients.${index}.unit`, material.baseUnit, {
+            <div className="space-y-4">
+              {fields.map((field, index) => (
+                <div key={field.id} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 border rounded-lg">
+                  <div className="md:col-span-2">
+                    <Label>Ingredient *</Label>
+                    <VirtualSelect
+                      items={materialsWithStock.map(material => ({
+                        id: material.id,
+                        label: `${material.name} (${material.baseUnit})`
+                      }))}
+                      value={(() => {
+                        const materialId = form.getValues(`baseIngredients.${index}.materialId`);
+                        if (!materialId) return null;
+                        const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
+                        return material ? { id: material.id, label: `${material.name} (${material.baseUnit})` } : null;
+                      })()}
+                      onChange={value => {
+                        if (!value) {
+                          // Clear the field properly
+                          form.setValue(`baseIngredients.${index}.materialId`, "");
+                          form.setValue(`baseIngredients.${index}.unit`, "");
+                          form.setValue(`baseIngredients.${index}.cost`, 0, { shouldValidate: false });
+                          return;
+                        }
+
+                        // Otherwise handle material selection
+                        const material = materialsWithStock.find(m => m.id === value.id);
+                        if (material) {
+                          form.setValue(`baseIngredients.${index}.materialId`, material.id.toString());
+                          form.setValue(`baseIngredients.${index}.unit`, material.baseUnit, {
+                            shouldValidate: false
+                          });
+
+                          const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
+                          if (quantity > 0) {
+                            const smartCost = calculateIngredientCostSmart(material.id.toString(), quantity, material.baseUnit, materialsWithStock);
+                            form.setValue(`baseIngredients.${index}.cost`, smartCost, {
                               shouldValidate: false
                             });
-
-                            const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
-                            if (quantity > 0) {
-                              const smartCost = calculateIngredientCostSmart(material.id.toString(), quantity, material.baseUnit, materialsWithStock);
-                              form.setValue(`baseIngredients.${index}.cost`, smartCost, {
-                                shouldValidate: false
-                              });
-                            }
                           }
-                        }}
-                        placeholder="Select material"
-                        height={200}
-                        rowHeight={40}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Quantity *</Label>
-                      <Controller
-                        control={form.control}
-                        name={`baseIngredients.${index}.quantity`}
-                        render={({ field }) => (
-                          <Input
-                            type="number"
-                            step="0.001"
-                            placeholder="0"
-                            className="mt-1"
-                            value={field.value || ""}
-                            onChange={e => {
-                              const quantity = parseFloat(e.target.value) || 0;
-                              field.onChange(quantity);
-                              const materialId = form.getValues(`baseIngredients.${index}.materialId`);
-                              const unit = form.getValues(`baseIngredients.${index}.unit`);
-                              if (materialId && quantity > 0 && unit) {
-                                const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
-                                if (material) {
-                                  const cost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
-                                  form.setValue(`baseIngredients.${index}.cost`, cost, { shouldValidate: true });
-                                }
-                              }
-                            }}
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Unit *</Label>
-                      <Controller
-                        control={form.control}
-                        name={`baseIngredients.${index}.unit`}
-                        render={({ field }) => (
-                          <Input
-                            placeholder="g"
-                            className="mt-1"
-                            value={field.value || ""}
-                            onChange={e => {
-                              const unit = e.target.value;
-                              field.onChange(unit);
-                              const materialId = form.getValues(`baseIngredients.${index}.materialId`);
-                              const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
-                              if (materialId && quantity > 0 && unit) {
-                                const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
-                                form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
-                              }
-                            }}
-                          />
-                        )}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Cost</Label>
-                      <Input type="number" step="0.01" {...form.register(`baseIngredients.${index}.cost`, { valueAsNumber: true })} placeholder="0.00" className="mt-1" readOnly />
-                    </div>
-
-                    <div className="flex items-end justify-center">
-                      <Button className="!bg-transparent !border-none !hover:bg-transparent !hover:border-none" onClick={() => removeIngredient(index)} disabled={fields.length <= 1}>
-                        <Minus className="!w-6 !h-6 cursor-pointer text-red-500" />
-                      </Button>
-                    </div>
+                        }
+                      }}
+                      placeholder="Select item"
+                      height={200}
+                      rowHeight={40}
+                    />
                   </div>
-                ))}
-              </div>
-            {/* </ScrollArea> */}
+
+                  <div>
+                    <Label>Quantity *</Label>
+                    <Controller
+                      control={form.control}
+                      name={`baseIngredients.${index}.quantity`}
+                      render={({ field }) => (
+                        <Input
+                          type="number"
+                          step="0.001"
+                          placeholder="0"
+                          className="mt-1"
+                          value={field.value || ""}
+                          onChange={e => {
+                            const quantity = parseFloat(e.target.value) || 0;
+                            field.onChange(quantity);
+                            const materialId = form.getValues(`baseIngredients.${index}.materialId`);
+                            const unit = form.getValues(`baseIngredients.${index}.unit`);
+                            if (materialId && quantity > 0 && unit) {
+                              const material = materialsWithStock.find(m => m.id.toString() === materialId.toString());
+                              if (material) {
+                                const cost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
+                                form.setValue(`baseIngredients.${index}.cost`, cost, { shouldValidate: true });
+                              }
+                            }
+                          }}
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Unit *</Label>
+                    <Controller
+                      control={form.control}
+                      name={`baseIngredients.${index}.unit`}
+                      render={({ field }) => (
+                        <Input
+                          placeholder="g"
+                          className="mt-1"
+                          value={field.value || ""}
+                          onChange={e => {
+                            const unit = e.target.value;
+                            field.onChange(unit);
+                            const materialId = form.getValues(`baseIngredients.${index}.materialId`);
+                            const quantity = form.getValues(`baseIngredients.${index}.quantity`) || 0;
+                            if (materialId && quantity > 0 && unit) {
+                              const smartCost = calculateIngredientCostSmart(materialId.toString(), quantity, unit, materialsWithStock);
+                              form.setValue(`baseIngredients.${index}.cost`, smartCost, { shouldValidate: false });
+                            }
+                          }}
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Cost</Label>
+                    <Input type="number" step="0.01" {...form.register(`baseIngredients.${index}.cost`, { valueAsNumber: true })} placeholder="0.00" className="mt-1" readOnly />
+                  </div>
+
+                  <div className="flex items-end justify-center">
+                    <Button className="!bg-transparent !border-none !hover:bg-transparent !hover:border-none" onClick={() => removeIngredient(index)} disabled={fields.length <= 1}>
+                      <Minus className="!w-6 !h-6 cursor-pointer text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 

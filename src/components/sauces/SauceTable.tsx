@@ -24,148 +24,357 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onTogglePOSVisi
     }
   }, [rowSelection, onSelectionChange]);
 
+  // const columns: ColumnDef<Sauce>[] = [
+  //   {
+  //     id: "select",
+  //     header: ({ table }) => <Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />,
+  //     cell: ({ row }) => <Checkbox checked={row.getIsSelected()} onCheckedChange={value => row.toggleSelected(!!value)} aria-label="Select row" />,
+  //     enableSorting: false,
+  //     enableHiding: false
+  //   },
+  //   {
+  //     accessorKey: "name",
+  //     header: "Sauce Name",
+  //     cell: ({ row }) => {
+  //       const sauce = row.original;
+  //       return (
+  //         <div className="flex flex-col">
+  //           <div className="font-medium">{sauce.name}</div>
+  //           {sauce.description && <div className="text-sm text-gray-500 truncate max-w-xs">{sauce.description}</div>}
+  //         </div>
+  //       );
+  //     }
+  //   },
+  //   {
+  //     accessorKey: "category",
+  //     header: "Category",
+  //     cell: ({ row }) => (
+  //       <Badge variant="outline" className="flex justify-center w-fit items-center gap-1">
+  //         <ChefHat className="w-3 h-3" />
+  //         {row.getValue("category")}
+  //       </Badge>
+  //     )
+  //   },
+  //   {
+  //     accessorKey: "ingredients",
+  //     header: "Ingredients",
+  //     cell: ({ row }) => {
+  //       const ingredients = row.original.ingredients || row.original.baseIngredients || [];
+  //       return <span className="font-medium">{ingredients.length} ingredients</span>;
+  //     }
+  //   },
+  //   {
+  //     accessorKey: "yieldQuantity",
+  //     header: "Total Qty",
+  //     cell: ({ row }) => {
+  //       const sauce = row.original;
+  //       const isLowYield = sauce.yieldQuantity < 10;
+  //       return (
+  //         <span className={`font-medium ${isLowYield ? "text-red-600 font-semibold" : ""}`}>
+  //           {sauce.yieldQuantity} {sauce.unit}
+  //           {isLowYield && " (Low)"}
+  //         </span>
+  //       );
+  //     }
+  //   },
+  //   {
+  //     accessorKey: "totalCost",
+  //     header: "Total Cost",
+  //     cell: ({ row }) => {
+  //       const totalCost = row.getValue<number>("totalCost");
+  //       const cost = typeof totalCost === "number" ? totalCost : parseFloat(totalCost) || 0;
+  //       return <span className="font-medium">${cost.toFixed(2)}</span>;
+  //     }
+  //   },
+  //   {
+  //     accessorKey: "costPerUnit",
+  //     header: "Cost/Unit",
+  //     cell: ({ row }) => {
+  //       const costPerUnit = row.getValue<number>("costPerUnit");
+  //       const cost = typeof costPerUnit === "number" ? costPerUnit : parseFloat(costPerUnit) || 0;
+  //       return <span className="font-medium text-left">${cost.toFixed(4)}</span>;
+  //     }
+  //   },
+  //   {
+  //     accessorKey: "preparationTime",
+  //     header: "Prep Time",
+  //     cell: ({ row }) => {
+  //       const prepTime = row.getValue<number>("preparationTime");
+  //       return prepTime ? <span className="font-medium">{prepTime} min</span> : <span className="text-gray-400">-</span>;
+  //     }
+  //   },
+  //   {
+  //     accessorKey: "status",
+  //     header: ({ table }) => <div className="text-center">Status</div>,
+  //     cell: ({ row }) => {
+  //       const sauce = row.original;
+  //       return (
+  //         <div className="flex justify-end border space-x-2">
+  //           <Badge variant={sauce.isActive ? "default" : "secondary"}>{sauce.isActive ? "Active" : "Inactive"}</Badge>
+  //           {sauce.isPOSItem && (
+  //             <Badge variant="outline" className="text-xs">
+  //               POS Item
+  //             </Badge>
+  //           )}
+  //         </div>
+  //       );
+  //     }
+  //   },
+  //   {
+  //     id: "actions",
+  //     header: ({ table }) => <div className="text-center">Actions</div>,
+  //     cell: ({ row }) => {
+  //       const sauce = row.original;
+  //       return (
+  //         <DropdownMenu>
+  //           <DropdownMenuTrigger asChild>
+  //             <Button variant="ghost" className="h-8 w-8 p-0">
+  //               <span className="sr-only">Open menu</span>
+  //               <MoreHorizontal className="h-4 w-4" />
+  //             </Button>
+  //           </DropdownMenuTrigger>
+  //           <DropdownMenuContent align="end">
+  //             <DropdownMenuItem onClick={() => onEditSauce(sauce)}>
+  //               <Edit className="mr-2 h-4 w-4" />
+  //               Edit
+  //             </DropdownMenuItem>
+  //             <DropdownMenuItem onClick={() => onTogglePOSVisibility(sauce)}>
+  //               {sauce.isPOSItem ? (
+  //                 <>
+  //                   <EyeOff className="mr-2 h-4 w-4" />
+  //                   Hide from POS
+  //                 </>
+  //               ) : (
+  //                 <>
+  //                   <Eye className="mr-2 h-4 w-4" />
+  //                   Show in POS
+  //                 </>
+  //               )}
+  //             </DropdownMenuItem>
+  //             <DropdownMenuSeparator />
+  //             <DropdownMenuItem
+  //               onClick={() => {
+  //                 setSauceToDelete(sauce);
+  //                 setDeleteDialogOpen(true);
+  //               }}
+  //               className="text-red-600"
+  //             >
+  //               <Trash2 className="mr-2 h-4 w-4" />
+  //               Delete
+  //             </DropdownMenuItem>
+  //           </DropdownMenuContent>
+  //         </DropdownMenu>
+  //       );
+  //     }
+  //   }
+  // ];
+
   const columns: ColumnDef<Sauce>[] = [
     {
       id: "select",
-      header: ({ table }) => <Checkbox checked={table.getIsAllPageRowsSelected()} onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />,
-      cell: ({ row }) => <Checkbox checked={row.getIsSelected()} onCheckedChange={value => row.toggleSelected(!!value)} aria-label="Select row" />,
+      header: ({ table }) => (
+        <div className="flex justify-center w-full">
+          <Checkbox 
+            checked={table.getIsAllPageRowsSelected()} 
+            onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)} 
+            aria-label="Select all" 
+          />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="flex justify-center w-full">
+          <Checkbox 
+            checked={row.getIsSelected()} 
+            onCheckedChange={value => row.toggleSelected(!!value)} 
+            aria-label="Select row" 
+          />
+        </div>
+      ),
       enableSorting: false,
-      enableHiding: false
+      enableHiding: false,
+      size: 60
     },
     {
       accessorKey: "name",
-      header: "Sauce Name",
+      header: () => <div className="text-left w-full">Sauce Name</div>,
       cell: ({ row }) => {
         const sauce = row.original;
         return (
-          <div className="flex flex-col">
-            <div className="font-medium">{sauce.name}</div>
-            {sauce.description && <div className="text-sm text-gray-500 truncate max-w-xs">{sauce.description}</div>}
+          <div className="flex flex-col w-full">
+            <div className="font-medium text-foreground">{sauce.name}</div>
+            {sauce.description && (
+              <div className="text-sm text-muted-foreground truncate max-w-[200px]">
+                {sauce.description}
+              </div>
+            )}
           </div>
         );
-      }
+      },
+      size: 250
     },
     {
       accessorKey: "category",
-      header: "Category",
-      cell: ({ row }) => (
-        <Badge variant="outline" className="flex justify-center w-fit items-center gap-1">
-          <ChefHat className="w-3 h-3" />
-          {row.getValue("category")}
-        </Badge>
-      )
+      header: () => <div className="text-center w-full">Category</div>,
+      cell: ({ row }) => {
+        const category = row.getValue("category") as string;
+        return (
+          <div className="flex justify-center w-full">
+            <Badge variant="outline" className="flex items-center gap-1 px-2 py-1">
+              <ChefHat className="w-3 h-3" />
+              {category}
+            </Badge>
+          </div>
+        );
+      },
+      size: 140
     },
     {
       accessorKey: "ingredients",
-      header: "Ingredients",
+      header: () => <div className="text-center w-full">Ingredients</div>,
       cell: ({ row }) => {
         const ingredients = row.original.ingredients || row.original.baseIngredients || [];
-        return <span className="font-medium">{ingredients.length} ingredients</span>;
-      }
+        return (
+          <div className="flex justify-center w-full">
+            <span className="font-medium text-foreground">
+              {ingredients.length} {ingredients.length === 1 ? 'ingredient' : 'ingredients'}
+            </span>
+          </div>
+        );
+      },
+      size: 120
     },
     {
       accessorKey: "yieldQuantity",
-      header: "Total Qty",
+      header: () => <div className="text-center w-full">Total Qty</div>,
       cell: ({ row }) => {
         const sauce = row.original;
         const isLowYield = sauce.yieldQuantity < 10;
         return (
-          <span className={`font-medium ${isLowYield ? "text-red-600 font-semibold" : ""}`}>
-            {sauce.yieldQuantity} {sauce.unit}
-            {isLowYield && " (Low)"}
-          </span>
+          <div className="flex justify-center w-full">
+            <span className={`font-medium ${isLowYield ? "text-destructive font-semibold" : "text-foreground"}`}>
+              {sauce.yieldQuantity} {sauce.unit}
+              {isLowYield && <span className="text-xs ml-1">(Low)</span>}
+            </span>
+          </div>
         );
-      }
+      },
+      size: 120
     },
     {
       accessorKey: "totalCost",
-      header: "Total Cost",
+      header: () => <div className="text-right w-full">Total Cost</div>,
       cell: ({ row }) => {
         const totalCost = row.getValue<number>("totalCost");
         const cost = typeof totalCost === "number" ? totalCost : parseFloat(totalCost) || 0;
-        return <span className="font-medium">${cost.toFixed(2)}</span>;
-      }
+        return (
+          <div className="flex justify-end w-full pr-4">
+            <span className="font-medium text-foreground">${cost.toFixed(2)}</span>
+          </div>
+        );
+      },
+      size: 120
     },
     {
       accessorKey: "costPerUnit",
-      header: "Cost/Unit",
+      header: () => <div className="text-right w-full">Cost/Unit</div>,
       cell: ({ row }) => {
         const costPerUnit = row.getValue<number>("costPerUnit");
         const cost = typeof costPerUnit === "number" ? costPerUnit : parseFloat(costPerUnit) || 0;
-        return <span className="font-medium">${cost.toFixed(4)}</span>;
-      }
+        return (
+          <div className="flex justify-end w-full pr-4">
+            <span className="font-medium text-foreground">${cost.toFixed(4)}</span>
+          </div>
+        );
+      },
+      size: 120
     },
     {
       accessorKey: "preparationTime",
-      header: "Prep Time",
+      header: () => <div className="text-center w-full">Prep Time</div>,
       cell: ({ row }) => {
         const prepTime = row.getValue<number>("preparationTime");
-        return prepTime ? <span className="font-medium">{prepTime} min</span> : <span className="text-gray-400">-</span>;
-      }
+        return (
+          <div className="flex justify-center w-full">
+            {prepTime ? (
+              <span className="font-medium text-foreground">{prepTime} min</span>
+            ) : (
+              <span className="text-muted-foreground">-</span>
+            )}
+          </div>
+        );
+      },
+      size: 100
     },
     {
       accessorKey: "status",
-      header: "Status",
+      header: () => <div className="text-center w-full">Status</div>,
       cell: ({ row }) => {
         const sauce = row.original;
         return (
-          <div className="flex  space-x-2">
-            <Badge variant={sauce.isActive ? "default" : "secondary"}>{sauce.isActive ? "Active" : "Inactive"}</Badge>
+          <div className="flex justify-center w-full gap-2">
+            <Badge variant={sauce.isActive ? "default" : "secondary"}>
+              {sauce.isActive ? "Active" : "Inactive"}
+            </Badge>
             {sauce.isPOSItem && (
               <Badge variant="outline" className="text-xs">
-                POS Item
+                POS
               </Badge>
             )}
           </div>
         );
-      }
+      },
+      size: 140
     },
     {
       id: "actions",
-      header: "Actions",
+      header: () => <div className="text-center w-full">Actions</div>,
       cell: ({ row }) => {
         const sauce = row.original;
         return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onEditSauce(sauce)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onTogglePOSVisibility(sauce)}>
-                {sauce.isPOSItem ? (
-                  <>
-                    <EyeOff className="mr-2 h-4 w-4" />
-                    Hide from POS
-                  </>
-                ) : (
-                  <>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Show in POS
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  setSauceToDelete(sauce);
-                  setDeleteDialogOpen(true);
-                }}
-                className="text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex justify-center w-full">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[160px]">
+                <DropdownMenuItem onClick={() => onEditSauce(sauce)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onTogglePOSVisibility(sauce)}>
+                  {sauce.isPOSItem ? (
+                    <>
+                      <EyeOff className="mr-2 h-4 w-4" />
+                      Hide from POS
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Show in POS
+                    </>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSauceToDelete(sauce);
+                    setDeleteDialogOpen(true);
+                  }}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         );
-      }
+      },
+      size: 100,
+      enableSorting: false
     }
   ];
 
@@ -182,8 +391,6 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onTogglePOSVisi
       rowSelection
     }
   });
-
-  const selectedRows = table.getFilteredSelectedRowModel().rows;
 
   const confirmDelete = () => {
     if (sauceToDelete) {
