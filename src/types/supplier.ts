@@ -13,12 +13,14 @@ export interface Supplier {
   updatedAt: string;
 }
 
+export type PaymentMethod = "cash" | "bank_transfer" | "check" | "credit_card" | "other";
+
 export interface SupplierSettlement {
   id: number;
   supplierId: number;
   supplier: Supplier;
   amount: number;
-  paymentMethod: "cash";
+  paymentMethod: PaymentMethod;
   referenceNumber?: string;
   paymentDate: string;
   status: "pending" | "completed" | "failed" | "cancelled";
@@ -37,6 +39,7 @@ export interface SupplierInvoice {
   dueDate: string;
   totalAmount: number;
   paidAmount: number;
+  amount: number;
   amountDue: string;
   status: "draft" | "sent" | "overdue" | "partial" | "paid" | "cancelled";
   createdAt: string;
@@ -62,7 +65,7 @@ export interface UpdateSupplierData extends CreateSupplierData {
 
 export interface CreateSettlementData {
   amount: number;
-  paymentMethod: "cash";
+  paymentMethod: PaymentMethod;
   referenceNumber?: string;
   paymentDate?: string;
   notes?: string;
