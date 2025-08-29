@@ -64,9 +64,9 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
         const sauce = row.original;
         const isLowYield = sauce.yieldQuantity < 10; // Consider yield low if less than 10 units
         return (
-          <span className={`font-medium ${isLowYield ? 'text-red-600 font-semibold' : ''}`}>
+          <span className={`font-medium ${isLowYield ? "text-red-600 font-semibold" : ""}`}>
             {sauce.yieldQuantity} {sauce.unit}
-            {isLowYield && ' (Low)'}
+            {isLowYield && " (Low)"}
           </span>
         );
       }
@@ -235,46 +235,57 @@ export function SauceTable({ sauces, onEditSauce, onDeleteSauce, onBulkDelete, o
         </CardHeader>
       </Card>
 
-      {/* Table */}
-      <Card>
+      <Card className="overflow-hidden">
         <CardContent className="p-0">
           <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                {table.getHeaderGroups().map(headerGroup => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map(header => (
-                      <TableHead key={header.id} className="font-medium">
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map(row => (
-                    <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="hover:bg-gray-50">
-                      {row.getVisibleCells().map(cell => (
-                        <TableCell key={cell.id} className="py-3">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
+            {/* Header outside the scroll container */}
+            <div className="overflow-hidden">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-background">
+                  {table.getHeaderGroups().map(headerGroup => (
+                    <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                      {headerGroup.headers.map(header => (
+                        <TableHead
+                          key={header.id}
+                          className="font-medium bg-muted/50 sticky top-0" // Add sticky here too
+                        >
+                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        </TableHead>
                       ))}
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="h-24 text-center">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <ChefHat className="w-8 h-8 text-gray-400" />
-                        <div className="text-gray-500">No sauces found</div>
-                        <div className="text-sm text-gray-400">Create your first sauce to get started</div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  ))}
+                </TableHeader>
+              </Table>
+            </div>
+
+            {/* Scroll container for body only */}
+            <div className="relative overflow-y-auto h-[calc(100vh-350px)]">
+              <Table>
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map(row => (
+                      <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="hover:bg-muted/50">
+                        {row.getVisibleCells().map(cell => (
+                          <TableCell key={cell.id} className="py-3 border-t border-border">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={columns.length} className="h-[400px] text-center">
+                        <div className="flex flex-col items-center justify-center space-y-2 h-full">
+                          <ChefHat className="w-12 h-12 text-muted-foreground/50" />
+                          <div className="text-lg font-medium text-muted-foreground">No sauces found</div>
+                          <div className="text-sm text-muted-foreground/70">Create your first sauce to get started</div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         </CardContent>
       </Card>

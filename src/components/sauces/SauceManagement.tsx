@@ -229,7 +229,7 @@ export function SauceManagement({ materials, stockEntries, onRefresh }: SauceMan
       </div>
 
       {/* Sauce Table */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-">
         <SauceTable sauces={sauces} materials={materials} onEditSauce={handleEditSauce} onDeleteSauce={handleDeleteSauce} onBulkDelete={handleBulkDeleteSauces} onTogglePOSVisibility={handleTogglePOSVisibility} />
       </div>
 
