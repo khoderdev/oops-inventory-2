@@ -242,10 +242,12 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     if (isNaN(quantity) || quantity <= 0) {
       return;
     }
+
     const selectedItem = allSelectableItems.find(item => {
       const prefixedId = `${selectedItemType}-${selectedMaterialId}`;
       return item.id === prefixedId;
     });
+
     if (!selectedItem) {
       return;
     }
@@ -266,10 +268,14 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
     };
 
     onIngredientsChange([...ingredients, newIngredient]);
+
+    // Clear input fields
     setSelectedMaterialId("");
-    setIngredientQuantity("");
-    setIngredientUnit("");
-  }, [selectedMaterialId, selectedItemType, ingredientQuantity, ingredientUnit, ingredients, onIngredientsChange, allSelectableItems]);
+    setMaterialSearchTerm(""); // Clear the search term
+    setIngredientQuantity(""); // Clear quantity
+    setIngredientUnit(""); // Clear unit
+    setSelectedItemType("material"); // Reset to default type
+  }, [selectedMaterialId, selectedItemType, ingredientQuantity, ingredientUnit, ingredients, onIngredientsChange, allSelectableItems, calculateIngredientCost]);
 
   const handleRemoveIngredient = useCallback(
     (index: number) => {

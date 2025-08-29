@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { MenuItem, MenuItemCategory, StockEntry } from "@/types/inventory";
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable } from "@tanstack/react-table";
 import { Card, CardHeader, CardTitle, CardContent } from "../ui/card";
@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
 import { Plus, Search, Check, X, Square, CheckSquare } from "lucide-react";
-import { menuAPI } from "@/api/inventory.api";
+import { menuAPI, materialsAPI, stockAPI } from "@/api/inventory.api";
+import { Material } from "@/types/inventory";
 import { toast } from "../ui/use-toast";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { BeveragesMenuBuilderProps } from "@/types/menuItems";
@@ -18,6 +19,8 @@ import { useBeveragesMenuColumns } from "./components/BeveragesMenuColumns";
 const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const { fetchTabData } = useInventoryStore();
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
   const [showBeverageItemForm, setShowBeverageItemForm] = useState(false);
@@ -26,6 +29,37 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   const [selectedBeverageItems, setSelectedBeverageItems] = useState<Set<string>>(new Set());
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedBeverageDetails, setSelectedBeverageDetails] = useState<MenuItem | null>(null);
+
+  // Fetch materials and stock entries on component mount
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch materials
+        const materialsData = await materialsAPI.getMaterials();
+        setMaterials(materialsData);
+
+        // Fetch stock entries
+        const stockData = await stockAPI.getStockEntries({
+          limit: 1000,
+          includeMaterial: "true"
+        });
+        setStockEntries(stockData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load required data",
+          variant: "destructive",
+          duration: 1000
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const beverageCategories = useMemo(() => {
     const converted = categories.map(cat => ({
@@ -98,10 +132,8 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
 
   // Handlers
   const handleEditBeverageItem = useCallback((menuItem: MenuItem) => {
-    console.log('Editing menu item:', menuItem);
     // Create a deep copy of the menu item to avoid reference issues
     const menuItemCopy = JSON.parse(JSON.stringify(menuItem));
-    
     // Ensure the category is properly set
     if (menuItemCopy.category) {
       // If category is a string, try to find the full category object
@@ -146,10 +178,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
           ...data,
           categoryId: categoryId
         };
-        
-        console.log('Updating menu item with data:', { id, updateData });
         await onUpdateBeverageItem(id, updateData);
-        
         toast({
           title: "Success",
           description: "Beverage item updated successfully",
@@ -326,6 +355,7 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
               editingBeverageItem={editingBeverageItem}
               categories={beverageCategories}
               stockEntries={stockEntries}
+              materials={materials}
               onSubmit={
                 editingBeverageItem
                   ? (data) => handleUpdateBeverageItem(editingBeverageItem.id, data)

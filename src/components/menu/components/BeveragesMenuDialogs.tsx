@@ -5,37 +5,14 @@ import { BeverageItemForm } from "./BeverageItemForm";
 import { formatCurrency, formatVolume } from "@/utils/conversionLogic";
 import { BeverageDetailsDialogProps, BeverageItemFormDialogProps } from "@/types/menuItems";
 
-export const BeverageItemFormDialog: React.FC<BeverageItemFormDialogProps> = ({ 
-  open, 
-  onOpenChange, 
-  editingBeverageItem, 
-  categories, 
-  stockEntries = [], 
-  onSubmit, 
-  onCancel 
-}) => {
-  console.log('BeverageItemFormDialog - editingBeverageItem:', editingBeverageItem);
-  
+export const BeverageItemFormDialog: React.FC<BeverageItemFormDialogProps> = ({ open, onOpenChange, editingBeverageItem, categories, stockEntries = [], materials = [], onSubmit, onCancel }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={true}>
-      <DialogContent 
-        className="max-w-[95vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto" 
-        onPointerDownOutside={e => e.preventDefault()} 
-        onInteractOutside={e => e.preventDefault()}
-      >
+      <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[95vh] overflow-y-auto" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle className="text-lg sm:text-xl">
-            {editingBeverageItem ? "Edit Beverage Item" : "Create New Beverage Item"}
-          </DialogTitle>
+          <DialogTitle className="text-lg sm:text-xl">{editingBeverageItem ? "Edit Beverage Item" : "Create New Beverage Item"}</DialogTitle>
         </DialogHeader>
-        <BeverageItemForm 
-          menuItem={editingBeverageItem} 
-          categories={categories} 
-          stockEntries={stockEntries}
-          onSubmit={onSubmit} 
-          onCancel={onCancel} 
-          enableVariants={true} 
-        />
+        <BeverageItemForm menuItem={editingBeverageItem} categories={categories} stockEntries={stockEntries} materials={materials} onSubmit={onSubmit} onCancel={onCancel} enableVariants={true} />
       </DialogContent>
     </Dialog>
   );
