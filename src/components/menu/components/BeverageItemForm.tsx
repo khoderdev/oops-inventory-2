@@ -34,9 +34,21 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [showIngredientsSection, setShowIngredientsSection] = useState(false);
   const [variantData, setVariantData] = useState<VariantData>({
     selectedVariants: [],
-    variantVolumes: { small: 2, medium: 3, large: 5, glass: 3, shot: 1 },
-    variantVolumeUnits: { small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl" },
-    variantPrices: { small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0 }
+    variantVolumes: { 
+      small: 2, medium: 3, large: 5, glass: 3, shot: 1,
+      can: 33, bottle: 33, pint: 47, pitcher: 150, 
+      mini: 18, standard: 70, magnum: 150
+    },
+    variantVolumeUnits: { 
+      small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl",
+      can: "cl", bottle: "cl", pint: "cl", pitcher: "cl", 
+      mini: "cl", standard: "cl", magnum: "cl"
+    },
+    variantPrices: { 
+      small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0,
+      can: 3.5, bottle: 4.0, pint: 5.0, pitcher: 15.0,
+      mini: 6.0, standard: 25.0, magnum: 45.0
+    }
   });
 
   useEffect(() => {
@@ -87,18 +99,31 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     const newErrors: typeof errors = {};
     if (!name.trim()) newErrors.name = "Name is required";
     if (!categoryId) newErrors.category = "Category is required";
+    
+    // Price validation - only required if no variants are selected
     if (variantData.selectedVariants.length === 0) {
       if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
         newErrors.price = "Price is required";
       }
+    } else {
+      // Validate that all selected variants have valid prices
+      const invalidVariants = variantData.selectedVariants.filter(variant => {
+        const variantPrice = variantData.variantPrices[variant];
+        return !variantPrice || isNaN(variantPrice) || variantPrice <= 0;
+      });
+      
+      if (invalidVariants.length > 0) {
+        newErrors.variants = `Invalid prices for variants: ${invalidVariants.join(', ')}`;
+      }
     }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, categoryId, price, variantData.selectedVariants]);
+  }, [name, categoryId, price, variantData.selectedVariants, variantData.variantPrices]);
 
   useEffect(() => {
     validateForm();
-  }, [name, categoryId, price, validateForm]);
+  }, [name, categoryId, price, variantData.selectedVariants, variantData.variantPrices, validateForm]);
 
   // Initialize form data when editing existing menu item or when beverageStockEntries changes
   useEffect(() => {
@@ -243,9 +268,21 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     setErrors({});
     setVariantData({
       selectedVariants: [],
-      variantVolumes: { small: 2, medium: 3, large: 5, glass: 3, shot: 1 },
-      variantVolumeUnits: { small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "ml" },
-      variantPrices: { small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0 }
+      variantVolumes: { 
+        small: 2, medium: 3, large: 5, glass: 3, shot: 1,
+        can: 33, bottle: 33, pint: 47, pitcher: 150, 
+        mini: 18, standard: 70, magnum: 150
+      },
+      variantVolumeUnits: { 
+        small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl",
+        can: "cl", bottle: "cl", pint: "cl", pitcher: "cl", 
+        mini: "cl", standard: "cl", magnum: "cl"
+      },
+      variantPrices: { 
+        small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0,
+        can: 3.5, bottle: 4.0, pint: 5.0, pitcher: 15.0,
+        mini: 6.0, standard: 25.0, magnum: 45.0
+      }
     });
   }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, showVariantsSection, variantData, categories, ingredients, validateForm, onSubmit]);
 
@@ -325,7 +362,25 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       </div>
 
       {/* Variants Section */}
-      {enableVariants && <Variants initialVariantSizes={["small", "medium", "large", "glass", "shot"]} initialSelectedVariants={variantData.selectedVariants} initialVariantPrices={variantData.variantPrices} onChange={handleVariantChange} title="Beverage Variants" description="Select variant sizes or add custom size" />}
+      <div>
+        {enableVariants && <Variants 
+          initialVariantSizes={[
+            "small", "medium", "large", "glass", "shot",
+            "can", "bottle", "pint", "pitcher",
+            "mini", "standard", "magnum"
+          ]} 
+          initialSelectedVariants={variantData.selectedVariants} 
+          initialVariantPrices={variantData.variantPrices} 
+          onChange={handleVariantChange} 
+          title="Beverage Variants" 
+          description="Select variant sizes, containers, or add custom options" 
+        />}
+        {errors.variants && (
+          <p className="text-sm text-red-500 mt-1">
+            {errors.variants}
+          </p>
+        )}
+      </div>
 
       {/* Cost Breakdown Section */}
       {selectedBeverageStock && <CostBreakdown selectedBeverageStock={selectedBeverageStock} price={price} variantData={variantData} />}

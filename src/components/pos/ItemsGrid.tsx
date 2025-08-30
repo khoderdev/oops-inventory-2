@@ -2,10 +2,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProductGridProps, POSItem } from "@/types/inventory";
 import { formatPOSPrice } from "@/utils/conversionLogic";
-import { Package, ShoppingCart, Plus } from "lucide-react";
-import React, { useMemo, useRef, useCallback } from "react";
+import { Package, ShoppingCart, Plus, ChevronDown } from "lucide-react";
+import React, { useMemo, useRef, useCallback, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useNavigate } from "react-router-dom";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0, isLoading = false }) => {
   const parentRef = useRef<HTMLDivElement>(null);
@@ -116,10 +122,22 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
   }, []);
 
   // Product item component with optimized rendering
-  const ProductItem: React.FC<{ item: POSItem }> = React.memo(({ item }) => (
+  const ProductItem: React.FC<{ item: POSItem }> = React.memo(({ item }) => {
+    // Check if the item has variants
+    const hasVariants = item.variants && item.variants.length > 0;
+    
+    // Handle direct click for items without variants
+    const handleItemClick = () => {
+      if (!hasVariants) {
+        onAddToCart(item);
+      }
+      // For items with variants, the click is handled by the popover
+    };
+    
+    return (
     <Card
-      className="cursor-pointer select-none border border-gray-200 hover:border-primary/40 rounded-lg bg-white/95 backdrop-blur-sm overflow-hidden btn-touch"
-      onClick={() => onAddToCart(item)}
+      className={`select-none border border-gray-200 hover:border-primary/40 rounded-lg bg-white/95 backdrop-blur-sm overflow-hidden ${!hasVariants ? 'cursor-pointer btn-touch' : ''}`}
+      onClick={handleItemClick}
       style={{
         height: gridConfig.itemHeight
       }}
@@ -152,10 +170,63 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
           <div className="h-8 flex items-center justify-center">
             <h4 className={`${textSizes.itemName} font-medium text-gray-900 line-clamp-2 leading-tight group-hover:text-primary transition-colors duration-300 text-center`}>{item.name}</h4>
           </div>
+          
+          {/* Variant Selection Button */}
+          {item.variants && item.variants.length > 0 && (
+            <div className="mt-1 flex justify-center">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 px-2 text-xs bg-primary/10 border-primary/20 hover:bg-primary/20 text-primary"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Select Variant <ChevronDown className="ml-1 h-3 w-3" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-0" align="center">
+                  <ScrollArea className="h-auto max-h-[200px]">
+                    <div className="p-1">
+                      {item.variants.map((variant) => (
+                        <Button
+                          key={variant.id}
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-between mb-1 text-left font-normal"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Create a modified item with the selected variant
+                            const itemWithVariant = {
+                              ...item,
+                              selectedVariant: variant,
+                              // Update price to variant price if available
+                              price: variant.price ? parseFloat(variant.price) : item.price,
+                              // Add variant info to the name for cart display
+                              displayName: `${item.name} (${variant.name} - ${variant.volume}${variant.unit})`
+                            };
+                            onAddToCart(itemWithVariant);
+                          }}
+                        >
+                          <span>
+                            {variant.name} - {variant.volume}{variant.unit}
+                          </span>
+                          <span className="font-medium text-primary">
+                            {formatPOSPrice(parseFloat(variant.price) || item.price)}
+                          </span>
+                        </Button>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
-  ));
+  );
+  });
 
   if (isLoading) {
     return (

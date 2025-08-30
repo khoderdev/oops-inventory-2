@@ -620,6 +620,21 @@ export interface POSItem {
   image?: string;
   createdAt: string;
   updatedAt: string;
+  variants?: Array<{
+    id: string | number;
+    name: string;
+    volume: number;
+    unit: string;
+    price: string | number;
+  }>;
+  selectedVariant?: {
+    id: string | number;
+    name: string;
+    volume: number;
+    unit: string;
+    price: string | number;
+  };
+  displayName?: string;
 }
 
 export interface POSItemsResponse {
