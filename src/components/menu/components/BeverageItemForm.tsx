@@ -3,43 +3,30 @@ import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { Switch } from "../../ui/switch";
 import { ImageUpload } from "../../ui/image-upload";
-import { Selection, StockEntryItemRenderer } from "../../ui/Selection";
 import { Variants, VariantData } from "../../ui/Variants";
 import { CostBreakdown } from "./CostBreakdown";
 import { Ingredients } from "./Ingredients";
 import { toast } from "../../ui/use-toast";
-import { beverageStockAPI } from "@/api/stock.api.ts";
 import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient, MenuItem } from "@/types/inventory";
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, materials = [], stockEntries = [], onSubmit, onCancel, enableVariants = false }) => {
   const [name, setName] = useState(menuItem?.name || "");
   const [categoryId, setCategoryId] = useState<string>(() => {
     if (!menuItem?.category) return "";
-
-    // Handle case where category is already an ID
     if (typeof menuItem.category === "string") {
       return menuItem.category;
     }
-
-    // Handle case where category is an object with id
     if (typeof menuItem.category === "object" && menuItem.category !== null) {
       if ("id" in menuItem.category) {
         return String(menuItem.category.id);
       }
-      if ("_id" in menuItem.category) {
-        return String(menuItem.category._id);
-      }
     }
-
     return "";
   });
   const [price, setPrice] = useState(menuItem?.price?.toString() || "");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
-  const [beverageStockEntries, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
-  const [beverageSearchTerm, setBeverageSearchTerm] = useState("");
-  const [isBeverageLoading, setIsBeverageLoading] = useState(false);
   const [selectedBeverageStock, setSelectedBeverageStock] = useState<StockEntryWithMaterial | null>(null);
   const [ingredients, setIngredients] = useState<MenuItemIngredient[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -51,32 +38,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     variantVolumeUnits: { small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl" },
     variantPrices: { small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0 }
   });
-  const beverageSelectRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const fetchBeverageStock = async () => {
-      try {
-        setIsBeverageLoading(true);
-        const entries = await beverageStockAPI.getBeverageStockEntries({
-          limit: 10000,
-          includeMaterial: "true"
-        });
-        setBeverageStockEntries(entries);
-      } catch (error) {
-        console.error("Error fetching beverage stock:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load beverage stock entries. Please try again.",
-          variant: "destructive",
-          duration: 5000
-        });
-      } finally {
-        setIsBeverageLoading(false);
-      }
-    };
-
-    fetchBeverageStock();
-  }, []);
 
   useEffect(() => {
     if (categories.length === 0 || !menuItem?.category) {
@@ -122,29 +83,18 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     }
   }, [selectedBeverageStock, menuItem]);
 
-  const filteredBeverageStock = useMemo(() => {
-    if (!beverageSearchTerm.trim()) {
-      return beverageStockEntries;
-    }
-    return beverageStockEntries.filter(entry => entry.material?.name?.toLowerCase().includes(beverageSearchTerm.toLowerCase()));
-  }, [beverageStockEntries, beverageSearchTerm]);
-
   const validateForm = useCallback(() => {
     const newErrors: typeof errors = {};
-    if (!name.trim()) newErrors.name = "required";
-    if (!categoryId) newErrors.category = "required";
+    if (!name.trim()) newErrors.name = "Name is required";
+    if (!categoryId) newErrors.category = "Category is required";
     if (variantData.selectedVariants.length === 0) {
       if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
-        newErrors.price = "required";
+        newErrors.price = "Price is required";
       }
-    }
-
-    if (!menuItem && !selectedBeverageStock) {
-      newErrors.beverageId = "Please select a beverage from stock";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, categoryId, price, selectedBeverageStock, menuItem, variantData.selectedVariants]);
+  }, [name, categoryId, price, variantData.selectedVariants]);
 
   useEffect(() => {
     validateForm();
@@ -158,11 +108,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       setIsPOSItem(menuItem.isPOSItem ?? true);
       setImage(menuItem.image);
       if (menuItem.isBeverage) {
-        if (beverageStockEntries.length > 0) {
-          const matchingStock = beverageStockEntries.find(entry => String(entry.id) === String(menuItem.isBeverage) || entry.material?.name?.toLowerCase() === menuItem.name?.toLowerCase());
+        if (stockEntries.length > 0) {
+          const matchingStock = stockEntries.find(entry => String(entry.id) === String(menuItem.isBeverage));
           if (matchingStock) {
             setSelectedBeverageStock(matchingStock);
-            setBeverageSearchTerm(matchingStock.material?.name || "");
           }
         }
       }
@@ -197,31 +146,11 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         setShowVariantsSection(true);
       }
     }
-  }, [menuItem, beverageStockEntries]);
+  }, [menuItem]);
 
-  const handleBeverageSearchChange = useCallback((value: string) => {
-    setBeverageSearchTerm(value);
-    setSelectedBeverageStock(null);
+  const handleBeverageNameChange = useCallback((value: string) => {
+    setName(value);
   }, []);
-
-  const handleBeverageSelect = useCallback(
-    (beverageId: string, beverageName?: string) => {
-      setBeverageSearchTerm(beverageName || "");
-      if (beverageId) {
-        const selectedBeverage = beverageStockEntries.find(entry => String(entry.id) === beverageId);
-        if (selectedBeverage) {
-          setSelectedBeverageStock(selectedBeverage);
-          if (selectedBeverage.material?.name) {
-            setName(selectedBeverage.material.name);
-          }
-          if (selectedBeverage.costPerBaseUnit) {
-            setPrice(parseFloat(selectedBeverage.costPerBaseUnit.toString()).toFixed(2));
-          }
-        }
-      }
-    },
-    [beverageStockEntries]
-  );
 
   const handleImageChange = useCallback((imageValue: string | undefined, file?: File) => {
     setImage(imageValue);
@@ -281,7 +210,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       image: image || "",
       imageFile: imageFile,
       isBeverage: true,
-      unit: selectedBeverageStock?.purchasedUnit || "piece",
+      unit: "piece",
       availableQuantity: selectedBeverageStock?.purchasedQuantity ? parseFloat(selectedBeverageStock.purchasedQuantity.toString()) : undefined,
       costPerUnit: selectedBeverageStock?.costPerPurchasedUnit ? parseFloat(selectedBeverageStock.costPerPurchasedUnit.toString()) : undefined,
       variants:
@@ -310,7 +239,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     setImage(undefined);
     setImageFile(undefined);
     setSelectedBeverageStock(null);
-    setBeverageSearchTerm("");
     setIngredients([]);
     setErrors({});
     setVariantData({
@@ -324,25 +252,16 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   return (
     <div className="space-y-6 p-4">
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
-        <div className="md:col-span-1 lg:col-span-2">
-          <Selection
-            label="Stock Beverages"
-            id="beverage"
-            errors={errors}
-            errorField="beverageId"
-            searchTerm={beverageSearchTerm}
-            onSearchChange={handleBeverageSearchChange}
-            isLoading={isBeverageLoading}
-            items={filteredBeverageStock}
-            onItemSelect={handleBeverageSelect}
-            inputRef={beverageSelectRef}
-            placeholder="Search beverages..."
-            loadingText="Loading beverages..."
-            noResultsText="No beverages found matching"
-            itemRenderer={StockEntryItemRenderer}
-            getDisplayValue={item => item.material?.name || ""}
-            getItemId={item => String(item.id)}
-          />
+        <div className="md:col-span-2">
+          <label htmlFor="name" className="block text-sm font-medium mb-1">
+            Name <span className="text-red-500">*</span>
+          </label>
+          <Input id="name" type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={handleKeyDown} placeholder="Enter beverage name" aria-invalid={!!errors.name} aria-describedby={errors.name ? "name-error" : undefined} />
+          {errors.name && (
+            <p id="name-error" className="text-sm text-red-500 mt-1">
+              {errors.name}
+            </p>
+          )}
         </div>
 
         <div className="md:col-span-1 lg:col-span-2">
@@ -462,7 +381,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         <Button variant="outline" onClick={onCancel} aria-label="Cancel form">
           Cancel
         </Button>
-        <Button onClick={handleSubmit} disabled={!!Object.keys(errors).length || !name.trim() || !categoryId || (variantData.selectedVariants.length === 0 && (!price || parseFloat(price) <= 0))}>
+        <Button 
+          onClick={handleSubmit} 
+          disabled={!name.trim() || !categoryId || (variantData.selectedVariants.length === 0 && (!price || parseFloat(price) <= 0))}
+        >
           {menuItem ? "Update" : "Create"} Beverage Item
         </Button>
       </div>

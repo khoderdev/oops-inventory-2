@@ -60,7 +60,6 @@ const MenuItem = sequelize.define(
       },
       comment: "Assigned printer for this menu item when ordered in POS"
     },
-    // Type flag to differentiate between food and beverage items
     isBeverage: {
       type: DataTypes.BOOLEAN,
       allowNull: false,

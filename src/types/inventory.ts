@@ -810,6 +810,7 @@ export interface CategoryOption {
 }
 
 export interface BeverageItemFormProps {
+  name: string;
   menuItem?: MenuItem;
   categories: CategoryOption[];
   materials?: Material[];
