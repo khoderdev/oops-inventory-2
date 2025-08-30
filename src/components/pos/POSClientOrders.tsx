@@ -416,18 +416,20 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     () => (
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-50">
         {/* Fixed Header */}
-        <div className="flex-shrink-0 p-3 border-b bg-primary">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
+        {isDialog ? (
+          <div className="flex-shrink-0 p-3 border-b bg-primary">
+            <div className="flex items-center justify-between">
               <div>{isDialog ? <DialogTitle className="text-3xl font-bold text-white">Orders</DialogTitle> : <h1 className="text-3xl font-bold text-white">Orders</h1>}</div>
             </div>
           </div>
-        </div>
-
+        ) : (
+          null
+        )}
+       
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Enhanced Filters Section */}
-          <div className="flex-shrink-0 p-3 bg-white border-b">
+          <div className="flex-shrink-0 p-3 bg-transparent">
             <div className="flex flex-col xl:flex-row gap-4">
               {/* Search Bar */}
               <div className="flex-1 min-w-0">
@@ -446,7 +448,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                     onChange={e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleFilterChange("orderType", e.target.value === "all" ? undefined : (e.target.value as OrderType));
+                      handleFilterChange("orderType", e.target.value === "fall" ? undefined : (e.target.value as OrderType));
                     }}
                     className="w-48 h-11 bg-white border border-gray-200 rounded-md px-3 py-2 text-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-100 focus:outline-none appearance-none cursor-pointer"
                   >
@@ -485,7 +487,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
 
           {/* Orders Content - Scrollable */}
           <div
-            className="flex-1 min-h-0 overflow-auto"
+            className="flex-1 min-h-0 overflow-auto bg-transparent"
             onScroll={e => {
               const target = e.target as HTMLElement;
             }}
@@ -659,11 +661,11 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                 </div>
               ) : (
                 /* Grid View */
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4 gap-6">
                   {sortedOrders.map(order => (
                     <Card
                       key={order.id}
-                      className="hover:shadow-xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-400 group hover:scale-[1.02]"
+                      className="hover:shadow-xl transition-all duration-300 cursor-pointer rounded-lg ring-1 ring-gray-200 hover:ring-primary group hover:scale-[1.02]"
                       onClick={e => {
                         const target = e.target as HTMLElement;
                         if (target.closest(".action-button") || target.closest("svg")) {

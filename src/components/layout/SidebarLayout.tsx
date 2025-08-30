@@ -206,7 +206,7 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
         </header>
 
         {/* Main content */}
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden bg-gray-100">
+        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="flex-1 flex flex-col">{children}</div>
         </main>
       </SidebarInset>

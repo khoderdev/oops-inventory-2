@@ -146,7 +146,9 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.ORDERS_READ}>
                         <AuthenticatedLayout pageTitle="Orders" showSearch={true} showNotifications={true}>
-                          <POSClientOrders />
+                          <div className="px-6">
+                            <POSClientOrders />
+                          </div>
                         </AuthenticatedLayout>
                       </ProtectedRoute>
                     }

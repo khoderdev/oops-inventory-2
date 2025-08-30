@@ -348,9 +348,9 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
   };
 
   return (
-    <div className={cn("w-full h-full flex flex-col", className)}>
-      <Card className="flex flex-col h-full">
-        <CardContent className="flex-1 flex flex-col space-y-3 min-h-0 overflow-hidden p-4">
+    <div className={cn("w-full h-full flex flex-col !overflow-hidden !bg-transparent", className)}>
+      <Card className="flex flex-col h-full !overflow-hidden !bg-transparent">
+        <CardContent className="flex-1 flex flex-col space-y-3 min-h-0 !overflow-hidden p-6 !bg-transparent">
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-start">
               <div className="flex-1 md:flex-none md:w-72 lg:w-80 xl:w-96 space-y-2">

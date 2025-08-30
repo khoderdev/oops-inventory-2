@@ -236,12 +236,12 @@ const SidebarInput = React.forwardRef<React.ElementRef<typeof Input>, React.Comp
 SidebarInput.displayName = "SidebarInput";
 
 const SidebarHeader = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(({ className, ...props }, ref) => {
-  return <div ref={ref} data-sidebar="header" className={cn("flex flex-col gap-2 p-3 transition-all duration-300 ease-in-out", className)} {...props} />;
+  return <div ref={ref} data-sidebar="header" className={cn("flex flex-col gap-2 p-3 transition-all duration-300 ease-in-out bg-white", className)} {...props} />;
 });
 SidebarHeader.displayName = "SidebarHeader";
 
 const SidebarFooter = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(({ className, ...props }, ref) => {
-  return <div ref={ref} data-sidebar="footer" className={cn("flex flex-col gap-2 p-3 transition-all duration-300 ease-in-out", className)} {...props} />;
+  return <div ref={ref} data-sidebar="footer" className={cn("flex flex-col gap-2 p-3 transition-all duration-300 ease-in-out bg-white", className)} {...props} />;
 });
 SidebarFooter.displayName = "SidebarFooter";
 
@@ -251,7 +251,7 @@ const SidebarSeparator = React.forwardRef<React.ElementRef<typeof Separator>, Re
 SidebarSeparator.displayName = "SidebarSeparator";
 
 const SidebarContent = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(({ className, ...props }, ref) => {
-  return <div ref={ref} data-sidebar="content" className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-auto hide-scrollbar group-data-[collapsible=icon]:overflow-hidden transition-all duration-300 ease-in-out", className)} {...props} />;
+  return <div ref={ref} data-sidebar="content" className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-auto hide-scrollbar group-data-[collapsible=icon]:overflow-hidden transition-all duration-300 ease-in-out bg-white", className)} {...props} />;
 });
 SidebarContent.displayName = "SidebarContent";
 

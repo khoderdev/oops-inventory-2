@@ -261,16 +261,16 @@ export function SideBarHeader({ onMobileMenuItemClick }: SideBarHeaderProps = {}
       <SidebarHeader className="border-b border-gray-200 h-16 flex items-center justify-center px-4">
         <div className="flex items-center justify-center transition-all duration-300 ease-in-out w-full">
           <div className="relative flex items-center justify-center cursor-pointer" onClick={() => navigate("/")}>
-            {effectiveState === "expanded" ? (
+            {state === "expanded" ? (
               <img 
                 src="/oops-logo.png" 
-                alt="Restaurant Management System" 
+                alt="oops-logo" 
                 className="w-32 h-auto transition-all duration-300 crisp-edges max-w-full" 
               />
             ) : (
               <img 
                 src="/oops-icon.png" 
-                alt="POS" 
+                alt="oops-icon" 
                 className="w-10 h-auto transition-all duration-300 crisp-edges" 
               />
             )}
