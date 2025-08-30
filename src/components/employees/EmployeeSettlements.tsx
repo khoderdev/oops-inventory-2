@@ -777,66 +777,77 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
   });
 
   return (
-    <div className="space-y-4 p-3 sm:p-4">
-      {settlementStats && (
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2">
-              <CardTitle className="text-xs font-medium">Total Settlements</CardTitle>
-              <Calendar className="h-3 w-3 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <div className="text-lg font-bold">{settlementStats.totals.totalCount}</div>
-              <p className="text-[10px] text-muted-foreground">In selected period</p>
-            </CardContent>
-          </Card>
+    <div className="space-y-4 p-4">
+      {/* Stats Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Settlements</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{settlementStats?.totals?.totalCount || 0}</div>
+            <p className="text-xs text-muted-foreground">In selected period</p>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2">
-              <CardTitle className="text-xs font-medium">Total Base Salary</CardTitle>
-              <DollarSign className="h-3 w-3 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <div className="text-lg font-bold">{formatCurrency(settlementStats.totals.totalBaseSalary)}</div>
-              <p className="text-[10px] text-muted-foreground">Before deductions</p>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Base Salary</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(settlementStats?.totals?.totalBaseSalary || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">Before deductions</p>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2">
-              <CardTitle className="text-xs font-medium">Total Deductions</CardTitle>
-              <DollarSign className="h-3 w-3 text-red-600" />
-            </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <div className="text-lg font-bold text-red-600">{formatCurrency(settlementStats.totals.totalDeductions)}</div>
-              <p className="text-[10px] text-muted-foreground">Employee usage costs</p>
-            </CardContent>
-          </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Deductions</CardTitle>
+            <DollarSign className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              -{formatCurrency(settlementStats?.totals?.totalDeductions || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">Employee usage costs</p>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-2">
-              <CardTitle className="text-xs font-medium">Final Salary</CardTitle>
-              <DollarSign className="h-3 w-3 text-green-600" />
-            </CardHeader>
-            <CardContent className="p-2 pt-0">
-              <div className="text-lg font-bold text-green-600">{formatCurrency(settlementStats.totals.totalFinalSalary)}</div>
-              <p className="text-[10px] text-muted-foreground">After deductions</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Final Salary</CardTitle>
+            <DollarSign className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(settlementStats?.totals?.totalFinalSalary || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">After deductions</p>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Card className="border border-red-400">
-        <CardHeader className="p-2">
+      {/* Filters Card */}
+      <Card>
+        <CardHeader className="p-4 pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm">Filters</CardTitle>
-            <Button size="sm" className="gap-1" onClick={() => setSettlementFormOpen(true)} disabled={formLoading}>
+            <CardTitle className="text-lg">Filters</CardTitle>
+            <Button 
+              size="sm" 
+              className="gap-1" 
+              onClick={() => setSettlementFormOpen(true)} 
+              disabled={formLoading}
+            >
               <Plus className="h-4 w-4" />
               Create Settlement
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="pt-2">
+        <CardContent className="p-4 pt-0">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex-1 min-w-[160px]">
               <Select value={internalSelectedEmployeeId?.toString() || "all"} onValueChange={handleEmployeeChange}>
@@ -909,23 +920,29 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         </CardContent>
       </Card>
 
+      {/* Settlements Table Card */}
       <Card>
         <CardHeader>
           <CardTitle>Settlement Records</CardTitle>
           <CardDescription>Monthly salary settlements and payment tracking</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <TanStackTable
-              table={table}
-              virtualized={false}
-              loading={loading}
-              emptyMessage="No settlements found"
-              stickyHeader={true}
-              maxHeight="calc(100vh - 340px)"
-              customHeaderAlignment={{ actions: "right" }}
-              customCellAlignment={{ actions: "right" }}
-            />
+        <CardContent className="p-0">
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-full w-max">
+              <div className="p-4">
+                <TanStackTable
+                  table={table}
+                  virtualized={false}
+                  loading={loading}
+                  emptyMessage="No settlements found"
+                  stickyHeader={true}
+                  maxHeight="calc(100vh - 380px)"
+                  customHeaderAlignment={{ actions: "right" }}
+                  customCellAlignment={{ actions: "right" }}
+                  className="w-full min-w-[1200px]"
+                />
+              </div>
+            </div>
           </div>
           {/* Pagination Controls */}
           {paginationInfo.totalPages > 1 && (

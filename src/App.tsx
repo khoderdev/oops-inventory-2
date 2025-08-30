@@ -1,6 +1,5 @@
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { MenuPage } from "./components/menu/TabMenu";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { employeeFormModeAtom, employeeFormOpenAtom, employeesAtom, selectedEmployeeAtom } from "@/store/employeeAtoms";
 import { PERMISSIONS } from "@/types/auth";
@@ -9,16 +8,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Employee, EmployeeSettlements, EmployeeTable } from "./components/employees";
-import { POSClientOrders } from "./components/pos/POSClientOrders";
 import System from "./components/system";
-import { DatabaseBackupManager } from "./components/system/settings";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DayOperationsProvider } from "./contexts/DayOperationsContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
-import { EmployeeUsageView } from "./components/employees/EmployeeUsageView";
-import { PermissionsTest } from "./PermissionsTest";
+import { Employee } from "./components/employees";
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -31,10 +26,15 @@ const ProfilePage = lazy(() => import("./components/profile/ProfilePage"));
 const SessionManagementPage = lazy(() => import("./components/profile/SessionManagementPage"));
 const DayOperationsPage = lazy(() => import("./pages/DayOperationsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const POSClientOrders = lazy(() => import("./components/pos/POSClientOrders").then(m => ({ default: m.POSClientOrders })));
 const POSClientPage = lazy(() => import("./pages/POSClientPage"));
 const SalesHistoryPage = lazy(() => import("./pages/SalesHistoryPage").then(m => ({ default: m.SalesHistoryPage })));
 const SystemLogsGenerator = lazy(() => import("./components/system/system-logs/SystemLogsGenerator").then(m => ({ default: m.SystemLogsGenerator })));
-const PlaceholderPage = lazy(() => import("./components/common/PlaceholderPage"));
+const EmployeeSettlements = lazy(() => import("./components/employees/EmployeeSettlements").then(m => ({ default: m.EmployeeSettlements })));
+const EmployeeTable = lazy(() => import("./components/employees/EmployeeTable").then(m => ({ default: m.EmployeeTable })));
+const EmployeeUsageView = lazy(() => import("./components/employees/EmployeeUsageView").then(m => ({ default: m.EmployeeUsageView })));
+const DatabaseBackupManager = lazy(() => import("./components/system/settings").then(m => ({ default: m.DatabaseBackupManager })));
+const MenuPage = lazy(() => import("./components/menu/TabMenu").then(m => ({ default: m.MenuPage })));
 const queryClient = new QueryClient();
 
 export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps = {}) {
