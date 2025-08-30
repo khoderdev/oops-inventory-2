@@ -438,7 +438,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
   }
 
   return (
-    <>
+    <div className="md:px-6">
       {/* Header */}
       <div className="sticky top-0 flex items-center justify-between p-2 bg-gray-50">
         <h1 className="text-3xl font-bold">Sales History</h1>
@@ -579,8 +579,8 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium">Select Item</label>
-                <Select value={selectedItem} onValueChange={setSelectedItem}>
-                  <SelectTrigger>
+                <Select value={selectedItem} onValueChange={setSelectedItem} >
+                  <SelectTrigger className="bg-white">
                     <SelectValue placeholder="Select an item to filter by..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -596,7 +596,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
               <div className="flex-1">
                 <label className="text-sm font-medium">Select Section</label>
                 <Select value={selectedSection} onValueChange={setSelectedSection}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white">
                     <SelectValue placeholder="Select a section to filter by..." />
                   </SelectTrigger>
                   <SelectContent>
@@ -613,7 +613,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                 <div className="space-y-1">
                   <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">From Date</Label>
                   <Popover open={dateFromOpen} onOpenChange={setDateFromOpen}>
-                    <PopoverTrigger asChild>
+                    <PopoverTrigger className="bg-white" asChild>
                       <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dateFrom ? format(dateFrom, "MMM d, yyyy") : "Pick a date"}
@@ -640,7 +640,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                 <div className="space-y-1">
                   <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">To Date</Label>
                   <Popover open={dateToOpen} onOpenChange={setDateToOpen}>
-                    <PopoverTrigger asChild>
+                    <PopoverTrigger className="bg-white" asChild>
                       <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
                         <CalendarIcon className="mr-2 h-4 w-4" />
                         {dateTo ? format(dateTo, "MMM d, yyyy") : "Pick a date"}
@@ -842,7 +842,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
         {/* </Card> */}
 
         {/* Sales Accordion */}
-        <Card className="!bg-background !ring-0 !border-none !shadow-none !rounded-lg my-4 pb-28">
+        <Card className="!bg-white !ring-0 !border-none !shadow-none !rounded-lg my-4 pb-2">
           <CardHeader className="px-4 h-4">
             <div className="flex items-center justify-between">
               <div>
@@ -1274,6 +1274,6 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

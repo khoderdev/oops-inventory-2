@@ -234,48 +234,42 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({ employees, onEdit 
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4 p-4 px-6">
       <EmployeeStatsCards stats={employeeStats} />
-      {/* Header with Add Button */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">Employees</h2>
+      {/* Filters */}
+      <div className="flex flex-col items-start justify-between sm:flex-row gap-4">
+        <div className="flex md:w-1/2 gap-4">
+          <Input placeholder="Search employees..." value={filters.search || ""} onChange={e => handleSearchChange(e.target.value)} className="w-32 lg:w-48" />
+
+          <Select value={filters.department ? String(filters.department.id) : "all"} onValueChange={handleDepartmentFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {departments.map(dept => (
+                <SelectItem key={dept.id} value={String(dept.id)}>
+                  {getDeptLabel(dept)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={filters.isActive === undefined ? "all" : filters.isActive ? "active" : "inactive"} onValueChange={handleStatusFilter}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         <Button onClick={handleAddEmployee} className="gap-2">
           <Plus className="h-4 w-4" />
           Add Employee
         </Button>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search employees..." value={filters.search || ""} onChange={e => handleSearchChange(e.target.value)} className="pl-10" />
-        </div>
-
-        <Select value={filters.department ? String(filters.department.id) : "all"} onValueChange={handleDepartmentFilter}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Department" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Departments</SelectItem>
-            {departments.map(dept => (
-              <SelectItem key={dept.id} value={String(dept.id)}>
-                {getDeptLabel(dept)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={filters.isActive === undefined ? "all" : filters.isActive ? "active" : "inactive"} onValueChange={handleStatusFilter}>
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Table */}

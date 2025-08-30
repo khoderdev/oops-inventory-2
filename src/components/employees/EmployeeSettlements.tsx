@@ -826,7 +826,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
         </div>
       )}
 
-      <Card>
+      <Card className="border border-red-400">
         <CardHeader className="p-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm">Filters</CardTitle>

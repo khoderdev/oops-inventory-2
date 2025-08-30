@@ -422,10 +422,8 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
               <div>{isDialog ? <DialogTitle className="text-3xl font-bold text-white">Orders</DialogTitle> : <h1 className="text-3xl font-bold text-white">Orders</h1>}</div>
             </div>
           </div>
-        ) : (
-          null
-        )}
-       
+        ) : null}
+
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Enhanced Filters Section */}
@@ -492,7 +490,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
               const target = e.target as HTMLElement;
             }}
           >
-            <div className="p-4">
+            <div className="lg:p-4">
               {isLoading && !refreshing ? (
                 <div className="flex items-center justify-center h-64">
                   <div className="text-center">
@@ -528,136 +526,138 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
               ) : viewMode === "list" ? (
                 /* List View */
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-gray-50">
-                        <TableHead className="font-semibold text-gray-900">Order</TableHead>
-                        <TableHead className="font-semibold text-gray-900">Notes</TableHead>
-                        <TableHead className="font-semibold text-gray-900">Type</TableHead>
-                        <TableHead className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort("status")}>
-                          <div className="flex items-center space-x-1">
-                            <span>Status</span>
-                            <ArrowUpDown className="h-3 w-3" />
-                          </div>
-                        </TableHead>
-                        <TableHead className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort("date")}>
-                          <div className="flex items-center space-x-1">
-                            <span>Date & Time</span>
-                            <ArrowUpDown className="h-3 w-3" />
-                          </div>
-                        </TableHead>
-                        <TableHead className="font-semibold text-gray-900 text-right cursor-pointer hover:bg-gray-100 select-none" onClick={() => handleSort("total")}>
-                          <div className="flex items-center justify-end space-x-1">
-                            <span>Total</span>
-                            <ArrowUpDown className="h-3 w-3" />
-                          </div>
-                        </TableHead>
-                        <TableHead className="font-semibold text-gray-900 text-center">Items</TableHead>
-                        <TableHead className="font-semibold text-gray-900 text-center">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedOrders.map(order => (
-                        <TableRow
-                          key={order.id}
-                          className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
-                          onClick={e => {
-                            const target = e.target as HTMLElement;
-                            if (target.closest("button") || target.closest(".action-button")) {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              return;
-                            }
-                            handleOrderSelect(order);
-                          }}
-                        >
-                          <TableCell className="font-medium">
-                            <div className="flex flex-col">
-                              <span className="font-bold text-gray-900">{order.orderNumber}</span>
-                              <span className="text-sm text-gray-500">#{String(order.id).slice(-8)}</span>
+                  <div className="h-[calc(100vh-170px)] overflow-y-auto">
+                    <Table>
+                      <TableHeader className="sticky top-0 z-10">
+                        <TableRow className="bg-gray-50">
+                          <TableHead className="font-semibold text-gray-900 sticky top-0 bg-gray-50">Order</TableHead>
+                          <TableHead className="font-semibold text-gray-900 sticky top-0 bg-gray-50">Notes</TableHead>
+                          <TableHead className="font-semibold text-gray-900 sticky top-0 bg-gray-50">Type</TableHead>
+                          <TableHead className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none sticky top-0 bg-gray-50" onClick={() => handleSort("status")}>
+                            <div className="flex items-center space-x-1">
+                              <span>Status</span>
+                              <ArrowUpDown className="h-3 w-3" />
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm text-gray-600 max-w-32 truncate">
-                                {/* {(order as OrderSummary & { notes?: string }).notes || "No notes"} */}
-                                {order.notes || "No notes"}
-                              </span>
+                          </TableHead>
+                          <TableHead className="font-semibold text-gray-900 cursor-pointer hover:bg-gray-100 select-none sticky top-0 bg-gray-50" onClick={() => handleSort("date")}>
+                            <div className="flex items-center space-x-1">
+                              <span>Date & Time</span>
+                              <ArrowUpDown className="h-3 w-3" />
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center space-x-2">
-                              {ORDER_TYPE_ICONS[order.orderType]}
-                              <span className="capitalize font-medium text-gray-700">
-                                {order.orderType}
-                                {order.orderType === "table" && order.tableNumber && <span className="text-green-600"> (#{order.tableNumber})</span>}
-                              </span>
+                          </TableHead>
+                          <TableHead className="font-semibold text-gray-900 text-right cursor-pointer hover:bg-gray-100 select-none sticky top-0 bg-gray-50" onClick={() => handleSort("total")}>
+                            <div className="flex items-center justify-end space-x-1">
+                              <span>Total</span>
+                              <ArrowUpDown className="h-3 w-3" />
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`${ORDER_STATUS_COLORS[order.status]} font-semibold`}>{order.status}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col text-sm">
-                              <div className="flex items-center space-x-1 text-gray-900">
-                                <Calendar className="w-3 h-3" />
-                                <span>{formatDate(order.createdAt)}</span>
-                              </div>
-                              <div className="flex items-center space-x-1 text-gray-600">
-                                <Clock className="w-3 h-3" />
-                                <span>{formatTime(order.createdAt)}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="text-lg font-bold text-green-600">{formatCurrency(order.total)}</span>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant="outline" className="font-medium">
-                              {order.itemCount || 0}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-center space-x-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 hover:bg-blue-100"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  handleOrderSelect(order);
-                                }}
-                              >
-                                <Edit className="w-4 h-4 text-blue-600" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 hover:bg-blue-100"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  handleViewOrderDetails(order);
-                                }}
-                              >
-                                <Eye className="w-4 h-4 text-blue-600" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 hover:bg-blue-100"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  handlePrintOrderReceipt(order);
-                                }}
-                              >
-                                <Printer className="w-4 h-4 text-blue-600" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                          </TableHead>
+                          <TableHead className="font-semibold text-gray-900 text-center sticky top-0 bg-gray-50">Items</TableHead>
+                          <TableHead className="font-semibold text-gray-900 text-center sticky top-0 bg-gray-50">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedOrders.map(order => (
+                          <TableRow
+                            key={order.id}
+                            className="hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-100"
+                            onClick={e => {
+                              const target = e.target as HTMLElement;
+                              if (target.closest("button") || target.closest(".action-button")) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return;
+                              }
+                              handleOrderSelect(order);
+                            }}
+                          >
+                            <TableCell className="font-medium">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-gray-900">{order.orderNumber}</span>
+                                <span className="text-sm text-gray-500">#{String(order.id).slice(-8)}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm text-gray-600 max-w-32 truncate">
+                                  {/* {(order as OrderSummary & { notes?: string }).notes || "No notes"} */}
+                                  {order.notes || "No notes"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                {ORDER_TYPE_ICONS[order.orderType]}
+                                <span className="capitalize font-medium text-gray-700">
+                                  {order.orderType}
+                                  {order.orderType === "table" && order.tableNumber && <span className="text-green-600"> (#{order.tableNumber})</span>}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={`${ORDER_STATUS_COLORS[order.status]} font-semibold`}>{order.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col text-sm">
+                                <div className="flex items-center space-x-1 text-gray-900">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>{formatDate(order.createdAt)}</span>
+                                </div>
+                                <div className="flex items-center space-x-1 text-gray-600">
+                                  <Clock className="w-3 h-3" />
+                                  <span>{formatTime(order.createdAt)}</span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className="text-lg font-bold text-green-600">{formatCurrency(order.total)}</span>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant="outline" className="font-medium">
+                                {order.itemCount || 0}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center justify-center space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 hover:bg-blue-100"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleOrderSelect(order);
+                                  }}
+                                >
+                                  <Edit className="w-4 h-4 text-blue-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 hover:bg-blue-100"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handleViewOrderDetails(order);
+                                  }}
+                                >
+                                  <Eye className="w-4 h-4 text-blue-600" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 hover:bg-blue-100"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    handlePrintOrderReceipt(order);
+                                  }}
+                                >
+                                  <Printer className="w-4 h-4 text-blue-600" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               ) : (
                 /* Grid View */
