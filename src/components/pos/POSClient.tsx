@@ -1,4 +1,5 @@
 import { ordersAPI } from "@/api/orders.api";
+import { printerAPI } from "@/api/printer.api";
 import { tablesAPI } from "@/api/tables.api";
 import PrinterSelector from "@/components/common/PrinterSelector";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -31,8 +32,6 @@ import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 import { Category } from "@/types/categories";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
-import printerAPI from "@/api/printer.api";
-import { posAPI } from "@/api/pos.api";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   // Use MenuItemsContext for menu items data
@@ -105,7 +104,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     let cancelled = false;
     const ensureMenuItemsLoaded = async () => {
       try {
-        await fetchMenuItems('both');
+        await fetchMenuItems("both");
       } catch (e) {
         console.error("❌ POSClient: Failed to ensure menu items via context:", e);
       }
@@ -667,32 +666,58 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setCategoriesMap(categoryMap);
   }, [menuItemCategories, beverageCategories]);
 
-  // Fetch POS items directly from API to get variants data
-  const [apiPosItems, setApiPosItems] = useState<POSItem[]>([]);
-  
-  const fetchPOSItems = useCallback(async () => {
-    try {
-      const response = await posAPI.getPOSItems();
-      if (response && response.data && response.data.data) {
-        setApiPosItems(response.data.data);
-      } else {
-        setApiPosItems([]);
-      }
-    } catch (error) {
-      console.error("Error fetching POS items:", error);
-      setApiPosItems([]);
-    }
-  }, []);
-
-  // Fetch POS items on mount and when menu items change
-  useEffect(() => {
-    fetchPOSItems();
-  }, [fetchPOSItems, foodMenuItems, beverageMenuItems]);
-
   // Memoized POS items to prevent unnecessary re-renders during POS operations
   const memoizedPosItems = useMemo(() => {
-    return apiPosItems;
-  }, [apiPosItems]);
+    if (categoriesMap.size === 0) return [];
+    const allMenuItems: MenuItem[] = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+    if (allMenuItems.length === 0) return [];
+    const posItemsFromData: POSItem[] = [];
+
+    allMenuItems.forEach(menuItem => {
+      if (!menuItem?.isPOSItem) return;
+      let categoryId: number;
+      if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
+        categoryId = (menuItem.category as any).id;
+      } else if (menuItem.category && typeof menuItem.category === "number") {
+        categoryId = menuItem.category;
+      } else {
+        console.warn("⚠️ Invalid category format for menu item:", menuItem?.name, menuItem?.category);
+        categoryId = 0;
+      }
+      const categoryName = categoriesMap.get(categoryId);
+      if (!categoryName) return;
+      posItemsFromData.push({
+        id: `menu-${menuItem.id}`,
+        name: menuItem.name,
+        // Ensure price is always a valid number, default to 0 if null or NaN
+        price: typeof menuItem.price === 'number' && !isNaN(menuItem.price) ? menuItem.price : 0,
+        category: categoryName,
+        type: "menu_item",
+        menuItemId: menuItem.id,
+        unit: menuItem.unit,
+        availableQuantity: menuItem.availableQuantity,
+        costPerUnit: menuItem.costPerUnit,
+        createdAt: menuItem.createdAt.toString(),
+        updatedAt: menuItem.updatedAt.toString(),
+        description: menuItem.description,
+        image: menuItem.image,
+        imageUrl: undefined,
+        // Transform variants to match expected array format if present
+        variants: menuItem.variants ? 
+          (Array.isArray(menuItem.variants) ? menuItem.variants : 
+            // Convert object format to array format
+            Object.keys(menuItem.variants.variantVolumes || {}).map(variantKey => ({
+              id: variantKey,
+              name: variantKey,
+              volume: menuItem.variants.variantVolumes[variantKey] || 0,
+              unit: menuItem.variants.variantVolumeUnits?.[variantKey] || 'cl',
+              price: menuItem.variants.variantPrices?.[variantKey] || 0
+            }))
+          ) : undefined
+      });
+    });
+    return posItemsFromData;
+  }, [foodMenuItems, beverageMenuItems, categoriesMap]);
 
   // Update posItems state only when memoized items actually change and no POS action is in progress
   useEffect(() => {
@@ -787,28 +812,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     await Promise.all([fetchMenuItems(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
   }, [fetchMenuItems, fetchTablesData, refreshCountsRef]);
 
-  // Helper function to get category string from different category formats
-  const getCategoryString = (category: string | number | Category | { id: number; name: string; value: string } | undefined): string => {
-    if (!category) return "";
-    if (typeof category === "string") return category;
-    if (typeof category === "number") return category.toString();
-    if (typeof category === "object") {
-      return category.name || category.value || "";
-    }
-    return "";
-  };
-
   const availablePosItems = posItems.filter(posItem => {
+    const getCategoryString = (category: string | number | Category | { id: number; name: string; value: string } | undefined): string => {
+      if (!category) return "";
+      if (typeof category === "string") return category;
+      if (typeof category === "number") return category.toString();
+      if (typeof category === "object") {
+        return category.name || category.value || "";
+      }
+      return "";
+    };
+
     const categoryString = getCategoryString(posItem.category);
     const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || categoryString.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
-  const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => {
-    // Get normalized category string for comparison
-    const itemCategory = getCategoryString(item.category);
-    return itemCategory === activeCategory;
-  });
+  const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
 
   const recalculateEmployeeDiscount = useCallback(
     (newCart: POSCartItem[]) => {
@@ -831,11 +851,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const addToCart = useCallback(
     (posItem: POSItem) => {
       setIsPOSActionInProgress(true);
-      
+
       // Create a unique cart ID that includes variant information if present
-      const variantId = posItem.selectedVariant ? `-variant-${posItem.selectedVariant.name}-${posItem.selectedVariant.volume}${posItem.selectedVariant.unit}` : '';
+      const variantId = posItem.selectedVariant ? `-variant-${posItem.selectedVariant.name}-${posItem.selectedVariant.volume}${posItem.selectedVariant.unit}` : "";
       const cartId = `pos-${posItem.id}${variantId}`;
-      
+
       setCart(prevCart => {
         const currentCart = prevCart || [];
 
@@ -850,25 +870,23 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             const cartItemPosItem = cartItem.posItem as POSItem;
             const cartItemHasVariant = cartItemPosItem && cartItemPosItem.selectedVariant;
             const posItemHasVariant = posItem.selectedVariant;
-            
+
             // If one has a variant and the other doesn't, they're different items
             if (cartItemHasVariant !== posItemHasVariant) {
               return false;
             }
-            
+
             // If both have variants, check if they're the same variant
             if (cartItemHasVariant && posItemHasVariant) {
               const cartVariant = cartItemPosItem.selectedVariant;
               const posVariant = posItem.selectedVariant;
-              
+
               // If variants don't match, they're different items
-              if (cartVariant.name !== posVariant.name || 
-                  cartVariant.volume !== posVariant.volume || 
-                  cartVariant.unit !== posVariant.unit) {
+              if (cartVariant.name !== posVariant.name || cartVariant.volume !== posVariant.volume || cartVariant.unit !== posVariant.unit) {
                 return false;
               }
             }
-            
+
             // Now check the regular item matching logic
             if (posItem.type === "menu_item" && cartItem.type === "menu_item") {
               const cartMenuItemId = cartItem.menuItemId;
@@ -890,38 +908,32 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           newCart = currentCart.map(cartItem => {
             // Update by cartId which now includes variant information
             const shouldUpdate = cartItem.id === cartId;
-            
+
             // If not matching by cartId, check if we should update based on item properties
             // but only if variants match or both items don't have variants
             if (!shouldUpdate) {
               const cartItemPosItem = cartItem.posItem as POSItem;
               const cartItemHasVariant = cartItemPosItem && cartItemPosItem.selectedVariant;
               const posItemHasVariant = posItem.selectedVariant;
-              
+
               // Only consider updating if variant status matches
               if (cartItemHasVariant === posItemHasVariant) {
                 // If both have variants, check if they're the same variant
                 if (cartItemHasVariant && posItemHasVariant) {
                   const cartVariant = cartItemPosItem.selectedVariant;
                   const posVariant = posItem.selectedVariant;
-                  
+
                   // Only update if variants match
-                  if (cartVariant.name === posVariant.name && 
-                      cartVariant.volume === posVariant.volume && 
-                      cartVariant.unit === posVariant.unit) {
-                    return (posItem.type === "menu_item" && cartItem.type === "menu_item" && Number(cartItem.menuItemId) === Number(posItem.menuItemId)) ||
-                           (posItem.type === "stock_entry" && cartItem.type === "material" && String(cartItem.stockEntryId) === String(posItem.materialId)) ?
-                           { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
+                  if (cartVariant.name === posVariant.name && cartVariant.volume === posVariant.volume && cartVariant.unit === posVariant.unit) {
+                    return (posItem.type === "menu_item" && cartItem.type === "menu_item" && Number(cartItem.menuItemId) === Number(posItem.menuItemId)) || (posItem.type === "stock_entry" && cartItem.type === "material" && String(cartItem.stockEntryId) === String(posItem.materialId)) ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
                   }
                 } else {
                   // No variants, use regular matching
-                  return (posItem.type === "menu_item" && cartItem.type === "menu_item" && Number(cartItem.menuItemId) === Number(posItem.menuItemId)) ||
-                         (posItem.type === "stock_entry" && cartItem.type === "material" && String(cartItem.stockEntryId) === String(posItem.materialId)) ?
-                         { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
+                  return (posItem.type === "menu_item" && cartItem.type === "menu_item" && Number(cartItem.menuItemId) === Number(posItem.menuItemId)) || (posItem.type === "stock_entry" && cartItem.type === "material" && String(cartItem.stockEntryId) === String(posItem.materialId)) ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
                 }
               }
             }
-            
+
             return shouldUpdate ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
           });
         } else {
@@ -939,19 +951,30 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               printerId: posItem.printerId,
               assignedPrinter: posItem.assignedPrinter
             };
-            
+
             if (!menuItem) {
               console.warn("⚠️ Menu item not found, using fallback for POS item:", posItem);
             }
-            
+
+            // Determine the correct price to use
+            let itemPrice: number;
+            if (posItem.selectedVariant && typeof posItem.selectedVariant.price !== 'undefined') {
+              // If variant has a price, parse it to ensure it's a number
+              const variantPrice = parseFloat(String(posItem.selectedVariant.price));
+              itemPrice = !isNaN(variantPrice) ? variantPrice : 0;
+            } else {
+              // Otherwise use the posItem price, ensuring it's a valid number
+              itemPrice = typeof posItem.price === 'number' && !isNaN(posItem.price) ? posItem.price : 0;
+            }
+
             const newItem: POSCartItem = {
               id: cartId,
               name: posItem.displayName || posItem.name,
-              price: posItem.price,
+              price: itemPrice, // Use the validated price
               quantity: 1,
               type: "menu_item",
               originalItem: finalMenuItem,
-              posItem,  // This will include the selectedVariant if present
+              posItem, // This will include the selectedVariant if present
               stockEntryId: undefined,
               // Store as string to match POSCartItem type
               menuItemId: String(menuItemId),
@@ -974,15 +997,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               printerId: posItem.printerId,
               assignedPrinter: posItem.assignedPrinter
             };
-            
+
             if (!stockEntry) {
               console.warn("⚠️ Stock entry not found, using fallback for POS item:", posItem);
             }
+
+            // Ensure price is a valid number for material items too
+            const itemPrice = typeof posItem.price === 'number' && !isNaN(posItem.price) ? posItem.price : 0;
             
             const newItem: POSCartItem = {
               id: cartId,
               name: posItem.name,
-              price: posItem.price,
+              price: itemPrice, // Use the validated price
               quantity: 1,
               type: "material",
               originalItem: finalStockEntry,
@@ -2066,13 +2092,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 min-h-0 !bg-gray-50 p-2">
-              <ItemsGrid
-                key={`${activeView}-${rightPanelPixelWidth}`}
-                posItems={filteredPosItems}
-                onAddToCart={addToCart}
-                rightPanelPixelWidth={rightPanelPixelWidth}
-                isLoading={isItemsGridLoading}
-              />
+              {/* Remount ItemsGrid when switching views or when panel width changes to force re-measure */}
+              <ItemsGrid key={`${activeView}-${rightPanelPixelWidth}`} posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={isItemsGridLoading} />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}

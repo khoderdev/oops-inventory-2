@@ -84,8 +84,20 @@ const menuItemsController = {
             order: [
               ["sortOrder", "ASC"],
               ["name", "ASC"]
+            ],
+            include: [
+              {
+                model: VariantIngredient,
+                as: "ingredients",
+                where: { isActive: true },
+                required: false,
+                include: [
+                  { model: Material, as: "material", required: false },
+                  { model: sequelize.models.Sauce, as: "sauce", required: false }
+                ]
+              }
             ]
-          }
+          },
         ]
       });
 
@@ -107,7 +119,21 @@ const menuItemsController = {
             type: "sauce"
           }))
         ],
-        variants: item.variants || []
+        variants: (item.variants || []).map(variant => ({
+          ...variant.get(),
+          ingredients: variant.ingredients ? variant.ingredients.map(ingredient => ({
+            id: ingredient.id,
+            variantId: ingredient.variantId,
+            materialId: ingredient.materialId,
+            sauceId: ingredient.sauceId,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            cost: ingredient.cost,
+            material: ingredient.material ? ingredient.material.get() : null,
+            sauce: ingredient.sauce ? ingredient.sauce.get() : null,
+            type: ingredient.materialId ? "material" : "sauce"
+          })) : []
+        }))
       }));
 
       res.status(200).json(formattedMenuItems);
@@ -328,7 +354,29 @@ const menuItemsController = {
           { model: Category, as: "category", attributes: ["id", "name", "value"], required: false },
           { model: MenuItemIngredient, as: "menuItemIngredients", include: [{ model: Material, as: "material" }] },
           { model: MenuItemSauce, as: "menuItemSauces" },
-          { model: Variants, as: "variants", where: { isActive: true }, required: false, order: [["sortOrder", "ASC"]] }
+          {
+            model: Variants,
+            as: "variants",
+            attributes: ["id", "name", "volume", "unit", "price", "isActive", "sortOrder"],
+            where: { isActive: true },
+            required: false,
+            order: [
+              ["sortOrder", "ASC"],
+              ["name", "ASC"]
+            ],
+            include: [
+              {
+                model: VariantIngredient,
+                as: "ingredients",
+                where: { isActive: true },
+                required: false,
+                include: [
+                  { model: Material, as: "material", required: false },
+                  { model: sequelize.models.Sauce, as: "sauce", required: false }
+                ]
+              }
+            ]
+          },
         ],
         transaction
       });
@@ -354,7 +402,21 @@ const menuItemsController = {
             type: "sauce"
           }))
         ],
-        variants: updatedMenuItem.variants || []
+        variants: (updatedMenuItem.variants || []).map(variant => ({
+          ...variant.get(),
+          ingredients: variant.ingredients ? variant.ingredients.map(ingredient => ({
+            id: ingredient.id,
+            variantId: ingredient.variantId,
+            materialId: ingredient.materialId,
+            sauceId: ingredient.sauceId,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            cost: ingredient.cost,
+            material: ingredient.material ? ingredient.material.get() : null,
+            sauce: ingredient.sauce ? ingredient.sauce.get() : null,
+            type: ingredient.materialId ? "material" : "sauce"
+          })) : []
+        }))
       };
 
       res.status(200).json(formattedMenuItem);
@@ -564,6 +626,18 @@ const menuItemsController = {
             order: [
               ["sortOrder", "ASC"],
               ["name", "ASC"]
+            ],
+            include: [
+              {
+                model: VariantIngredient,
+                as: "ingredients",
+                where: { isActive: true },
+                required: false,
+                include: [
+                  { model: Material, as: "material", required: false },
+                  { model: sequelize.models.Sauce, as: "sauce", required: false }
+                ]
+              }
             ]
           }
         ]
@@ -578,7 +652,21 @@ const menuItemsController = {
           cost: ingredient.cost,
           type: "material"
         })),
-        variants: item.variants || []
+        variants: (item.variants || []).map(variant => ({
+          ...variant.get(),
+          ingredients: variant.ingredients ? variant.ingredients.map(ingredient => ({
+            id: ingredient.id,
+            variantId: ingredient.variantId,
+            materialId: ingredient.materialId,
+            sauceId: ingredient.sauceId,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            cost: ingredient.cost,
+            material: ingredient.material ? ingredient.material.get() : null,
+            sauce: ingredient.sauce ? ingredient.sauce.get() : null,
+            type: ingredient.materialId ? "material" : "sauce"
+          })) : []
+        }))
       }));
 
       res.status(200).json(formattedMenuItems);
@@ -640,7 +728,21 @@ const menuItemsController = {
             type: "sauce"
           }))
         ],
-        variants: menuItem.variants || []
+        variants: (menuItem.variants || []).map(variant => ({
+          ...variant.get(),
+          ingredients: variant.ingredients ? variant.ingredients.map(ingredient => ({
+            id: ingredient.id,
+            variantId: ingredient.variantId,
+            materialId: ingredient.materialId,
+            sauceId: ingredient.sauceId,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            cost: ingredient.cost,
+            material: ingredient.material ? ingredient.material.get() : null,
+            sauce: ingredient.sauce ? ingredient.sauce.get() : null,
+            type: ingredient.materialId ? "material" : "sauce"
+          })) : []
+        }))
       };
       res.status(200).json(formattedMenuItem);
     } catch (error) {
@@ -954,7 +1056,25 @@ const menuItemsController = {
           { model: Category, as: "category", attributes: ["id", "name", "value"], required: false },
           { model: MenuItemIngredient, as: "menuItemIngredients", include: [{ model: Material, as: "material" }] },
           { model: MenuItemSauce, as: "menuItemSauces" },
-          { model: Variants, as: "variants", where: { isActive: true }, required: false, order: [["sortOrder", "ASC"]] }
+          { 
+            model: Variants, 
+            as: "variants", 
+            where: { isActive: true }, 
+            required: false, 
+            order: [["sortOrder", "ASC"]], 
+            include: [
+              {
+                model: VariantIngredient,
+                as: "ingredients",
+                where: { isActive: true },
+                required: false,
+                include: [
+                  { model: Material, as: "material", required: false },
+                  { model: sequelize.models.Sauce, as: "sauce", required: false }
+                ]
+              }
+            ]
+          }
         ],
         transaction
       });
@@ -980,7 +1100,21 @@ const menuItemsController = {
             type: "sauce"
           }))
         ],
-        variants: createdMenuItem.variants || []
+        variants: (createdMenuItem.variants || []).map(variant => ({
+          ...variant.get(),
+          ingredients: variant.ingredients ? variant.ingredients.map(ingredient => ({
+            id: ingredient.id,
+            variantId: ingredient.variantId,
+            materialId: ingredient.materialId,
+            sauceId: ingredient.sauceId,
+            quantity: ingredient.quantity,
+            unit: ingredient.unit,
+            cost: ingredient.cost,
+            material: ingredient.material ? ingredient.material.get() : null,
+            sauce: ingredient.sauce ? ingredient.sauce.get() : null,
+            type: ingredient.materialId ? "material" : "sauce"
+          })) : []
+        }))
       };
 
       res.status(201).json(formattedMenuItem);

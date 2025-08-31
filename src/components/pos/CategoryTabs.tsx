@@ -16,10 +16,7 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCa
     });
   }, [categories]);
 
-  // Split categories into two rows for better distribution
-  const midpoint = Math.ceil(processedCategories.length / 2);
-  const firstRow = processedCategories.slice(0, midpoint);
-  const secondRow = processedCategories.slice(midpoint);
+  // Display all categories in a single row as shown in the screenshot
 
   const renderCategoryButton = (category: string, index: number) => {
     const isActive = activeCategory === category;
@@ -47,13 +44,9 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCa
 
   return (
     <div className="bg-gradient-to-r from-slate-50 to-gray-50 select-none safe-area-padding">
-      {/* Categories Grid - 2 Rows */}
-      <div className="grid grid-rows-2">
-        {/* First Row */}
-        <div className="flex">{firstRow.map((category, index) => renderCategoryButton(category, index))}</div>
-
-        {/* Second Row */}
-        <div className="flex">{secondRow.map((category, index) => renderCategoryButton(category, index + firstRow.length))}</div>
+      {/* Categories in a single row */}
+      <div className="flex overflow-x-auto">
+        {processedCategories.map((category, index) => renderCategoryButton(category, index))}
       </div>
     </div>
   );
