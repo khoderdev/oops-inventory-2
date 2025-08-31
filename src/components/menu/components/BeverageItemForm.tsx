@@ -15,8 +15,9 @@ import { getAvailableUnits } from "@/utils/getAvailableUnits";
 const VariantIngredientInput: React.FC<{
   variantName: string;
   materials: any[];
+  stockEntries: any[];
   onAddIngredient: (variantName: string, materialId: string, quantity: number, unit: string) => void;
-}> = ({ variantName, materials, onAddIngredient }) => {
+}> = ({ variantName, materials, stockEntries, onAddIngredient }) => {
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("");
@@ -56,6 +57,34 @@ const VariantIngredientInput: React.FC<{
   const handleMaterialChange = (materialId: string) => {
     setSelectedMaterialId(materialId);
     // Unit will be automatically set by the useEffect above
+    
+    // Log material information on selection
+    if (materialId) {
+      const material = materials?.find(m => String(m.id) === materialId);
+      if (material) {
+        const relevantStockEntries = stockEntries?.filter(entry => String(entry.materialId) === materialId) || [];
+        
+        console.log(`🔍 Selected material: ${material.name}`, {
+          material: {
+            id: material.id,
+            name: material.name,
+            unitType: material.unitType,
+            baseUnit: material.baseUnit,
+            packageQuantity: material.packageQuantity,
+            availableUnits: getAvailableUnits(materialId, materials)
+          },
+          stockEntries: relevantStockEntries.map(entry => ({
+            id: entry.id,
+            materialId: entry.materialId,
+            purchasedQuantity: entry.purchasedQuantity,
+            purchasedUnit: entry.purchasedUnit,
+            costPerPurchasedUnit: entry.costPerPurchasedUnit,
+            costPerBaseUnit: entry.costPerBaseUnit,
+            totalCost: entry.totalCost
+          }))
+        });
+      }
+    }
   };
 
   return (
@@ -207,18 +236,18 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
   
   // Available variant types with default values
   const availableVariantTypes = [
-    { name: 'small', defaultVolume: 25, defaultUnit: 'cl', defaultPrice: 2.5 },
-    { name: 'medium', defaultVolume: 33, defaultUnit: 'cl', defaultPrice: 3.5 },
-    { name: 'large', defaultVolume: 50, defaultUnit: 'cl', defaultPrice: 5.0 },
-    { name: 'glass', defaultVolume: 30, defaultUnit: 'cl', defaultPrice: 3.0 },
-    { name: 'shot', defaultVolume: 5, defaultUnit: 'cl', defaultPrice: 2.0 },
-    { name: 'can', defaultVolume: 33, defaultUnit: 'cl', defaultPrice: 3.5 },
-    { name: 'bottle', defaultVolume: 33, defaultUnit: 'cl', defaultPrice: 4.0 },
-    { name: 'pint', defaultVolume: 47, defaultUnit: 'cl', defaultPrice: 5.5 },
-    { name: 'pitcher', defaultVolume: 150, defaultUnit: 'cl', defaultPrice: 18.0 },
-    { name: 'mini', defaultVolume: 18, defaultUnit: 'cl', defaultPrice: 8.0 },
-    { name: 'standard', defaultVolume: 70, defaultUnit: 'cl', defaultPrice: 28.0 },
-    { name: 'magnum', defaultVolume: 150, defaultUnit: 'cl', defaultPrice: 50.0 }
+    { name: 'small', defaultVolume: 25, defaultUnit: 'cl', defaultPrice: 0 },
+    { name: 'medium', defaultVolume: 33, defaultUnit: 'cl', defaultPrice: 0 },
+    { name: 'large', defaultVolume: 50, defaultUnit: 'cl', defaultPrice: 0 },
+    { name: 'glass', defaultVolume: 200, defaultUnit: 'ml', defaultPrice: 0 },
+    { name: 'shot', defaultVolume: 10, defaultUnit: 'ml', defaultPrice: 0 },
+    { name: 'can', defaultVolume: 33, defaultUnit: 'cl', defaultPrice: 0 },
+    { name: 'bottle', defaultVolume: 75, defaultUnit: 'cl', defaultPrice: 0 },
+    { name: 'pint', defaultVolume: 47, defaultUnit: 'cl', defaultPrice: 0 },
+    { name: 'pitcher', defaultVolume: 150, defaultUnit: 'cl', defaultPrice: 0 },
+    { name: 'mini', defaultVolume: 18, defaultUnit: 'cl', defaultPrice: 0 },
+    { name: 'standard', defaultVolume: 70, defaultUnit: 'cl', defaultPrice: 0 },
+    { name: 'magnum', defaultVolume: 150, defaultUnit: 'cl', defaultPrice: 0 }
   ];
 
   // Handle variant type selection
@@ -291,6 +320,51 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
       },
       stockEntries: relevantStockEntries.length
     });
+
+    // Special case for package-type materials when ingredient unit is actually "box" and base unit is "piece"
+    // This fixes the issue with Bombay Gin showing $120 instead of $1.60
+    // Only apply this special case if the unit is actually "box", not for volume units like "cl"
+    if (material.unitType === "package" && ingredient.unit === "box" && material.baseUnit === "piece") {
+      console.log(`📦 Special case: Package material with box unit and piece base unit`);
+      
+      // Find the most recent or relevant stock entry
+      const entry = relevantStockEntries[0]; // Using first entry as default
+      
+      // Try to calculate cost per box directly
+      if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0 && 
+          (entry.purchasedUnit === "box" || !entry.purchasedUnit)) {
+        // If we have cost per purchased unit and it's in boxes, use directly
+        const costPerBox = parseFloat(String(entry.costPerPurchasedUnit));
+        const finalCost = ingredient.quantity * costPerBox;
+        
+        console.log(`📊 Box calculation (direct):`, {
+          costPerBox,
+          quantity: ingredient.quantity,
+          finalCost
+        });
+        
+        return isNaN(finalCost) ? 0 : finalCost;
+      } 
+      else if (entry.totalCost && entry.totalCost > 0 && entry.purchasedQuantity && entry.purchasedQuantity > 0) {
+        // Calculate cost per box from total cost
+        const totalCost = parseFloat(String(entry.totalCost));
+        const purchasedQuantity = parseFloat(String(entry.purchasedQuantity));
+        const costPerBox = totalCost / purchasedQuantity;
+        const finalCost = ingredient.quantity * costPerBox;
+        
+        console.log(`📊 Box calculation (from total):`, {
+          totalCost,
+          purchasedQuantity,
+          costPerBox,
+          quantity: ingredient.quantity,
+          finalCost
+        });
+        
+        return isNaN(finalCost) ? 0 : finalCost;
+      }
+      // If we can't calculate directly, fall through to standard calculation
+      console.log(`⚠️ Could not calculate box cost directly, falling back to standard calculation`);
+    }
 
     let totalWeightedCost = 0;
     let totalQuantity = 0;
@@ -385,6 +459,49 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
     
     // Convert ingredient quantity to base units and calculate final cost
     try {
+      // Special case for package materials with volume units (cl, ml)
+      // This fixes the issue where volume units are incorrectly treated as package units
+      if (material.unitType === "package" && 
+          (ingredient.unit === "cl" || ingredient.unit === "ml" || ingredient.unit === "l") && 
+          material.baseUnit === "cl") {
+        
+        console.log(`🍸 Special case: Volume units for package material ${material.name}`);
+        
+        // Log all stock information for this material
+        console.log(`📈 Stock information for ${material.name}:`, {
+          material: {
+            id: material.id,
+            name: material.name,
+            unitType: material.unitType,
+            baseUnit: material.baseUnit,
+            packageQuantity: material.packageQuantity,
+            availableUnits: getAvailableUnits(String(material.id), materials)
+          },
+          stockEntries: relevantStockEntries.map(entry => ({
+            id: entry.id,
+            materialId: entry.materialId,
+            purchasedQuantity: entry.purchasedQuantity,
+            purchasedUnit: entry.purchasedUnit,
+            costPerPurchasedUnit: entry.costPerPurchasedUnit,
+            costPerBaseUnit: entry.costPerBaseUnit,
+            totalCost: entry.totalCost
+          }))
+        });
+        
+        // Direct calculation for volume units of package materials
+        // Use the costPerBaseUnit directly since the unit already matches
+        const finalCost = ingredient.quantity * costPerBaseUnit;
+        
+        console.log(`🎯 Direct volume calculation:`, {
+          ingredientQuantity: `${ingredient.quantity} ${ingredient.unit}`,
+          costPerBaseUnit: `${costPerBaseUnit} per ${material.baseUnit}`,
+          finalCost
+        });
+        
+        return isNaN(finalCost) ? 0 : finalCost;
+      }
+      
+      // Standard calculation for other cases
       const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
       const ingredientQuantityInBaseUnits = ingredient.quantity * conversionFactor;
       const finalCost = ingredientQuantityInBaseUnits * costPerBaseUnit;
@@ -418,7 +535,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
       materialId,
       quantity,
       unit,
-      cost: calculateVariantIngredientCost({ materialId, quantity, unit }),
+      cost: calculateVariantIngredientCost({ materialId, quantity, unit, type: "material" }),
       type: "material"
     };
 
@@ -938,6 +1055,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
                       <VariantIngredientInput
                         variantName={variantName}
                         materials={materials}
+                        stockEntries={stockEntries}
                         onAddIngredient={addIngredientToVariant}
                       />
                     </div>
@@ -964,6 +1082,12 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
             selectedVariants: selectedVariantTypes,
             variantPrices: Object.fromEntries(
               selectedVariantTypes.map(name => [name, parseFloat(variantInputs[name]?.price || '0')])
+            ),
+            variantVolumes: Object.fromEntries(
+              selectedVariantTypes.map(name => [name, parseFloat(variantInputs[name]?.volume || '0')])
+            ),
+            variantVolumeUnits: Object.fromEntries(
+              selectedVariantTypes.map(name => [name, variantInputs[name]?.unit || 'cl'])
             )
           }} 
         />
