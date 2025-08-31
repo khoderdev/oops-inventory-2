@@ -170,39 +170,58 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
 
   const handleMaterialSubmit = useCallback(
     async (data: MaterialFormData) => {
+      console.log("🎯 InventoryManagementPanel handleMaterialSubmit called with data:", data);
+      console.log("🎯 selectedMaterial:", selectedMaterial);
+      
       setOperationLoading(prev => ({ ...prev, material: true }));
       try {
         if (selectedMaterial) {
-          await materialsAPI.updateMaterial(selectedMaterial.id, {
+          console.log("🎯 Updating existing material...");
+          const updateData = {
             ...data,
             category: selectedMaterial.category,
-            isPOSItem: selectedMaterial.isPOSItem
-          });
+            isPOSItem: selectedMaterial.isPOSItem,
+            volumePerBottle: data.volumePerBottle,
+            volumeUnit: data.volumeUnit
+          };
+          console.log("🎯 Update data:", updateData);
+          
+          await materialsAPI.updateMaterial(selectedMaterial.id, updateData);
           toast({
             title: "Updated",
             description: `${data.name} updated`,
             duration: 1000
           });
         } else {
+          console.log("🎯 Creating new material...");
           // Ensure categoryId is a number if it exists
           const categoryId = data.categoryId ? Number(data.categoryId) : undefined;
 
-          await materialsAPI.createMaterial({
+          const createData = {
             ...data,
             categoryId,
             category: data.category as MaterialCategory,
-            isPOSItem: false
-          });
+            isPOSItem: false,
+            volumePerBottle: data.volumePerBottle,
+            volumeUnit: data.volumeUnit
+          };
+          console.log("🎯 Create data:", createData);
+
+          await materialsAPI.createMaterial(createData);
           toast({
             title: "Created",
             description: `${data.name} created`,
             duration: 1000
           });
         }
+        
+        console.log("🎯 API call successful, refreshing materials...");
         await refresh("materials");
         setShowMaterialForm(false);
         setSelectedMaterial(null);
+        console.log("🎯 Material submission completed successfully");
       } catch (error) {
+        console.error("❌ Error in handleMaterialSubmit:", error);
         toast({
           title: "Error",
           description: `Failed to ${selectedMaterial ? "update" : "create"} material`,

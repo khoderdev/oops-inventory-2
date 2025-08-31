@@ -2,7 +2,7 @@ export const UNIT_OPTIONS = {
   mass: ["kg", "g", "lb", "oz"],
   volume: ["l", "ml", "gal", "fl oz"],
   piece: ["piece", "unit", "dozen"],
-  package: ["piece", "bottle", "item", "unit", "ml"]
+  package: ["piece", "bottle", "item", "unit", "ml", "cl", "dl", "l"]
 };
 
 

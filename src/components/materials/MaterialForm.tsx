@@ -199,6 +199,13 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       } else {
         form.setValue("baseUnit", conversionData.baseUnit);
       }
+    } else if (watchedUnitType === "package" && watchedInputUnit === "bottle") {
+      // Ensure base unit is set even when conversionData is not available
+      form.setValue("baseUnit", volumeUnit);
+    } else if (watchedUnitType && watchedInputUnit) {
+      // Fallback: set base unit based on unit type
+      const fallbackBaseUnit = getBaseUnitForType(watchedUnitType);
+      form.setValue("baseUnit", fallbackBaseUnit);
     }
   }, [conversionData, form, watchedUnitType, watchedInputUnit, volumeUnit]);
 
@@ -222,10 +229,16 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   }, []);
 
   const handleSubmit = (data: MaterialFormData) => {
+    console.log("🚀 MaterialForm handleSubmit called with data:", data);
+    console.log("🚀 Form validation state:", form.formState);
+    console.log("🚀 Form errors:", form.formState.errors);
+    
     const selectedCategory = categories.find(cat => cat.value === data.category);
+    console.log("🚀 Selected category:", selectedCategory);
 
     // Include volume data if it exists (user has entered volume information)
     const hasVolumeData = volumePerBottle && volumePerBottle > 0 && volumeUnit;
+    console.log("🚀 Volume data - volumePerBottle:", volumePerBottle, "volumeUnit:", volumeUnit, "hasVolumeData:", hasVolumeData);
 
     const finalData = {
       name: data.name,
@@ -238,7 +251,16 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       volumePerBottle: hasVolumeData ? volumePerBottle : undefined,
       volumeUnit: hasVolumeData ? volumeUnit : undefined
     };
-    onSubmit(finalData);
+    
+    console.log("🚀 Final data being submitted:", finalData);
+    console.log("🚀 Calling onSubmit with finalData...");
+    
+    try {
+      onSubmit(finalData);
+      console.log("🚀 onSubmit called successfully");
+    } catch (error) {
+      console.error("❌ Error calling onSubmit:", error);
+    }
   };
 
   const loadCategories = useCallback(async (): Promise<Category[]> => {
@@ -790,7 +812,19 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                 <Button type="button" variant="outline" onClick={onCancel}>
                   Cancel
                 </Button>
-                <Button type="submit">{material ? "Update Material" : "Add Material"}</Button>
+                <Button 
+                  type="submit" 
+                  onClick={(e) => {
+                    console.log("🔥 Submit button clicked!");
+                    console.log("🔥 Form values:", form.getValues());
+                    console.log("🔥 Form errors:", form.formState.errors);
+                    console.log("🔥 Form isValid:", form.formState.isValid);
+                    console.log("🔥 Form isDirty:", form.formState.isDirty);
+                    console.log("🔥 Form isSubmitting:", form.formState.isSubmitting);
+                  }}
+                >
+                  {material ? "Update Material" : "Add Material"}
+                </Button>
               </div>
             </form>
           </Form>

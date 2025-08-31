@@ -419,29 +419,47 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
                   }
                   return <option value="">Invalid sauce</option>;
                 } else {
-                  // For materials, get available units and add beverage-specific units if applicable
+                  // For materials, determine appropriate units based on material type and data
                   const materialId = selectedMaterialId.replace("material-", "");
                   const material = materials.find(m => String(m.id) === materialId);
-                  const availableUnits = getAvailableUnits(materialId, materials);
                   
-                  // Add beverage volume units for beverage materials
-                  const beverageVolumeUnits = ['ml', 'cl', 'dl', 'l', 'fl_oz', 'cup', 'pt', 'qt', 'gal'];
-                  const isBeverageMaterial = material?.unitType === 'volume' || 
-                    (material?.category && typeof material.category === 'object' && 
-                     (material.category as any)?.name?.toLowerCase().includes('beverage'));
-                  
-                  let allUnits = [...availableUnits];
-                  
-                  if (isBeverageMaterial) {
-                    // Add beverage units that aren't already included
-                    beverageVolumeUnits.forEach(unit => {
-                      if (!allUnits.includes(unit)) {
-                        allUnits.push(unit);
-                      }
-                    });
+                  if (!material) {
+                    return <option value="">Invalid material</option>;
                   }
+
+                  let availableUnits: string[] = [];
+
+                  // Determine units based on material type and base unit
+                  if (material.unitType === 'mass') {
+                    // Mass materials: show mass units
+                    availableUnits = ['g', 'kg', 'lb', 'oz'];
+                  } else if (material.unitType === 'volume') {
+                    // Volume materials: show volume units
+                    availableUnits = ['ml', 'cl', 'dl', 'l', 'fl_oz', 'cup', 'pt', 'qt', 'gal'];
+                  } else if (material.unitType === 'package') {
+                    // Package materials: determine by base unit
+                    if (material.baseUnit === 'bottle') {
+                      // Bottle-based packages (beverages): show volume units + bottle
+                      availableUnits = ['bottle', 'ml', 'cl', 'dl', 'l', 'fl_oz'];
+                    } else if (material.baseUnit === 'piece') {
+                      // Piece-based packages: show piece + package units
+                      availableUnits = ['piece', material.inputUnit || 'box', 'bag', 'pack'];
+                    } else {
+                      // Other package types: include base unit and input unit
+                      availableUnits = [material.baseUnit];
+                      if (material.inputUnit && material.inputUnit !== material.baseUnit) {
+                        availableUnits.push(material.inputUnit);
+                      }
+                    }
+                  } else {
+                    // Fallback: use available units from utility function
+                    availableUnits = getAvailableUnits(materialId, materials);
+                  }
+
+                  // Remove duplicates and ensure base unit is included
+                  const uniqueUnits = Array.from(new Set([material.baseUnit, ...availableUnits]));
                   
-                  return allUnits.map(unit => (
+                  return uniqueUnits.map(unit => (
                     <option key={unit} value={unit}>
                       {unit}
                     </option>
@@ -457,12 +475,20 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
               {(() => {
                 const materialId = selectedMaterialId.replace("material-", "");
                 const material = materials.find(m => String(m.id) === materialId);
-                if (material?.unitType === 'volume') {
-                  return "Volume units: ml, cl, dl, l, fl_oz, cup, pt, qt, gal";
-                } else if (material?.unitType === 'mass') {
+                if (!material) return "Invalid material";
+                
+                if (material.unitType === 'mass') {
                   return "Mass units: g, kg, lb, oz";
-                } else if (material?.unitType === 'package') {
-                  return `Package units: ${material.baseUnit}, ${material.inputUnit || 'box'}`;
+                } else if (material.unitType === 'volume') {
+                  return "Volume units: ml, cl, dl, l, fl_oz, cup, pt, qt, gal";
+                } else if (material.unitType === 'package') {
+                  if (material.baseUnit === 'bottle') {
+                    return "Beverage units: bottle, ml, cl, dl, l, fl_oz";
+                  } else if (material.baseUnit === 'piece') {
+                    return `Package units: piece, ${material.inputUnit || 'box'}, bag, pack`;
+                  } else {
+                    return `Package units: ${material.baseUnit}, ${material.inputUnit || 'package'}`;
+                  }
                 }
                 return "Standard units available";
               })()}
