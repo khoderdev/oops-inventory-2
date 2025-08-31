@@ -53,7 +53,22 @@ class VariantsAPI {
   // Get all variants with filtering
   async getVariants(params?: VariantsQueryParams): Promise<VariantsResponse> {
     const response = await api.get('/variants', { params });
-    return response.data;
+    // Check if response.data already has the VariantsResponse structure
+    if (response.data.data && 
+        typeof response.data.totalItems === 'number' && 
+        typeof response.data.totalPages === 'number' && 
+        typeof response.data.currentPage === 'number') {
+      return response.data;
+    }
+    
+    // If not, assume the response is just the variants array and build the response structure
+    const variants = Array.isArray(response.data) ? response.data : [];
+    return {
+      data: variants,
+      totalItems: variants.length,
+      totalPages: 1,
+      currentPage: 1
+    };
   }
 
   // Get variants for specific menu item

@@ -17,7 +17,7 @@ const VariantIngredientInput: React.FC<{
   materials: any[];
   stockEntries: any[];
   onAddIngredient: (variantName: string, materialId: string, quantity: number, unit: string) => void;
-}> = ({ variantName, materials, stockEntries, onAddIngredient }) => {
+}> = ({ variantName, materials, onAddIngredient }) => {
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("");
@@ -45,19 +45,7 @@ const VariantIngredientInput: React.FC<{
 
   const handleAdd = () => {
     if (!selectedMaterialId || !quantity || parseFloat(quantity) <= 0 || !unit) return;
-
-    // Debug log to verify unit at the point of adding ingredient
-    console.log(`📌 Adding ingredient with unit verification:`, {
-      materialId: selectedMaterialId,
-      materialName: materials?.find(m => String(m.id) === selectedMaterialId)?.name,
-      quantity: parseFloat(quantity),
-      unit: unit, // This should match what was selected in the dropdown
-      variantName
-    });
-
     onAddIngredient(variantName, selectedMaterialId, parseFloat(quantity), unit);
-
-    // Reset form
     setSelectedMaterialId("");
     setQuantity("");
     setUnit("");
@@ -65,42 +53,7 @@ const VariantIngredientInput: React.FC<{
 
   const handleMaterialChange = (materialId: string) => {
     setSelectedMaterialId(materialId);
-    // Unit will be automatically set by the useEffect above
-
-    // Log material information on selection
     if (materialId) {
-      const material = materials?.find(m => String(m.id) === materialId);
-      if (material) {
-        const relevantStockEntries = stockEntries?.filter(entry => String(entry.materialId) === materialId) || [];
-
-        console.log(`🔍 Selected material: ${material.name}`, {
-          material: {
-            id: material.id,
-            name: material.name,
-            unitType: material.unitType,
-            baseUnit: material.baseUnit,
-            packageQuantity: material.packageQuantity,
-            availableUnits: getAvailableUnits(materialId, materials)
-          },
-          stockEntries: relevantStockEntries.map(entry => ({
-            id: entry.id,
-            materialId: entry.materialId,
-            purchasedQuantity: entry.purchasedQuantity,
-            purchasedUnit: entry.purchasedUnit,
-            costPerPurchasedUnit: entry.costPerPurchasedUnit,
-            costPerBaseUnit: entry.costPerBaseUnit,
-            totalCost: entry.totalCost
-          }))
-        });
-
-        // Debug log for available units
-        console.log(`🧪 Available units for ${material.name}:`, {
-          baseUnit: material.baseUnit,
-          unitType: material.unitType,
-          availableUnits: getAvailableUnits(materialId, materials),
-          defaultUnitToBeSet: material.baseUnit || getAvailableUnits(materialId, materials)[0]
-        });
-      }
     }
   };
 
@@ -129,11 +82,6 @@ const VariantIngredientInput: React.FC<{
             value={unit}
             onChange={e => {
               const selectedUnit = e.target.value;
-              console.log(`🔄 Unit selection changed to: ${selectedUnit}`, {
-                previousUnit: unit,
-                materialId: selectedMaterialId,
-                materialName: materials?.find(m => String(m.id) === selectedMaterialId)?.name
-              });
               setUnit(selectedUnit);
             }}
             className="w-full px-2 py-1 text-sm border border-input bg-background rounded h-8"
@@ -316,62 +264,19 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         console.warn(`No stock entries found for material: ${material.name}`);
         return 0;
       }
-
-      // CRITICAL: Verify the actual unit being used for calculation
-      console.log(`🔍 Calculating cost for ${material.name} with unit ${ingredient.unit}:`, {
-        ingredient: {
-          materialId: ingredient.materialId,
-          quantity: ingredient.quantity,
-          unit: ingredient.unit, // This should match what was selected in the dropdown
-          type: ingredient.type
-        },
-        material: {
-          name: material.name,
-          baseUnit: material.baseUnit,
-          unitType: material.unitType,
-          packageQuantity: material.packageQuantity
-        },
-        stockEntries: relevantStockEntries.length
-      });
-
       if (material.unitType === "package" && ingredient.unit === "box" && material.baseUnit === "piece" && !["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit)) {
-        console.log(`📦 Special case: Package material with box unit and piece base unit`);
-
-        // Find the most recent or relevant stock entry
         const entry = relevantStockEntries[0]; // Using first entry as default
-
-        // Try to calculate cost per box directly
         if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0 && (entry.purchasedUnit === "box" || !entry.purchasedUnit)) {
-          // If we have cost per purchased unit and it's in boxes, use directly
           const costPerBox = parseFloat(String(entry.costPerPurchasedUnit));
           const finalCost = ingredient.quantity * costPerBox;
-
-          console.log(`📊 Box calculation (direct):`, {
-            costPerBox,
-            quantity: ingredient.quantity,
-            finalCost
-          });
-
           return isNaN(finalCost) ? 0 : finalCost;
         } else if (entry.totalCost && entry.totalCost > 0 && entry.purchasedQuantity && entry.purchasedQuantity > 0) {
-          // Calculate cost per box from total cost
           const totalCost = parseFloat(String(entry.totalCost));
           const purchasedQuantity = parseFloat(String(entry.purchasedQuantity));
           const costPerBox = totalCost / purchasedQuantity;
           const finalCost = ingredient.quantity * costPerBox;
-
-          console.log(`📊 Box calculation (from total):`, {
-            totalCost,
-            purchasedQuantity,
-            costPerBox,
-            quantity: ingredient.quantity,
-            finalCost
-          });
-
           return isNaN(finalCost) ? 0 : finalCost;
         }
-        // If we can't calculate directly, fall through to standard calculation
-        console.log(`⚠️ Could not calculate box cost directly, falling back to standard calculation`);
       }
 
       let totalWeightedCost = 0;
@@ -383,16 +288,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
 
         let unitCost = 0;
 
-        // Priority 1: Use costPerBaseUnit if available
         if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
           unitCost = parseFloat(String(entry.costPerBaseUnit));
-          console.log(`📊 Using costPerBaseUnit: ${unitCost} per ${material.baseUnit}`);
-        }
-        // Priority 2: Calculate from totalCost
-        else if (entry.totalCost && entry.totalCost > 0) {
+        } else if (entry.totalCost && entry.totalCost > 0) {
           const totalCost = parseFloat(String(entry.totalCost));
-
-          // For package materials, need to calculate cost per base unit correctly
           if (material.unitType === "package") {
             let actualPackageSize = material.packageQuantity || 1;
 
@@ -404,25 +303,12 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                 actualPackageSize = 750; // 750ml
               }
             }
-
-            // Total cost is for 'quantity' bottles, each bottle has 'actualPackageSize' base units
             const totalBaseUnits = quantity * actualPackageSize;
             unitCost = totalCost / totalBaseUnits;
-
-            console.log(`📦 Package calculation:`, {
-              totalCost,
-              quantity: `${quantity} bottles`,
-              actualPackageSize: `${actualPackageSize} ${material.baseUnit} per bottle`,
-              totalBaseUnits: `${totalBaseUnits} ${material.baseUnit}`,
-              unitCost: `${unitCost} per ${material.baseUnit}`
-            });
           } else {
             unitCost = totalCost / quantity;
-            console.log(`📊 Non-package calculation: ${totalCost} / ${quantity} = ${unitCost}`);
           }
-        }
-        // Priority 3: Use costPerPurchasedUnit with conversion
-        else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
           const purchasedUnitCost = parseFloat(String(entry.costPerPurchasedUnit));
 
           if (material.unitType === "package") {
@@ -435,23 +321,19 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
               }
             }
             unitCost = purchasedUnitCost / actualPackageSize;
-            console.log(`📦 Package from purchased unit: ${purchasedUnitCost} / ${actualPackageSize} = ${unitCost}`);
           } else {
             try {
               const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
               unitCost = purchasedUnitCost / conversionFactor;
-              console.log(`🔄 Conversion: ${purchasedUnitCost} / ${conversionFactor} = ${unitCost}`);
             } catch (error) {
               console.error(`Error converting cost units for ${material.name}:`, error);
               continue;
             }
           }
         }
-
         if (unitCost > 0) {
           totalWeightedCost += unitCost * quantity;
           totalQuantity += quantity;
-          console.log(`✅ Added to calculation: unitCost=${unitCost}, quantity=${quantity}`);
         } else {
           console.warn(`❌ Could not determine unit cost for entry:`, entry);
         }
@@ -463,152 +345,52 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       }
 
       const costPerBaseUnit = totalWeightedCost / totalQuantity;
-      console.log(`💰 Final cost per ${material.baseUnit}: ${costPerBaseUnit}`);
-
-      // Special case for package materials with volume units (cl, ml) OR when unit is box/bottle
-      // Also handle materials with bottle as base unit but volume inputs
-      // Using type assertions to help TypeScript understand our comparisons
       const materialBaseUnit = material.baseUnit as string;
-      // CRITICAL: Get the unit directly from the ingredient parameter to ensure we're using what was selected
       const ingredientUnit = ingredient.unit as string;
-      const materialName = material.name as string;
-
-      console.log(`🔎 UNIT CHECK: Material ${materialName} has base unit ${materialBaseUnit}, ingredient unit is ${ingredientUnit}`);
-
-      // Check if this is a package material with volume units or a bottle with volume information
-      // Use type assertions to help TypeScript understand our type comparisons
       const isPackageMaterial = material.unitType === "package";
       const isVolumeType = material.unitType === "volume";
       const isClBaseUnit = materialBaseUnit === "cl";
       const isBottleBaseUnit = materialBaseUnit === "bottle";
       const isVolumeIngredientUnit = ["cl", "ml", "l"].includes(ingredientUnit);
       const isBoxOrBottleUnit = ["box", "bottle"].includes(ingredientUnit);
-
-      // Handle both package materials with volume-based units and single bottle materials with volume info
       if ((isPackageMaterial || isVolumeType) && (isClBaseUnit || isBottleBaseUnit) && (isVolumeIngredientUnit || isBoxOrBottleUnit)) {
-        console.log(`🍸 Special case: Package material handling for ${material.name} with unit ${ingredient.unit}`);
-
-        // Get the first stock entry to determine bottle cost
         const entry = relevantStockEntries[0];
         if (!entry) return 0;
-
-        // Get bottle cost - this is the cost of one bottle, not the box cost
-        // For package materials, we should use costPerBaseUnit which is the cost per bottle
         const bottleCost = parseFloat(String(entry.costPerBaseUnit || 0));
-        console.log(`💲 Using bottle cost: $${bottleCost} per bottle (from costPerBaseUnit)`);
-
-        // Log the entry data for debugging
-        console.log(`📦 Stock entry data:`, {
-          costPerBaseUnit: entry.costPerBaseUnit,
-          costPerPurchasedUnit: entry.costPerPurchasedUnit
-        });
-
         let bottleVolume = 0;
         let bottleVolumeUnit = "";
 
         if (material.volumePerBottle) {
-          // If volumePerBottle is available, use it
           bottleVolume = material.volumePerBottle;
           bottleVolumeUnit = material.volumeUnit || "cl";
         } else {
-          // Fallback to standard bottle sizes
-          bottleVolume = 75; // Standard bottle size
+          bottleVolume = 75;
           bottleVolumeUnit = "cl";
         }
-
-        console.log(`🔍 Material details for ${material.name}:`, {
-          type: material.type,
-          bottleVolume: `${bottleVolume} ${bottleVolumeUnit}`,
-          bottleCost: `$${bottleCost}`,
-          packageQuantity: material.packageQuantity || 1,
-          ingredientUnit,
-          ingredientQuantity: ingredient.quantity
-        });
-
         let finalCost = 0;
-
-        // Check if the material was actually purchased in bottles but ingredient is specified in boxes
         const firstStockEntry = relevantStockEntries[0];
-        const purchasedUnit = firstStockEntry?.purchasedUnit || "";
-
-        console.log(`🧪 Ingredient unit verification:`, {
-          materialId: ingredient.materialId,
-          ingredientUnit, // This should match what was selected in the dropdown
-          materialName: material.name,
-          materialBaseUnit: material.baseUnit,
-          materialType: material.unitType,
-          purchasedUnit: purchasedUnit
-        });
-
-        // FIXED: Respect both the selected unit AND the material's actual unit in the database
-        // First, get the material's input unit from the database
-        const materialInputUnit = material.inputUnit || "bottle";
-
-        console.log(`🔍 Material ${material.name} database info:`, {
-          baseUnit: material.baseUnit,
-          inputUnit: materialInputUnit,
-          unitType: material.unitType,
-          selectedUnit: ingredientUnit
-        });
-
-        // CRITICAL FIX: For volume-based packages (like Jager with cl base unit),
-        // we should NEVER use box calculations even if the unit is "box"
-        // Instead, we should force it to use the volume calculation path
         const isVolumeBasedPackage = ["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit);
         const shouldForceVolumeCalculation = isVolumeBasedPackage && ingredientUnit === "box";
 
         if (shouldForceVolumeCalculation) {
-          console.log(`⚠️ Detected volume-based package with box unit. Forcing volume calculation for ${material.name}`);
-          
-          // Get the first stock entry to determine bottle cost and volume
           const entry = relevantStockEntries[0];
           if (!entry) return 0;
-          
-          // Get bottle volume - standard bottle size if not specified
           let bottleVolume = material.volumePerBottle || 75; // Default 75cl for standard bottle
-          const bottleVolumeUnit = material.volumeUnit || "cl";
-          
-          // Get cost per bottle
           const bottleCost = parseFloat(String(entry.costPerBaseUnit || 0));
-          
-          // Calculate cost per cl (or other base unit)
           const costPerVolumeUnit = bottleCost / bottleVolume;
-          
-          // For a single cl, the cost is costPerVolumeUnit
-          // So for the ingredient quantity (e.g., 10), the cost is quantity * costPerVolumeUnit
           finalCost = ingredient.quantity * costPerVolumeUnit;
-          
-          console.log(`📊 Corrected calculation for volume-based package:`, {
-            bottleCost: `$${bottleCost}`,
-            bottleVolume: `${bottleVolume} ${bottleVolumeUnit}`,
-            costPerVolumeUnit: `$${costPerVolumeUnit.toFixed(4)} per ${bottleVolumeUnit}`,
-            quantity: `${ingredient.quantity} ${material.baseUnit}`,
-            finalCost: `$${finalCost.toFixed(2)}`
-          });
-          
-          // CRITICAL FIX: Update the ingredient unit to show the base unit in the UI
-          // This ensures that the UI shows "cl" instead of "box" for volume-based packages
           ingredient.unit = material.baseUnit;
-
           return isNaN(finalCost) ? 0 : finalCost;
         }
 
-        // Handle different unit types based on what was selected
         if (isVolumeIngredientUnit) {
-          // Handle volume units (ml, cl, l)
-          // Convert ingredient quantity to the same unit as the bottle volume
           let volumeInBottleUnits = ingredient.quantity;
-
-          // Handle unit conversions between ml, cl, and l using getConversionFactor
           if (ingredientUnit !== bottleVolumeUnit) {
             try {
-              // Use the existing conversion utility to handle all volume conversions
               const conversionFactor = getConversionFactor(ingredientUnit, bottleVolumeUnit, "volume", material);
               volumeInBottleUnits = ingredient.quantity * conversionFactor;
-              console.log(`📊 Converting ${ingredient.quantity} ${ingredientUnit} to ${volumeInBottleUnits} ${bottleVolumeUnit} (factor: ${conversionFactor})`);
             } catch (error) {
               console.error(`Error converting volume units from ${ingredientUnit} to ${bottleVolumeUnit}:`, error);
-              // Fallback to direct calculation if conversion fails
               if (ingredientUnit === "ml" && bottleVolumeUnit === "cl") {
                 volumeInBottleUnits = ingredient.quantity / 10;
               } else if (ingredientUnit === "cl" && bottleVolumeUnit === "ml") {
@@ -624,38 +406,14 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
               }
             }
           }
-
-          // Calculate cost based on the proportion of the bottle used
           finalCost = (volumeInBottleUnits / bottleVolume) * bottleCost;
-
-          console.log(`📊 Volume calculation:`, {
-            bottleCost: `$${bottleCost}`,
-            bottleVolume: `${bottleVolume} ${bottleVolumeUnit}`,
-            ingredientVolume: `${ingredient.quantity} ${ingredient.unit}`,
-            convertedVolume: `${volumeInBottleUnits} ${bottleVolumeUnit}`,
-            volumeRatio: `${(volumeInBottleUnits / bottleVolume).toFixed(4)}`,
-            finalCost: `$${finalCost.toFixed(2)}`
-          });
         } else if (ingredientUnit === "bottle") {
-          // For bottle inputs, simply multiply by bottle cost
           finalCost = ingredient.quantity * bottleCost;
-          console.log(`🍾 Bottle calculation: ${ingredient.quantity} bottles × $${bottleCost.toFixed(2)}/bottle = $${finalCost.toFixed(2)}`);
         } else if (ingredientUnit === "box" || ingredientUnit === "pack" || ingredientUnit === "case") {
-          // For box/pack/case inputs, consider the package quantity
           const packageQuantity = material.packageQuantity || 1;
           const boxCost = bottleCost * packageQuantity;
           finalCost = ingredient.quantity * boxCost;
-
-          console.log(`📦 ${ingredientUnit.charAt(0).toUpperCase() + ingredientUnit.slice(1)} calculation:`, {
-            bottleCost: `$${bottleCost}`,
-            bottlesPerBox: packageQuantity,
-            boxCost: `$${boxCost}`,
-            quantity: `${ingredient.quantity} ${ingredientUnit}`,
-            finalCost: `$${finalCost.toFixed(2)}`
-          });
         } else {
-          // For any other unit, use the material's actual unit for calculation
-          console.log(`⚠️ Using default calculation for unit ${ingredientUnit}`);
           finalCost = ingredient.quantity * bottleCost;
         }
 
@@ -667,15 +425,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
         const ingredientQuantityInBaseUnits = ingredient.quantity * conversionFactor;
         const finalCost = ingredientQuantityInBaseUnits * costPerBaseUnit;
-
-        console.log(`🎯 Standard calculation:`, {
-          ingredientQuantity: `${ingredient.quantity} ${ingredient.unit}`,
-          conversionFactor,
-          ingredientQuantityInBaseUnits: `${ingredientQuantityInBaseUnits} ${material.baseUnit}`,
-          costPerBaseUnit: `${costPerBaseUnit} per ${material.baseUnit}`,
-          finalCost
-        });
-
         return isNaN(finalCost) ? 0 : finalCost;
       } catch (error) {
         console.error(`Error calculating final cost for ${material.name}:`, error);
@@ -685,65 +434,27 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     [materials, stockEntries]
   );
 
-  // Handle variant ingredient changes
-  const handleVariantIngredientChange = useCallback((variantName: string, ingredients: MenuItemIngredient[]) => {
-    setVariantIngredients(prev => ({
-      ...prev,
-      [variantName]: ingredients
-    }));
-  }, []);
-
   // Add ingredient to variant
   const addIngredientToVariant = useCallback(
     (variantName: string, materialId: string, quantity: number, unit: string) => {
-      // Debug log to verify the actual unit being passed
-      console.log(`🔍 Adding ingredient to variant ${variantName}:`, {
-        materialId,
-        quantity,
-        selectedUnit: unit, // Log the actual unit selected by the user
-        material: materials.find(m => String(m.id) === materialId)?.name
-      });
-
       // Find the material to verify its properties
       const material = materials.find(m => String(m.id) === materialId);
-      if (material) {
-        console.log(`📊 Material details for ${material.name} before cost calculation:`, {
-          baseUnit: material.baseUnit,
-          unitType: material.unitType,
-          packageQuantity: material.packageQuantity || "N/A"
-        });
-      }
-
-      // Create the ingredient object with explicit unit assignment
       const ingredientForCalculation = {
         materialId,
         quantity,
-        unit, // Explicitly using the unit from parameter
+        unit,
         type: "material"
       };
-
-      // Debug log right before cost calculation
-      console.log(`💰 Passing to calculateVariantIngredientCost:`, ingredientForCalculation);
-
-      // Check if this is a volume-based package that needs unit conversion
       const isVolumeBasedPackage = material && ["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit) && unit === "box";
-      
-      // Calculate the cost
       const calculatedCost = calculateVariantIngredientCost(ingredientForCalculation);
-      
-      // For volume-based packages with box unit, use the base unit (cl, ml, etc.) instead of box
       const displayUnit = isVolumeBasedPackage ? material.baseUnit : unit;
-      
-      // Create the new ingredient with the correct unit for display
       const newIngredient: MenuItemIngredient = {
         materialId,
         quantity,
-        unit: displayUnit, // Use the correct unit for display
+        unit: displayUnit,
         cost: calculatedCost,
         type: "material"
       };
-
-      console.log(`💸 Cost calculation result: $${calculatedCost.toFixed(4)} for ${quantity} ${displayUnit}`);
 
       setVariantIngredients(prev => ({
         ...prev,
@@ -752,8 +463,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     },
     [calculateVariantIngredientCost, materials]
   );
-
-  // Remove ingredient from variant
   const removeIngredientFromVariant = useCallback((variantName: string, index: number) => {
     setVariantIngredients(prev => ({
       ...prev,
@@ -844,22 +553,15 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
         newErrors.price = "Price is required";
       }
-    } else {
-      // Validate that all selected variants have valid prices
-      const invalidVariants = selectedVariantTypes.filter(variant => {
-        const variantInput = variantInputs[variant];
-        return !variantInput?.price || isNaN(parseFloat(variantInput.price)) || parseFloat(variantInput.price) <= 0;
-      });
-
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, categoryId, price, selectedVariantTypes, variantInputs]);
+  }, [name, categoryId, price, selectedVariantTypes]);
 
   useEffect(() => {
     validateForm();
-  }, [name, categoryId, price, selectedVariantTypes, variantInputs, validateForm]);
+  }, [name, categoryId, price, selectedVariantTypes, validateForm]);
 
   // Initialize form data when editing existing menu item or when beverageStockEntries changes
   useEffect(() => {
@@ -891,10 +593,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       }
     }
   }, [menuItem, stockEntries]);
-
-  const handleBeverageNameChange = useCallback((value: string) => {
-    setName(value);
-  }, []);
 
   const handleImageChange = useCallback((imageValue: string | undefined, file?: File) => {
     setImage(imageValue);
