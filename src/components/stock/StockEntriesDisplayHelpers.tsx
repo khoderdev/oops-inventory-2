@@ -1,7 +1,6 @@
 import { StockEntryWithMaterial } from "@/types/inventory";
 import { formatNumber } from "@/utils/conversionLogic";
 import { AlertTriangle } from "lucide-react";
-import { Badge } from "../ui/badge";
 
 export const hasNegativeStock = (entry: StockEntryWithMaterial) => {
   return (entry.purchasedIndividualQuantity && entry.purchasedIndividualQuantity < 0) || (entry.purchasedQuantity && entry.purchasedQuantity < 0);
@@ -9,16 +8,39 @@ export const hasNegativeStock = (entry: StockEntryWithMaterial) => {
 
 export const renderQuantityDisplay = (entry: StockEntryWithMaterial) => {
   const isNegative = hasNegativeStock(entry);
-  const currentQty = entry.purchasedIndividualQuantity || 0;
+  const { material } = entry;
+  
+  // For bottle materials with volume data, calculate total volume
+  if (material?.unitType === "package" && 
+      entry.purchasedUnit === "bottle" && 
+      material.volumePerUnit && 
+      material.volumeUnit) {
+    
+    const totalVolume = entry.purchasedQuantity * parseFloat(material.volumePerUnit.toString());
+    const volumeUnit = material.volumeUnit;
+    
+    return (
+      <div className={`w-[150px] rounded-full font-bold text-primary flex items-center justify-center gap-1 p-1 px-2 ${isNegative ? "text-red-600" : ""}`}>
+        {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
+        <div className="text-center">s v
+          <div>{formatNumber(totalVolume)} {volumeUnit}</div>
+          <div className="text-[0.55rem] opacity-75">(from {entry.purchasedQuantity} bottle{entry.purchasedQuantity !== 1 ? 's' : ''})</div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Default behavior for other materials
+  const currentQty = entry.purchasedIndividualQuantity || entry.purchasedQuantity || 0;
   const unit = entry.purchasedIndividualUnit || entry.material?.baseUnit || entry.purchasedUnit || 'pc';
 
   return (
-    <Badge variant="default" className={`w-fit bg-primary/25 font-bold text-teal-700 hover:bg-primary/25 flex items-center justify-center gap-1 ${isNegative ? "text-red-600" : ""}`}>
+    <div className={`w-[150px] rounded-full font-bold text-primary flex items-center justify-center gap-1 px-2 ${isNegative ? "text-red-600" : ""}`}>
       {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
       <span>
         {formatNumber(currentQty)} {unit}
       </span>
-    </Badge>
+    </div>
   );
 };
 

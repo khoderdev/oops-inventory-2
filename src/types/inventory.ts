@@ -122,6 +122,7 @@ export interface Material {
   costPerUnit: number;
   packageQuantity?: number;
   volumePerBottle?: number;
+  volumePerUnit?: number;
   volumeUnit?: string;
   description?: string;
   isPOSItem?: boolean;
