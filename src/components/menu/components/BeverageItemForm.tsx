@@ -585,6 +585,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
             quantity: `${ingredient.quantity} ${material.baseUnit}`,
             finalCost: `$${finalCost.toFixed(2)}`
           });
+          
+          // CRITICAL FIX: Update the ingredient unit to show the base unit in the UI
+          // This ensures that the UI shows "cl" instead of "box" for volume-based packages
+          ingredient.unit = material.baseUnit;
 
           return isNaN(finalCost) ? 0 : finalCost;
         }
@@ -721,17 +725,25 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       // Debug log right before cost calculation
       console.log(`💰 Passing to calculateVariantIngredientCost:`, ingredientForCalculation);
 
+      // Check if this is a volume-based package that needs unit conversion
+      const isVolumeBasedPackage = material && ["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit) && unit === "box";
+      
+      // Calculate the cost
       const calculatedCost = calculateVariantIngredientCost(ingredientForCalculation);
-
+      
+      // For volume-based packages with box unit, use the base unit (cl, ml, etc.) instead of box
+      const displayUnit = isVolumeBasedPackage ? material.baseUnit : unit;
+      
+      // Create the new ingredient with the correct unit for display
       const newIngredient: MenuItemIngredient = {
         materialId,
         quantity,
-        unit, // This should be the unit selected in the dropdown
+        unit: displayUnit, // Use the correct unit for display
         cost: calculatedCost,
         type: "material"
       };
 
-      console.log(`💸 Cost calculation result: $${calculatedCost.toFixed(4)} for ${quantity} ${unit}`);
+      console.log(`💸 Cost calculation result: $${calculatedCost.toFixed(4)} for ${quantity} ${displayUnit}`);
 
       setVariantIngredients(prev => ({
         ...prev,
@@ -839,9 +851,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         return !variantInput?.price || isNaN(parseFloat(variantInput.price)) || parseFloat(variantInput.price) <= 0;
       });
 
-      if (invalidVariants.length > 0) {
-        newErrors.variants = `Invalid prices for variants: ${invalidVariants.join(", ")}`;
-      }
     }
 
     setErrors(newErrors);
