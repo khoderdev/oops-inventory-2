@@ -107,6 +107,7 @@ export interface BeverageItemFormDialogProps {
   editingBeverageItem: MenuItem | null;
   categories: { id: string; name: string; value: string }[];
   stockEntries: StockEntry[];
+  materials: Material[];
   onSubmit: (data: any) => void;
   onCancel: () => void;
 }
