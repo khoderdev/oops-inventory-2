@@ -8,9 +8,12 @@ export const MASS_CONVERSIONS = {
 };
 
 export const VOLUME_CONVERSIONS = {
-  l: { toMl: 1000, toGallon: 0.264172 },
-  ml: { toLiter: 0.001, toGallon: 0.000264172 },
-  gallon: { toLiter: 3.78541, toMl: 3785.41 }
+  l: { toMl: 1000, toCl: 100, toDl: 10, toFlOz: 33.814, toGallon: 0.264172 },
+  ml: { toLiter: 0.001, toCl: 0.1, toDl: 0.01, toFlOz: 0.033814, toGallon: 0.000264172 },
+  cl: { toLiter: 0.01, toMl: 10, toDl: 0.1, toFlOz: 0.33814, toGallon: 0.00264172 },
+  dl: { toLiter: 0.1, toMl: 100, toCl: 10, toFlOz: 3.3814, toGallon: 0.0264172 },
+  fl_oz: { toLiter: 0.0295735, toMl: 29.5735, toCl: 2.95735, toDl: 0.295735, toGallon: 0.0078125 },
+  gallon: { toLiter: 3.78541, toMl: 3785.41, toCl: 378.541, toDl: 37.8541, toFlOz: 128 }
 };
 
 // Convert between mass units
@@ -97,15 +100,26 @@ export function convertVolume(value: number, fromUnit: string | undefined, toUni
     case "milliliters":
       ml = value;
       break;
-    case "gal":
-    case "gallon":
-    case "gallons":
-      ml = value * 3785.41;
+    case "cl":
+    case "centiliter":
+    case "centiliters":
+      ml = value * 10;
       break;
+    case "dl":
+    case "deciliter":
+    case "deciliters":
+      ml = value * 100;
+      break;
+    case "fl_oz":
     case "fl oz":
     case "fluid ounce":
     case "fluid ounces":
       ml = value * 29.5735;
+      break;
+    case "gal":
+    case "gallon":
+    case "gallons":
+      ml = value * 3785.41;
       break;
     default:
       console.error(`Unknown volume unit: ${fromUnit}`);
@@ -121,14 +135,23 @@ export function convertVolume(value: number, fromUnit: string | undefined, toUni
     case "milliliter":
     case "milliliters":
       return ml;
-    case "gal":
-    case "gallon":
-    case "gallons":
-      return ml / 3785.41;
+    case "cl":
+    case "centiliter":
+    case "centiliters":
+      return ml / 10;
+    case "dl":
+    case "deciliter":
+    case "deciliters":
+      return ml / 100;
+    case "fl_oz":
     case "fl oz":
     case "fluid ounce":
     case "fluid ounces":
       return ml / 29.5735;
+    case "gal":
+    case "gallon":
+    case "gallons":
+      return ml / 3785.41;
     default:
       console.error(`Unknown volume unit: ${toUnit}`);
       return value;
@@ -229,7 +252,7 @@ export function isMassUnit(unit: string): boolean {
 export function isVolumeUnit(unit: string): boolean {
   if (!unit) return false;
   const normalized = unit.toLowerCase();
-  return ["l", "ml", "gal", "qt", "pt", "liter", "liters", "milliliter", "milliliters", "gallon", "gallons", "quart", "quarts", "pint", "pints"].includes(normalized);
+  return ["l", "ml", "cl", "dl", "fl_oz", "fl oz", "gal", "qt", "pt", "liter", "liters", "milliliter", "milliliters", "centiliter", "centiliters", "deciliter", "deciliters", "fluid ounce", "fluid ounces", "gallon", "gallons", "quart", "quarts", "pint", "pints"].includes(normalized);
 }
 
 export function formatNumber(num: number | string | null | undefined, unit?: string): string {

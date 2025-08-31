@@ -1,5 +1,5 @@
 import { ConversionData, Material, MaterialWithStock, StockEntry } from "@/types/inventory";
-import { convertMass, convertVolume, formatNumber, formatNumberUI, formatCurrencyUI, isMassUnit, isVolumeUnit } from "./conversionLogic";
+import { convertMass, convertVolume, formatNumberUI, formatCurrencyUI, isMassUnit, isVolumeUnit } from "./conversionLogic";
 
 // Calculate conversion data for stock entries
 export function calculateStockConversion(stockEntry: StockEntry, material: Material): ConversionData {
@@ -144,11 +144,11 @@ export function getSuggestedUnits(unitType: string): string[] {
     case "mass":
       return ["kg", "g"];
     case "volume":
-      return ["l", "ml"];
+      return ["l", "ml", "cl", "dl", "fl_oz"];
     case "piece":
       return ["piece", "unit", "pc"];
     case "package":
-      return ["box", "pack", "bag", "piece", "bottle"];
+      return ["box", "pack", "bag", "piece", "bottle", "can", "jar", "case"];
     default:
       return [];
   }
