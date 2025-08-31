@@ -1,5 +1,5 @@
 import api from "@/lib/http";
-import { Material, POSItemsResponse, SaleRecord, SaleResponse, Section, SectionAssignment, StockEntry } from "@/types/inventory";
+import { POSItemsResponse, SaleRecord, SaleResponse, Section, SectionAssignment, StockEntry } from "@/types/inventory";
 
 // Import the updated materials API
 import { materialsAPI } from "./materials.api.ts";

@@ -787,23 +787,28 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     await Promise.all([fetchMenuItems(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
   }, [fetchMenuItems, fetchTablesData, refreshCountsRef]);
 
-  const availablePosItems = posItems.filter(posItem => {
-    const getCategoryString = (category: string | number | Category | { id: number; name: string; value: string } | undefined): string => {
-      if (!category) return "";
-      if (typeof category === "string") return category;
-      if (typeof category === "number") return category.toString();
-      if (typeof category === "object") {
-        return category.name || category.value || "";
-      }
-      return "";
-    };
+  // Helper function to get category string from different category formats
+  const getCategoryString = (category: string | number | Category | { id: number; name: string; value: string } | undefined): string => {
+    if (!category) return "";
+    if (typeof category === "string") return category;
+    if (typeof category === "number") return category.toString();
+    if (typeof category === "object") {
+      return category.name || category.value || "";
+    }
+    return "";
+  };
 
+  const availablePosItems = posItems.filter(posItem => {
     const categoryString = getCategoryString(posItem.category);
     const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || categoryString.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
-  const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
+  const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => {
+    // Get normalized category string for comparison
+    const itemCategory = getCategoryString(item.category);
+    return itemCategory === activeCategory;
+  });
 
   const recalculateEmployeeDiscount = useCallback(
     (newCart: POSCartItem[]) => {

@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils";
 import { CategoryTabsProps } from "@/types/inventory";
-import { Category } from "@/types/categories";
 import React from "react";
 
 export const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories, activeCategory, onCategoryChange }) => {
