@@ -457,56 +457,85 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
     const costPerBaseUnit = totalWeightedCost / totalQuantity;
     console.log(`💰 Final cost per ${material.baseUnit}: ${costPerBaseUnit}`);
     
-    // Convert ingredient quantity to base units and calculate final cost
-    try {
-      // Special case for package materials with volume units (cl, ml)
-      // This fixes the issue where volume units are incorrectly treated as package units
-      if (material.unitType === "package" && 
-          (ingredient.unit === "cl" || ingredient.unit === "ml" || ingredient.unit === "l") && 
-          material.baseUnit === "cl") {
+    // Special case for package materials with volume units (cl, ml) OR when unit is box but material is Bombay Gin
+    // Using type assertions to help TypeScript understand our comparisons
+    const materialBaseUnit = material.baseUnit as string;
+    const ingredientUnit = ingredient.unit as string;
+    const materialName = material.name as string;
+    
+    if (material.unitType === "package" && 
+        materialBaseUnit === "cl" && 
+        ((ingredientUnit === "cl" || ingredientUnit === "ml" || ingredientUnit === "l") || 
+         (ingredientUnit === "box" && materialName === "Bombay Gin"))) {
+      
+      console.log(`🍸 Special case: Package material handling for ${material.name} with unit ${ingredient.unit}`);
+      
+      // Get the first stock entry to determine bottle cost
+      const entry = relevantStockEntries[0];
+      if (!entry) return 0;
+      
+      // Get bottle cost - this is the cost of one bottle
+      const bottleCost = parseFloat(String(entry.totalCost || entry.costPerPurchasedUnit || 0));
+      
+      // Standard bottle sizes
+      const STANDARD_BOTTLE_CL = 75;  // 75cl standard spirit bottle
+      const STANDARD_BOTTLE_ML = 750; // 750ml standard spirit bottle
+      
+      // Determine bottle volume based on base unit
+      const bottleVolume = materialBaseUnit === "ml" ? STANDARD_BOTTLE_ML : STANDARD_BOTTLE_CL;
+      
+      let finalCost = 0;
+      
+      // Handle different input units
+      if (ingredientUnit === "box" || ingredientUnit === "bottle") {
+        // For Bombay Gin, we need to handle box differently - it's not a full bottle but a volume measure
+        if (materialName === "Bombay Gin" && ingredientUnit === "box") {
+          // Calculate cost per cl
+          const costPerVolumeUnit = bottleCost / bottleVolume;
+          // For box input, treat it as cl for Bombay Gin
+          finalCost = ingredient.quantity * costPerVolumeUnit;
+          
+          console.log(`🔍 Bombay Gin special box handling:`, {
+            bottleCost: `$${bottleCost}`,
+            bottleVolume: `${bottleVolume} ${material.baseUnit}`,
+            costPerVolumeUnit: `$${costPerVolumeUnit.toFixed(4)} per ${material.baseUnit}`,
+            ingredientQuantity: `${ingredient.quantity} ${ingredient.unit} (treated as cl)`,
+            finalCost: `$${finalCost.toFixed(2)}`
+          });
+        } else {
+          // Normal box/bottle handling
+          finalCost = ingredient.quantity * bottleCost;
+          
+          console.log(`📦 Box/Bottle calculation:`, {
+            bottleCost: `$${bottleCost}`,
+            quantity: `${ingredient.quantity} ${ingredient.unit}`,
+            finalCost: `$${finalCost.toFixed(2)}`
+          });
+        }
+      } else if (ingredientUnit === "cl" || ingredientUnit === "ml" || ingredientUnit === "l") {
+        // If input is in volume units (cl, ml, l)
+        const costPerVolumeUnit = bottleCost / bottleVolume;
+        finalCost = ingredient.quantity * costPerVolumeUnit;
         
-        console.log(`🍸 Special case: Volume units for package material ${material.name}`);
-        
-        // Log all stock information for this material
-        console.log(`📈 Stock information for ${material.name}:`, {
-          material: {
-            id: material.id,
-            name: material.name,
-            unitType: material.unitType,
-            baseUnit: material.baseUnit,
-            packageQuantity: material.packageQuantity,
-            availableUnits: getAvailableUnits(String(material.id), materials)
-          },
-          stockEntries: relevantStockEntries.map(entry => ({
-            id: entry.id,
-            materialId: entry.materialId,
-            purchasedQuantity: entry.purchasedQuantity,
-            purchasedUnit: entry.purchasedUnit,
-            costPerPurchasedUnit: entry.costPerPurchasedUnit,
-            costPerBaseUnit: entry.costPerBaseUnit,
-            totalCost: entry.totalCost
-          }))
-        });
-        
-        // Direct calculation for volume units of package materials
-        // Use the costPerBaseUnit directly since the unit already matches
-        const finalCost = ingredient.quantity * costPerBaseUnit;
-        
-        console.log(`🎯 Direct volume calculation:`, {
+        console.log(`🎯 Volume-based calculation:`, {
+          bottleCost: `$${bottleCost}`,
+          bottleVolume: `${bottleVolume} ${material.baseUnit}`,
+          costPerVolumeUnit: `$${costPerVolumeUnit.toFixed(4)} per ${material.baseUnit}`,
           ingredientQuantity: `${ingredient.quantity} ${ingredient.unit}`,
-          costPerBaseUnit: `${costPerBaseUnit} per ${material.baseUnit}`,
-          finalCost
+          finalCost: `$${finalCost.toFixed(2)}`
         });
-        
-        return isNaN(finalCost) ? 0 : finalCost;
       }
       
-      // Standard calculation for other cases
+      return isNaN(finalCost) ? 0 : finalCost;
+    }
+    
+    // Standard calculation for other cases
+    try {
       const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
       const ingredientQuantityInBaseUnits = ingredient.quantity * conversionFactor;
       const finalCost = ingredientQuantityInBaseUnits * costPerBaseUnit;
       
-      console.log(`🎯 Final calculation:`, {
+      console.log(`🎯 Standard calculation:`, {
         ingredientQuantity: `${ingredient.quantity} ${ingredient.unit}`,
         conversionFactor,
         ingredientQuantityInBaseUnits: `${ingredientQuantityInBaseUnits} ${material.baseUnit}`,
