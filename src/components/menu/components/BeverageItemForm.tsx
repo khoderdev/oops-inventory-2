@@ -232,11 +232,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           break;
         }
       }
-      // if (hasEmptyVariantPrice) {
-      //   newErrors.variants = "All variants must have a price";
-      // } else if (hasInvalidVariantPrice) {
-      //   newErrors.variants = "All variant prices must be greater than zero";
-      // }
     }
 
     setErrors(newErrors);
@@ -354,6 +349,18 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       });
       return;
     }
+    
+    // Collect all ingredients from variants
+    let allIngredients = [...ingredients];
+    if (selectedVariantTypes.length > 0) {
+      // Add variant ingredients to the main ingredients array
+      Object.entries(variantIngredients).forEach(([variantName, variantIngs]) => {
+        if (variantIngs && variantIngs.length > 0) {
+          allIngredients = [...allIngredients, ...variantIngs];
+        }
+      });
+    }
+    
     const formData: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
       imageFile?: File;
       id?: string | number;
@@ -369,7 +376,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         : null,
       price: parseFloat(price),
       description: "",
-      ingredients: ingredients.length > 0 ? ingredients : [],
+      ingredients: allIngredients.length > 0 ? allIngredients : [],
       menuItemSauces: [],
       isPOSItem,
       image: image || "",
