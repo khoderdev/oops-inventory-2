@@ -110,6 +110,7 @@ export interface SaleResponse {
 //-----------------------------------------------------------------------------
 
 export interface Material {
+  type: any;
   stockEntries: StockEntry[];
   id: string;
   name: string;
