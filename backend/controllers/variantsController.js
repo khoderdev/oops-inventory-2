@@ -1,5 +1,5 @@
 import sequelize from "../config/database.js";
-import { MenuItem, Variants } from "../models/index.js";
+import { MenuItem, Variants, VariantIngredient, Material, Sauce } from "../models/index.js";
 
 const variantsController = {
   // Get all variants for a specific menu item
@@ -22,6 +22,24 @@ const variantsController = {
             as: "menuItem",
             attributes: ["id", "name", "price"],
             required: false
+          },
+          {
+            model: VariantIngredient,
+            as: "ingredients",
+            include: [
+              {
+                model: Material,
+                as: "material",
+                attributes: ["id", "name", "baseUnit", "unitType"],
+                required: false
+              },
+              {
+                model: Sauce,
+                as: "sauce",
+                attributes: ["id", "name", "unit", "costPerUnit"],
+                required: false
+              }
+            ]
           }
         ]
       });
@@ -56,6 +74,24 @@ const variantsController = {
             as: "menuItem",
             attributes: ["id", "name", "price"],
             required: false
+          },
+          {
+            model: VariantIngredient,
+            as: "ingredients",
+            include: [
+              {
+                model: Material,
+                as: "material",
+                attributes: ["id", "name", "baseUnit", "unitType"],
+                required: false
+              },
+              {
+                model: Sauce,
+                as: "sauce",
+                attributes: ["id", "name", "unit", "costPerUnit"],
+                required: false
+              }
+            ]
           }
         ]
       });
@@ -87,6 +123,24 @@ const variantsController = {
             as: "menuItem",
             attributes: ["id", "name", "price", "categoryId"],
             required: false
+          },
+          {
+            model: VariantIngredient,
+            as: "ingredients",
+            include: [
+              {
+                model: Material,
+                as: "material",
+                attributes: ["id", "name", "baseUnit", "unitType"],
+                required: false
+              },
+              {
+                model: Sauce,
+                as: "sauce",
+                attributes: ["id", "name", "unit", "costPerUnit"],
+                required: false
+              }
+            ]
           }
         ]
       });
@@ -178,7 +232,7 @@ const variantsController = {
         sortOrder: sortOrderValue
       }, { transaction });
 
-      // Fetch created variant with menu item details
+      // Fetch created variant with menu item details and ingredients
       const createdVariant = await Variants.findByPk(variant.id, {
         include: [
           {
@@ -186,6 +240,24 @@ const variantsController = {
             as: "menuItem",
             attributes: ["id", "name", "price"],
             required: false
+          },
+          {
+            model: VariantIngredient,
+            as: "ingredients",
+            include: [
+              {
+                model: Material,
+                as: "material",
+                attributes: ["id", "name", "baseUnit", "unitType"],
+                required: false
+              },
+              {
+                model: Sauce,
+                as: "sauce",
+                attributes: ["id", "name", "unit", "costPerUnit"],
+                required: false
+              }
+            ]
           }
         ],
         transaction
@@ -402,7 +474,7 @@ const variantsController = {
         sortOrder: sortOrderValue
       }, { transaction });
 
-      // Fetch updated variant with menu item details
+      // Fetch updated variant with menu item details and ingredients
       const updatedVariant = await Variants.findByPk(id, {
         include: [
           {
@@ -410,6 +482,24 @@ const variantsController = {
             as: "menuItem",
             attributes: ["id", "name", "price"],
             required: false
+          },
+          {
+            model: VariantIngredient,
+            as: "ingredients",
+            include: [
+              {
+                model: Material,
+                as: "material",
+                attributes: ["id", "name", "baseUnit", "unitType"],
+                required: false
+              },
+              {
+                model: Sauce,
+                as: "sauce",
+                attributes: ["id", "name", "unit", "costPerUnit"],
+                required: false
+              }
+            ]
           }
         ],
         transaction

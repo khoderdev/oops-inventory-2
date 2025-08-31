@@ -44,6 +44,11 @@ const processMenuItemData = (menuItemData: CreateMenuItemData | UpdateMenuItemDa
     console.log('🔍 Category preserved:', { category: originalCategory });
   }
   
+  // Ensure variants are properly preserved
+  if (processedData.variants) {
+    console.log('🔍 Variants found in menu item data:', processedData.variants);
+  }
+  
   console.log('🔍 processMenuItemData - END - Final output:', {
     processedData,
     beverageFields: {

@@ -349,18 +349,50 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       });
       return;
     }
-    
-    // Collect all ingredients from variants
-    let allIngredients = [...ingredients];
+
+    // Keep regular ingredients separate from variant ingredients
+    let regularIngredients = [...ingredients];
+    console.log("🔍 [BeverageItemForm] Starting to process variant ingredients");
+    console.log("🔍 [BeverageItemForm] Regular ingredients:", ingredients);
+    console.log("🔍 [BeverageItemForm] Selected variant types:", selectedVariantTypes); 
+    console.log("🔍 [BeverageItemForm] Variant ingredients map:", variantIngredients);
+
+    // Create variant data in the format expected by the backend
+    // We need to create a structure that matches the expected format in the API
+    const selectedVariants: string[] = selectedVariantTypes;
+    const variantVolumes: Record<string, number> = {};
+    const variantVolumeUnits: Record<string, string> = {};
+    const variantPrices: Record<string, number> = {};
+
+    // Also create a separate structure for the backend that includes ingredients
+    const backendVariants: Record<string, any> = {};
+
     if (selectedVariantTypes.length > 0) {
-      // Add variant ingredients to the main ingredients array
-      Object.entries(variantIngredients).forEach(([variantName, variantIngs]) => {
-        if (variantIngs && variantIngs.length > 0) {
-          allIngredients = [...allIngredients, ...variantIngs];
+      selectedVariantTypes.forEach(variantName => {
+        // Fill in the data for the TypeScript interface
+        variantVolumes[variantName] = parseFloat(variantInputs[variantName]?.volume || "0");
+        variantVolumeUnits[variantName] = variantInputs[variantName]?.unit || "cl";
+        variantPrices[variantName] = parseFloat(variantInputs[variantName]?.price || "0");
+
+        // Create the backend structure with ingredients
+        backendVariants[variantName] = {
+          volume: variantVolumes[variantName],
+          unit: variantVolumeUnits[variantName],
+          price: variantPrices[variantName],
+          ingredients: []
+        };
+
+        // Add ingredients to this variant if any exist
+        if (variantIngredients[variantName] && variantIngredients[variantName].length > 0) {
+          console.log(`🔍 [BeverageItemForm] Processing ingredients for variant: ${variantName}`, variantIngredients[variantName]);
+          backendVariants[variantName].ingredients = variantIngredients[variantName];
+          console.log(`🔍 [BeverageItemForm] Added ingredients to variant ${variantName}:`, backendVariants[variantName].ingredients);
         }
       });
+
+      console.log("🔍 [BeverageItemForm] Backend variants with ingredients:", backendVariants);
     }
-    
+
     const formData: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
       imageFile?: File;
       id?: string | number;
@@ -376,7 +408,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         : null,
       price: parseFloat(price),
       description: "",
-      ingredients: allIngredients.length > 0 ? allIngredients : [],
+      ingredients: regularIngredients.length > 0 ? regularIngredients : [],
       menuItemSauces: [],
       isPOSItem,
       image: image || "",
@@ -385,21 +417,38 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       unit: "piece",
       availableQuantity: selectedBeverageStock?.purchasedQuantity ? parseFloat(selectedBeverageStock.purchasedQuantity.toString()) : undefined,
       costPerUnit: selectedBeverageStock?.costPerPurchasedUnit ? parseFloat(selectedBeverageStock.costPerPurchasedUnit.toString()) : undefined,
-      variants: undefined
+      variants:
+        selectedVariantTypes.length > 0
+          ? {
+              selectedVariants,
+              variantVolumes,
+              variantVolumeUnits,
+              variantPrices
+            }
+          : undefined
     };
 
     try {
-      const result = await onSubmit(formData);
-      if (enableVariants && selectedVariantTypes.length > 0) {
-        const menuItemId = menuItem?.id ? Number(menuItem.id) : (result as any)?.id;
-        if (menuItemId) {
-          if (menuItem?.id) {
-            await updateVariants(menuItemId);
-          } else {
-            await createVariants(menuItemId);
-          }
-        }
-      }
+      console.log("🔍 [BeverageItemForm] Submitting form data with variants:", {
+        variants: formData.variants,
+        regularIngredients: formData.ingredients,
+        selectedVariantTypes
+      });
+
+      // For the API call, we need to use our backend structure with ingredients
+      // while keeping the TypeScript-friendly structure in the form data
+      const apiFormData = {
+        ...formData,
+        // Override the variants with our backend structure that includes ingredients
+        variants: selectedVariantTypes.length > 0 ? backendVariants : undefined
+      };
+
+      console.log("🔍 [BeverageItemForm] API form data with backend variants:", apiFormData);
+
+      const result = await onSubmit(apiFormData as any);
+      console.log("🔍 [BeverageItemForm] Form submission result:", result);
+      // No need to call separate variant creation methods anymore
+      // as variants are now included in the main menu item payload
       setName("");
       setCategoryId("");
       setPrice("");
@@ -579,7 +628,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                           <div className="border-t pt-2 mt-2">
                             <div className="flex justify-between text-sm font-medium">
                               <span>Total Ingredients Cost:</span>
-                              <span>${variantIngredients[variantName].reduce((sum, ing) => sum + ing.cost, 0).toFixed(2)}</span>
+                              <span>${Array.isArray(variantIngredients[variantName]) ? parseFloat(variantIngredients[variantName].reduce((sum, ing) => sum + (typeof ing.cost === "number" ? ing.cost : Number(ing.cost) || 0), 0).toString()).toFixed(2) : "0.00"}</span>
                             </div>
                           </div>
                         </div>

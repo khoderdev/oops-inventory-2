@@ -7,6 +7,7 @@ import { Material, MenuItemIngredient, Sauce, StockEntry } from "@/types/invento
 import { Selection } from "../../ui/Selection";
 import { Plus } from "lucide-react";
 import { calculateVariantIngredientCost } from "@/utils/calculateVariantIngredientCost";
+import { Badge } from "../../ui/badge";
 
 interface VariantIngredientInputProps {
   variantName: string;
@@ -192,6 +193,13 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
       type: selectedItem.type
     };
 
+    // Log the ingredient being added to the specific variant
+    console.log(`Adding ingredient to variant ${variantName}:`, {
+      ingredient: newIngredient,
+      materialName: materials.find(m => String(m.id) === selectedMaterialId)?.name || 'Unknown material'
+    });
+
+    // Call the parent component's handler with the variant name and new ingredient
     onAddIngredient(variantName, newIngredient);
 
     // Clear input fields
@@ -200,7 +208,12 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
     setIngredientQuantity("");
     setIngredientUnit("");
     setSelectedItemType("material");
-  }, [selectedMaterialId, selectedItemType, ingredientQuantity, ingredientUnit, allSelectableItems, calculateIngredientCost, onAddIngredient, variantName]);
+    
+    // Focus back on the material search field for quick consecutive additions
+    if (materialSelectRef.current) {
+      materialSelectRef.current.focus();
+    }
+  }, [selectedMaterialId, selectedItemType, ingredientQuantity, ingredientUnit, allSelectableItems, calculateIngredientCost, onAddIngredient, variantName, materials]);
 
   // Define unit groups for better organization
   const unitGroups = useMemo(() => {
@@ -370,7 +383,10 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
 
   return (
     <div className="border-t pt-4 mt-2">
-      <h4 className="text-md font-medium mb-2">Variant Ingredients for {variantName}</h4>
+      <div className="flex items-center gap-2 mb-2">
+        <h4 className="text-md font-medium">Variant Ingredients for</h4>
+        <Badge variant="outline" className="capitalize">{variantName}</Badge>
+      </div>
       {errors.ingredients && <p className="text-sm text-red-500 mb-2">{errors.ingredients}</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -442,9 +458,17 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
       </div>
 
       <div className="flex justify-end mt-4">
-        <Button onClick={handleAddIngredient} disabled={!selectedMaterialId || !ingredientQuantity || !ingredientUnit} aria-label="Add ingredient">
+        <Button 
+          onClick={handleAddIngredient} 
+          disabled={!selectedMaterialId || !ingredientQuantity || !ingredientUnit} 
+          aria-label={`Add ingredient to ${variantName}`}
+          className="relative group"
+        >
           <Plus className="h-4 w-4 mr-2" />
-          Add Ingredient
+          Add to {variantName}
+          <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+            Add ingredient to {variantName} variant
+          </span>
         </Button>
       </div>
     </div>

@@ -826,7 +826,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const addToCart = useCallback(
     (posItem: POSItem) => {
       setIsPOSActionInProgress(true);
-      const cartId = `pos-${posItem.id}`;
+      
+      // Create a unique cart ID that includes variant information if present
+      const variantId = posItem.selectedVariant ? `-variant-${posItem.selectedVariant.name}-${posItem.selectedVariant.volume}${posItem.selectedVariant.unit}` : '';
+      const cartId = `pos-${posItem.id}${variantId}`;
+      
       setCart(prevCart => {
         const currentCart = prevCart || [];
 
@@ -834,8 +838,33 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         let existingItem = currentCart.find(cartItem => cartItem.id === cartId);
 
         // If not found by cartId, check by item type and ID for better matching
+        // but only if there's no variant or the variant matches
         if (!existingItem) {
           existingItem = currentCart.find(cartItem => {
+            // For items with variants, we need to check if the variants match
+            const cartItemPosItem = cartItem.posItem as POSItem;
+            const cartItemHasVariant = cartItemPosItem && cartItemPosItem.selectedVariant;
+            const posItemHasVariant = posItem.selectedVariant;
+            
+            // If one has a variant and the other doesn't, they're different items
+            if (cartItemHasVariant !== posItemHasVariant) {
+              return false;
+            }
+            
+            // If both have variants, check if they're the same variant
+            if (cartItemHasVariant && posItemHasVariant) {
+              const cartVariant = cartItemPosItem.selectedVariant;
+              const posVariant = posItem.selectedVariant;
+              
+              // If variants don't match, they're different items
+              if (cartVariant.name !== posVariant.name || 
+                  cartVariant.volume !== posVariant.volume || 
+                  cartVariant.unit !== posVariant.unit) {
+                return false;
+              }
+            }
+            
+            // Now check the regular item matching logic
             if (posItem.type === "menu_item" && cartItem.type === "menu_item") {
               const cartMenuItemId = cartItem.menuItemId;
               const posMenuItemId = posItem.menuItemId;
@@ -854,13 +883,40 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         let newCart: POSCartItem[];
         if (existingItem) {
           newCart = currentCart.map(cartItem => {
-            // Update by cartId or by matching item properties
-            const shouldUpdate =
-              cartItem.id === cartId ||
-              (posItem.type === "menu_item" && cartItem.type === "menu_item" && Number(cartItem.menuItemId) === Number(posItem.menuItemId)) ||
-              // POSItem uses type "stock_entry" while POSCartItem uses type "material" for stock entries
-              (posItem.type === "stock_entry" && cartItem.type === "material" && String(cartItem.stockEntryId) === String(posItem.materialId));
-
+            // Update by cartId which now includes variant information
+            const shouldUpdate = cartItem.id === cartId;
+            
+            // If not matching by cartId, check if we should update based on item properties
+            // but only if variants match or both items don't have variants
+            if (!shouldUpdate) {
+              const cartItemPosItem = cartItem.posItem as POSItem;
+              const cartItemHasVariant = cartItemPosItem && cartItemPosItem.selectedVariant;
+              const posItemHasVariant = posItem.selectedVariant;
+              
+              // Only consider updating if variant status matches
+              if (cartItemHasVariant === posItemHasVariant) {
+                // If both have variants, check if they're the same variant
+                if (cartItemHasVariant && posItemHasVariant) {
+                  const cartVariant = cartItemPosItem.selectedVariant;
+                  const posVariant = posItem.selectedVariant;
+                  
+                  // Only update if variants match
+                  if (cartVariant.name === posVariant.name && 
+                      cartVariant.volume === posVariant.volume && 
+                      cartVariant.unit === posVariant.unit) {
+                    return (posItem.type === "menu_item" && cartItem.type === "menu_item" && Number(cartItem.menuItemId) === Number(posItem.menuItemId)) ||
+                           (posItem.type === "stock_entry" && cartItem.type === "material" && String(cartItem.stockEntryId) === String(posItem.materialId)) ?
+                           { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
+                  }
+                } else {
+                  // No variants, use regular matching
+                  return (posItem.type === "menu_item" && cartItem.type === "menu_item" && Number(cartItem.menuItemId) === Number(posItem.menuItemId)) ||
+                         (posItem.type === "stock_entry" && cartItem.type === "material" && String(cartItem.stockEntryId) === String(posItem.materialId)) ?
+                         { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
+                }
+              }
+            }
+            
             return shouldUpdate ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem;
           });
         } else {
@@ -890,12 +946,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               quantity: 1,
               type: "menu_item",
               originalItem: finalMenuItem,
-              posItem,
+              posItem,  // This will include the selectedVariant if present
               stockEntryId: undefined,
               // Store as string to match POSCartItem type
               menuItemId: String(menuItemId),
               printerId: finalMenuItem?.printerId || posItem?.printerId,
-              assignedPrinter: finalMenuItem?.assignedPrinter || posItem?.assignedPrinter
+              assignedPrinter: finalMenuItem?.assignedPrinter || posItem?.assignedPrinter,
+              // Store variant information directly in the cart item for easier access
+              variant: posItem.selectedVariant
             };
             newCart = [...currentCart, newItem];
           } else {

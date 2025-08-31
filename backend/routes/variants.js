@@ -9,69 +9,30 @@ const router = express.Router();
 router.use(authenticate);
 
 // GET /api/variants - Get all variants with optional filtering
-router.get(
-  "/",
-  requirePermission("variants.read"),
-  cacheMiddleware(60), // Cache for 1 minute
-  variantsController.getAllVariants
-);
+router.get("/", cacheMiddleware(60), variantsController.getAllVariants);
 
 // GET /api/variants/menu-item/:menuItemId - Get variants for specific menu item
-router.get(
-  "/menu-item/:menuItemId",
-  requirePermission("variants.read"),
-  cacheMiddleware(120), // Cache for 2 minutes
-  variantsController.getVariantsByMenuItemId
-);
+router.get("/menu-item/:menuItemId", cacheMiddleware(120), variantsController.getVariantsByMenuItemId);
 
 // GET /api/variants/:id - Get variant by ID
-router.get(
-  "/:id",
-  requirePermission("variants.read"),
-  cacheMiddleware(300), // Cache for 5 minutes
-  variantsController.getVariantById
-);
+router.get("/:id", cacheMiddleware(300), variantsController.getVariantById);
 
 // POST /api/variants - Create new variant
-router.post(
-  "/",
-  requirePermission("variants.create"),
-  variantsController.createVariant
-);
+router.post("/", variantsController.createVariant);
 
 // POST /api/variants/bulk - Create multiple variants
-router.post(
-  "/bulk",
-  requirePermission("variants.create"),
-  variantsController.createBulkVariants
-);
+router.post("/bulk", variantsController.createBulkVariants);
 
 // PUT /api/variants/:id - Update variant
-router.put(
-  "/:id",
-  requirePermission("variants.update"),
-  variantsController.updateVariant
-);
+router.put("/:id", variantsController.updateVariant);
 
 // PATCH /api/variants/:id/toggle-status - Toggle variant active status
-router.patch(
-  "/:id/toggle-status",
-  requirePermission("variants.update"),
-  variantsController.toggleVariantStatus
-);
+router.patch("/:id/toggle-status", variantsController.toggleVariantStatus);
 
 // DELETE /api/variants/:id - Delete variant
-router.delete(
-  "/:id",
-  requirePermission("variants.delete"),
-  variantsController.deleteVariant
-);
+router.delete("/:id", variantsController.deleteVariant);
 
 // DELETE /api/variants/bulk - Bulk delete variants
-router.delete(
-  "/bulk",
-  requirePermission("variants.delete"),
-  variantsController.bulkDeleteVariants
-);
+router.delete("/bulk", variantsController.bulkDeleteVariants);
 
 export default router;

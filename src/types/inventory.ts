@@ -559,6 +559,14 @@ export interface POSCartItem {
   // Backend order item ID when editing an existing order
   orderItemId?: string;
   notes?: string; // Individual item notes for kitchen/sections
+  // Variant information for beverage items
+  variant?: {
+    id: string | number;
+    name: string;
+    volume: number;
+    unit: string;
+    price: string | number;
+  };
 }
 
 export interface POSClientProps {
@@ -868,6 +876,14 @@ export interface MenuItemIngredient {
   notes?: string;
   material?: any;
   sauce?: any;
+  variantName?: string; // Added for variant ingredient association
+}
+
+export interface StructuredVariant {
+  volume: number;
+  unit: string;
+  price: number;
+  ingredients?: MenuItemIngredient[];
 }
 
 export interface CreateMenuItemData {

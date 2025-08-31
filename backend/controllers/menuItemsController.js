@@ -17,7 +17,7 @@ const menuItemsController = {
           }
         ]
       });
-      
+
       res.status(200).json(menuItems);
     } catch (error) {
       next(error);
@@ -30,7 +30,7 @@ const menuItemsController = {
         where: { isActive: true },
         order: [["name", "ASC"]]
       });
-      
+
       res.status(200).json(categories);
     } catch (error) {
       next(error);
@@ -41,21 +41,21 @@ const menuItemsController = {
     try {
       const { type } = req.params;
       const { isActive } = req.query;
-      
+
       const where = {};
-      
+
       // Filter by type (food or beverage)
       if (type === "beverage") {
         where.isBeverage = true;
       } else if (type === "food") {
         where.isBeverage = false;
       }
-      
+
       // Filter by active status if provided
       if (isActive !== undefined) {
         where.isActive = isActive === "true";
       }
-      
+
       const menuItems = await MenuItem.findAll({
         where,
         include: [
@@ -88,7 +88,7 @@ const menuItemsController = {
           }
         ]
       });
-      
+
       const formattedMenuItems = menuItems.map(item => ({
         ...item.get(),
         ingredients: [
@@ -109,7 +109,7 @@ const menuItemsController = {
         ],
         variants: item.variants || []
       }));
-      
+
       res.status(200).json(formattedMenuItems);
     } catch (error) {
       next(error);
@@ -121,13 +121,13 @@ const menuItemsController = {
     try {
       const { id } = req.params;
       const { name, price, category, description, isPOSItem, image, imageBase64, ingredients, isBeverage, unit, availableQuantity, costPerUnit, variants } = req.body;
-      
+
       const menuItem = await MenuItem.findByPk(id);
       if (!menuItem) {
         await transaction.rollback();
         return res.status(404).json({ error: "Menu item not found" });
       }
-      
+
       // Handle category
       let categoryId = null;
       if (typeof category === "object" && category?.id) {
@@ -148,7 +148,7 @@ const menuItemsController = {
       } else if (typeof category === "number") {
         categoryId = category;
       }
-      
+
       // Update basic fields
       const updateData = {};
       if (name) updateData.name = name.trim();
@@ -156,14 +156,14 @@ const menuItemsController = {
       if (categoryId) updateData.categoryId = categoryId;
       if (description !== undefined) updateData.description = description;
       if (isPOSItem !== undefined) updateData.isPOSItem = Boolean(isPOSItem);
-      
+
       // Handle image
       let imageUrl = null;
       if (req.file) imageUrl = `/uploads/menu/${req.file.filename}`;
       else if (imageBase64 && imageBase64.startsWith("data:image/")) imageUrl = imageBase64;
       else if (image) imageUrl = image;
       if (imageUrl) updateData.image = imageUrl;
-      
+
       // Handle beverage fields
       if (isBeverage !== undefined) updateData.isBeverage = Boolean(isBeverage);
       if (unit !== undefined) updateData.unit = unit;
@@ -173,25 +173,25 @@ const menuItemsController = {
       if (costPerUnit !== undefined) {
         updateData.costPerUnit = typeof costPerUnit === "string" ? parseFloat(costPerUnit) : costPerUnit;
       }
-      
+
       // Update the menu item
       await menuItem.update(updateData, { transaction });
-      
+
       // Handle ingredients if provided
       if (ingredients) {
         // Parse ingredients if needed
         let parsedIngredients = [];
         if (typeof ingredients === "string") parsedIngredients = JSON.parse(ingredients);
         else if (Array.isArray(ingredients)) parsedIngredients = ingredients;
-        
+
         // Delete existing ingredients
         await MenuItemIngredient.destroy({ where: { menuItemId: id }, transaction });
         await MenuItemSauce.destroy({ where: { menuItemId: id }, transaction });
-        
+
         // Group ingredients by variant
         const regularIngredients = [];
         const variantIngredientsMap = {};
-        
+
         parsedIngredients.forEach(ing => {
           if (ing.variantName) {
             if (!variantIngredientsMap[ing.variantName]) {
@@ -202,7 +202,7 @@ const menuItemsController = {
             regularIngredients.push(ing);
           }
         });
-        
+
         // Process regular ingredients
         const materialIngredients = regularIngredients
           .filter(i => i.materialId)
@@ -213,7 +213,7 @@ const menuItemsController = {
             unit: i.unit,
             cost: Number(i.cost) || 0
           }));
-        
+
         const sauceIngredients = regularIngredients
           .filter(i => i.sauceId)
           .map(i => ({
@@ -223,48 +223,65 @@ const menuItemsController = {
             unit: i.unit,
             cost: Number(i.cost) || 0
           }));
-        
+
         // Insert regular ingredients
         if (materialIngredients.length > 0) {
           await MenuItemIngredient.bulkCreate(materialIngredients, { transaction });
         }
-        
+
         if (sauceIngredients.length > 0) {
           await MenuItemSauce.bulkCreate(sauceIngredients, { transaction });
         }
       }
-      
+
       // Handle variants if provided
       if (variants && typeof variants === "object") {
         // Delete existing variants and their ingredients
         const existingVariants = await Variants.findAll({ where: { menuItemId: id } });
         const variantIds = existingVariants.map(v => v.id);
-        
+
         if (variantIds.length > 0) {
           await VariantIngredient.destroy({ where: { variantId: variantIds }, transaction });
         }
-        
+
         await Variants.destroy({ where: { menuItemId: id }, transaction });
-        
+
         // Create new variants
         const variantData = [];
         for (const [name, info] of Object.entries(variants)) {
-          if (!info.volume || !info.unit || !info.price) continue;
-          
+          if (!info.volume || !info.unit || info.price === undefined) continue;
+
+          const volume = Number(info.volume);
+          const price = Number(info.price);
+
+          // Validate numeric values
+          if (isNaN(volume) || volume <= 0) {
+            console.warn(`⚠️ [updateMenuItem] Skipping variant "${name}" with invalid volume: ${info.volume}`);
+            continue;
+          }
+
+          if (isNaN(price) || price < 0) {
+            console.warn(`⚠️ [updateMenuItem] Skipping variant "${name}" with invalid price: ${info.price}`);
+            continue;
+          }
+
+          // Price of 0 is valid and allowed
+          console.log(`✅ [updateMenuItem] Variant "${name}" price validation passed: ${price} (zero prices are allowed)`);
+
           variantData.push({
             menuItemId: menuItem.id,
             name,
-            volume: Number(info.volume),
+            volume: volume,
             unit: info.unit,
-            price: Number(info.price),
+            price: price,
             isActive: true,
             sortOrder: variantData.length
           });
         }
-        
+
         if (variantData.length > 0) {
           const createdVariants = await Variants.bulkCreate(variantData, { transaction });
-          
+
           // Process variant ingredients if any
           if (Object.keys(variantIngredientsMap).length > 0) {
             // Map variant names to IDs
@@ -272,15 +289,15 @@ const menuItemsController = {
             createdVariants.forEach(variant => {
               variantNameToIdMap[variant.name] = variant.id;
             });
-            
+
             // Prepare variant ingredients data
             let variantIngredientsData = [];
-            
+
             Object.entries(variantIngredientsMap).forEach(([variantName, ingredients]) => {
               const variantId = variantNameToIdMap[variantName];
-              
+
               if (!variantId) return;
-              
+
               ingredients.forEach(ing => {
                 if (ing.materialId) {
                   variantIngredientsData.push({
@@ -297,14 +314,14 @@ const menuItemsController = {
                 }
               });
             });
-            
+
             if (variantIngredientsData.length > 0) {
               await VariantIngredient.bulkCreate(variantIngredientsData, { transaction });
             }
           }
         }
       }
-      
+
       // Fetch updated menu item with relations
       const updatedMenuItem = await MenuItem.findByPk(id, {
         include: [
@@ -315,9 +332,9 @@ const menuItemsController = {
         ],
         transaction
       });
-      
+
       await transaction.commit();
-      
+
       // Format response
       const formattedMenuItem = {
         ...updatedMenuItem.get(),
@@ -339,7 +356,7 @@ const menuItemsController = {
         ],
         variants: updatedMenuItem.variants || []
       };
-      
+
       res.status(200).json(formattedMenuItem);
     } catch (error) {
       await transaction.rollback();
@@ -352,33 +369,33 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
-      
+
       // Check if menu item exists
       const menuItem = await MenuItem.findByPk(id);
       if (!menuItem) {
         await transaction.rollback();
         return res.status(404).json({ error: "Menu item not found" });
       }
-      
+
       // Delete related records
       await MenuItemIngredient.destroy({ where: { menuItemId: id }, transaction });
       await MenuItemSauce.destroy({ where: { menuItemId: id }, transaction });
-      
+
       // Delete variants and variant ingredients
       const variants = await Variants.findAll({ where: { menuItemId: id } });
       const variantIds = variants.map(v => v.id);
-      
+
       if (variantIds.length > 0) {
         await VariantIngredient.destroy({ where: { variantId: variantIds }, transaction });
       }
-      
+
       await Variants.destroy({ where: { menuItemId: id }, transaction });
-      
+
       // Delete the menu item
       await menuItem.destroy({ transaction });
-      
+
       await transaction.commit();
-      
+
       res.status(200).json({ message: "Menu item deleted successfully" });
     } catch (error) {
       await transaction.rollback();
@@ -391,32 +408,29 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { menuItemIds, categoryId } = req.body;
-      
+
       if (!menuItemIds || !Array.isArray(menuItemIds) || menuItemIds.length === 0) {
         await transaction.rollback();
         return res.status(400).json({ error: "Menu item IDs are required" });
       }
-      
+
       if (!categoryId) {
         await transaction.rollback();
         return res.status(400).json({ error: "Category ID is required" });
       }
-      
+
       // Check if category exists
       const category = await Category.findByPk(categoryId);
       if (!category) {
         await transaction.rollback();
         return res.status(404).json({ error: "Category not found" });
       }
-      
+
       // Update menu items
-      await MenuItem.update(
-        { categoryId },
-        { where: { id: menuItemIds }, transaction }
-      );
-      
+      await MenuItem.update({ categoryId }, { where: { id: menuItemIds }, transaction });
+
       await transaction.commit();
-      
+
       res.status(200).json({ message: `Updated ${menuItemIds.length} menu items to category ${category.name}` });
     } catch (error) {
       await transaction.rollback();
@@ -429,18 +443,18 @@ const menuItemsController = {
     try {
       const { id } = req.params;
       const { printerId } = req.body;
-      
+
       if (!printerId) {
         return res.status(400).json({ error: "Printer ID is required" });
       }
-      
+
       const menuItem = await MenuItem.findByPk(id);
       if (!menuItem) {
         return res.status(404).json({ error: "Menu item not found" });
       }
-      
+
       await menuItem.update({ printerId });
-      
+
       res.status(200).json({ message: "Printer assigned successfully" });
     } catch (error) {
       console.error("Error assigning printer:", error);
@@ -452,25 +466,22 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { menuItemIds, printerId } = req.body;
-      
+
       if (!menuItemIds || !Array.isArray(menuItemIds) || menuItemIds.length === 0) {
         await transaction.rollback();
         return res.status(400).json({ error: "Menu item IDs are required" });
       }
-      
+
       if (!printerId) {
         await transaction.rollback();
         return res.status(400).json({ error: "Printer ID is required" });
       }
-      
+
       // Update menu items
-      await MenuItem.update(
-        { printerId },
-        { where: { id: menuItemIds }, transaction }
-      );
-      
+      await MenuItem.update({ printerId }, { where: { id: menuItemIds }, transaction });
+
       await transaction.commit();
-      
+
       res.status(200).json({ message: `Assigned printer to ${menuItemIds.length} menu items` });
     } catch (error) {
       await transaction.rollback();
@@ -483,24 +494,24 @@ const menuItemsController = {
     const transaction = await sequelize.transaction();
     try {
       const { menuItemId, variants } = req.body;
-      
+
       if (!menuItemId) {
         await transaction.rollback();
         return res.status(400).json({ error: "Menu item ID is required" });
       }
-      
+
       if (!variants || !Array.isArray(variants) || variants.length === 0) {
         await transaction.rollback();
         return res.status(400).json({ error: "Variants are required" });
       }
-      
+
       // Check if menu item exists
       const menuItem = await MenuItem.findByPk(menuItemId);
       if (!menuItem) {
         await transaction.rollback();
         return res.status(404).json({ error: "Menu item not found" });
       }
-      
+
       // Create variants
       const variantData = variants.map((variant, index) => ({
         menuItemId,
@@ -511,11 +522,11 @@ const menuItemsController = {
         isActive: variant.isActive !== false,
         sortOrder: index
       }));
-      
+
       const createdVariants = await Variants.bulkCreate(variantData, { transaction });
-      
+
       await transaction.commit();
-      
+
       res.status(201).json(createdVariants);
     } catch (error) {
       await transaction.rollback();
@@ -810,12 +821,15 @@ const menuItemsController = {
       }
 
       // Regular ingredients have already been processed above
-      
+
       // --- Handle variants ---
       if (variants && typeof variants === "object") {
+        console.log(`🔍 [createMenuItem] Received variants data:`, JSON.stringify(variants));
         const variantData = [];
+        const variantIngredientsData = [];
 
         for (const [name, info] of Object.entries(variants)) {
+          console.log(`🔍 [createMenuItem] Processing variant: ${name}`, JSON.stringify(info));
           // Validate variant data
           if (!info.volume || !info.unit || !info.price) {
             await transaction.rollback();
@@ -842,12 +856,16 @@ const menuItemsController = {
             });
           }
 
+          // Price of 0 is valid and allowed
+          console.log(`✅ [createMenuItem] Variant "${name}" price validation passed: ${price} (zero prices are allowed)`);
+
           // Validate unit for beverage items
           if (beverageData.isBeverage !== false && !isValidBeverageUnit(info.unit)) {
             console.warn(`⚠️ [createMenuItem] Non-standard beverage unit for variant "${name}": ${info.unit}`);
             // Don't block creation but log the warning
           }
 
+          // Store variant data for bulk creation
           variantData.push({
             menuItemId: menuItem.id,
             name,
@@ -859,11 +877,21 @@ const menuItemsController = {
           });
 
           console.log(`✅ [createMenuItem] Validated variant: ${name} - ${formatVolume(volume, info.unit)} @ $${price.toFixed(2)}`);
+
+          // Check for embedded ingredients in the variant
+          if (info.ingredients && Array.isArray(info.ingredients) && info.ingredients.length > 0) {
+            console.log(`🔍 [createMenuItem] Found ${info.ingredients.length} embedded ingredients for variant ${name}`);
+            // Store these ingredients for later processing after variants are created
+            if (!variantIngredientsMap[name]) {
+              variantIngredientsMap[name] = [];
+            }
+            variantIngredientsMap[name].push(...info.ingredients);
+          }
         }
 
         if (variantData.length > 0) {
           // Create variants in database
-          console.log(`🔍 [createMenuItem] Creating ${variantData.length} variants in database`);
+          console.log(`🔍 [createMenuItem] Creating ${variantData.length} variants in database:`, JSON.stringify(variantData));
           const createdVariants = await Variants.bulkCreate(variantData, { transaction });
 
           // Process variant ingredients if any
