@@ -4,6 +4,7 @@ import { Assignment, Material, MenuItem, MenuItemIngredient, MenuItemSauce, Sauc
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 import { calculateDeductionAmount, logVariantDeduction } from "../utils/beverageVariantUtils.js";
+import { calculateBeverageDeduction, convertToMl, isValidBeverageUnit } from "../utils/volumeConversionUtils.js";
 
 export const deductIngredientStock = async (menuItemId, orderQuantity, transaction, selectedVariant = null) => {
   const deductionId = Math.random().toString(36).substr(2, 9);
@@ -113,6 +114,11 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
       if (selectedVariant) {
         console.log(`🥃 [${deductionId}] Processing beverage variant: ${selectedVariant.name}`);
         
+        // Validate variant unit
+        if (!isValidBeverageUnit(selectedVariant.unit)) {
+          console.warn(`⚠️ [${deductionId}] Invalid beverage unit: ${selectedVariant.unit}. Proceeding with fallback logic.`);
+        }
+        
         // Find the source material for this beverage
         const matchingMaterial = await Material.findOne({
           where: { name: { [Op.iLike]: `%${menuItem.name}%` } },
@@ -122,34 +128,56 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         if (matchingMaterial) {
           console.log(`🔄 [${deductionId}] Found matching source material: ${matchingMaterial.name} (ID: ${matchingMaterial.id})`);
           
-          // Get the material's volume information
-          const materialVolume = matchingMaterial.packageQuantity || 1;
-          const materialUnit = matchingMaterial.packageUnit || matchingMaterial.baseUnit || 'unit';
-          
-          // Calculate what fraction of the source material this variant represents
-          const deductionAmount = calculateDeductionAmount(
-            selectedVariant.volume,
-            selectedVariant.unit,
-            materialVolume,
-            materialUnit,
-            orderQuantity
-          );
-          
-          // Log the deduction details
-          logVariantDeduction(
-            menuItem.name,
-            selectedVariant.name,
-            selectedVariant.volume,
-            selectedVariant.unit,
-            materialVolume,
-            materialUnit,
-            orderQuantity,
-            deductionAmount
-          );
-          
-          // Deduct the calculated amount from stock
-          await deductStockFromMaterial(matchingMaterial.id, deductionAmount, menuItem.name, transaction);
-          console.log(`✅ [${deductionId}] Deducted ${deductionAmount.toFixed(4)} units of ${matchingMaterial.name} for variant ${selectedVariant.name}`);
+          try {
+            // Use the new comprehensive volume conversion system
+            const deductionResult = calculateBeverageDeduction(
+              selectedVariant.volume,
+              selectedVariant.unit,
+              matchingMaterial,
+              orderQuantity
+            );
+            
+            console.log(`📊 [${deductionId}] Beverage deduction calculation:`, {
+              variantName: selectedVariant.name,
+              variantVolume: `${selectedVariant.volume} ${selectedVariant.unit}`,
+              materialName: matchingMaterial.name,
+              unitsToDeduct: deductionResult.unitsToDeduct,
+              exactUnitsNeeded: deductionResult.exactUnitsNeeded,
+              materialUnit: deductionResult.materialUnit,
+              wastePercentage: deductionResult.wastePercentage,
+              totalVariantVolumeInMl: deductionResult.totalVariantVolumeInMl,
+              materialVolumeInMl: deductionResult.materialVolumeInMl
+            });
+            
+            // Deduct the calculated amount from stock
+            await deductStockFromMaterial(matchingMaterial.id, deductionResult.unitsToDeduct, menuItem.name, transaction);
+            
+            // Log waste if significant (>10%)
+            if (deductionResult.wastePercentage > 10) {
+              console.log(`⚠️ [${deductionId}] High waste detected: ${deductionResult.wastePercentage}% (${deductionResult.wasteVolumeInMl}ml unused)`);
+            }
+            
+            console.log(`✅ [${deductionId}] Deducted ${deductionResult.unitsToDeduct} ${deductionResult.materialUnit} of ${matchingMaterial.name} for variant ${selectedVariant.name}`);
+            
+          } catch (conversionError) {
+            console.error(`❌ [${deductionId}] Volume conversion failed for variant ${selectedVariant.name}:`, conversionError);
+            
+            // Fallback to legacy calculation
+            console.log(`🔄 [${deductionId}] Using fallback calculation for ${selectedVariant.name}`);
+            const materialVolume = matchingMaterial.packageQuantity || 1;
+            const materialUnit = matchingMaterial.packageUnit || matchingMaterial.baseUnit || 'unit';
+            
+            const deductionAmount = calculateDeductionAmount(
+              selectedVariant.volume,
+              selectedVariant.unit,
+              materialVolume,
+              materialUnit,
+              orderQuantity
+            );
+            
+            await deductStockFromMaterial(matchingMaterial.id, deductionAmount, menuItem.name, transaction);
+            console.log(`✅ [${deductionId}] Fallback deduction: ${deductionAmount.toFixed(4)} units of ${matchingMaterial.name}`);
+          }
         } else {
           console.log(`ℹ️ [${deductionId}] No matching source material found for beverage: ${menuItem.name}`);
         }

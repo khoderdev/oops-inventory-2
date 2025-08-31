@@ -3,6 +3,7 @@ import { Material, StockEntry, Wasting, Printer, Category } from "../models/inde
 import { StockEntryAuditHelperSimple } from "../decorators/stockEntryAuditDecoratorSimple.js";
 import { parsePaginationParams, buildPaginationResponse, buildFilterConditions, parseFieldSelection } from "../utils/paginationHelpers.js";
 import { getMaterialCategories } from "../utils/categoryHelpers.js";
+import { convertVolume, convertToMl, isValidBeverageUnit, getMaterialVolumePerUnit, getMaterialVolumeUnit } from "../utils/volumeConversionUtils.js";
 
 const stockEntriesController = {
   getAllStockEntries: async (req, res, next) => {
@@ -166,19 +167,42 @@ const stockEntriesController = {
           purchasedIndividualUnit = purchasedUnit;
         }
       } else if (material.unitType === "volume") {
-        const volumeConversions = {
-          l: 1000,
-          ml: 1,
-          gallon: 3785.41,
-          qt: 946.353,
-          pt: 473.176
-        };
-        const conversionFactor = volumeConversions[purchasedUnit.toLowerCase()];
-        if (conversionFactor) {
-          purchasedIndividualQuantity = Math.round(numericPurchasedQuantity * conversionFactor);
-          purchasedIndividualUnit = material.baseUnit;
-        } else {
-          console.warn(`Unknown volume unit: ${purchasedUnit} for material: ${material.name}`);
+        try {
+          // Use the comprehensive volume conversion system
+          const materialVolumeUnit = getMaterialVolumeUnit(material);
+          
+          // Check if it's a valid beverage unit
+          if (isValidBeverageUnit(purchasedUnit)) {
+            // Convert to material's base volume unit
+            const convertedVolume = convertVolume(numericPurchasedQuantity, purchasedUnit, materialVolumeUnit, material);
+            purchasedIndividualQuantity = Math.round(convertedVolume * 1000) / 1000; // Round to 3 decimal places
+            purchasedIndividualUnit = materialVolumeUnit;
+            
+            console.log(`🔄 [createStockEntries] Volume conversion for ${material.name}: ${numericPurchasedQuantity} ${purchasedUnit} → ${purchasedIndividualQuantity} ${purchasedIndividualUnit}`);
+          } else {
+            // Fallback to legacy conversion for non-standard units
+            const volumeConversions = {
+              l: 1000,
+              ml: 1,
+              cl: 10,
+              dl: 100,
+              gallon: 3785.41,
+              qt: 946.353,
+              pt: 473.176
+            };
+            const conversionFactor = volumeConversions[purchasedUnit.toLowerCase()];
+            if (conversionFactor) {
+              purchasedIndividualQuantity = Math.round(numericPurchasedQuantity * conversionFactor);
+              purchasedIndividualUnit = material.baseUnit;
+            } else {
+              console.warn(`Unknown volume unit: ${purchasedUnit} for material: ${material.name}`);
+              purchasedIndividualQuantity = numericPurchasedQuantity;
+              purchasedIndividualUnit = purchasedUnit;
+            }
+          }
+        } catch (conversionError) {
+          console.error(`❌ [createStockEntries] Volume conversion failed for ${material.name}:`, conversionError);
+          // Fallback to original logic
           purchasedIndividualQuantity = numericPurchasedQuantity;
           purchasedIndividualUnit = purchasedUnit;
         }
@@ -321,17 +345,40 @@ const stockEntriesController = {
           updatedIndividualUnit = material.baseUnit;
         }
       } else if (material.unitType === "volume") {
-        const volumeConversions = {
-          l: 1000,
-          ml: 1,
-          gallon: 3785.41,
-          qt: 946.353,
-          pt: 473.176
-        };
-        const conversionFactor = volumeConversions[finalPurchasedUnit.toLowerCase()];
-        if (conversionFactor) {
-          updatedIndividualQuantity = Math.round(finalPurchasedQuantity * conversionFactor);
-          updatedIndividualUnit = material.baseUnit;
+        try {
+          // Use the comprehensive volume conversion system
+          const materialVolumeUnit = getMaterialVolumeUnit(material);
+          
+          // Check if it's a valid beverage unit
+          if (isValidBeverageUnit(finalPurchasedUnit)) {
+            // Convert to material's base volume unit
+            const convertedVolume = convertVolume(finalPurchasedQuantity, finalPurchasedUnit, materialVolumeUnit, material);
+            updatedIndividualQuantity = Math.round(convertedVolume * 1000) / 1000; // Round to 3 decimal places
+            updatedIndividualUnit = materialVolumeUnit;
+            
+            console.log(`🔄 [updateStockEntries] Volume conversion for ${material.name}: ${finalPurchasedQuantity} ${finalPurchasedUnit} → ${updatedIndividualQuantity} ${updatedIndividualUnit}`);
+          } else {
+            // Fallback to legacy conversion for non-standard units
+            const volumeConversions = {
+              l: 1000,
+              ml: 1,
+              cl: 10,
+              dl: 100,
+              gallon: 3785.41,
+              qt: 946.353,
+              pt: 473.176
+            };
+            const conversionFactor = volumeConversions[finalPurchasedUnit.toLowerCase()];
+            if (conversionFactor) {
+              updatedIndividualQuantity = Math.round(finalPurchasedQuantity * conversionFactor);
+              updatedIndividualUnit = material.baseUnit;
+            }
+          }
+        } catch (conversionError) {
+          console.error(`❌ [updateStockEntries] Volume conversion failed for ${material.name}:`, conversionError);
+          // Keep original values on conversion failure
+          updatedIndividualQuantity = Math.round(finalPurchasedQuantity);
+          updatedIndividualUnit = finalPurchasedUnit;
         }
       } else {
         updatedIndividualQuantity = Math.round(finalPurchasedQuantity);

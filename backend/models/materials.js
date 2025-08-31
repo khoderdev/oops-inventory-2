@@ -67,6 +67,27 @@ const Material = sequelize.define(
       onUpdate: 'CASCADE',
       onDelete: 'SET NULL',
       comment: 'Foreign key reference to categories table'
+    },
+
+    volumePerUnit: {
+      type: DataTypes.DECIMAL(10, 3),
+      allowNull: true,
+      validate: {
+        min: { args: [0], msg: "Volume per unit must be non-negative" }
+      },
+      comment: "Volume per unit for beverages (e.g., 330ml per bottle, 750ml per wine bottle)"
+    },
+
+    volumeUnit: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      validate: {
+        isIn: {
+          args: [['ml', 'cl', 'dl', 'l', 'fl_oz', 'cup', 'pt', 'qt', 'gal']],
+          msg: "Volume unit must be a valid volume measurement"
+        }
+      },
+      comment: "Unit for volumePerUnit field (ml, cl, l, etc.)"
     }
   },
   {

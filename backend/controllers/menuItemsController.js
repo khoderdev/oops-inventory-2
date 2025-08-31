@@ -3,6 +3,7 @@ import { MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, Variants } from "..
 import Category from "../models/Category.js";
 import Material from "../models/materials.js";
 import { v4 as uuidv4 } from "uuid";
+import { isValidBeverageUnit, formatVolume } from "../utils/volumeConversionUtils.js";
 
 const menuItemsController = {
   getAllMenuItems: async (req, res, next) => {
@@ -265,16 +266,58 @@ const menuItemsController = {
 
       // --- Handle variants ---
       if (variants && typeof variants === "object") {
-        const variantData = Object.entries(variants).map(([name, info], index) => ({
-          menuItemId: menuItem.id,
-          name,
-          volume: Number(info.volume),
-          unit: info.unit,
-          price: Number(info.price),
-          isActive: true,
-          sortOrder: index
-        }));
-        await Variants.bulkCreate(variantData, { transaction });
+        const variantData = [];
+        
+        for (const [name, info] of Object.entries(variants)) {
+          // Validate variant data
+          if (!info.volume || !info.unit || !info.price) {
+            await transaction.rollback();
+            return res.status(400).json({ 
+              error: `Invalid variant data for "${name}". Volume, unit, and price are required.` 
+            });
+          }
+          
+          const volume = Number(info.volume);
+          const price = Number(info.price);
+          
+          // Validate numeric values
+          if (isNaN(volume) || volume <= 0) {
+            await transaction.rollback();
+            return res.status(400).json({ 
+              error: `Invalid volume for variant "${name}". Must be a positive number.` 
+            });
+          }
+          
+          if (isNaN(price) || price < 0) {
+            await transaction.rollback();
+            return res.status(400).json({ 
+              error: `Invalid price for variant "${name}". Must be a non-negative number.` 
+            });
+          }
+          
+          // Validate unit for beverage items
+          if (beverageData.isBeverage !== false && !isValidBeverageUnit(info.unit)) {
+            console.warn(`⚠️ [createMenuItem] Non-standard beverage unit for variant "${name}": ${info.unit}`);
+            // Don't block creation but log the warning
+          }
+          
+          variantData.push({
+            menuItemId: menuItem.id,
+            name,
+            volume,
+            unit: info.unit,
+            price,
+            isActive: true,
+            sortOrder: variantData.length
+          });
+          
+          console.log(`✅ [createMenuItem] Validated variant: ${name} - ${formatVolume(volume, info.unit)} @ $${price.toFixed(2)}`);
+        }
+        
+        if (variantData.length > 0) {
+          await Variants.bulkCreate(variantData, { transaction });
+          console.log(`📦 [createMenuItem] Created ${variantData.length} variants for ${menuItem.name}`);
+        }
       }
 
       // --- Fetch full item with relations ---
@@ -480,16 +523,58 @@ const menuItemsController = {
       // --- Handle variants ---
       if (variants && typeof variants === "object") {
         await Variants.destroy({ where: { menuItemId: id }, transaction });
-        const variantData = Object.entries(variants).map(([name, info], index) => ({
-          menuItemId: id,
-          name,
-          volume: Number(info.volume),
-          unit: info.unit,
-          price: Number(info.price),
-          isActive: true,
-          sortOrder: index
-        }));
-        await Variants.bulkCreate(variantData, { transaction });
+        const variantData = [];
+        
+        for (const [name, info] of Object.entries(variants)) {
+          // Validate variant data
+          if (!info.volume || !info.unit || !info.price) {
+            await transaction.rollback();
+            return res.status(400).json({ 
+              error: `Invalid variant data for "${name}". Volume, unit, and price are required.` 
+            });
+          }
+          
+          const volume = Number(info.volume);
+          const price = Number(info.price);
+          
+          // Validate numeric values
+          if (isNaN(volume) || volume <= 0) {
+            await transaction.rollback();
+            return res.status(400).json({ 
+              error: `Invalid volume for variant "${name}". Must be a positive number.` 
+            });
+          }
+          
+          if (isNaN(price) || price < 0) {
+            await transaction.rollback();
+            return res.status(400).json({ 
+              error: `Invalid price for variant "${name}". Must be a non-negative number.` 
+            });
+          }
+          
+          // Validate unit for beverage items
+          if (beverageData.isBeverage !== false && !isValidBeverageUnit(info.unit)) {
+            console.warn(`⚠️ [updateMenuItem] Non-standard beverage unit for variant "${name}": ${info.unit}`);
+            // Don't block update but log the warning
+          }
+          
+          variantData.push({
+            menuItemId: id,
+            name,
+            volume,
+            unit: info.unit,
+            price,
+            isActive: true,
+            sortOrder: variantData.length
+          });
+          
+          console.log(`✅ [updateMenuItem] Validated variant: ${name} - ${formatVolume(volume, info.unit)} @ $${price.toFixed(2)}`);
+        }
+        
+        if (variantData.length > 0) {
+          await Variants.bulkCreate(variantData, { transaction });
+          console.log(`📦 [updateMenuItem] Updated ${variantData.length} variants for menu item ID ${id}`);
+        }
       }
 
       // --- Fetch updated item ---
