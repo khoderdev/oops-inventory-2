@@ -121,6 +121,8 @@ export interface Material {
   costPerBaseUnit: number;
   costPerUnit: number;
   packageQuantity?: number;
+  volumePerBottle?: number;
+  volumeUnit?: string;
   description?: string;
   isPOSItem?: boolean;
   createdAt?: Date;
@@ -135,6 +137,8 @@ export interface MaterialFormData {
   unitType: UnitType;
   inputUnit: string;
   packageQuantity?: number;
+  volumePerBottle?: number;
+  volumeUnit?: string;
   description?: string;
   categoryId?: number | string;
   // For internal use after form processing
@@ -155,6 +159,8 @@ export interface CreateMaterialData {
   unitType: UnitType;
   inputUnit?: string;
   packageQuantity?: number;
+  volumePerBottle?: number;
+  volumeUnit?: string;
   description?: string;
   isPOSItem?: boolean;
 }
@@ -167,6 +173,8 @@ export interface UpdateMaterialData {
   unitType?: UnitType;
   inputUnit?: string;
   packageQuantity?: number;
+  volumePerBottle?: number;
+  volumeUnit?: string;
   description?: string;
   isPOSItem?: boolean;
 }

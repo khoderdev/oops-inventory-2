@@ -29,7 +29,7 @@ const materialController = {
       );
 
       // Parse field selection for optimized transfer
-      const selectedFields = parseFieldSelection(fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "categoryId", "costPerBaseUnit", "createdAt", "updatedAt"]);
+      const selectedFields = parseFieldSelection(fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "volumePerUnit", "volumeUnit", "categoryId", "costPerBaseUnit", "createdAt", "updatedAt"]);
 
       // Base query options
       const queryOptions = {
@@ -145,7 +145,7 @@ const materialController = {
       );
 
       // Parse field selection for optimized data transfer
-      const selectedFields = parseFieldSelection(req.query.fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "category", "createdAt", "updatedAt"]);
+      const selectedFields = parseFieldSelection(req.query.fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "volumePerUnit", "volumeUnit", "category", "createdAt", "updatedAt"]);
 
       const queryOptions = {
         where: whereClause,
@@ -207,6 +207,8 @@ const materialController = {
         unitType: material.unitType,
         inputUnit: material.inputUnit,
         packageQuantity: material.packageQuantity,
+        volumePerUnit: material.volumePerUnit,
+        volumeUnit: material.volumeUnit,
         categoryId: material.categoryId,
         createdAt: material.createdAt,
         updatedAt: material.updatedAt,
@@ -224,7 +226,7 @@ const materialController = {
   // Create a new material
   createMaterial: async (req, res, next) => {
     try {
-      const { name, baseUnit, unitType, inputUnit, packageQuantity, category, categoryId } = req.body;
+      const { name, baseUnit, unitType, inputUnit, packageQuantity, volumePerBottle, volumeUnit, category, categoryId } = req.body;
 
       // Handle both category (value) and categoryId for backwards compatibility
       let finalCategoryId = categoryId;
@@ -279,6 +281,8 @@ const materialController = {
         unitType,
         inputUnit,
         packageQuantity: unitType === "package" ? packageQuantity : null,
+        volumePerUnit: volumePerBottle || null,
+        volumeUnit: volumeUnit || null,
         categoryId: finalCategoryId
       };
 
@@ -293,7 +297,7 @@ const materialController = {
   updateMaterial: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { name, baseUnit, unitType, inputUnit, packageQuantity, category, categoryId } = req.body;
+      const { name, baseUnit, unitType, inputUnit, packageQuantity, volumePerBottle, volumeUnit, category, categoryId } = req.body;
 
       // Handle both category (value) and categoryId for backwards compatibility
       let finalCategoryId = categoryId;
@@ -352,6 +356,8 @@ const materialController = {
         unitType: unitType !== undefined ? unitType : material.unitType,
         inputUnit: inputUnit !== undefined ? inputUnit : material.inputUnit,
         packageQuantity: packageQuantity !== undefined ? packageQuantity : material.packageQuantity,
+        volumePerUnit: volumePerBottle !== undefined ? volumePerBottle : material.volumePerUnit,
+        volumeUnit: volumeUnit !== undefined ? volumeUnit : material.volumeUnit,
         categoryId: finalCategoryId !== undefined ? finalCategoryId : material.categoryId
       });
 

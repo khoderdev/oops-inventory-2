@@ -14,6 +14,7 @@ import { DayOperationsProvider } from "./contexts/DayOperationsContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
 import { Employee } from "./components/employees";
+import UnitConverterDemo from "./components/common/UnitConverterDemo";
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -113,6 +114,14 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     element={
                       <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
                         <POSClientPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/unit"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
+                        <UnitConverterDemo />
                       </ProtectedRoute>
                     }
                   />

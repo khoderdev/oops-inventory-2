@@ -27,7 +27,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   const [, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
   const [, setLoadingBeverages] = useState(false);
   const [, setBeverageError] = useState<string | null>(null);
-  const [volumePerBottle, setVolumePerBottle] = useState<number>(330); // Default 330ml per bottle
+  const [volumePerBottle, setVolumePerBottle] = useState<number>(); // Default 330ml per bottle
   const [volumeUnit, setVolumeUnit] = useState<string>("ml"); // Default to ml
 
   const form = useForm<MaterialFormData>({
@@ -71,6 +71,14 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
         packageQuantity: material.packageQuantity || 1,
         baseUnit: material.baseUnit || ""
       });
+
+      // Set volume data if available in material (database uses volumePerUnit)
+      if ((material as any).volumePerUnit) {
+        setVolumePerBottle((material as any).volumePerUnit);
+      }
+      if ((material as any).volumeUnit) {
+        setVolumeUnit((material as any).volumeUnit);
+      }
     }
   }, [material, form]);
 
@@ -115,7 +123,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   };
 
   const isPackageUnit = (unit: string): boolean => {
-    return ["box", "pack", "bag", "bottle"].includes(unit);
+    return ["box", "pack", "bag"].includes(unit);
   };
 
   const conversionData = useMemo(() => {
@@ -185,9 +193,14 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
 
   useEffect(() => {
     if (conversionData) {
-      form.setValue("baseUnit", conversionData.baseUnit);
+      // For bottle units, use the volume unit as the base unit
+      if (watchedUnitType === "package" && watchedInputUnit === "bottle") {
+        form.setValue("baseUnit", volumeUnit);
+      } else {
+        form.setValue("baseUnit", conversionData.baseUnit);
+      }
     }
-  }, [conversionData, form]);
+  }, [conversionData, form, watchedUnitType, watchedInputUnit, volumeUnit]);
 
   React.useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
@@ -210,6 +223,10 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
 
   const handleSubmit = (data: MaterialFormData) => {
     const selectedCategory = categories.find(cat => cat.value === data.category);
+
+    // Include volume data if it exists (user has entered volume information)
+    const hasVolumeData = volumePerBottle && volumePerBottle > 0 && volumeUnit;
+
     const finalData = {
       name: data.name,
       category: data.category,
@@ -217,7 +234,9 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       unitType: data.unitType,
       inputUnit: data.inputUnit,
       baseUnit: data.baseUnit,
-      packageQuantity: data.unitType === "package" ? data.packageQuantity : undefined
+      packageQuantity: data.unitType === "package" ? data.packageQuantity : undefined,
+      volumePerBottle: hasVolumeData ? volumePerBottle : undefined,
+      volumeUnit: hasVolumeData ? volumeUnit : undefined
     };
     onSubmit(finalData);
   };
@@ -516,19 +535,22 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                   />
                 )}
 
-                <FormField
-                  control={form.control}
-                  name="baseUnit"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Base Unit (Auto-calculated)</FormLabel>
-                      <FormControl>
-                        <Input {...field} disabled className="bg-gray-50" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Base Unit Field - Hidden for bottle units since Volume Unit serves as base unit */}
+                {watchedUnitType === "package" && watchedInputUnit === "bottle" ? null : (
+                  <FormField
+                    control={form.control}
+                    name="baseUnit"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Base Unit (Auto-calculated)</FormLabel>
+                        <FormControl>
+                          <Input {...field} disabled className="bg-gray-50" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {/* Volume per Bottle Field - Show for bottle units OR box/pack units with bottle base */}
                 {watchedUnitType === "package" && (watchedInputUnit === "bottle" || (isPackageUnit(watchedInputUnit) && form.watch("baseUnit") === "bottle")) && (
@@ -558,29 +580,43 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                 )}
               </div>
 
-              {/* Unit Conversion Display (without cost) */}
-              {conversionData && (
+              {/* Unit Conversion Display (without cost) - Show for all unit combinations */}
+              {watchedInputUnit && watchedUnitType && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
                   <h4 className="font-semibold text-blue-900">Unit Conversion Information</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-blue-700">Input Unit:</span>
-                        <span className="font-medium">{conversionData.inputUnit}</span>
+                        <span className="font-medium">{watchedInputUnit}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-blue-700">Base Unit:</span>
-                        <span className="font-medium">{conversionData.baseUnit}</span>
+                        <span className="font-medium">
+                          {watchedUnitType === "package" && watchedInputUnit === "bottle" 
+                            ? volumeUnit 
+                            : form.watch("baseUnit") || getBaseUnitForType(watchedUnitType)}
+                        </span>
                       </div>
-                      {conversionData.volumePerBottle && conversionData.volumeUnit && (
+                      {watchedUnitType === "package" && watchedInputUnit === "bottle" && volumePerBottle && volumeUnit && (
                         <div className="flex justify-between">
                           <span className="text-blue-700">Volume per Bottle:</span>
                           <span className="font-medium">
-                            {conversionData.volumePerBottle} {conversionData.volumeUnit}
+                            {volumePerBottle} {volumeUnit}
+                            {volumeUnit !== "ml" && (
+                              <span className="text-gray-600">
+                                {" / "}
+                                {volumeUnit === "cl" ? volumePerBottle * 10 : 
+                                 volumeUnit === "dl" ? volumePerBottle * 100 :
+                                 volumeUnit === "l" ? volumePerBottle * 1000 :
+                                 volumeUnit === "fl_oz" ? Math.round(volumePerBottle * 29.5735) :
+                                 volumePerBottle} ml
+                              </span>
+                            )}
                           </span>
                         </div>
                       )}
-                      {conversionData.totalVolume && conversionData.volumeUnit && (
+                      {conversionData?.totalVolume && conversionData?.volumeUnit && (
                         <div className="flex justify-between">
                           <span className="text-blue-700">Total Volume:</span>
                           <span className="font-medium">
@@ -589,45 +625,158 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-blue-700">{conversionData.isPackage ? "Package Contents:" : "Conversion Factor:"}</span>
-                        <span className="font-medium">{conversionData.isPackage ? `${conversionData.packageQuantity} ${conversionData.baseUnit} per ${conversionData.inputUnit}` : `1 ${conversionData.inputUnit} = ${conversionData.conversionFactor.toFixed(2)} ${conversionData.baseUnit}`}</span>
+                        <span className="text-blue-700">
+                          {conversionData?.isPackage ? "Package Contents:" : "Conversion Factor:"}
+                        </span>
+                        <span className="font-medium">
+                          {conversionData?.isPackage 
+                            ? `${conversionData.packageQuantity} ${conversionData.baseUnit} per ${conversionData.inputUnit}`
+                            : conversionData?.conversionFactor 
+                              ? (() => {
+                                  const baseUnit = conversionData.baseUnit;
+                                  const factor = conversionData.conversionFactor;
+                                  let display = `1 ${watchedInputUnit} = ${factor.toFixed(2)} ${baseUnit}`;
+                                  
+                                  // Add conversion to standard units for common cases
+                                  if (baseUnit === "g" && watchedInputUnit !== "g") {
+                                    if (watchedInputUnit === "kg") display += ` / ${(factor / 1000).toFixed(3)} kg`;
+                                    else if (watchedInputUnit === "lb") display += ` / ${(factor / 453.592).toFixed(3)} lb`;
+                                    else if (watchedInputUnit === "oz") display += ` / ${(factor / 28.3495).toFixed(2)} oz`;
+                                  } else if (baseUnit === "ml" && watchedInputUnit !== "ml") {
+                                    if (watchedInputUnit === "l") display += ` / ${(factor / 1000).toFixed(3)} l`;
+                                    else if (watchedInputUnit === "cl") display += ` / ${(factor / 10).toFixed(1)} cl`;
+                                    else if (watchedInputUnit === "dl") display += ` / ${(factor / 100).toFixed(2)} dl`;
+                                    else if (watchedInputUnit === "fl_oz") display += ` / ${(factor / 29.5735).toFixed(2)} fl_oz`;
+                                  }
+                                  
+                                  return display;
+                                })()
+                              : watchedInputUnit === (form.watch("baseUnit") || getBaseUnitForType(watchedUnitType))
+                                ? `1 ${watchedInputUnit} = 1 ${form.watch("baseUnit") || getBaseUnitForType(watchedUnitType)}`
+                                : "Conversion not available"
+                          }
+                        </span>
                       </div>
                     </div>
                     <div className="space-y-2">
                       <div className="text-blue-800 font-medium">Examples:</div>
                       <div className="text-xs space-y-1">
-                        {conversionData.isPackage ? (
+                        {conversionData?.isPackage ? (
                           <>
                             <div>
-                              • 1 {conversionData.inputUnit} contains {conversionData.packageQuantity} {conversionData.baseUnit}
+                              • 1 {watchedInputUnit} contains {conversionData.packageQuantity} {conversionData.baseUnit}
                             </div>
                             <div>
-                              • 2 {conversionData.inputUnit} contains {conversionData.packageQuantity * 2} {conversionData.baseUnit}
+                              • 2 {watchedInputUnit} contains {conversionData.packageQuantity * 2} {conversionData.baseUnit}
                             </div>
                             {conversionData.hasBottleVolume && conversionData.volumePerBottle && conversionData.volumeUnit && (
                               <>
                                 <div>
                                   • Each bottle contains {conversionData.volumePerBottle} {conversionData.volumeUnit}
                                 </div>
-                                {conversionData.inputUnit === "bottle" ? (
+                                {watchedInputUnit === "bottle" ? (
                                   <div>
                                     • 6 bottles = {conversionData.volumePerBottle * 6} {conversionData.volumeUnit}
                                   </div>
                                 ) : (
                                   <div>
-                                    • 1 {conversionData.inputUnit} = {conversionData.totalVolume} {conversionData.volumeUnit} total volume
+                                    • 1 {watchedInputUnit} = {conversionData.totalVolume} {conversionData.volumeUnit} total volume
                                   </div>
                                 )}
                               </>
                             )}
                           </>
+                        ) : watchedInputUnit === "bottle" && volumePerBottle && volumeUnit ? (
+                          <>
+                            <div>
+                              • 1 bottle = {volumePerBottle} {volumeUnit}
+                              {volumeUnit !== "ml" && (
+                                <span className="text-gray-600">
+                                  {" / "}
+                                  {volumeUnit === "cl" ? volumePerBottle * 10 : 
+                                   volumeUnit === "dl" ? volumePerBottle * 100 :
+                                   volumeUnit === "l" ? volumePerBottle * 1000 :
+                                   volumeUnit === "fl_oz" ? Math.round(volumePerBottle * 29.5735) :
+                                   volumePerBottle} ml
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              • 6 bottles = {volumePerBottle * 6} {volumeUnit}
+                              {volumeUnit !== "ml" && (
+                                <span className="text-gray-600">
+                                  {" / "}
+                                  {volumeUnit === "cl" ? (volumePerBottle * 6) * 10 : 
+                                   volumeUnit === "dl" ? (volumePerBottle * 6) * 100 :
+                                   volumeUnit === "l" ? (volumePerBottle * 6) * 1000 :
+                                   volumeUnit === "fl_oz" ? Math.round((volumePerBottle * 6) * 29.5735) :
+                                   volumePerBottle * 6} ml
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              • 12 bottles = {volumePerBottle * 12} {volumeUnit}
+                              {volumeUnit !== "ml" && (
+                                <span className="text-gray-600">
+                                  {" / "}
+                                  {volumeUnit === "cl" ? (volumePerBottle * 12) * 10 : 
+                                   volumeUnit === "dl" ? (volumePerBottle * 12) * 100 :
+                                   volumeUnit === "l" ? (volumePerBottle * 12) * 1000 :
+                                   volumeUnit === "fl_oz" ? Math.round((volumePerBottle * 12) * 29.5735) :
+                                   volumePerBottle * 12} ml
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        ) : conversionData?.conversionFactor ? (
+                          <>
+                            <div>
+                              • 1 {watchedInputUnit} = {conversionData.conversionFactor.toFixed(2)} {conversionData.baseUnit}
+                              {(() => {
+                                const baseUnit = conversionData.baseUnit;
+                                const factor = conversionData.conversionFactor;
+                                
+                                if (baseUnit === "g" && watchedInputUnit !== "g") {
+                                  if (watchedInputUnit === "kg") return <span className="text-gray-600"> / {(factor / 1000).toFixed(3)} kg</span>;
+                                  else if (watchedInputUnit === "lb") return <span className="text-gray-600"> / {(factor / 453.592).toFixed(3)} lb</span>;
+                                  else if (watchedInputUnit === "oz") return <span className="text-gray-600"> / {(factor / 28.3495).toFixed(2)} oz</span>;
+                                } else if (baseUnit === "ml" && watchedInputUnit !== "ml") {
+                                  if (watchedInputUnit === "l") return <span className="text-gray-600"> / {(factor / 1000).toFixed(3)} l</span>;
+                                  else if (watchedInputUnit === "cl") return <span className="text-gray-600"> / {(factor / 10).toFixed(1)} cl</span>;
+                                  else if (watchedInputUnit === "dl") return <span className="text-gray-600"> / {(factor / 100).toFixed(2)} dl</span>;
+                                  else if (watchedInputUnit === "fl_oz") return <span className="text-gray-600"> / {(factor / 29.5735).toFixed(2)} fl_oz</span>;
+                                }
+                                return null;
+                              })()}
+                            </div>
+                            <div>
+                              • {conversionData.conversionFactor >= 1 ? 1 : Math.ceil(1 / conversionData.conversionFactor)} {conversionData.baseUnit} = {conversionData.conversionFactor >= 1 ? (1 / conversionData.conversionFactor).toFixed(2) : 1} {watchedInputUnit}
+                              {(() => {
+                                const baseUnit = conversionData.baseUnit;
+                                const factor = conversionData.conversionFactor;
+                                const reverseAmount = conversionData.conversionFactor >= 1 ? (1 / conversionData.conversionFactor) : 1;
+                                
+                                if (baseUnit === "g" && watchedInputUnit !== "g") {
+                                  if (watchedInputUnit === "kg") return <span className="text-gray-600"> / {(reverseAmount / 1000).toFixed(6)} kg</span>;
+                                  else if (watchedInputUnit === "lb") return <span className="text-gray-600"> / {(reverseAmount / 453.592).toFixed(6)} lb</span>;
+                                  else if (watchedInputUnit === "oz") return <span className="text-gray-600"> / {(reverseAmount / 28.3495).toFixed(4)} oz</span>;
+                                } else if (baseUnit === "ml" && watchedInputUnit !== "ml") {
+                                  if (watchedInputUnit === "l") return <span className="text-gray-600"> / {(reverseAmount / 1000).toFixed(6)} l</span>;
+                                  else if (watchedInputUnit === "cl") return <span className="text-gray-600"> / {(reverseAmount / 10).toFixed(3)} cl</span>;
+                                  else if (watchedInputUnit === "dl") return <span className="text-gray-600"> / {(reverseAmount / 100).toFixed(4)} dl</span>;
+                                  else if (watchedInputUnit === "fl_oz") return <span className="text-gray-600"> / {(reverseAmount / 29.5735).toFixed(4)} fl_oz</span>;
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          </>
                         ) : (
                           <>
                             <div>
-                              • 1 {conversionData.inputUnit} = {conversionData.conversionFactor.toFixed(2)} {conversionData.baseUnit}
+                              • 1 {watchedInputUnit} = 1 {form.watch("baseUnit") || getBaseUnitForType(watchedUnitType)}
                             </div>
                             <div>
-                              • {conversionData.conversionFactor >= 1 ? 1 : Math.ceil(1 / conversionData.conversionFactor)} {conversionData.baseUnit} = {conversionData.conversionFactor >= 1 ? (1 / conversionData.conversionFactor).toFixed(2) : 1} {conversionData.inputUnit}
+                              • 5 {watchedInputUnit} = 5 {form.watch("baseUnit") || getBaseUnitForType(watchedUnitType)}
                             </div>
                           </>
                         )}
