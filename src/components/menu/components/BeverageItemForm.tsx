@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { Switch } from "../../ui/switch";
@@ -35,19 +35,27 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [variantData, setVariantData] = useState<VariantData>({
     selectedVariants: [],
     variantVolumes: { 
-      small: 2, medium: 3, large: 5, glass: 3, shot: 1,
+      // Size-based variants
+      small: 25, medium: 33, large: 50, glass: 30, shot: 5,
+      // Container-based variants with realistic volumes
       can: 33, bottle: 33, pint: 47, pitcher: 150, 
-      mini: 18, standard: 70, magnum: 150
+      mini: 18, standard: 70, magnum: 150,
+      // Additional common sizes
+      regular: 33, jumbo: 75, family: 200
     },
     variantVolumeUnits: { 
+      // Most beverages use cl for serving sizes
       small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl",
       can: "cl", bottle: "cl", pint: "cl", pitcher: "cl", 
-      mini: "cl", standard: "cl", magnum: "cl"
+      mini: "cl", standard: "cl", magnum: "cl",
+      regular: "cl", jumbo: "cl", family: "cl"
     },
     variantPrices: { 
-      small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0,
-      can: 3.5, bottle: 4.0, pint: 5.0, pitcher: 15.0,
-      mini: 6.0, standard: 25.0, magnum: 45.0
+      // Pricing based on volume and container type
+      small: 2.5, medium: 3.5, large: 5.0, glass: 3.0, shot: 2.0,
+      can: 3.5, bottle: 4.0, pint: 5.5, pitcher: 18.0,
+      mini: 8.0, standard: 28.0, magnum: 50.0,
+      regular: 3.5, jumbo: 6.5, family: 12.0
     }
   });
 
@@ -71,13 +79,13 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         return;
       }
       // Try to find by _id
-      if ("_id" in menuItem.category) {
-        setCategoryId(String(menuItem.category._id));
+      if ("_id" in menuItem.category && (menuItem.category as any)._id) {
+        setCategoryId(String((menuItem.category as any)._id));
         return;
       }
       // Try to find by name
-      if ("name" in menuItem.category) {
-        const categoryObj = categories.find(cat => cat.name === menuItem.category?.name || cat.id === (menuItem.category as any).id);
+      if ("name" in menuItem.category && (menuItem.category as any).name) {
+        const categoryObj = categories.find(cat => cat.name === (menuItem.category as any).name || cat.id === (menuItem.category as any).id);
         if (categoryObj) {
           setCategoryId(String(categoryObj.id));
           return;
@@ -145,7 +153,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           materialId: ingredient.materialId,
           quantity: ingredient.quantity,
           unit: ingredient.unit,
-          cost: ingredient.cost
+          cost: ingredient.cost,
+          type: ingredient.type || "material"
         }));
         setIngredients(loadedIngredients);
         if (loadedIngredients.length > 0) {
@@ -231,6 +240,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       price: parseFloat(price),
       description: "",
       ingredients: ingredients.length > 0 ? ingredients : [],
+      menuItemSauces: [], // Add required menuItemSauces property
       isPOSItem,
       image: image || "",
       imageFile: imageFile,
@@ -238,23 +248,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       unit: "piece",
       availableQuantity: selectedBeverageStock?.purchasedQuantity ? parseFloat(selectedBeverageStock.purchasedQuantity.toString()) : undefined,
       costPerUnit: selectedBeverageStock?.costPerPurchasedUnit ? parseFloat(selectedBeverageStock.costPerPurchasedUnit.toString()) : undefined,
-      variants:
-        showVariantsSection && variantData.selectedVariants.length > 0
-          ? variantData.selectedVariants.reduce(
-              (acc, variantName) => {
-                const volume = variantData.variantVolumes?.[variantName];
-                const unit = variantData.variantVolumeUnits?.[variantName];
-                const price = variantData.variantPrices?.[variantName];
-
-                if (volume && unit && price !== undefined) {
-                  acc[variantName] = { volume, unit, price };
-                }
-
-                return acc;
-              },
-              {} as Record<string, { volume: number; unit: string; price: number }>
-            )
-          : undefined
+      variants: showVariantsSection && variantData.selectedVariants.length > 0 ? variantData : undefined
     };
     onSubmit(formData);
     setName("");

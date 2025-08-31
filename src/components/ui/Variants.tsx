@@ -40,6 +40,19 @@ export const Variants: React.FC<VariantsProps> = ({
   const [variantVolumeUnits, setVariantVolumeUnits] = useState<Record<string, string>>(initialVariantVolumeUnits);
   const [variantPrices, setVariantPrices] = useState<Record<string, number>>(initialVariantPrices);
 
+  // Supported volume units matching backend implementation
+  const supportedVolumeUnits = [
+    { value: "ml", label: "ml (milliliters)" },
+    { value: "cl", label: "cl (centiliters)" },
+    { value: "dl", label: "dl (deciliters)" },
+    { value: "l", label: "l (liters)" },
+    { value: "fl_oz", label: "fl oz (fluid ounces)" },
+    { value: "cup", label: "cup" },
+    { value: "pt", label: "pt (pints)" },
+    { value: "qt", label: "qt (quarts)" },
+    { value: "gal", label: "gal (gallons)" }
+  ];
+
   // Notify parent component of changes
   const notifyChange = useCallback(() => {
     if (onChange) {
@@ -59,7 +72,7 @@ export const Variants: React.FC<VariantsProps> = ({
 
   const handleAddCustomVariant = useCallback(() => {
     if (!customVariant || selectedVariants.includes(customVariant)) return;
-    
+
     setVariantSizes(prev => [...prev, customVariant]);
     setSelectedVariants(prev => [...prev, customVariant]);
     setVariantVolumes(prev => ({
@@ -76,7 +89,6 @@ export const Variants: React.FC<VariantsProps> = ({
     }));
     setCustomVariant("");
   }, [customVariant, selectedVariants]);
-
 
   const handleVolumeChange = useCallback((size: string, value: string) => {
     const numValue = parseFloat(value);
@@ -113,45 +125,27 @@ export const Variants: React.FC<VariantsProps> = ({
     }
   }, []);
 
-
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-xl font-semibold text-gray-800 mb-2">{title}</h3>
-        
+
         {/* Size Selection Section */}
         <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
           <div className="flex items-end gap-4 mb-3 w-fit">
             <h4 className="font-medium text-gray-700">{description}</h4>
             <div className="flex items-center gap-3">
-              <Input 
-                placeholder="Custom variant name" 
-                value={customVariant} 
-                onChange={e => setCustomVariant(e.target.value)} 
-                className="max-w-xs bg-white h-6" 
-              />
-              <Button 
-                variant="outline" 
-                type="button" 
-                size="sm" 
-                onClick={handleAddCustomVariant} 
-                disabled={!customVariant.trim() || variantSizes.includes(customVariant)} 
-                className="px-4 h-6"
-              >
+              <Input placeholder="Custom variant name" value={customVariant} onChange={e => setCustomVariant(e.target.value)} className="max-w-xs bg-white h-6" />
+              <Button variant="outline" type="button" size="sm" onClick={handleAddCustomVariant} disabled={!customVariant.trim() || variantSizes.includes(customVariant)} className="px-4 h-6">
                 <Plus className="h-4 w-4" /> Add
               </Button>
             </div>
           </div>
-          
+
           <div className="flex flex-wrap gap-4">
             {variantSizes.map(size => (
               <div key={size} className="flex items-center space-x-2 bg-white px-3 py-2 rounded-md shadow-sm">
-                <Checkbox
-                  id={`variant-${size}`}
-                  checked={selectedVariants.includes(size)}
-                  onCheckedChange={checked => handleVariantToggle(size, !!checked)}
-                  className="h-5 w-5"
-                />
+                <Checkbox id={`variant-${size}`} checked={selectedVariants.includes(size)} onCheckedChange={checked => handleVariantToggle(size, !!checked)} className="h-5 w-5" />
                 <Label htmlFor={`variant-${size}`} className="font-medium">
                   {size}
                 </Label>
@@ -160,7 +154,6 @@ export const Variants: React.FC<VariantsProps> = ({
           </div>
         </div>
 
-
         {/* Volume and Price Configuration Section */}
         {selectedVariants.length > 0 && (
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-100 mt-4">
@@ -168,28 +161,19 @@ export const Variants: React.FC<VariantsProps> = ({
               {selectedVariants.map(size => (
                 <div key={`variant-${size}`} className="bg-white p-3 rounded-md shadow-sm">
                   <div className="font-medium capitalize text-gray-800 mb-3">{size}</div>
-                  
+
                   {/* Volume Input Row */}
                   <div className="flex items-center gap-2 mb-3">
                     <Label htmlFor={`volume-${size}`} className="w-16 font-medium text-sm">
                       Volume:
                     </Label>
-                    <Input 
-                      id={`volume-${size}`} 
-                      type="number" 
-                      value={variantVolumes[size] || "3"} 
-                      onChange={e => handleVolumeChange(size, e.target.value)} 
-                      min="0.1" 
-                      step="0.1" 
-                      className="max-w-[70px] h-8" 
-                    />
-                    <select
-                      value={variantVolumeUnits[size] || "cl"}
-                      onChange={e => handleVolumeUnitChange(size, e.target.value)}
-                      className="px-2 py-1 border border-gray-300 rounded text-sm bg-white h-8"
-                    >
-                      <option value="cl">cl</option>
-                      <option value="ml">ml</option>
+                    <Input id={`volume-${size}`} type="number" value={variantVolumes[size] || "3"} onChange={e => handleVolumeChange(size, e.target.value)} min="0.1" step="0.1" className="max-w-[70px] h-8" />
+                    <select value={variantVolumeUnits[size] || "cl"} onChange={e => handleVolumeUnitChange(size, e.target.value)} className="px-2 py-1 border border-gray-300 rounded text-sm bg-white h-8 min-w-[80px]">
+                      {supportedVolumeUnits.map(unit => (
+                        <option key={unit.value} value={unit.value}>
+                          {unit.value}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -199,22 +183,13 @@ export const Variants: React.FC<VariantsProps> = ({
                       Price:
                     </Label>
                     <span className="text-sm text-gray-600">$</span>
-                    <Input 
-                      id={`variant-price-${size}`} 
-                      type="number" 
-                      value={variantPrices[size] || "3.00"} 
-                      onChange={e => handleVariantPriceChange(size, e.target.value)} 
-                      min="0.01" 
-                      step="0.01" 
-                      className="max-w-[90px] h-8" 
-                    />
+                    <Input id={`variant-price-${size}`} type="number" value={variantPrices[size] || "3.00"} onChange={e => handleVariantPriceChange(size, e.target.value)} min="0.01" step="0.01" className="max-w-[90px] h-8" />
                   </div>
                 </div>
               ))}
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

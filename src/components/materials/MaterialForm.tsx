@@ -27,6 +27,8 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
   const [, setBeverageStockEntries] = useState<StockEntryWithMaterial[]>([]);
   const [, setLoadingBeverages] = useState(false);
   const [, setBeverageError] = useState<string | null>(null);
+  const [volumePerBottle, setVolumePerBottle] = useState<number>(330); // Default 330ml per bottle
+  const [volumeUnit, setVolumeUnit] = useState<string>("ml"); // Default to ml
 
   const form = useForm<MaterialFormData>({
     resolver: zodResolver(materialSchema),
@@ -71,7 +73,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       });
     }
   }, [material, form]);
-  
+
   const watchedUnitType = form.watch("unitType");
   const watchedInputUnit = form.watch("inputUnit");
   const watchedPackageQuantity = form.watch("packageQuantity");
@@ -128,7 +130,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
         return "piece";
       }
       if (inputUnit === "bottle" && watchedUnitType === "package") {
-        return "ml";
+        return volumeUnit; // Use selected volume unit (ml/cl)
       }
       return "piece";
     };
@@ -137,12 +139,26 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
     if (isPackageUnit(watchedInputUnit) && watchedUnitType === "package") {
       const packageQuantity = watchedPackageQuantity || 1;
       const packageBaseUnit = getPackageBaseUnit(watchedInputUnit);
+
+      // For bottles or boxes containing bottles, calculate total volume
+      let totalVolume = packageQuantity;
+      const hasBottleVolume = watchedInputUnit === "bottle" || (packageBaseUnit === "bottle" && volumePerBottle > 0);
+
+      if (hasBottleVolume) {
+        totalVolume = packageQuantity * volumePerBottle;
+      }
+
       return {
         inputUnit: watchedInputUnit,
         baseUnit: packageBaseUnit,
         conversionFactor: packageQuantity,
         packageQuantity,
-        isPackage: true
+        volumePerBottle: hasBottleVolume ? volumePerBottle : undefined,
+        volumeUnit: hasBottleVolume ? volumeUnit : undefined,
+        totalVolume: hasBottleVolume ? totalVolume : undefined,
+        isPackage: true,
+        isBottle: watchedInputUnit === "bottle",
+        hasBottleVolume
       };
     }
     if (watchedInputUnit === baseUnit) {
@@ -165,7 +181,7 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
       conversionFactor,
       isPackage: false
     };
-  }, [watchedInputUnit, watchedUnitType, watchedPackageQuantity]);
+  }, [watchedInputUnit, watchedUnitType, watchedPackageQuantity, volumePerBottle, volumeUnit]);
 
   useEffect(() => {
     if (conversionData) {
@@ -513,6 +529,33 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                     </FormItem>
                   )}
                 />
+
+                {/* Volume per Bottle Field - Show for bottle units OR box/pack units with bottle base */}
+                {watchedUnitType === "package" && (watchedInputUnit === "bottle" || (isPackageUnit(watchedInputUnit) && form.watch("baseUnit") === "bottle")) && (
+                  <div className="md:col-span-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-2 block">Volume Unit</label>
+                        <Select value={volumeUnit} onValueChange={setVolumeUnit}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ml">ml (milliliters)</SelectItem>
+                            <SelectItem value="cl">cl (centiliters)</SelectItem>
+                            <SelectItem value="dl">dl (deciliters)</SelectItem>
+                            <SelectItem value="l">l (liters)</SelectItem>
+                            <SelectItem value="fl_oz">fl oz (fluid ounces)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 mb-2 block">How many {volumeUnit} per 1 Bottle?</label>
+                        <Input type="number" step="1" placeholder="330" value={volumePerBottle} onChange={e => setVolumePerBottle(parseInt(e.target.value) || 330)} className="w-full" />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Unit Conversion Display (without cost) */}
@@ -529,6 +572,22 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                         <span className="text-blue-700">Base Unit:</span>
                         <span className="font-medium">{conversionData.baseUnit}</span>
                       </div>
+                      {conversionData.volumePerBottle && conversionData.volumeUnit && (
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Volume per Bottle:</span>
+                          <span className="font-medium">
+                            {conversionData.volumePerBottle} {conversionData.volumeUnit}
+                          </span>
+                        </div>
+                      )}
+                      {conversionData.totalVolume && conversionData.volumeUnit && (
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Total Volume:</span>
+                          <span className="font-medium">
+                            {conversionData.totalVolume} {conversionData.volumeUnit}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-blue-700">{conversionData.isPackage ? "Package Contents:" : "Conversion Factor:"}</span>
                         <span className="font-medium">{conversionData.isPackage ? `${conversionData.packageQuantity} ${conversionData.baseUnit} per ${conversionData.inputUnit}` : `1 ${conversionData.inputUnit} = ${conversionData.conversionFactor.toFixed(2)} ${conversionData.baseUnit}`}</span>
@@ -545,6 +604,22 @@ export function MaterialForm({ material, onSubmit, onCancel }: MaterialFormProps
                             <div>
                               • 2 {conversionData.inputUnit} contains {conversionData.packageQuantity * 2} {conversionData.baseUnit}
                             </div>
+                            {conversionData.hasBottleVolume && conversionData.volumePerBottle && conversionData.volumeUnit && (
+                              <>
+                                <div>
+                                  • Each bottle contains {conversionData.volumePerBottle} {conversionData.volumeUnit}
+                                </div>
+                                {conversionData.inputUnit === "bottle" ? (
+                                  <div>
+                                    • 6 bottles = {conversionData.volumePerBottle * 6} {conversionData.volumeUnit}
+                                  </div>
+                                ) : (
+                                  <div>
+                                    • 1 {conversionData.inputUnit} = {conversionData.totalVolume} {conversionData.volumeUnit} total volume
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </>
                         ) : (
                           <>

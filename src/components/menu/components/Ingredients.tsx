@@ -51,7 +51,12 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
         } else if (typeof material.category === "object" && material.category?.value) {
           categoryName = material.category.value.toLowerCase();
         }
-        return !usedMaterialIds.has(material.id.toString()) && !excludedCategories.includes(categoryName);
+        
+        // Allow beverage materials for beverage menu items (ingredients like syrups, mixers, etc.)
+        const isBeverageCategory = categoryName.includes("beverage") || categoryName.includes("drink");
+        const shouldExclude = excludedCategories.includes(categoryName) && !isBeverageCategory;
+        
+        return !usedMaterialIds.has(material.id.toString()) && !shouldExclude;
       }
       return !usedMaterialIds.has(item.id.toString());
     });
@@ -414,10 +419,29 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
                   }
                   return <option value="">Invalid sauce</option>;
                 } else {
-                  // For materials, use the existing logic
+                  // For materials, get available units and add beverage-specific units if applicable
                   const materialId = selectedMaterialId.replace("material-", "");
+                  const material = materials.find(m => String(m.id) === materialId);
                   const availableUnits = getAvailableUnits(materialId, materials);
-                  return availableUnits.map(unit => (
+                  
+                  // Add beverage volume units for beverage materials
+                  const beverageVolumeUnits = ['ml', 'cl', 'dl', 'l', 'fl_oz', 'cup', 'pt', 'qt', 'gal'];
+                  const isBeverageMaterial = material?.unitType === 'volume' || 
+                    (material?.category && typeof material.category === 'object' && 
+                     (material.category as any)?.name?.toLowerCase().includes('beverage'));
+                  
+                  let allUnits = [...availableUnits];
+                  
+                  if (isBeverageMaterial) {
+                    // Add beverage units that aren't already included
+                    beverageVolumeUnits.forEach(unit => {
+                      if (!allUnits.includes(unit)) {
+                        allUnits.push(unit);
+                      }
+                    });
+                  }
+                  
+                  return allUnits.map(unit => (
                     <option key={unit} value={unit}>
                       {unit}
                     </option>
@@ -428,6 +452,22 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
               <option value="">Select item first</option>
             )}
           </select>
+          {selectedMaterialId && selectedItemType === "material" && (
+            <p className="text-xs text-muted-foreground mt-1">
+              {(() => {
+                const materialId = selectedMaterialId.replace("material-", "");
+                const material = materials.find(m => String(m.id) === materialId);
+                if (material?.unitType === 'volume') {
+                  return "Volume units: ml, cl, dl, l, fl_oz, cup, pt, qt, gal";
+                } else if (material?.unitType === 'mass') {
+                  return "Mass units: g, kg, lb, oz";
+                } else if (material?.unitType === 'package') {
+                  return `Package units: ${material.baseUnit}, ${material.inputUnit || 'box'}`;
+                }
+                return "Standard units available";
+              })()}
+            </p>
+          )}
         </div>
       </div>
 
