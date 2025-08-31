@@ -75,6 +75,11 @@ const OrderItem = sequelize.define(
       type: DataTypes.ENUM("pending", "preparing", "ready", "served", "cancelled"),
       allowNull: false,
       defaultValue: "pending"
+    },
+    selectedVariant: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Stores variant information like {name, volume, unit, price} for beverage variants'
     }
   },
   {

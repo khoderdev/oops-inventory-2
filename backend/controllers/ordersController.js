@@ -3,11 +3,17 @@ import { auditOrderOperation } from "../middleware/auditMiddleware.js";
 import { Assignment, Material, MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, Order, OrderItem, sequelize, StockEntry, Table, User, PrintJob, Printer, PrinterChannel } from "../models/index.js";
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
+import { calculateDeductionAmount, logVariantDeduction } from "../utils/beverageVariantUtils.js";
 
-const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => {
+export const deductIngredientStock = async (menuItemId, orderQuantity, transaction, selectedVariant = null) => {
   const deductionId = Math.random().toString(36).substr(2, 9);
   try {
     console.log(`🔍 [${deductionId}] Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
+    
+    // Log variant information if provided
+    if (selectedVariant) {
+      console.log(`🥃 [${deductionId}] Selected variant: ${selectedVariant.name}, volume: ${selectedVariant.volume}${selectedVariant.unit}`);
+    }
     
     // Fetch menu item with both ingredients and sauces
     console.log(`🔍 [${deductionId}] Fetching menu item with ID: ${menuItemId}`);
@@ -102,15 +108,63 @@ const deductIngredientStock = async (menuItemId, orderQuantity, transaction) => 
 
     if (allIngredients.length === 0) {
       console.log(`🍾 [${deductionId}] No ingredients or sauces found for menu item "${menuItem.name}"`);
-      const matchingMaterial = await Material.findOne({
-        where: { name: { [Op.iLike]: `%${menuItem.name}%` } },
-        transaction
-      });
-      if (matchingMaterial) {
-        console.log(`🔄 [${deductionId}] Found matching material by name: ${matchingMaterial.name} (ID: ${matchingMaterial.id})`);
-        await deductStockFromMaterial(matchingMaterial.id, orderQuantity, menuItem.name, transaction);
+      
+      // Special handling for beverage variants
+      if (selectedVariant) {
+        console.log(`🥃 [${deductionId}] Processing beverage variant: ${selectedVariant.name}`);
+        
+        // Find the source material for this beverage
+        const matchingMaterial = await Material.findOne({
+          where: { name: { [Op.iLike]: `%${menuItem.name}%` } },
+          transaction
+        });
+        
+        if (matchingMaterial) {
+          console.log(`🔄 [${deductionId}] Found matching source material: ${matchingMaterial.name} (ID: ${matchingMaterial.id})`);
+          
+          // Get the material's volume information
+          const materialVolume = matchingMaterial.packageQuantity || 1;
+          const materialUnit = matchingMaterial.packageUnit || matchingMaterial.baseUnit || 'unit';
+          
+          // Calculate what fraction of the source material this variant represents
+          const deductionAmount = calculateDeductionAmount(
+            selectedVariant.volume,
+            selectedVariant.unit,
+            materialVolume,
+            materialUnit,
+            orderQuantity
+          );
+          
+          // Log the deduction details
+          logVariantDeduction(
+            menuItem.name,
+            selectedVariant.name,
+            selectedVariant.volume,
+            selectedVariant.unit,
+            materialVolume,
+            materialUnit,
+            orderQuantity,
+            deductionAmount
+          );
+          
+          // Deduct the calculated amount from stock
+          await deductStockFromMaterial(matchingMaterial.id, deductionAmount, menuItem.name, transaction);
+          console.log(`✅ [${deductionId}] Deducted ${deductionAmount.toFixed(4)} units of ${matchingMaterial.name} for variant ${selectedVariant.name}`);
+        } else {
+          console.log(`ℹ️ [${deductionId}] No matching source material found for beverage: ${menuItem.name}`);
+        }
       } else {
-        console.log(`ℹ️ [${deductionId}] No matching material found for: ${menuItem.name}`);
+        // Standard handling for non-variant items
+        const matchingMaterial = await Material.findOne({
+          where: { name: { [Op.iLike]: `%${menuItem.name}%` } },
+          transaction
+        });
+        if (matchingMaterial) {
+          console.log(`🔄 [${deductionId}] Found matching material by name: ${matchingMaterial.name} (ID: ${matchingMaterial.id})`);
+          await deductStockFromMaterial(matchingMaterial.id, orderQuantity, menuItem.name, transaction);
+        } else {
+          console.log(`ℹ️ [${deductionId}] No matching material found for: ${menuItem.name}`);
+        }
       }
       return;
     }
@@ -556,13 +610,22 @@ export const ordersController = {
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               totalPrice: item.totalPrice,
-              notes: item.notes
+              notes: item.notes,
+              selectedVariant: item.selectedVariant || null
             };
             const orderItem = await OrderItem.create(orderItemData, { transaction });
             try {
               if (item.type === "menu_item" && item.menuItemId) {
                 console.log(`🍽️ Processing menu item for stock deduction: ${item.name} (ID: ${item.menuItemId}), Quantity: ${item.quantity}`);
-                await deductIngredientStock(item.menuItemId, item.quantity, transaction);
+                
+                // Check if this item has a selected variant
+                if (item.selectedVariant) {
+                  console.log(`🥃 Found selected variant for ${item.name}: ${item.selectedVariant.name}`);
+                  await deductIngredientStock(item.menuItemId, item.quantity, transaction, item.selectedVariant);
+                } else {
+                  await deductIngredientStock(item.menuItemId, item.quantity, transaction);
+                }
+                
                 console.log(`✅ Stock deduction completed for menu item: ${item.name}`);
               } else if (item.type === "material" && item.materialId) {
                 console.log(`📦 Processing direct material for stock deduction: ${item.name} (ID: ${item.materialId}), Quantity: ${item.quantity}`);
@@ -814,7 +877,8 @@ export const ordersController = {
                   quantity: item.quantity,
                   unitPrice: item.unitPrice,
                   totalPrice: item.totalPrice,
-                  notes: item.notes
+                  notes: item.notes,
+                  selectedVariant: item.selectedVariant || null
                 },
                 { transaction }
               );
@@ -823,7 +887,14 @@ export const ordersController = {
               try {
                 if (item.type === "menu_item" && item.menuItemId) {
                   console.log(`🍽️ Processing menu item for stock deduction: ${item.name} (ID: ${item.menuItemId}), Quantity: ${item.quantity}`);
-                  await deductIngredientStock(item.menuItemId, item.quantity, transaction);
+                  
+                  // Check if this item has a selected variant
+                  if (item.selectedVariant) {
+                    console.log(`🥃 Found selected variant for ${item.name}: ${item.selectedVariant.name}`);
+                    await deductIngredientStock(item.menuItemId, item.quantity, transaction, item.selectedVariant);
+                  } else {
+                    await deductIngredientStock(item.menuItemId, item.quantity, transaction);
+                  }
                 } else if (item.type === "material" && item.materialId) {
                   console.log(`📦 Processing direct material for stock deduction: ${item.name} (ID: ${item.materialId}), Quantity: ${item.quantity}`);
                   await deductStockFromMaterial(item.materialId, item.quantity, item.name, transaction);
@@ -922,7 +993,7 @@ export const ordersController = {
       console.log(`📋 Adding ${items.length} items to order ${orderId}`);
       const newOrderItems = await Promise.all(
         items.map(async item => {
-          return await OrderItem.create(
+          const orderItem = await OrderItem.create(
             {
               orderId: order.id,
               materialId: item.materialId === "undefined" || item.materialId === undefined ? null : item.materialId,
@@ -933,10 +1004,13 @@ export const ordersController = {
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               totalPrice: item.totalPrice,
-              notes: item.notes
+              notes: item.notes,
+              selectedVariant: item.selectedVariant || null
             },
             { transaction }
           );
+
+          return orderItem;
         })
       );
       const allOrderItems = await OrderItem.findAll({

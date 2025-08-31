@@ -1,5 +1,4 @@
 import { ordersAPI } from "@/api/orders.api";
-import { printerAPI } from "@/api/printer.api";
 import { tablesAPI } from "@/api/tables.api";
 import PrinterSelector from "@/components/common/PrinterSelector";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -32,6 +31,8 @@ import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 import { Category } from "@/types/categories";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
+import printerAPI from "@/api/printer.api";
+import { posAPI } from "@/api/pos.api";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   // Use MenuItemsContext for menu items data
@@ -666,44 +667,32 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setCategoriesMap(categoryMap);
   }, [menuItemCategories, beverageCategories]);
 
+  // Fetch POS items directly from API to get variants data
+  const [apiPosItems, setApiPosItems] = useState<POSItem[]>([]);
+  
+  const fetchPOSItems = useCallback(async () => {
+    try {
+      const response = await posAPI.getPOSItems();
+      if (response && response.data && response.data.data) {
+        setApiPosItems(response.data.data);
+      } else {
+        setApiPosItems([]);
+      }
+    } catch (error) {
+      console.error("Error fetching POS items:", error);
+      setApiPosItems([]);
+    }
+  }, []);
+
+  // Fetch POS items on mount and when menu items change
+  useEffect(() => {
+    fetchPOSItems();
+  }, [fetchPOSItems, foodMenuItems, beverageMenuItems]);
+
   // Memoized POS items to prevent unnecessary re-renders during POS operations
   const memoizedPosItems = useMemo(() => {
-    if (categoriesMap.size === 0) return [];
-    const allMenuItems: MenuItem[] = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
-    if (allMenuItems.length === 0) return [];
-    const posItemsFromData: POSItem[] = [];
-
-    allMenuItems.forEach(menuItem => {
-      if (!menuItem?.isPOSItem) return;
-      let categoryId: number;
-      if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
-        categoryId = (menuItem.category as any).id;
-      } else if (menuItem.category && typeof menuItem.category === "number") {
-        categoryId = menuItem.category;
-      } else {
-        console.warn("⚠️ Invalid category format for menu item:", menuItem?.name, menuItem?.category);
-        categoryId = 0;
-      }
-      const categoryName = categoriesMap.get(categoryId);
-      if (!categoryName) return;
-      posItemsFromData.push({
-        id: `menu-${menuItem.id}`,
-        name: menuItem.name,
-        price: menuItem.price,
-        category: categoryName,
-        type: "menu_item",
-        menuItemId: menuItem.id,
-        unit: menuItem.unit,
-        availableQuantity: menuItem.availableQuantity,
-        costPerUnit: menuItem.costPerUnit,
-        createdAt: menuItem.createdAt.toString(),
-        updatedAt: menuItem.updatedAt.toString(),
-        description: menuItem.description,
-        image: menuItem.image
-      });
-    });
-    return posItemsFromData;
-  }, [foodMenuItems, beverageMenuItems, categoriesMap]);
+    return apiPosItems;
+  }, [apiPosItems]);
 
   // Update posItems state only when memoized items actually change and no POS action is in progress
   useEffect(() => {
@@ -1998,7 +1987,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 min-h-0 !bg-gray-50 p-2">
-              {/* Remount ItemsGrid when switching views or when panel width changes to force re-measure */}
               <ItemsGrid
                 key={`${activeView}-${rightPanelPixelWidth}`}
                 posItems={filteredPosItems}

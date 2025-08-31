@@ -573,6 +573,7 @@ export interface PaymentDialogProps {
 
 // Unified POS Item types for new endpoint
 export interface POSItem {
+  imageUrl: any;
   id: string;
   type: "menu_item" | "stock_entry";
   name: string;

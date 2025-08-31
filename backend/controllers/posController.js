@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { Material, MenuItem, MenuItemIngredient, StockEntry } from "../models/index.js";
+import { Material, MenuItem, MenuItemIngredient, StockEntry, Variants } from "../models/index.js";
 
 const posController = {
   // Get all POS items (menu items + POS-enabled stock entries)
@@ -8,14 +8,30 @@ const posController = {
       // Fetch menu items with isPOSItem = true
       const menuItems = await MenuItem.findAll({
         where: { isPOSItem: true },
-        include: [{ model: MenuItemIngredient, as: "menuItemIngredients", include: [{ model: Material, as: "material", attributes: ["id", "name", "baseUnit", "unitType", "category"] }] }],
+        include: [
+          { 
+            model: MenuItemIngredient, 
+            as: "menuItemIngredients", 
+            include: [{ 
+              model: Material, 
+              as: "material", 
+              attributes: ["id", "name", "baseUnit", "unitType", "categoryId"] 
+            }] 
+          },
+          {
+            model: Variants,
+            as: "variants",
+            where: { isActive: true },
+            required: false // LEFT JOIN - include menu items even if they don't have variants
+          }
+        ],
         order: [["name", "ASC"]]
       });
 
       // Fetch stock entries with isPOSItem = true, grouped by material
       const posStockEntries = await StockEntry.findAll({
         where: { isPOSItem: true, purchasedIndividualQuantity: { [Op.gt]: 0 } },
-        include: [{ model: Material, as: "material", attributes: ["id", "name", "baseUnit", "unitType", "category", "packageQuantity", "inputUnit"] }],
+        include: [{ model: Material, as: "material", attributes: ["id", "name", "baseUnit", "unitType", "categoryId", "packageQuantity", "inputUnit"] }],
         order: [
           ["material", "name"],
           ["createdAt", "ASC"]
@@ -69,6 +85,13 @@ const posController = {
             unit: ingredient.unit,
             cost: ingredient.cost || 0
           })) || [],
+        variants: item.variants?.map(variant => ({
+          id: variant.id,
+          name: variant.name,
+          volume: parseFloat(variant.volume),
+          unit: variant.unit,
+          price: parseFloat(variant.price)
+        })) || [],
         createdAt: item.createdAt,
         updatedAt: item.updatedAt
       }));
@@ -78,9 +101,9 @@ const posController = {
         id: `material_${materialData.material.id}`,
         type: "stock_entry",
         name: materialData.material.name,
-        description: `${materialData.material.category || "material"} - ${materialData.totalAvailableQuantity} ${materialData.material.baseUnit} available`,
+        description: `${materialData.material.categoryId || "material"} - ${materialData.totalAvailableQuantity} ${materialData.material.baseUnit} available`,
         price: materialData.averageCostPerBaseUnit,
-        category: materialData.material.category || "materials",
+        category: materialData.material.categoryId || "materials",
         unit: materialData.material.baseUnit,
         availableQuantity: materialData.totalAvailableQuantity,
         costPerUnit: materialData.averageCostPerBaseUnit,
@@ -90,7 +113,7 @@ const posController = {
           name: materialData.material.name,
           baseUnit: materialData.material.baseUnit,
           unitType: materialData.material.unitType,
-          category: materialData.material.category,
+          category: materialData.material.categoryId,
           packageQuantity: materialData.material.packageQuantity,
           inputUnit: materialData.material.inputUnit
         },
@@ -113,7 +136,10 @@ const posController = {
       const allPOSItems = [...formattedMenuItems, ...formattedStockEntries].sort((a, b) => {
         // Sort by category first, then by name
         if (a.category !== b.category) {
-          return a.category.localeCompare(b.category);
+          // Convert to string for comparison since categoryId might be a number
+          const categoryA = String(a.category || '');
+          const categoryB = String(b.category || '');
+          return categoryA.localeCompare(categoryB);
         }
         return a.name.localeCompare(b.name);
       });
@@ -159,9 +185,15 @@ const posController = {
               {
                 model: Material,
                 as: "material",
-                attributes: ["id", "name", "baseUnit", "unitType", "category"]
+                attributes: ["id", "name", "baseUnit", "unitType", "categoryId"]
               }
             ]
+          },
+          {
+            model: Variants,
+            as: "variants",
+            where: { isActive: true },
+            required: false // LEFT JOIN - include menu items even if they don't have variants
           }
         ],
         order: [["name", "ASC"]]
@@ -178,9 +210,9 @@ const posController = {
             model: Material,
             as: "material",
             where: {
-              category: { [Op.iLike]: `%${category}%` }
+              categoryId: { [Op.iLike]: `%${category}%` }
             },
-            attributes: ["id", "name", "baseUnit", "unitType", "category", "packageQuantity", "inputUnit"]
+            attributes: ["id", "name", "baseUnit", "unitType", "categoryId", "packageQuantity", "inputUnit"]
           }
         ],
         order: [["material", "name"], ["createdAt", "ASC"]]
@@ -234,6 +266,13 @@ const posController = {
           unit: ingredient.unit,
           cost: ingredient.cost || 0
         })) || [],
+        variants: item.variants?.map(variant => ({
+          id: variant.id,
+          name: variant.name,
+          volume: parseFloat(variant.volume),
+          unit: variant.unit,
+          price: parseFloat(variant.price)
+        })) || [],
         createdAt: item.createdAt,
         updatedAt: item.updatedAt
       }));
@@ -243,9 +282,9 @@ const posController = {
         id: `material_${materialData.material.id}`,
         type: "stock_entry",
         name: materialData.material.name,
-        description: `${materialData.material.category || "material"} - ${materialData.totalAvailableQuantity} ${materialData.material.baseUnit} available`,
+        description: `${materialData.material.categoryId || "material"} - ${materialData.totalAvailableQuantity} ${materialData.material.baseUnit} available`,
         price: materialData.averageCostPerBaseUnit,
-        category: materialData.material.category || "materials",
+        category: materialData.material.categoryId || "materials",
         unit: materialData.material.baseUnit,
         availableQuantity: materialData.totalAvailableQuantity,
         costPerUnit: materialData.averageCostPerBaseUnit,
