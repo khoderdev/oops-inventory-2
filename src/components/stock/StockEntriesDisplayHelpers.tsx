@@ -22,7 +22,7 @@ export const renderQuantityDisplay = (entry: StockEntryWithMaterial) => {
     return (
       <div className={`w-[150px] rounded-full font-bold text-primary flex items-center justify-center gap-1 p-1 px-2 ${isNegative ? "text-red-600" : ""}`}>
         {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
-        <div className="text-center">s v
+        <div className="text-center">
           <div>{formatNumber(totalVolume)} {volumeUnit}</div>
           <div className="text-[0.55rem] opacity-75">(from {entry.purchasedQuantity} bottle{entry.purchasedQuantity !== 1 ? 's' : ''})</div>
         </div>

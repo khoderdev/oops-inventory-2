@@ -857,11 +857,16 @@ export interface BeverageItemFormProps {
 }
 
 export interface MenuItemIngredient {
+  id?: number;
   type: string;
   materialId: string;
+  sauceId?: string;
   quantity: number;
   unit: string;
   cost: number;
+  notes?: string;
+  material?: any;
+  sauce?: any;
 }
 
 export interface CreateMenuItemData {

@@ -151,7 +151,21 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
             
             if (material.unitType === "package" && material.packageQuantity) {
               // For package materials, divide by package size to get cost per base unit
-              const actualPackageSize = material.packageQuantity > 1 ? material.packageQuantity : 75; // Default to 75cl for beverages
+              // Handle common beverage bottle sizes based on base unit
+              let actualPackageSize = material.packageQuantity;
+              
+              if (actualPackageSize <= 1) {
+                // If packageQuantity is 1 or less, infer standard bottle size based on base unit
+                if (material.baseUnit === "cl") {
+                  actualPackageSize = 75; // Standard 750ml = 75cl bottle
+                } else if (material.baseUnit === "ml") {
+                  actualPackageSize = 750; // Standard 750ml bottle
+                } else {
+                  actualPackageSize = 1; // Fallback for other units
+                }
+                console.log(`📦 Inferred package size for ${material.name}: ${actualPackageSize} ${material.baseUnit}`);
+              }
+              
               unitCost = purchasedUnitCost / actualPackageSize;
             } else {
               // For non-package materials, use conversion factor
@@ -178,9 +192,31 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
           return 0;
         }
         const costPerUnit = totalWeightedCost / totalQuantity;
+        console.log(`💰 Cost calculation for ${material.name}:`, {
+          totalWeightedCost,
+          totalQuantity,
+          costPerUnit,
+          ingredientQuantity: ingredient.quantity,
+          ingredientUnit: ingredient.unit,
+          materialBaseUnit: material.baseUnit,
+          materialUnitType: material.unitType
+        });
+        
         try {
           const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
-          const finalCost = ingredient.quantity * costPerUnit * conversionFactor;
+          console.log(`🔄 Conversion factor from ${ingredient.unit} to ${material.baseUnit}:`, conversionFactor);
+          
+          // Fix: For volume units, we need to convert FROM base unit TO ingredient unit, not the other way around
+          // The costPerUnit is already in base units, so we need to convert the ingredient quantity to base units
+          const ingredientQuantityInBaseUnits = ingredient.quantity * conversionFactor;
+          const finalCost = ingredientQuantityInBaseUnits * costPerUnit;
+          
+          console.log(`💡 Final calculation:`, {
+            ingredientQuantityInBaseUnits,
+            costPerUnit,
+            finalCost
+          });
+          
           return isNaN(finalCost) ? 0 : finalCost;
         } catch (error) {
           console.error(`Error calculating final cost for ${material.name}:`, error);

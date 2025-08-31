@@ -81,11 +81,16 @@ export const BeverageDetailsDialog: React.FC<BeverageDetailsDialogProps> = ({ op
                     <div key={variant.id} className="border rounded-md p-3">
                       <div className="flex justify-between items-center">
                         <span className="font-medium">{variant.name}</span>
-                        <span className="text-sm font-semibold">{formatCurrency(Number(variant.price))}</span>
+                        <span className="text-sm font-semibold">{formatCurrency(parseFloat(variant.price))}</span>
                       </div>
                       <div className="text-sm text-gray-500 mt-1">
-                        {formatVolume(variant.volume)} {variant.unit}
+                        {formatVolume(parseFloat(variant.volume))} {variant.unit}
                       </div>
+                      {variant.isActive === false && (
+                        <div className="text-xs text-orange-500 mt-1">
+                          Inactive
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

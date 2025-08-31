@@ -3,13 +3,21 @@ import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { Switch } from "../../ui/switch";
 import { ImageUpload } from "../../ui/image-upload";
-import { Variants, VariantData } from "../../ui/Variants";
 import { CostBreakdown } from "./CostBreakdown";
 import { Ingredients } from "./Ingredients";
 import { toast } from "../../ui/use-toast";
 import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient, MenuItem } from "@/types/inventory";
+import { variantsAPI, Variant, CreateVariantData } from "@/api/variants.api";
 
-export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, materials = [], stockEntries = [], onSubmit, onCancel, enableVariants = false }) => {
+export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ 
+  menuItem, 
+  categories, 
+  materials = [], 
+  stockEntries = [], 
+  onSubmit, 
+  onCancel, 
+  enableVariants = false 
+}) => {
   const [name, setName] = useState(menuItem?.name || "");
   const [categoryId, setCategoryId] = useState<string>(() => {
     if (!menuItem?.category) return "";
@@ -30,34 +38,91 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [selectedBeverageStock, setSelectedBeverageStock] = useState<StockEntryWithMaterial | null>(null);
   const [ingredients, setIngredients] = useState<MenuItemIngredient[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [showVariantsSection, setShowVariantsSection] = useState(true);
   const [showIngredientsSection, setShowIngredientsSection] = useState(false);
-  const [variantData, setVariantData] = useState<VariantData>({
-    selectedVariants: [],
-    variantVolumes: { 
-      // Size-based variants
-      small: 25, medium: 33, large: 50, glass: 30, shot: 5,
-      // Container-based variants with realistic volumes
-      can: 33, bottle: 33, pint: 47, pitcher: 150, 
-      mini: 18, standard: 70, magnum: 150,
-      // Additional common sizes
-      regular: 33, jumbo: 75, family: 200
-    },
-    variantVolumeUnits: { 
-      // Most beverages use cl for serving sizes
-      small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl",
-      can: "cl", bottle: "cl", pint: "cl", pitcher: "cl", 
-      mini: "cl", standard: "cl", magnum: "cl",
-      regular: "cl", jumbo: "cl", family: "cl"
-    },
-    variantPrices: { 
-      // Pricing based on volume and container type
-      small: 2.5, medium: 3.5, large: 5.0, glass: 3.0, shot: 2.0,
-      can: 3.5, bottle: 4.0, pint: 5.5, pitcher: 18.0,
-      mini: 8.0, standard: 28.0, magnum: 50.0,
-      regular: 3.5, jumbo: 6.5, family: 12.0
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [selectedVariantTypes, setSelectedVariantTypes] = useState<string[]>([]);
+  const [variantInputs, setVariantInputs] = useState<Record<string, { volume: string; unit: string; price: string }>>({});
+  
+  // Available variant types with default values
+  const availableVariantTypes = [
+    { name: 'small', defaultVolume: 25, defaultUnit: 'cl', defaultPrice: 2.5 },
+    { name: 'medium', defaultVolume: 33, defaultUnit: 'cl', defaultPrice: 3.5 },
+    { name: 'large', defaultVolume: 50, defaultUnit: 'cl', defaultPrice: 5.0 },
+    { name: 'glass', defaultVolume: 30, defaultUnit: 'cl', defaultPrice: 3.0 },
+    { name: 'shot', defaultVolume: 5, defaultUnit: 'cl', defaultPrice: 2.0 },
+    { name: 'can', defaultVolume: 33, defaultUnit: 'cl', defaultPrice: 3.5 },
+    { name: 'bottle', defaultVolume: 33, defaultUnit: 'cl', defaultPrice: 4.0 },
+    { name: 'pint', defaultVolume: 47, defaultUnit: 'cl', defaultPrice: 5.5 },
+    { name: 'pitcher', defaultVolume: 150, defaultUnit: 'cl', defaultPrice: 18.0 },
+    { name: 'mini', defaultVolume: 18, defaultUnit: 'cl', defaultPrice: 8.0 },
+    { name: 'standard', defaultVolume: 70, defaultUnit: 'cl', defaultPrice: 28.0 },
+    { name: 'magnum', defaultVolume: 150, defaultUnit: 'cl', defaultPrice: 50.0 }
+  ];
+
+  // Handle variant type selection
+  const handleVariantTypeChange = useCallback((variantName: string, checked: boolean) => {
+    if (checked) {
+      setSelectedVariantTypes(prev => [...prev, variantName]);
+      const variantType = availableVariantTypes.find(v => v.name === variantName);
+      if (variantType) {
+        setVariantInputs(prev => ({
+          ...prev,
+          [variantName]: {
+            volume: variantType.defaultVolume.toString(),
+            unit: variantType.defaultUnit,
+            price: variantType.defaultPrice.toString()
+          }
+        }));
+      }
+    } else {
+      setSelectedVariantTypes(prev => prev.filter(v => v !== variantName));
+      setVariantInputs(prev => {
+        const newInputs = { ...prev };
+        delete newInputs[variantName];
+        return newInputs;
+      });
     }
-  });
+  }, [availableVariantTypes]);
+
+  // Handle variant input changes
+  const handleVariantInputChange = useCallback((variantName: string, field: 'volume' | 'unit' | 'price', value: string) => {
+    setVariantInputs(prev => ({
+      ...prev,
+      [variantName]: {
+        ...prev[variantName],
+        [field]: value
+      }
+    }));
+  }, []);
+
+  // Load existing variants when editing
+  useEffect(() => {
+    if (menuItem?.id && enableVariants) {
+      const loadVariants = async () => {
+        try {
+          const existingVariants = await variantsAPI.getVariantsByMenuItemId(Number(menuItem.id));
+          setVariants(existingVariants);
+          
+          // Set selected variant types and inputs based on existing variants
+          const selectedTypes = existingVariants.map(v => v.name);
+          setSelectedVariantTypes(selectedTypes);
+          
+          const inputs: Record<string, { volume: string; unit: string; price: string }> = {};
+          existingVariants.forEach(variant => {
+            inputs[variant.name] = {
+              volume: variant.volume,
+              unit: variant.unit,
+              price: variant.price
+            };
+          });
+          setVariantInputs(inputs);
+        } catch (error) {
+          console.error('Failed to load variants:', error);
+        }
+      };
+      loadVariants();
+    }
+  }, [menuItem?.id, enableVariants]);
 
   useEffect(() => {
     if (categories.length === 0 || !menuItem?.category) {
@@ -109,15 +174,15 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     if (!categoryId) newErrors.category = "Category is required";
     
     // Price validation - only required if no variants are selected
-    if (variantData.selectedVariants.length === 0) {
+    if (selectedVariantTypes.length === 0) {
       if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
         newErrors.price = "Price is required";
       }
     } else {
       // Validate that all selected variants have valid prices
-      const invalidVariants = variantData.selectedVariants.filter(variant => {
-        const variantPrice = variantData.variantPrices[variant];
-        return !variantPrice || isNaN(variantPrice) || variantPrice <= 0;
+      const invalidVariants = selectedVariantTypes.filter(variant => {
+        const variantInput = variantInputs[variant];
+        return !variantInput?.price || isNaN(parseFloat(variantInput.price)) || parseFloat(variantInput.price) <= 0;
       });
       
       if (invalidVariants.length > 0) {
@@ -127,11 +192,11 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, categoryId, price, variantData.selectedVariants, variantData.variantPrices]);
+  }, [name, categoryId, price, selectedVariantTypes, variantInputs]);
 
   useEffect(() => {
     validateForm();
-  }, [name, categoryId, price, variantData.selectedVariants, variantData.variantPrices, validateForm]);
+  }, [name, categoryId, price, selectedVariantTypes, variantInputs, validateForm]);
 
   // Initialize form data when editing existing menu item or when beverageStockEntries changes
   useEffect(() => {
@@ -161,26 +226,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           setShowIngredientsSection(true);
         }
       }
-      if (menuItem.variants && Array.isArray(menuItem.variants) && menuItem.variants.length > 0) {
-        const selectedVariants = menuItem.variants.map(v => v.name);
-        const variantVolumes: Record<string, number> = {};
-        const variantVolumeUnits: Record<string, string> = {};
-        const variantPrices: Record<string, number> = {};
-        menuItem.variants.forEach(variant => {
-          variantVolumes[variant.name] = parseFloat(variant.volume);
-          variantVolumeUnits[variant.name] = variant.unit;
-          variantPrices[variant.name] = parseFloat(variant.price);
-        });
-        setVariantData({
-          selectedVariants,
-          variantVolumes,
-          variantVolumeUnits,
-          variantPrices
-        });
-        setShowVariantsSection(true);
-      }
     }
-  }, [menuItem]);
+  }, [menuItem, stockEntries]);
 
   const handleBeverageNameChange = useCallback((value: string) => {
     setName(value);
@@ -198,18 +245,64 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       const hasCategory = !!categoryId;
       const hasValidPrice = !!(price && !isNaN(parseFloat(price)) && parseFloat(price) > 0);
       const hasNoErrors = Object.keys(errors).length === 0;
-      const isFormValid = hasNoErrors && hasName && hasCategory && hasValidPrice;
+      const isFormValid = hasNoErrors && hasName && hasCategory && (hasValidPrice || selectedVariantTypes.length > 0);
       if (isFormValid) {
         handleSubmit();
       }
     }
   };
 
-  const handleVariantChange = useCallback((data: VariantData) => {
-    setVariantData(data);
-  }, []);
+  // Create variants after menu item is created/updated
+  const createVariants = async (menuItemId: number) => {
+    if (selectedVariantTypes.length === 0) return;
+    
+    const variantsToCreate: CreateVariantData[] = selectedVariantTypes.map((variantName, index) => {
+      const input = variantInputs[variantName];
+      return {
+        menuItemId,
+        name: variantName,
+        volume: parseFloat(input.volume),
+        unit: input.unit,
+        price: parseFloat(input.price),
+        isActive: true,
+        sortOrder: index
+      };
+    });
+    
+    try {
+      await variantsAPI.createVariantsBulk(variantsToCreate);
+    } catch (error) {
+      console.error('Failed to create variants:', error);
+      toast({
+        title: "Warning",
+        description: "Menu item created but variants failed to save",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Update variants for existing menu item
+  const updateVariants = async (menuItemId: number) => {
+    try {
+      // Delete existing variants
+      if (variants.length > 0) {
+        const variantIds = variants.map(v => v.id);
+        await variantsAPI.deleteVariantsBulk(variantIds);
+      }
+      
+      // Create new variants
+      await createVariants(menuItemId);
+    } catch (error) {
+      console.error('Failed to update variants:', error);
+      toast({
+        title: "Warning",
+        description: "Menu item updated but variants failed to save",
+        variant: "destructive"
+      });
+    }
+  };
 
-  const handleSubmit = useCallback(() => {
+  const handleSubmit = useCallback(async () => {
     if (!validateForm()) {
       return;
     }
@@ -223,6 +316,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       });
       return;
     }
+    
     // Prepare form data matching BeverageItemFormProps.onSubmit signature
     const formData: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
       imageFile?: File;
@@ -248,37 +342,42 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       unit: "piece",
       availableQuantity: selectedBeverageStock?.purchasedQuantity ? parseFloat(selectedBeverageStock.purchasedQuantity.toString()) : undefined,
       costPerUnit: selectedBeverageStock?.costPerPurchasedUnit ? parseFloat(selectedBeverageStock.costPerPurchasedUnit.toString()) : undefined,
-      variants: showVariantsSection && variantData.selectedVariants.length > 0 ? variantData : undefined
+      variants: undefined // Remove variants from form data - handled separately
     };
-    onSubmit(formData);
-    setName("");
-    setCategoryId("");
-    setPrice("");
-    setIsPOSItem(true);
-    setImage(undefined);
-    setImageFile(undefined);
-    setSelectedBeverageStock(null);
-    setIngredients([]);
-    setErrors({});
-    setVariantData({
-      selectedVariants: [],
-      variantVolumes: { 
-        small: 2, medium: 3, large: 5, glass: 3, shot: 1,
-        can: 33, bottle: 33, pint: 47, pitcher: 150, 
-        mini: 18, standard: 70, magnum: 150
-      },
-      variantVolumeUnits: { 
-        small: "cl", medium: "cl", large: "cl", glass: "cl", shot: "cl",
-        can: "cl", bottle: "cl", pint: "cl", pitcher: "cl", 
-        mini: "cl", standard: "cl", magnum: "cl"
-      },
-      variantPrices: { 
-        small: 2.0, medium: 3.0, large: 5.0, glass: 3.0, shot: 1.0,
-        can: 3.5, bottle: 4.0, pint: 5.0, pitcher: 15.0,
-        mini: 6.0, standard: 25.0, magnum: 45.0
+    
+    try {
+      // Submit the menu item first
+      const result = await onSubmit(formData);
+      
+      // Handle variants after menu item is created/updated
+      if (enableVariants && selectedVariantTypes.length > 0) {
+        const menuItemId = menuItem?.id ? Number(menuItem.id) : (result as any)?.id;
+        if (menuItemId) {
+          if (menuItem?.id) {
+            await updateVariants(menuItemId);
+          } else {
+            await createVariants(menuItemId);
+          }
+        }
       }
-    });
-  }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, showVariantsSection, variantData, categories, ingredients, validateForm, onSubmit]);
+      
+      // Reset form
+      setName("");
+      setCategoryId("");
+      setPrice("");
+      setIsPOSItem(true);
+      setImage(undefined);
+      setImageFile(undefined);
+      setSelectedBeverageStock(null);
+      setIngredients([]);
+      setErrors({});
+      setSelectedVariantTypes([]);
+      setVariantInputs({});
+      setVariants([]);
+    } catch (error) {
+      console.error('Failed to submit beverage item:', error);
+    }
+  }, [name, categoryId, price, isPOSItem, image, imageFile, selectedBeverageStock, categories, ingredients, validateForm, onSubmit, enableVariants, selectedVariantTypes, variantInputs, menuItem, variants, createVariants, updateVariants]);
 
   return (
     <div className="space-y-6 p-4">
@@ -287,7 +386,16 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           <label htmlFor="name" className="block text-sm font-medium mb-1">
             Name <span className="text-red-500">*</span>
           </label>
-          <Input id="name" type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={handleKeyDown} placeholder="Enter beverage name" aria-invalid={!!errors.name} aria-describedby={errors.name ? "name-error" : undefined} />
+          <Input 
+            id="name" 
+            type="text" 
+            value={name} 
+            onChange={e => setName(e.target.value)} 
+            onKeyDown={handleKeyDown} 
+            placeholder="Enter beverage name" 
+            aria-invalid={!!errors.name} 
+            aria-describedby={errors.name ? "name-error" : undefined} 
+          />
           {errors.name && (
             <p id="name-error" className="text-sm text-red-500 mt-1">
               {errors.name}
@@ -329,12 +437,23 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         </div>
 
         {/* Only show price input when no variants are selected */}
-        {variantData.selectedVariants.length === 0 && (
+        {selectedVariantTypes.length === 0 && (
           <div className="md:col-span-1 lg:col-span-1">
             <label htmlFor="price" className="block text-sm font-medium mb-1">
               Price <span className="text-red-500">*</span>
             </label>
-            <Input id="price" type="number" value={price} onChange={e => setPrice(e.target.value)} onKeyDown={handleKeyDown} placeholder="0.00" min="0" step="0.01" aria-invalid={!!errors.price} aria-describedby={errors.price ? "price-error" : undefined} />
+            <Input 
+              id="price" 
+              type="number" 
+              value={price} 
+              onChange={e => setPrice(e.target.value)} 
+              onKeyDown={handleKeyDown} 
+              placeholder="0.00" 
+              min="0" 
+              step="0.01" 
+              aria-invalid={!!errors.price} 
+              aria-describedby={errors.price ? "price-error" : undefined} 
+            />
             {errors.price ? (
               <p id="price-error" className="text-sm text-red-500 mt-1">
                 {errors.price}
@@ -356,33 +475,111 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       </div>
 
       {/* Variants Section */}
-      <div>
-        {enableVariants && <Variants 
-          initialVariantSizes={[
-            "small", "medium", "large", "glass", "shot",
-            "can", "bottle", "pint", "pitcher",
-            "mini", "standard", "magnum"
-          ]} 
-          initialSelectedVariants={variantData.selectedVariants} 
-          initialVariantPrices={variantData.variantPrices} 
-          onChange={handleVariantChange} 
-          title="Beverage Variants" 
-          description="Select variant sizes, containers, or add custom options" 
-        />}
-        {errors.variants && (
-          <p className="text-sm text-red-500 mt-1">
-            {errors.variants}
-          </p>
-        )}
-      </div>
+      {enableVariants && (
+        <div className="border-t pt-4">
+          <h4 className="font-medium mb-2">Beverage Variants</h4>
+          <p className="text-sm text-gray-500 mb-4">Select variant sizes, containers, or add custom options</p>
+          
+          {/* Variant Type Selection */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-4">
+            {availableVariantTypes.map(variantType => (
+              <label key={variantType.name} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedVariantTypes.includes(variantType.name)}
+                  onChange={e => handleVariantTypeChange(variantType.name, e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <span className="text-sm capitalize">{variantType.name}</span>
+              </label>
+            ))}
+          </div>
+
+          {/* Variant Configuration */}
+          {selectedVariantTypes.length > 0 && (
+            <div className="space-y-4">
+              {selectedVariantTypes.map(variantName => {
+                const input = variantInputs[variantName];
+                if (!input) return null;
+                
+                return (
+                  <div key={variantName} className="border rounded-md p-3">
+                    <h5 className="font-medium mb-2 capitalize">{variantName}</h5>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Volume</label>
+                        <Input
+                          type="number"
+                          value={input.volume}
+                          onChange={e => handleVariantInputChange(variantName, 'volume', e.target.value)}
+                          placeholder="Volume"
+                          min="0"
+                          step="0.1"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Unit</label>
+                        <select
+                          value={input.unit}
+                          onChange={e => handleVariantInputChange(variantName, 'unit', e.target.value)}
+                          className="w-full px-3 py-2 border border-input bg-background rounded-md"
+                        >
+                          <option value="cl">cl</option>
+                          <option value="ml">ml</option>
+                          <option value="l">l</option>
+                          <option value="oz">oz</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Price ($)</label>
+                        <Input
+                          type="number"
+                          value={input.price}
+                          onChange={e => handleVariantInputChange(variantName, 'price', e.target.value)}
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          {errors.variants && (
+            <p className="text-sm text-red-500 mt-1">
+              {errors.variants}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Cost Breakdown Section */}
-      {selectedBeverageStock && <CostBreakdown selectedBeverageStock={selectedBeverageStock} price={price} variantData={variantData} />}
+      {selectedBeverageStock && (
+        <CostBreakdown 
+          selectedBeverageStock={selectedBeverageStock} 
+          price={price} 
+          variantData={{
+            selectedVariants: selectedVariantTypes,
+            variantPrices: Object.fromEntries(
+              selectedVariantTypes.map(name => [name, parseFloat(variantInputs[name]?.price || '0')])
+            )
+          }} 
+        />
+      )}
 
       {/* Ingredients Toggle Button */}
       {materials && stockEntries && materials.length > 0 && stockEntries.length > 0 && (
         <div className="border-t pt-4">
-          <Button type="button" variant="outline" size="sm" onClick={() => setShowIngredientsSection(!showIngredientsSection)} className="mb-4">
+          <Button 
+            type="button" 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowIngredientsSection(!showIngredientsSection)} 
+            className="mb-4"
+          >
             {showIngredientsSection ? "Hide" : "Add"} Ingredients
           </Button>
         </div>
@@ -423,7 +620,12 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
 
       {/* Image Upload Section */}
       <div className="border-t pt-4">
-        <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
+        <ImageUpload 
+          value={image} 
+          onChange={handleImageChange} 
+          maxSizeInMB={5} 
+          acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} 
+        />
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
@@ -432,7 +634,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         </Button>
         <Button 
           onClick={handleSubmit} 
-          disabled={!name.trim() || !categoryId || (variantData.selectedVariants.length === 0 && (!price || parseFloat(price) <= 0))}
+          disabled={!name.trim() || !categoryId || (selectedVariantTypes.length === 0 && (!price || parseFloat(price) <= 0))}
         >
           {menuItem ? "Update" : "Create"} Beverage Item
         </Button>

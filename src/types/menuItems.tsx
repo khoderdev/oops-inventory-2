@@ -157,6 +157,9 @@ export interface IngredientsTableProps {
   handleRemoveIngredient: (index: number) => void;
   totalIngredientsCost: number;
   price: string;
+  showActions?: boolean;
+  onEdit?: (ingredient: any) => void;
+  onDelete?: (id: number) => void;
 }
 
 export interface BeveragesMenuColumnsProps {

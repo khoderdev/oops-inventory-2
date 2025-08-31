@@ -15,6 +15,7 @@ import { MenuItem, MenuItemIngredient, MenuItemSauce } from "./menuItems.js";
 import Sauce from "./Sauce.js";
 import SauceIngredient from "./SauceIngredient.js";
 import Variants from "./Variants.js";
+import VariantIngredient from "./VariantIngredient.js";
 import Order from "./Order.js";
 import OrderItem from "./OrderItem.js";
 import Printer from "./Printer.js";
@@ -766,6 +767,48 @@ Variants.belongsTo(MenuItem, {
   onUpdate: "CASCADE"
 });
 
+// Variants ↔ VariantIngredient
+Variants.hasMany(VariantIngredient, {
+  foreignKey: "variantId",
+  as: "ingredients",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+VariantIngredient.belongsTo(Variants, {
+  foreignKey: "variantId",
+  as: "variant",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Material ↔ VariantIngredient
+Material.hasMany(VariantIngredient, {
+  foreignKey: "materialId",
+  as: "variantIngredients",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+VariantIngredient.belongsTo(Material, {
+  foreignKey: "materialId",
+  as: "material",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// Sauce ↔ VariantIngredient
+Sauce.hasMany(VariantIngredient, {
+  foreignKey: "sauceId",
+  as: "variantIngredients",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+VariantIngredient.belongsTo(Sauce, {
+  foreignKey: "sauceId",
+  as: "sauce",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
 // MenuItem ↔ Sauce (through MenuItemSauce)
 MenuItem.belongsToMany(Sauce, {
   through: MenuItemSauce,
@@ -887,4 +930,4 @@ Sauce.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient,MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, Variants, Wasting };
+export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, VariantIngredient, Variants, Wasting };

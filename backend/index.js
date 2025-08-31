@@ -31,6 +31,7 @@ import tablesRoutes from "./routes/tables.js";
 import departmentRoutes from "./routes/departmentRoutes.js";
 import userRoutes from "./routes/users.js";
 import variantsRoutes from "./routes/variants.js";
+import variantIngredientsRoutes from "./routes/variantIngredients.js";
 import PrinterService from "./services/PrinterService.js";
 import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
@@ -158,6 +159,7 @@ app.use("/api/backup", backupRoutes);
 app.use("/api/backup-scheduler", backupSchedulerRoutes);
 app.use("/api/printers", printersRoutes);
 app.use("/api/variants", variantsRoutes);
+app.use("/api/variant-ingredients", variantIngredientsRoutes);
 app.use("/api/departments", departmentRoutes);
 
 app.use(errorHandler);

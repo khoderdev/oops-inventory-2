@@ -3,11 +3,11 @@ import { MenuItemIngredient } from "@/types/inventory";
 import { IngredientsTableProps } from "@/types/menuItems";
 import { SortingState, createColumnHelper, ColumnDef, useReactTable, getCoreRowModel, getSortedRowModel, flexRender } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Trash2 } from "lucide-react";
+import { Trash2, Edit } from "lucide-react";
 import { useRef, useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 
-export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients = [], menuItem, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = "0", sauces = [], calculateIngredientCost, materials, stockEntries = [] }) => {
+export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients = [], menuItem, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = "0", sauces = [], calculateIngredientCost, materials, stockEntries = [], showActions = false, onEdit, onDelete }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnHelper = createColumnHelper<MenuItemIngredient & { index: number }>();
@@ -222,15 +222,32 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
           const ingredient = row.original;
           const itemName = getItemName(ingredient);
           return (
-            <div className="text-right">
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600" onClick={() => handleRemoveIngredient(row.original.index)} aria-label={`Remove ${itemName}`}>
+            <div className="text-right flex gap-1">
+              {showActions && onEdit && (
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600" 
+                  onClick={() => onEdit(ingredient)} 
+                  aria-label={`Edit ${itemName}`}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600" 
+                onClick={() => showActions && onDelete ? onDelete(ingredient.id || row.original.index) : handleRemoveIngredient(row.original.index)} 
+                aria-label={`Remove ${itemName}`}
+              >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           );
         },
         enableSorting: false,
-        size: 60
+        size: showActions && onEdit ? 100 : 60
       })
     ],
     [materials, menuItem, formatNumber, formatCurrency, handleRemoveIngredient, sauces, getMaterialCostPerBaseUnit, calculateIngredientCostForTable, getItemName]
