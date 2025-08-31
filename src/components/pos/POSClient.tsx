@@ -865,29 +865,37 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           });
         } else {
           if (posItem.type === "menu_item") {
-            const menuItemId = posItem.menuItemId;
+            const menuItemId = posItem.menuItemId || posItem.id;
             const menuItem = menuItems.find(mi => {
               const miId = typeof mi.id === "string" ? parseInt(mi.id) || 0 : mi.id;
               const targetId = typeof menuItemId === "string" ? parseInt(menuItemId) || 0 : menuItemId;
               return miId === targetId;
             });
+            const finalMenuItem = menuItem || {
+              id: menuItemId,
+              name: posItem.name,
+              price: posItem.price,
+              printerId: posItem.printerId,
+              assignedPrinter: posItem.assignedPrinter
+            };
+            
             if (!menuItem) {
-              console.warn("⚠️ Menu item not found for POS item:", posItem);
-              return currentCart;
+              console.warn("⚠️ Menu item not found, using fallback for POS item:", posItem);
             }
+            
             const newItem: POSCartItem = {
               id: cartId,
-              name: posItem.name,
+              name: posItem.displayName || posItem.name,
               price: posItem.price,
               quantity: 1,
               type: "menu_item",
-              originalItem: menuItem,
+              originalItem: finalMenuItem,
               posItem,
               stockEntryId: undefined,
               // Store as string to match POSCartItem type
               menuItemId: String(menuItemId),
-              printerId: menuItem?.printerId || posItem?.printerId,
-              assignedPrinter: menuItem?.assignedPrinter || posItem?.assignedPrinter
+              printerId: finalMenuItem?.printerId || posItem?.printerId,
+              assignedPrinter: finalMenuItem?.assignedPrinter || posItem?.assignedPrinter
             };
             newCart = [...currentCart, newItem];
           } else {
@@ -896,22 +904,30 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               const posItemMaterialId = String(posItem.materialId);
               return stockEntryMaterialId === posItemMaterialId;
             });
+            const finalStockEntry = stockEntry || {
+              id: posItem.materialId,
+              materialId: posItem.materialId,
+              material: { name: posItem.name },
+              printerId: posItem.printerId,
+              assignedPrinter: posItem.assignedPrinter
+            };
+            
             if (!stockEntry) {
-              console.warn("⚠️ Stock entry not found:", posItem);
-              return currentCart;
+              console.warn("⚠️ Stock entry not found, using fallback for POS item:", posItem);
             }
+            
             const newItem: POSCartItem = {
               id: cartId,
               name: posItem.name,
               price: posItem.price,
               quantity: 1,
               type: "material",
-              originalItem: stockEntry,
+              originalItem: finalStockEntry,
               posItem,
               stockEntryId: posItem.materialId,
               menuItemId: undefined,
-              printerId: stockEntry.printerId || posItem.printerId,
-              assignedPrinter: stockEntry.assignedPrinter || posItem.assignedPrinter
+              printerId: finalStockEntry.printerId || posItem.printerId,
+              assignedPrinter: finalStockEntry.assignedPrinter || posItem.assignedPrinter
             };
             newCart = [...currentCart, newItem];
           }
