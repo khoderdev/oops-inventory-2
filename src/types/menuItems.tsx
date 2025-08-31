@@ -147,6 +147,7 @@ export interface IngredientsProps {
 export interface IngredientsTableProps {
   ingredients: MenuItemIngredient[];
   materials: Material[];
+  stockEntries?: StockEntry[];
   sauces?: Sauce[];
   menuItem?: MenuItem;
   calculateIngredientCost: (ingredient: Omit<MenuItemIngredient, "cost">) => number;

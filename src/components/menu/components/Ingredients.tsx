@@ -113,34 +113,58 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
         let totalQuantity = 0;
         for (const entry of allStockEntries) {
           let quantity = entry.purchasedIndividualQuantity || 0;
-          // Convert purchased quantity into base units if needed
+          
+          // For package materials, calculate the actual quantity in base units
           if (quantity <= 0 && entry.purchasedQuantity) {
-            try {
-              const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-              quantity = parseFloat(String(entry.purchasedQuantity)) * conversionFactor;
-            } catch (error) {
-              console.error(`Error converting units for ${material.name}:`, error);
-              continue;
+            const purchasedQty = parseFloat(String(entry.purchasedQuantity));
+            
+            if (material.unitType === "package" && material.packageQuantity) {
+              // For package materials, multiply by package quantity
+              // Example: 1 bottle × 75cl = 75cl total
+              const actualPackageSize = material.packageQuantity > 1 ? material.packageQuantity : 75; // Default to 75cl for beverages
+              quantity = purchasedQty * actualPackageSize;
+            } else {
+              // For non-package materials, use conversion factor
+              try {
+                const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+                quantity = purchasedQty * conversionFactor;
+              } catch (error) {
+                console.error(`Error converting units for ${material.name}:`, error);
+                continue;
+              }
             }
           }
+          
           if (quantity <= 0) {
             console.warn(`Invalid quantity for stock entry:`, entry);
             continue;
           }
+          
           let unitCost = 0;
           if (entry.costPerBaseUnit !== null && entry.costPerBaseUnit !== undefined && !isNaN(entry.costPerBaseUnit) && entry.costPerBaseUnit > 0) {
             unitCost = entry.costPerBaseUnit;
           } else if (entry.totalCost && entry.totalCost > 0) {
+            // Calculate cost per base unit from total cost and calculated quantity
             unitCost = parseFloat(String(entry.totalCost)) / quantity;
           } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-            try {
-              const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-              unitCost = parseFloat(String(entry.costPerPurchasedUnit)) / conversionFactor;
-            } catch (error) {
-              console.error(`Error converting cost units for ${material.name}:`, error);
-              continue;
+            const purchasedUnitCost = parseFloat(String(entry.costPerPurchasedUnit));
+            
+            if (material.unitType === "package" && material.packageQuantity) {
+              // For package materials, divide by package size to get cost per base unit
+              const actualPackageSize = material.packageQuantity > 1 ? material.packageQuantity : 75; // Default to 75cl for beverages
+              unitCost = purchasedUnitCost / actualPackageSize;
+            } else {
+              // For non-package materials, use conversion factor
+              try {
+                const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+                unitCost = purchasedUnitCost / conversionFactor;
+              } catch (error) {
+                console.error(`Error converting cost units for ${material.name}:`, error);
+                continue;
+              }
             }
           }
+          
           if (unitCost > 0) {
             totalWeightedCost += unitCost * quantity;
             totalQuantity += quantity;
@@ -363,7 +387,7 @@ export function Ingredients({ ingredients = [], stockEntries = [], materials: ma
         </p>
       )}
 
-      <IngredientsTable ingredients={ingredients} materials={materials || []} sauces={sauces} menuItem={menuItem} calculateIngredientCost={calculateIngredientCost} getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit} formatNumber={formatNumber} formatCurrency={formatCurrency} handleRemoveIngredient={handleRemoveIngredient} totalIngredientsCost={totalIngredientsCost} price={price} />
+      <IngredientsTable ingredients={ingredients} materials={materials || []} stockEntries={stockEntries} sauces={sauces} menuItem={menuItem} calculateIngredientCost={calculateIngredientCost} getMaterialCostPerBaseUnit={getMaterialCostPerBaseUnit} formatNumber={formatNumber} formatCurrency={formatCurrency} handleRemoveIngredient={handleRemoveIngredient} totalIngredientsCost={totalIngredientsCost} price={price} />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" ref={ingredientsInputSectionRef}>
         <Selection

@@ -7,7 +7,7 @@ import { Trash2 } from "lucide-react";
 import { useRef, useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 
-export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients = [], menuItem, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = "0", sauces = [], calculateIngredientCost, materials }) => {
+export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients = [], menuItem, formatNumber, formatCurrency, handleRemoveIngredient, totalIngredientsCost = 0, price = "0", sauces = [], calculateIngredientCost, materials, stockEntries = [] }) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const columnHelper = createColumnHelper<MenuItemIngredient & { index: number }>();
@@ -24,6 +24,109 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
       const materialIdNum = idStr.startsWith("material-") ? idStr.replace("material-", "") : idStr;
       const material = materials.find(m => String(m.id) === String(materialIdNum) || `material-${m.id}` === idStr);
       return material ? parseFloat(String(material.costPerBaseUnit || 0)) : 0;
+    },
+    [materials, sauces]
+  );
+
+  // Enhanced cost calculation for proper beverage cost handling
+  const calculateIngredientCostForTable = useCallback(
+    (ingredient: MenuItemIngredient) => {
+      if (!ingredient) return 0;
+
+      // Handle sauces
+      if (ingredient.type === "sauce") {
+        const sauce = sauces.find(s => String(s.id) === String(ingredient.materialId));
+        if (!sauce) return 0;
+        
+        try {
+          // For sauces, use direct cost per unit calculation
+          const costPerUnit = parseFloat(String(sauce.costPerUnit || 0));
+          return ingredient.quantity * costPerUnit;
+        } catch (error) {
+          console.error(`Error calculating sauce cost:`, error);
+          return 0;
+        }
+      }
+
+      // Handle materials
+      const material = materials.find(m => String(m.id) === String(ingredient.materialId));
+      if (!material) return 0;
+
+      // Find stock entries for this material from the stockEntries prop
+      const materialStockEntries = stockEntries.filter(entry => String(entry.materialId) === String(ingredient.materialId));
+      if (materialStockEntries.length === 0) {
+        console.warn(`No stock entries found for material ${material.name} (ID: ${ingredient.materialId})`);
+        return 0;
+      }
+
+      // Use the most recent stock entry (assuming they're sorted by date)
+      const latestEntry = materialStockEntries[materialStockEntries.length - 1];
+      console.log(`🔍 Processing ${material.name}:`, {
+        materialId: ingredient.materialId,
+        stockEntriesFound: materialStockEntries.length,
+        latestEntry: {
+          totalCost: latestEntry.totalCost,
+          purchasedQuantity: latestEntry.purchasedQuantity,
+          costPerBaseUnit: latestEntry.costPerBaseUnit
+        },
+        material: {
+          unitType: material.unitType,
+          packageQuantity: material.packageQuantity,
+          baseUnit: material.baseUnit
+        }
+      });
+      
+      // Calculate cost per base unit from stock entry
+      let costPerBaseUnit = 0;
+      
+      if (latestEntry.costPerBaseUnit && latestEntry.costPerBaseUnit > 0) {
+        costPerBaseUnit = parseFloat(String(latestEntry.costPerBaseUnit));
+      } else if (latestEntry.totalCost && latestEntry.purchasedQuantity) {
+        // Calculate from total cost and purchased quantity
+        const totalCost = parseFloat(String(latestEntry.totalCost));
+        const purchasedQty = parseFloat(String(latestEntry.purchasedQuantity));
+        
+        if (material.unitType === "package" && material.packageQuantity) {
+          // For package materials, calculate cost per base unit
+          // Example: $12 for 1 bottle (75cl) = $12 / 75cl = $0.16 per cl
+          const actualPackageSize = material.packageQuantity > 1 ? material.packageQuantity : 75; // Default to 75cl for beverages
+          costPerBaseUnit = totalCost / (purchasedQty * actualPackageSize);
+        } else {
+          // For non-package materials
+          costPerBaseUnit = totalCost / purchasedQty;
+        }
+      }
+
+      if (costPerBaseUnit <= 0) return 0;
+
+      // Convert ingredient unit to base unit and calculate cost
+      try {
+        let conversionFactor = 1;
+        
+        // Handle unit conversion
+        if (ingredient.unit !== material.baseUnit) {
+          // Simple volume conversions for beverages
+          if (material.baseUnit === "cl" && ingredient.unit === "ml") {
+            conversionFactor = 0.1; // 1ml = 0.1cl
+          } else if (material.baseUnit === "cl" && ingredient.unit === "l") {
+            conversionFactor = 100; // 1l = 100cl
+          } else if (material.baseUnit === "ml" && ingredient.unit === "cl") {
+            conversionFactor = 10; // 1cl = 10ml
+          } else if (material.baseUnit === "ml" && ingredient.unit === "l") {
+            conversionFactor = 1000; // 1l = 1000ml
+          } else {
+            // Use the existing conversion function as fallback
+            const { getConversionFactor } = require("@/utils/getConversionFactor");
+            conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
+          }
+        }
+
+        const finalCost = ingredient.quantity * costPerBaseUnit * conversionFactor;
+        return isNaN(finalCost) ? 0 : finalCost;
+      } catch (error) {
+        console.error(`Error calculating ingredient cost for ${material.name}:`, error);
+        return 0;
+      }
     },
     [materials, sauces]
   );
@@ -99,11 +202,12 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
             return <div className="text-right font-medium">{formatCurrency(storedCost)}</div>;
           }
 
-          // Use the same calculateIngredientCost function that's used for the total
+          // Use the enhanced calculation function for proper beverage cost handling
           try {
-            const cost = calculateIngredientCost(ingredient);
+            const cost = calculateIngredientCostForTable(ingredient);
             return <div className="text-right font-medium">{formatCurrency(cost)}</div>;
           } catch (error) {
+            console.error('Cost calculation error:', error);
             return <div className="text-right text-red-500 text-xs">Calculation error</div>;
           }
         },
@@ -129,7 +233,7 @@ export const IngredientsTable: React.FC<IngredientsTableProps> = ({ ingredients 
         size: 60
       })
     ],
-    [materials, menuItem, formatNumber, formatCurrency, handleRemoveIngredient, sauces, getMaterialCostPerBaseUnit]
+    [materials, menuItem, formatNumber, formatCurrency, handleRemoveIngredient, sauces, getMaterialCostPerBaseUnit, calculateIngredientCostForTable, getItemName]
   );
   const tableData = useMemo(() => ingredients.map((ingredient, index) => ({ ...ingredient, index })), [ingredients]);
 
