@@ -458,15 +458,25 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
     console.log(`💰 Final cost per ${material.baseUnit}: ${costPerBaseUnit}`);
     
     // Special case for package materials with volume units (cl, ml) OR when unit is box but material is Bombay Gin
+    // Also handle materials with bottle as base unit but volume inputs
     // Using type assertions to help TypeScript understand our comparisons
     const materialBaseUnit = material.baseUnit as string;
     const ingredientUnit = ingredient.unit as string;
     const materialName = material.name as string;
     
-    if (material.unitType === "package" && 
-        materialBaseUnit === "cl" && 
-        ((ingredientUnit === "cl" || ingredientUnit === "ml" || ingredientUnit === "l") || 
-         (ingredientUnit === "box" && materialName === "Bombay Gin"))) {
+    // Check if this is a package material with volume units or bottle base unit with volume inputs
+    // Use type assertions to help TypeScript understand our type comparisons
+    const isPackageMaterial = material.unitType === "package";
+    const isClBaseUnit = materialBaseUnit as string === "cl";
+    const isBottleBaseUnit = materialBaseUnit as string === "bottle";
+    const isVolumeIngredientUnit = [
+      "cl", "ml", "l"
+    ].includes(ingredientUnit as string);
+    const isBombayGinBox = ingredientUnit as string === "box" && materialName === "Bombay Gin";
+    
+    if (isPackageMaterial && 
+        ((isClBaseUnit && (isVolumeIngredientUnit || isBombayGinBox)) ||
+         (isBottleBaseUnit && isVolumeIngredientUnit))) {
       
       console.log(`🍸 Special case: Package material handling for ${material.name} with unit ${ingredient.unit}`);
       
@@ -474,20 +484,48 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
       const entry = relevantStockEntries[0];
       if (!entry) return 0;
       
-      // Get bottle cost - this is the cost of one bottle
-      const bottleCost = parseFloat(String(entry.totalCost || entry.costPerPurchasedUnit || 0));
+      // Get bottle cost - this is the cost of one bottle, not the box cost
+      // For package materials, we should use costPerBaseUnit which is the cost per bottle
+      const bottleCost = parseFloat(String(entry.costPerBaseUnit || 0));
+      console.log(`💲 Using bottle cost: $${bottleCost} per bottle (from costPerBaseUnit)`);
       
-      // Standard bottle sizes
-      const STANDARD_BOTTLE_CL = 75;  // 75cl standard spirit bottle
-      const STANDARD_BOTTLE_ML = 750; // 750ml standard spirit bottle
+      // Log the entry data for debugging
+      console.log(`📦 Stock entry data:`, {
+        costPerBaseUnit: entry.costPerBaseUnit,
+        costPerPurchasedUnit: entry.costPerPurchasedUnit,
+        totalCost: entry.totalCost,
+        purchasedQuantity: entry.purchasedQuantity,
+        purchasedUnit: entry.purchasedUnit
+      });
       
-      // Determine bottle volume based on base unit
-      const bottleVolume = materialBaseUnit === "ml" ? STANDARD_BOTTLE_ML : STANDARD_BOTTLE_CL;
+      // Get bottle volume from material data if available, otherwise use standard sizes
+      let bottleVolume: number;
+      
+      // Check if material has volumePerUnit data
+      if (material.volumePerUnit && material.volumeUnit) {
+        // Use the actual volume data from the material
+        bottleVolume = parseFloat(String(material.volumePerUnit));
+        console.log(`📏 Using actual volume data: ${bottleVolume} ${material.volumeUnit}`);
+      } else {
+        // Standard bottle sizes as fallback
+        const STANDARD_BOTTLE_CL = 75;  // 75cl standard spirit bottle
+        const STANDARD_BOTTLE_ML = 750; // 750ml standard spirit bottle
+        
+        // Determine bottle volume based on base unit
+        if (typeof materialBaseUnit === 'string') {
+          bottleVolume = materialBaseUnit === "ml" ? STANDARD_BOTTLE_ML : STANDARD_BOTTLE_CL;
+          console.log(`📏 Using standard bottle size: ${bottleVolume} ${materialBaseUnit === "ml" ? "ml" : "cl"}`);
+        } else {
+          bottleVolume = STANDARD_BOTTLE_CL; // Default to cl if baseUnit is undefined
+          console.log(`📏 Using default bottle size: ${bottleVolume} cl`);
+        }
+      }
       
       let finalCost = 0;
       
       // Handle different input units
-      if (ingredientUnit === "box" || ingredientUnit === "bottle") {
+      const isBoxOrBottle = (ingredientUnit === "box" || ingredientUnit === "bottle");
+      if (isBoxOrBottle) {
         // For Bombay Gin, we need to handle box differently - it's not a full bottle but a volume measure
         if (materialName === "Bombay Gin" && ingredientUnit === "box") {
           // Calculate cost per cl
@@ -512,16 +550,46 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
             finalCost: `$${finalCost.toFixed(2)}`
           });
         }
-      } else if (ingredientUnit === "cl" || ingredientUnit === "ml" || ingredientUnit === "l") {
+      } else if (isVolumeIngredientUnit) {
         // If input is in volume units (cl, ml, l)
-        const costPerVolumeUnit = bottleCost / bottleVolume;
-        finalCost = ingredient.quantity * costPerVolumeUnit;
+        // First determine the volume unit of the bottle
+        const bottleVolumeUnit = material.volumeUnit || 
+          (isClBaseUnit ? "cl" : isBottleBaseUnit ? "ml" : "cl");
+        
+        // Calculate cost per volume unit in the bottle's volume unit
+        const costPerBottleVolumeUnit = bottleCost / bottleVolume;
+        
+        // Convert ingredient quantity to the bottle's volume unit if needed
+        let ingredientQuantityInBottleVolumeUnit = ingredient.quantity;
+        
+        // Handle unit conversions between ml, cl, and l
+        if (ingredientUnit !== bottleVolumeUnit) {
+          if (ingredientUnit === "ml" && bottleVolumeUnit === "cl") {
+            // Convert ml to cl
+            ingredientQuantityInBottleVolumeUnit = ingredient.quantity / 10;
+          } else if (ingredientUnit === "cl" && bottleVolumeUnit === "ml") {
+            // Convert cl to ml
+            ingredientQuantityInBottleVolumeUnit = ingredient.quantity * 10;
+          } else if (ingredientUnit === "l" && bottleVolumeUnit === "ml") {
+            // Convert l to ml
+            ingredientQuantityInBottleVolumeUnit = ingredient.quantity * 1000;
+          } else if (ingredientUnit === "l" && bottleVolumeUnit === "cl") {
+            // Convert l to cl
+            ingredientQuantityInBottleVolumeUnit = ingredient.quantity * 100;
+          }
+          
+          console.log(`🔄 Unit conversion: ${ingredient.quantity} ${ingredientUnit} → ${ingredientQuantityInBottleVolumeUnit} ${bottleVolumeUnit}`);
+        }
+        
+        // Calculate final cost
+        finalCost = ingredientQuantityInBottleVolumeUnit * costPerBottleVolumeUnit;
         
         console.log(`🎯 Volume-based calculation:`, {
           bottleCost: `$${bottleCost}`,
-          bottleVolume: `${bottleVolume} ${material.baseUnit}`,
-          costPerVolumeUnit: `$${costPerVolumeUnit.toFixed(4)} per ${material.baseUnit}`,
-          ingredientQuantity: `${ingredient.quantity} ${ingredient.unit}`,
+          bottleVolume: `${bottleVolume} ${bottleVolumeUnit}`,
+          costPerBottleVolumeUnit: `$${costPerBottleVolumeUnit.toFixed(4)} per ${bottleVolumeUnit}`,
+          ingredientQuantity: `${ingredient.quantity} ${ingredientUnit}`,
+          convertedQuantity: `${ingredientQuantityInBottleVolumeUnit} ${bottleVolumeUnit}`,
           finalCost: `$${finalCost.toFixed(2)}`
         });
       }
