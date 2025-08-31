@@ -109,31 +109,23 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   );
 
   const addIngredientToVariant = useCallback(
-    (variantName: string, materialId: string, quantity: number, unit: string) => {
-      const material = materials.find(m => String(m.id) === materialId);
-      const ingredientForCalculation = {
-        materialId,
-        quantity,
-        unit,
-        type: "material"
-      };
-      const isVolumeBasedPackage = material && ["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit) && unit === "box";
-      const calculatedCost = calculateIngredientCost(ingredientForCalculation);
-      const displayUnit = isVolumeBasedPackage ? material.baseUnit : unit;
-      const newIngredient: MenuItemIngredient = {
-        materialId,
-        quantity,
-        unit: displayUnit,
-        cost: formatCost(calculatedCost),
-        type: "material"
+    (variantName: string, ingredient: MenuItemIngredient) => {
+      const material = materials.find(m => String(m.id) === ingredient.materialId);
+      const isVolumeBasedPackage = ingredient.type === "material" && material && ["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit) && ingredient.unit === "box";
+
+      // Format the cost to avoid floating point precision issues
+      const formattedIngredient: MenuItemIngredient = {
+        ...ingredient,
+        unit: isVolumeBasedPackage ? material.baseUnit : ingredient.unit,
+        cost: formatCost(ingredient.cost)
       };
 
       setVariantIngredients(prev => ({
         ...prev,
-        [variantName]: [...(prev[variantName] || []), newIngredient]
+        [variantName]: [...(prev[variantName] || []), formattedIngredient]
       }));
     },
-    [calculateIngredientCost, materials, formatCost]
+    [materials, formatCost]
   );
 
   const removeIngredientFromVariant = useCallback((variantName: string, index: number) => {
@@ -240,11 +232,11 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           break;
         }
       }
-      if (hasEmptyVariantPrice) {
-        newErrors.variants = "All variants must have a price";
-      } else if (hasInvalidVariantPrice) {
-        newErrors.variants = "All variant prices must be greater than zero";
-      }
+      // if (hasEmptyVariantPrice) {
+      //   newErrors.variants = "All variants must have a price";
+      // } else if (hasInvalidVariantPrice) {
+      //   newErrors.variants = "All variant prices must be greater than zero";
+      // }
     }
 
     setErrors(newErrors);
@@ -587,7 +579,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                       )}
 
                       {/* Add New Ingredient */}
-                      <VariantIngredientInput variantName={variantName} materials={materials} stockEntries={stockEntries} onAddIngredient={addIngredientToVariant} />
+                      <VariantIngredientInput variantName={variantName} materials={materials} stockEntries={stockEntries} sauces={[]} onAddIngredient={addIngredientToVariant} errors={{}} />
                     </div>
                   </div>
                 );
