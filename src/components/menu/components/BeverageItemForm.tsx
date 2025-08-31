@@ -8,6 +8,86 @@ import { Ingredients } from "./Ingredients";
 import { toast } from "../../ui/use-toast";
 import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient, MenuItem } from "@/types/inventory";
 import { variantsAPI, Variant, CreateVariantData } from "@/api/variants.api";
+import { getConversionFactor } from "@/utils/getConversionFactor";
+
+// Component for adding ingredients to variants
+const VariantIngredientInput: React.FC<{
+  variantName: string;
+  materials: any[];
+  onAddIngredient: (variantName: string, materialId: string, quantity: number, unit: string) => void;
+}> = ({ variantName, materials, onAddIngredient }) => {
+  const [selectedMaterialId, setSelectedMaterialId] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("cl");
+
+  const handleAdd = () => {
+    if (!selectedMaterialId || !quantity || parseFloat(quantity) <= 0) return;
+    
+    onAddIngredient(variantName, selectedMaterialId, parseFloat(quantity), unit);
+    
+    // Reset form
+    setSelectedMaterialId("");
+    setQuantity("");
+    setUnit("cl");
+  };
+
+  return (
+    <div className="border rounded p-3 bg-gray-50">
+      <div className="grid grid-cols-4 gap-2 items-end">
+        <div>
+          <label className="block text-xs font-medium mb-1">Ingredient</label>
+          <select
+            value={selectedMaterialId}
+            onChange={e => setSelectedMaterialId(e.target.value)}
+            className="w-full px-2 py-1 text-sm border border-input bg-background rounded"
+          >
+            <option value="">Select ingredient...</option>
+            {materials?.map(material => (
+              <option key={material.id} value={String(material.id)}>
+                {material.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1">Quantity</label>
+          <Input
+            type="number"
+            value={quantity}
+            onChange={e => setQuantity(e.target.value)}
+            placeholder="0"
+            min="0"
+            step="0.1"
+            className="text-sm h-8"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium mb-1">Unit</label>
+          <select
+            value={unit}
+            onChange={e => setUnit(e.target.value)}
+            className="w-full px-2 py-1 text-sm border border-input bg-background rounded h-8"
+          >
+            <option value="cl">cl</option>
+            <option value="ml">ml</option>
+            <option value="l">l</option>
+            <option value="g">g</option>
+            <option value="kg">kg</option>
+            <option value="oz">oz</option>
+          </select>
+        </div>
+        <Button
+          type="button"
+          onClick={handleAdd}
+          disabled={!selectedMaterialId || !quantity || parseFloat(quantity) <= 0}
+          className="h-8 text-sm"
+        >
+          Add
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ 
   menuItem, 
@@ -42,6 +122,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
   const [variants, setVariants] = useState<Variant[]>([]);
   const [selectedVariantTypes, setSelectedVariantTypes] = useState<string[]>([]);
   const [variantInputs, setVariantInputs] = useState<Record<string, { volume: string; unit: string; price: string }>>({});
+  const [variantIngredients, setVariantIngredients] = useState<Record<string, MenuItemIngredient[]>>({});
   
   // Available variant types with default values
   const availableVariantTypes = [
@@ -73,6 +154,11 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
             price: variantType.defaultPrice.toString()
           }
         }));
+        // Initialize empty ingredients array for this variant
+        setVariantIngredients(prev => ({
+          ...prev,
+          [variantName]: []
+        }));
       }
     } else {
       setSelectedVariantTypes(prev => prev.filter(v => v !== variantName));
@@ -80,6 +166,11 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
         const newInputs = { ...prev };
         delete newInputs[variantName];
         return newInputs;
+      });
+      setVariantIngredients(prev => {
+        const newIngredients = { ...prev };
+        delete newIngredients[variantName];
+        return newIngredients;
       });
     }
   }, [availableVariantTypes]);
@@ -92,6 +183,104 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
         ...prev[variantName],
         [field]: value
       }
+    }));
+  }, []);
+
+  // Calculate ingredient cost for variants
+  const calculateVariantIngredientCost = useCallback((ingredient: Omit<MenuItemIngredient, "cost">) => {
+    const material = materials?.find(m => String(m.id) === ingredient.materialId);
+    if (!material) return 0;
+
+    const relevantStockEntries = stockEntries.filter(entry => String(entry.materialId) === ingredient.materialId);
+    if (relevantStockEntries.length === 0) return 0;
+
+    let totalWeightedCost = 0;
+    let totalQuantity = 0;
+
+    for (const entry of relevantStockEntries) {
+      const quantity = parseFloat(String(entry.purchasedQuantity)) || 0;
+      if (quantity <= 0) continue;
+
+      let unitCost = 0;
+      if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
+        unitCost = entry.costPerBaseUnit;
+      } else if (entry.totalCost && entry.totalCost > 0) {
+        unitCost = parseFloat(String(entry.totalCost)) / quantity;
+      } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
+        const purchasedUnitCost = parseFloat(String(entry.costPerPurchasedUnit));
+        
+        if (material.unitType === "package" && material.packageQuantity) {
+          let actualPackageSize = material.packageQuantity;
+          if (actualPackageSize <= 1) {
+            if (material.baseUnit === "cl") {
+              actualPackageSize = 75;
+            } else if (material.baseUnit === "ml") {
+              actualPackageSize = 750;
+            } else {
+              actualPackageSize = 1;
+            }
+          }
+          unitCost = purchasedUnitCost / actualPackageSize;
+        } else {
+          try {
+            const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
+            unitCost = purchasedUnitCost / conversionFactor;
+          } catch (error) {
+            console.error(`Error converting cost units for ${material.name}:`, error);
+            continue;
+          }
+        }
+      }
+      
+      if (unitCost > 0) {
+        totalWeightedCost += unitCost * quantity;
+        totalQuantity += quantity;
+      }
+    }
+
+    if (totalQuantity <= 0) return 0;
+    
+    const costPerUnit = totalWeightedCost / totalQuantity;
+    try {
+      const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
+      const ingredientQuantityInBaseUnits = ingredient.quantity * conversionFactor;
+      const finalCost = ingredientQuantityInBaseUnits * costPerUnit;
+      return isNaN(finalCost) ? 0 : finalCost;
+    } catch (error) {
+      console.error(`Error calculating final cost for ${material.name}:`, error);
+      return 0;
+    }
+  }, [materials, stockEntries]);
+
+  // Handle variant ingredient changes
+  const handleVariantIngredientChange = useCallback((variantName: string, ingredients: MenuItemIngredient[]) => {
+    setVariantIngredients(prev => ({
+      ...prev,
+      [variantName]: ingredients
+    }));
+  }, []);
+
+  // Add ingredient to variant
+  const addIngredientToVariant = useCallback((variantName: string, materialId: string, quantity: number, unit: string) => {
+    const newIngredient: MenuItemIngredient = {
+      materialId,
+      quantity,
+      unit,
+      cost: calculateVariantIngredientCost({ materialId, quantity, unit }),
+      type: "material"
+    };
+
+    setVariantIngredients(prev => ({
+      ...prev,
+      [variantName]: [...(prev[variantName] || []), newIngredient]
+    }));
+  }, [calculateVariantIngredientCost]);
+
+  // Remove ingredient from variant
+  const removeIngredientFromVariant = useCallback((variantName: string, index: number) => {
+    setVariantIngredients(prev => ({
+      ...prev,
+      [variantName]: prev[variantName]?.filter((_, i) => i !== index) || []
     }));
   }, []);
 
@@ -503,8 +692,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
                 if (!input) return null;
                 
                 return (
-                  <div key={variantName} className="border rounded-md p-3">
+                  <div key={variantName} className="border rounded-md p-4 space-y-4">
                     <h5 className="font-medium mb-2 capitalize">{variantName}</h5>
+                    
+                    {/* Variant Basic Info */}
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-sm font-medium mb-1">Volume</label>
@@ -542,6 +733,62 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
                         />
                       </div>
                     </div>
+
+                    {/* Variant Ingredients */}
+                    <div className="border-t pt-3">
+                      <h6 className="text-sm font-medium mb-3">Ingredients for {variantName}</h6>
+                      
+                      {/* Existing Ingredients Table */}
+                      {variantIngredients[variantName] && variantIngredients[variantName].length > 0 && (
+                        <div className="mb-4">
+                          <div className="grid grid-cols-5 gap-2 text-xs font-medium text-gray-600 mb-2 px-2">
+                            <div>Ingredient</div>
+                            <div>Quantity</div>
+                            <div>Unit</div>
+                            <div>Cost</div>
+                            <div></div>
+                          </div>
+                          {variantIngredients[variantName].map((ingredient, index) => {
+                            const material = materials?.find(m => String(m.id) === ingredient.materialId);
+                            return (
+                              <div key={index} className="grid grid-cols-5 gap-2 items-center py-2 px-2 border rounded mb-2">
+                                <div className="text-sm font-medium">
+                                  {material?.name || 'Unknown Material'}
+                                  <div className="text-xs text-gray-500">Material</div>
+                                </div>
+                                <div className="text-sm">{ingredient.quantity}</div>
+                                <div className="text-sm">{ingredient.unit}</div>
+                                <div className="text-sm font-medium">${ingredient.cost.toFixed(2)}</div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeIngredientFromVariant(variantName, index)}
+                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+                                >
+                                  ×
+                                </Button>
+                              </div>
+                            );
+                          })}
+                          
+                          {/* Total Cost */}
+                          <div className="border-t pt-2 mt-2">
+                            <div className="flex justify-between text-sm font-medium">
+                              <span>Total Ingredients Cost:</span>
+                              <span>${variantIngredients[variantName].reduce((sum, ing) => sum + ing.cost, 0).toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Add New Ingredient */}
+                      <VariantIngredientInput
+                        variantName={variantName}
+                        materials={materials}
+                        onAddIngredient={addIngredientToVariant}
+                      />
+                    </div>
                   </div>
                 );
               })}
@@ -570,8 +817,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
         />
       )}
 
-      {/* Ingredients Toggle Button */}
-      {materials && stockEntries && materials.length > 0 && stockEntries.length > 0 && (
+      {/* Ingredients Toggle Button - Only show when no variants are selected */}
+      {!selectedVariantTypes.length && materials && stockEntries && materials.length > 0 && stockEntries.length > 0 && (
         <div className="border-t pt-4">
           <Button 
             type="button" 
@@ -585,8 +832,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({
         </div>
       )}
 
-      {/* Ingredients Section - Optional */}
-      {showIngredientsSection && materials && stockEntries && materials.length > 0 && stockEntries.length > 0 && (
+      {/* Ingredients Section - Only show when no variants are selected */}
+      {!selectedVariantTypes.length && showIngredientsSection && materials && stockEntries && materials.length > 0 && stockEntries.length > 0 && (
         <Ingredients
           ingredients={ingredients}
           materials={materials.map(material => ({
