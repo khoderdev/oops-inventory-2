@@ -1,6 +1,6 @@
 import { ValidationResult } from "@/utils/dataValidation";
 import { Category } from "./categories";
-import { CreateMenuItemData, Material, MenuItem, MenuItemIngredient,  Sauce,  StockEntry } from "./inventory";
+import { CreateMenuItemData, Material, MenuItem, MenuItemIngredient, Sauce, StockEntry } from "./inventory";
 import { Table } from "@tanstack/react-table";
 
 export interface MenuItemsContextState {
@@ -15,7 +15,7 @@ export interface MenuItemsContextState {
   beverageCategories: Category[];
   categoriesLoading: boolean;
   categoriesError: string | null;
-  
+
   // Materials data
   materialsWithStock: Material[];
   materialsLoading: boolean;
@@ -25,7 +25,7 @@ export interface MenuItemsContextState {
   activeTab: string;
 
   // Actions
-  fetchMenuItems: (mode?: 'food' | 'beverages' | 'both') => Promise<void>;
+  fetchMenuItems: (mode?: "food" | "beverages" | "both") => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchMaterials: () => Promise<void>;
   handleTabChange: (value: string) => void;
@@ -176,3 +176,18 @@ export interface MenuItemSauce {
   unit: string;
   cost: number;
 }
+
+export const availableVariantTypes = [
+  { name: "small", defaultVolume: 25, defaultUnit: "cl", defaultPrice: 0 },
+  { name: "medium", defaultVolume: 33, defaultUnit: "cl", defaultPrice: 0 },
+  { name: "large", defaultVolume: 50, defaultUnit: "cl", defaultPrice: 0 },
+  { name: "glass", defaultVolume: 200, defaultUnit: "ml", defaultPrice: 0 },
+  { name: "shot", defaultVolume: 10, defaultUnit: "ml", defaultPrice: 0 },
+  { name: "can", defaultVolume: 33, defaultUnit: "cl", defaultPrice: 0 },
+  { name: "bottle", defaultVolume: 75, defaultUnit: "cl", defaultPrice: 0 },
+  { name: "pint", defaultVolume: 47, defaultUnit: "cl", defaultPrice: 0 },
+  { name: "pitcher", defaultVolume: 150, defaultUnit: "cl", defaultPrice: 0 },
+  { name: "mini", defaultVolume: 18, defaultUnit: "cl", defaultPrice: 0 },
+  { name: "standard", defaultVolume: 70, defaultUnit: "cl", defaultPrice: 0 },
+  { name: "magnum", defaultVolume: 150, defaultUnit: "cl", defaultPrice: 0 }
+];

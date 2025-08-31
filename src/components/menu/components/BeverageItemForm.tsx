@@ -5,158 +5,22 @@ import { Switch } from "../../ui/switch";
 import { ImageUpload } from "../../ui/image-upload";
 import { CostBreakdown } from "./CostBreakdown";
 import { Ingredients } from "./Ingredients";
+import { VariantIngredientInput } from "./VariantIngredientInput";
 import { toast } from "../../ui/use-toast";
 import { BeverageItemFormProps, StockEntryWithMaterial, MenuItemIngredient, MenuItem } from "@/types/inventory";
 import { variantsAPI, Variant, CreateVariantData } from "@/api/variants.api";
-import { getConversionFactor } from "@/utils/getConversionFactor";
-import { getAvailableUnits } from "@/utils/getAvailableUnits";
+import { availableVariantTypes } from "@/types/menuItems";
+import { calculateVariantIngredientCost } from "@/utils/calculateVariantIngredientCost";
 
-// Component for adding ingredients to variants
-const VariantIngredientInput: React.FC<{
-  variantName: string;
-  materials: any[];
-  stockEntries: any[];
-  onAddIngredient: (variantName: string, materialId: string, quantity: number, unit: string) => void;
-}> = ({ variantName, materials, onAddIngredient }) => {
-  const [selectedMaterialId, setSelectedMaterialId] = useState("");
-  const [quantity, setQuantity] = useState("");
-  const [unit, setUnit] = useState("");
-
-  // Get available units for selected material
-  const availableUnits = React.useMemo(() => {
-    if (!selectedMaterialId || !materials) return [];
-    return getAvailableUnits(selectedMaterialId, materials);
-  }, [selectedMaterialId, materials]);
-
-  // Reset unit when material changes
-  React.useEffect(() => {
-    if (selectedMaterialId && availableUnits.length > 0) {
-      // Find the selected material to get its base unit
-      const selectedMaterial = materials?.find(m => String(m.id) === selectedMaterialId);
-      if (selectedMaterial?.baseUnit && availableUnits.includes(selectedMaterial.baseUnit)) {
-        setUnit(selectedMaterial.baseUnit);
-      } else {
-        setUnit(availableUnits[0]);
-      }
-    } else {
-      setUnit("");
-    }
-  }, [selectedMaterialId, availableUnits, materials]);
-
-  const handleAdd = () => {
-    if (!selectedMaterialId || !quantity || parseFloat(quantity) <= 0 || !unit) return;
-    onAddIngredient(variantName, selectedMaterialId, parseFloat(quantity), unit);
-    setSelectedMaterialId("");
-    setQuantity("");
-    setUnit("");
-  };
-
-  const handleMaterialChange = (materialId: string) => {
-    setSelectedMaterialId(materialId);
-    if (materialId) {
-    }
-  };
-
-  return (
-    <div className="border rounded p-3 bg-gray-50">
-      <div className="grid grid-cols-4 gap-2 items-end">
-        <div>
-          <label className="block text-xs font-medium mb-1">Ingredient</label>
-          <select value={selectedMaterialId} onChange={e => handleMaterialChange(e.target.value)} className="w-full px-2 py-1 text-sm border border-input bg-background rounded">
-            <option value="">Select ingredient...</option>
-            {materials?.map(material => (
-              <option key={material.id} value={String(material.id)}>
-                {material.name}
-                <span className="text-xs text-gray-500 ml-1">({material.unitType === "mass" ? "Mass" : material.unitType === "volume" ? "Volume" : material.unitType === "package" ? "Package" : material.unitType === "piece" ? "Piece" : material.unitType})</span>
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium mb-1">Quantity</label>
-          <Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="0" min="0" step="0.1" className="text-sm h-8" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium mb-1">Unit</label>
-          <select
-            value={unit}
-            onChange={e => {
-              const selectedUnit = e.target.value;
-              setUnit(selectedUnit);
-            }}
-            className="w-full px-2 py-1 text-sm border border-input bg-background rounded h-8"
-            disabled={!selectedMaterialId}
-          >
-            {selectedMaterialId ? (
-              (() => {
-                // Find the selected material
-                const material = materials?.find(m => String(m.id) === selectedMaterialId);
-
-                if (!material) {
-                  return <option value="">Invalid material</option>;
-                }
-
-                let availableUnits: string[] = [];
-
-                // Determine units based on material type and base unit - same logic as main Ingredients
-                if (material.unitType === "mass") {
-                  // Mass materials: show mass units
-                  availableUnits = ["g", "kg", "lb", "oz"];
-                } else if (material.unitType === "volume") {
-                  // Volume materials: show volume units
-                  availableUnits = ["ml", "cl", "dl", "l", "fl_oz", "cup", "pt", "qt", "gal"];
-                } else if (material.unitType === "package") {
-                  // Package materials: determine by base unit
-                  if (material.baseUnit === "bottle") {
-                    // Bottle-based packages (beverages): show volume units + bottle
-                    availableUnits = ["bottle", "ml", "cl", "dl", "l", "fl_oz"];
-                  } else if (material.baseUnit === "piece") {
-                    // Piece-based packages: show piece + package units
-                    availableUnits = ["piece", material.inputUnit || "box", "bag", "pack"];
-                  } else if (["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit)) {
-                    // Volume-based packages (like Bombay Gin with cl as base unit)
-                    availableUnits = ["bottle", "ml", "cl", "dl", "l", "fl_oz"];
-                    // Add package units if available
-                    if (material.inputUnit && !availableUnits.includes(material.inputUnit)) {
-                      availableUnits.push(material.inputUnit);
-                    }
-                  } else {
-                    // Other package types: include base unit and input unit
-                    availableUnits = [material.baseUnit];
-                    if (material.inputUnit && material.inputUnit !== material.baseUnit) {
-                      availableUnits.push(material.inputUnit);
-                    }
-                  }
-                } else {
-                  // Fallback: use available units from utility function
-                  availableUnits = [...getAvailableUnits(selectedMaterialId, materials)];
-                }
-
-                // Remove duplicates and ensure base unit is included
-                const uniqueUnits = Array.from(new Set([material.baseUnit, ...availableUnits]));
-
-                return uniqueUnits.map(unitOption => {
-                  const isBaseUnit = material.baseUnit === unitOption;
-                  return (
-                    <option key={unitOption} value={unitOption}>
-                      {unitOption}
-                      {isBaseUnit ? " (base unit)" : ""}
-                    </option>
-                  );
-                });
-              })()
-            ) : (
-              <option value="">Select material first</option>
-            )}
-          </select>
-        </div>
-        <Button type="button" onClick={handleAdd} disabled={!selectedMaterialId || !quantity || parseFloat(quantity) <= 0 || !unit} className="h-8 text-sm">
-          Add
-        </Button>
-      </div>
-    </div>
-  );
-};
+interface ExtendedVariant extends Variant {
+  ingredients?: Array<{
+    materialId: string;
+    quantity: number;
+    unit: string;
+    cost: number;
+    type: string;
+  }>;
+}
 
 export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, categories, materials = [], stockEntries = [], onSubmit, onCancel, enableVariants = false }) => {
   const [name, setName] = useState(menuItem?.name || "");
@@ -180,26 +44,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   const [ingredients, setIngredients] = useState<MenuItemIngredient[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showIngredientsSection, setShowIngredientsSection] = useState(false);
-  const [variants, setVariants] = useState<Variant[]>([]);
+  const [variants, setVariants] = useState<ExtendedVariant[]>([]);
   const [selectedVariantTypes, setSelectedVariantTypes] = useState<string[]>([]);
   const [variantInputs, setVariantInputs] = useState<Record<string, { volume: string; unit: string; price: string }>>({});
   const [variantIngredients, setVariantIngredients] = useState<Record<string, MenuItemIngredient[]>>({});
-
-  // Available variant types with default values
-  const availableVariantTypes = [
-    { name: "small", defaultVolume: 25, defaultUnit: "cl", defaultPrice: 0 },
-    { name: "medium", defaultVolume: 33, defaultUnit: "cl", defaultPrice: 0 },
-    { name: "large", defaultVolume: 50, defaultUnit: "cl", defaultPrice: 0 },
-    { name: "glass", defaultVolume: 200, defaultUnit: "ml", defaultPrice: 0 },
-    { name: "shot", defaultVolume: 10, defaultUnit: "ml", defaultPrice: 0 },
-    { name: "can", defaultVolume: 33, defaultUnit: "cl", defaultPrice: 0 },
-    { name: "bottle", defaultVolume: 75, defaultUnit: "cl", defaultPrice: 0 },
-    { name: "pint", defaultVolume: 47, defaultUnit: "cl", defaultPrice: 0 },
-    { name: "pitcher", defaultVolume: 150, defaultUnit: "cl", defaultPrice: 0 },
-    { name: "mini", defaultVolume: 18, defaultUnit: "cl", defaultPrice: 0 },
-    { name: "standard", defaultVolume: 70, defaultUnit: "cl", defaultPrice: 0 },
-    { name: "magnum", defaultVolume: 150, defaultUnit: "cl", defaultPrice: 0 }
-  ];
 
   // Handle variant type selection
   const handleVariantTypeChange = useCallback(
@@ -216,7 +64,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
               price: variantType.defaultPrice.toString()
             }
           }));
-          // Initialize empty ingredients array for this variant
           setVariantIngredients(prev => ({
             ...prev,
             [variantName]: []
@@ -239,7 +86,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     [availableVariantTypes]
   );
 
-  // Handle variant input changes
   const handleVariantInputChange = useCallback((variantName: string, field: "volume" | "unit" | "price", value: string) => {
     setVariantInputs(prev => ({
       ...prev,
@@ -250,194 +96,20 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     }));
   }, []);
 
-  // Calculate ingredient cost for variants
-  const calculateVariantIngredientCost = useCallback(
+  const formatCost = useCallback((cost: number): number => {
+    return parseFloat(parseFloat(String(cost)).toFixed(6));
+  }, []);
+
+  // Use the imported calculateVariantIngredientCost utility function
+  const calculateIngredientCost = useCallback(
     (ingredient: Omit<MenuItemIngredient, "cost">) => {
-      const material = materials?.find(m => String(m.id) === ingredient.materialId);
-      if (!material) {
-        console.warn(`Material not found for ID: ${ingredient.materialId}`);
-        return 0;
-      }
-
-      const relevantStockEntries = stockEntries.filter(entry => String(entry.materialId) === ingredient.materialId);
-      if (relevantStockEntries.length === 0) {
-        console.warn(`No stock entries found for material: ${material.name}`);
-        return 0;
-      }
-      if (material.unitType === "package" && ingredient.unit === "box" && material.baseUnit === "piece" && !["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit)) {
-        const entry = relevantStockEntries[0]; // Using first entry as default
-        if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0 && (entry.purchasedUnit === "box" || !entry.purchasedUnit)) {
-          const costPerBox = parseFloat(String(entry.costPerPurchasedUnit));
-          const finalCost = ingredient.quantity * costPerBox;
-          return isNaN(finalCost) ? 0 : finalCost;
-        } else if (entry.totalCost && entry.totalCost > 0 && entry.purchasedQuantity && entry.purchasedQuantity > 0) {
-          const totalCost = parseFloat(String(entry.totalCost));
-          const purchasedQuantity = parseFloat(String(entry.purchasedQuantity));
-          const costPerBox = totalCost / purchasedQuantity;
-          const finalCost = ingredient.quantity * costPerBox;
-          return isNaN(finalCost) ? 0 : finalCost;
-        }
-      }
-
-      let totalWeightedCost = 0;
-      let totalQuantity = 0;
-
-      for (const entry of relevantStockEntries) {
-        const quantity = parseFloat(String(entry.purchasedQuantity)) || 0;
-        if (quantity <= 0) continue;
-
-        let unitCost = 0;
-
-        if (entry.costPerBaseUnit && entry.costPerBaseUnit > 0) {
-          unitCost = parseFloat(String(entry.costPerBaseUnit));
-        } else if (entry.totalCost && entry.totalCost > 0) {
-          const totalCost = parseFloat(String(entry.totalCost));
-          if (material.unitType === "package") {
-            let actualPackageSize = material.packageQuantity || 1;
-
-            // Infer standard bottle sizes if packageQuantity is 1 or missing
-            if (actualPackageSize <= 1) {
-              if (material.baseUnit === "cl") {
-                actualPackageSize = 75; // 750ml = 75cl
-              } else if (material.baseUnit === "ml") {
-                actualPackageSize = 750; // 750ml
-              }
-            }
-            const totalBaseUnits = quantity * actualPackageSize;
-            unitCost = totalCost / totalBaseUnits;
-          } else {
-            unitCost = totalCost / quantity;
-          }
-        } else if (entry.costPerPurchasedUnit && entry.costPerPurchasedUnit > 0) {
-          const purchasedUnitCost = parseFloat(String(entry.costPerPurchasedUnit));
-
-          if (material.unitType === "package") {
-            let actualPackageSize = material.packageQuantity || 1;
-            if (actualPackageSize <= 1) {
-              if (material.baseUnit === "cl") {
-                actualPackageSize = 75;
-              } else if (material.baseUnit === "ml") {
-                actualPackageSize = 750;
-              }
-            }
-            unitCost = purchasedUnitCost / actualPackageSize;
-          } else {
-            try {
-              const conversionFactor = getConversionFactor(entry.purchasedUnit || material.baseUnit, material.baseUnit, material.unitType || "piece", material);
-              unitCost = purchasedUnitCost / conversionFactor;
-            } catch (error) {
-              console.error(`Error converting cost units for ${material.name}:`, error);
-              continue;
-            }
-          }
-        }
-        if (unitCost > 0) {
-          totalWeightedCost += unitCost * quantity;
-          totalQuantity += quantity;
-        } else {
-          console.warn(`❌ Could not determine unit cost for entry:`, entry);
-        }
-      }
-
-      if (totalQuantity <= 0) {
-        console.warn(`No valid quantity data for material ${material.name}`);
-        return 0;
-      }
-
-      const costPerBaseUnit = totalWeightedCost / totalQuantity;
-      const materialBaseUnit = material.baseUnit as string;
-      const ingredientUnit = ingredient.unit as string;
-      const isPackageMaterial = material.unitType === "package";
-      const isVolumeType = material.unitType === "volume";
-      const isClBaseUnit = materialBaseUnit === "cl";
-      const isBottleBaseUnit = materialBaseUnit === "bottle";
-      const isVolumeIngredientUnit = ["cl", "ml", "l"].includes(ingredientUnit);
-      const isBoxOrBottleUnit = ["box", "bottle"].includes(ingredientUnit);
-      if ((isPackageMaterial || isVolumeType) && (isClBaseUnit || isBottleBaseUnit) && (isVolumeIngredientUnit || isBoxOrBottleUnit)) {
-        const entry = relevantStockEntries[0];
-        if (!entry) return 0;
-        const bottleCost = parseFloat(String(entry.costPerBaseUnit || 0));
-        let bottleVolume = 0;
-        let bottleVolumeUnit = "";
-
-        if (material.volumePerBottle) {
-          bottleVolume = material.volumePerBottle;
-          bottleVolumeUnit = material.volumeUnit || "cl";
-        } else {
-          bottleVolume = 75;
-          bottleVolumeUnit = "cl";
-        }
-        let finalCost = 0;
-        const firstStockEntry = relevantStockEntries[0];
-        const isVolumeBasedPackage = ["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit);
-        const shouldForceVolumeCalculation = isVolumeBasedPackage && ingredientUnit === "box";
-
-        if (shouldForceVolumeCalculation) {
-          const entry = relevantStockEntries[0];
-          if (!entry) return 0;
-          let bottleVolume = material.volumePerBottle || 75; // Default 75cl for standard bottle
-          const bottleCost = parseFloat(String(entry.costPerBaseUnit || 0));
-          const costPerVolumeUnit = bottleCost / bottleVolume;
-          finalCost = ingredient.quantity * costPerVolumeUnit;
-          ingredient.unit = material.baseUnit;
-          return isNaN(finalCost) ? 0 : finalCost;
-        }
-
-        if (isVolumeIngredientUnit) {
-          let volumeInBottleUnits = ingredient.quantity;
-          if (ingredientUnit !== bottleVolumeUnit) {
-            try {
-              const conversionFactor = getConversionFactor(ingredientUnit, bottleVolumeUnit, "volume", material);
-              volumeInBottleUnits = ingredient.quantity * conversionFactor;
-            } catch (error) {
-              console.error(`Error converting volume units from ${ingredientUnit} to ${bottleVolumeUnit}:`, error);
-              if (ingredientUnit === "ml" && bottleVolumeUnit === "cl") {
-                volumeInBottleUnits = ingredient.quantity / 10;
-              } else if (ingredientUnit === "cl" && bottleVolumeUnit === "ml") {
-                volumeInBottleUnits = ingredient.quantity * 10;
-              } else if (ingredientUnit === "l" && bottleVolumeUnit === "ml") {
-                volumeInBottleUnits = ingredient.quantity * 1000;
-              } else if (ingredientUnit === "l" && bottleVolumeUnit === "cl") {
-                volumeInBottleUnits = ingredient.quantity * 100;
-              } else if (ingredientUnit === "ml" && bottleVolumeUnit === "l") {
-                volumeInBottleUnits = ingredient.quantity / 1000;
-              } else if (ingredientUnit === "cl" && bottleVolumeUnit === "l") {
-                volumeInBottleUnits = ingredient.quantity / 100;
-              }
-            }
-          }
-          finalCost = (volumeInBottleUnits / bottleVolume) * bottleCost;
-        } else if (ingredientUnit === "bottle") {
-          finalCost = ingredient.quantity * bottleCost;
-        } else if (ingredientUnit === "box" || ingredientUnit === "pack" || ingredientUnit === "case") {
-          const packageQuantity = material.packageQuantity || 1;
-          const boxCost = bottleCost * packageQuantity;
-          finalCost = ingredient.quantity * boxCost;
-        } else {
-          finalCost = ingredient.quantity * bottleCost;
-        }
-
-        return isNaN(finalCost) ? 0 : finalCost;
-      }
-
-      // Standard calculation for other cases
-      try {
-        const conversionFactor = getConversionFactor(ingredient.unit, material.baseUnit, material.unitType || "piece", material);
-        const ingredientQuantityInBaseUnits = ingredient.quantity * conversionFactor;
-        const finalCost = ingredientQuantityInBaseUnits * costPerBaseUnit;
-        return isNaN(finalCost) ? 0 : finalCost;
-      } catch (error) {
-        console.error(`Error calculating final cost for ${material.name}:`, error);
-        return 0;
-      }
+      return calculateVariantIngredientCost(ingredient, materials, stockEntries);
     },
     [materials, stockEntries]
   );
 
-  // Add ingredient to variant
   const addIngredientToVariant = useCallback(
     (variantName: string, materialId: string, quantity: number, unit: string) => {
-      // Find the material to verify its properties
       const material = materials.find(m => String(m.id) === materialId);
       const ingredientForCalculation = {
         materialId,
@@ -446,13 +118,13 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         type: "material"
       };
       const isVolumeBasedPackage = material && ["ml", "cl", "dl", "l", "fl_oz"].includes(material.baseUnit) && unit === "box";
-      const calculatedCost = calculateVariantIngredientCost(ingredientForCalculation);
+      const calculatedCost = calculateIngredientCost(ingredientForCalculation);
       const displayUnit = isVolumeBasedPackage ? material.baseUnit : unit;
       const newIngredient: MenuItemIngredient = {
         materialId,
         quantity,
         unit: displayUnit,
-        cost: calculatedCost,
+        cost: formatCost(calculatedCost),
         type: "material"
       };
 
@@ -461,8 +133,9 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         [variantName]: [...(prev[variantName] || []), newIngredient]
       }));
     },
-    [calculateVariantIngredientCost, materials]
+    [calculateIngredientCost, materials, formatCost]
   );
+
   const removeIngredientFromVariant = useCallback((variantName: string, index: number) => {
     setVariantIngredients(prev => ({
       ...prev,
@@ -470,27 +143,37 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     }));
   }, []);
 
-  // Load existing variants when editing
   useEffect(() => {
     if (menuItem?.id && enableVariants) {
       const loadVariants = async () => {
         try {
           const existingVariants = await variantsAPI.getVariantsByMenuItemId(Number(menuItem.id));
-          setVariants(existingVariants);
-
-          // Set selected variant types and inputs based on existing variants
+          setVariants(existingVariants as ExtendedVariant[]);
           const selectedTypes = existingVariants.map(v => v.name);
           setSelectedVariantTypes(selectedTypes);
-
           const inputs: Record<string, { volume: string; unit: string; price: string }> = {};
+          const variantIngredientsData: Record<string, MenuItemIngredient[]> = {};
           existingVariants.forEach(variant => {
             inputs[variant.name] = {
-              volume: variant.volume,
+              volume: String(variant.volume),
               unit: variant.unit,
-              price: variant.price
+              price: String(variant.price)
             };
+            variantIngredientsData[variant.name] = [];
+            const extendedVariant = variant as ExtendedVariant;
+            if (extendedVariant.ingredients && Array.isArray(extendedVariant.ingredients)) {
+              variantIngredientsData[variant.name] = extendedVariant.ingredients.map(ingredient => ({
+                materialId: ingredient.materialId,
+                quantity: ingredient.quantity,
+                unit: ingredient.unit,
+                cost: ingredient.cost || 0,
+                type: ingredient.type || "material"
+              }));
+            }
           });
+
           setVariantInputs(inputs);
+          setVariantIngredients(variantIngredientsData);
         } catch (error) {
           console.error("Failed to load variants:", error);
         }
@@ -504,26 +187,19 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       setCategoryId("");
       return;
     }
-
-    // If category is already an ID
     if (typeof menuItem.category === "string") {
       setCategoryId(menuItem.category);
       return;
     }
-
-    // If category is an object
     if (typeof menuItem.category === "object" && menuItem.category !== null) {
-      // Try to find by id
       if ("id" in menuItem.category) {
         setCategoryId(String(menuItem.category.id));
         return;
       }
-      // Try to find by _id
       if ("_id" in menuItem.category && (menuItem.category as any)._id) {
         setCategoryId(String((menuItem.category as any)._id));
         return;
       }
-      // Try to find by name
       if ("name" in menuItem.category && (menuItem.category as any).name) {
         const categoryObj = categories.find(cat => cat.name === (menuItem.category as any).name || cat.id === (menuItem.category as any).id);
         if (categoryObj) {
@@ -532,8 +208,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         }
       }
     }
-
-    // If we get here, we couldn't determine the category
     setCategoryId("");
   }, [menuItem?.category, categories]);
 
@@ -547,23 +221,40 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     const newErrors: typeof errors = {};
     if (!name.trim()) newErrors.name = "Name is required";
     if (!categoryId) newErrors.category = "Category is required";
-
-    // Price validation - only required if no variants are selected
     if (selectedVariantTypes.length === 0) {
       if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
         newErrors.price = "Price is required";
+      }
+    } else {
+      let hasInvalidVariantPrice = false;
+      let hasEmptyVariantPrice = false;
+      for (const variantName of selectedVariantTypes) {
+        const variantPrice = variantInputs[variantName]?.price;
+        if (!variantPrice || variantPrice.trim() === "") {
+          hasEmptyVariantPrice = true;
+          break;
+        }
+        const priceValue = parseFloat(variantPrice);
+        if (isNaN(priceValue) || priceValue <= 0) {
+          hasInvalidVariantPrice = true;
+          break;
+        }
+      }
+      if (hasEmptyVariantPrice) {
+        newErrors.variants = "All variants must have a price";
+      } else if (hasInvalidVariantPrice) {
+        newErrors.variants = "All variant prices must be greater than zero";
       }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, categoryId, price, selectedVariantTypes]);
+  }, [name, categoryId, price, selectedVariantTypes, variantInputs]);
 
   useEffect(() => {
     validateForm();
-  }, [name, categoryId, price, selectedVariantTypes, validateForm]);
+  }, [name, categoryId, price, selectedVariantTypes, variantInputs, validateForm]);
 
-  // Initialize form data when editing existing menu item or when beverageStockEntries changes
   useEffect(() => {
     if (menuItem) {
       setName(menuItem.name || "");
@@ -613,10 +304,8 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     }
   };
 
-  // Create variants after menu item is created/updated
   const createVariants = async (menuItemId: number) => {
     if (selectedVariantTypes.length === 0) return;
-
     const variantsToCreate: CreateVariantData[] = selectedVariantTypes.map((variantName, index) => {
       const input = variantInputs[variantName];
       return {
@@ -642,16 +331,12 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     }
   };
 
-  // Update variants for existing menu item
   const updateVariants = async (menuItemId: number) => {
     try {
-      // Delete existing variants
       if (variants.length > 0) {
         const variantIds = variants.map(v => v.id);
         await variantsAPI.deleteVariantsBulk(variantIds);
       }
-
-      // Create new variants
       await createVariants(menuItemId);
     } catch (error) {
       console.error("Failed to update variants:", error);
@@ -677,13 +362,11 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       });
       return;
     }
-
-    // Prepare form data matching BeverageItemFormProps.onSubmit signature
     const formData: Omit<MenuItem, "id" | "createdAt" | "updatedAt"> & {
       imageFile?: File;
-      id?: string | number; // Add id for updates
+      id?: string | number;
     } = {
-      ...(menuItem?.id && { id: menuItem.id }), // Include ID for updates
+      ...(menuItem?.id && { id: menuItem.id }),
       name,
       category: selectedCategoryObj
         ? {
@@ -695,7 +378,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       price: parseFloat(price),
       description: "",
       ingredients: ingredients.length > 0 ? ingredients : [],
-      menuItemSauces: [], // Add required menuItemSauces property
+      menuItemSauces: [],
       isPOSItem,
       image: image || "",
       imageFile: imageFile,
@@ -703,14 +386,11 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
       unit: "piece",
       availableQuantity: selectedBeverageStock?.purchasedQuantity ? parseFloat(selectedBeverageStock.purchasedQuantity.toString()) : undefined,
       costPerUnit: selectedBeverageStock?.costPerPurchasedUnit ? parseFloat(selectedBeverageStock.costPerPurchasedUnit.toString()) : undefined,
-      variants: undefined // Remove variants from form data - handled separately
+      variants: undefined
     };
 
     try {
-      // Submit the menu item first
       const result = await onSubmit(formData);
-
-      // Handle variants after menu item is created/updated
       if (enableVariants && selectedVariantTypes.length > 0) {
         const menuItemId = menuItem?.id ? Number(menuItem.id) : (result as any)?.id;
         if (menuItemId) {
@@ -721,8 +401,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
           }
         }
       }
-
-      // Reset form
       setName("");
       setCategoryId("");
       setPrice("");
@@ -870,32 +548,35 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                       {/* Existing Ingredients Table */}
                       {variantIngredients[variantName] && variantIngredients[variantName].length > 0 && (
                         <div className="mb-4">
-                          <div className="grid grid-cols-5 gap-2 text-xs font-medium text-gray-600 mb-2 px-2">
-                            <div>Ingredient</div>
-                            <div>Quantity</div>
-                            <div>Unit</div>
-                            <div>Cost</div>
-                            <div></div>
+                          {/* Variant ingredients list */}
+                          <div className="mt-4">
+                            <h4 className="text-sm font-medium mb-2">Ingredients:</h4>
+                            <ul className="space-y-2">
+                              {variantIngredients[variantName].map((ingredient, idx) => {
+                                const material = materials.find(m => String(m.id) === ingredient.materialId);
+                                return (
+                                  <li key={idx} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded border border-gray-200">
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">{material?.name}</span>
+                                      <div className="flex gap-2 text-xs text-gray-600">
+                                        <span>
+                                          {ingredient.quantity} {ingredient.unit}
+                                        </span>
+                                        <span>·</span>
+                                        <span>Cost: {typeof ingredient.cost === "number" ? ingredient.cost.toFixed(6) : ingredient.cost}</span>
+                                      </div>
+                                    </div>
+                                    <button type="button" onClick={() => removeIngredientFromVariant(variantName, idx)} className="text-red-500 hover:text-red-700 flex items-center gap-1" title="Remove ingredient">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                      </svg>
+                                      <span className="text-xs">Remove</span>
+                                    </button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
                           </div>
-                          {variantIngredients[variantName].map((ingredient, index) => {
-                            const material = materials?.find(m => String(m.id) === ingredient.materialId);
-                            return (
-                              <div key={index} className="grid grid-cols-5 gap-2 items-center py-2 px-2 border rounded mb-2">
-                                <div className="text-sm font-medium">
-                                  {material?.name || "Unknown Material"}
-                                  <div className="text-xs text-gray-500">Material</div>
-                                </div>
-                                <div className="text-sm">{ingredient.quantity}</div>
-                                <div className="text-sm">{ingredient.unit}</div>
-                                <div className="text-sm font-medium">${ingredient.cost.toFixed(2)}</div>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => removeIngredientFromVariant(variantName, index)} className="h-6 w-6 p-0 text-red-500 hover:text-red-700">
-                                  ×
-                                </Button>
-                              </div>
-                            );
-                          })}
-
-                          {/* Total Cost */}
                           <div className="border-t pt-2 mt-2">
                             <div className="flex justify-between text-sm font-medium">
                               <span>Total Ingredients Cost:</span>
@@ -974,7 +655,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         />
       )}
 
-      {/* Image Upload Section */}
       <div className="border-t pt-4">
         <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
       </div>
