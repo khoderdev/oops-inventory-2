@@ -81,17 +81,6 @@ export const useMenuItemColumns = ({ searchTerm, categories, calculateMenuItemCo
       size: 100
     }),
 
-    // Cost column
-    // columnHelper.display({
-    //   id: "cost",
-    //   header: "Cost",
-    //   cell: ({ row }) => {
-    //     const ingredients = row.original.ingredients || [];
-    //     const totalCost = calculateMenuItemCost(ingredients);
-    //     return <div className="text-left font-medium">{formatCurrency(totalCost)}</div>;
-    //   },
-    //   size: 96
-    // }),
 
     // Price column
     columnHelper.accessor("price", {

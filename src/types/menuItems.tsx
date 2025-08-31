@@ -166,6 +166,7 @@ export interface BeveragesMenuColumnsProps {
   categories: any[];
   bulkSelectionMode: boolean;
   handleTogglePOSVisibility: (item: MenuItem) => void;
+  handleOpenPrinterDialog: (menuItem: MenuItem) => void;
   handleEditBeverageItem: (item: MenuItem) => void;
   handleDeleteBeverageItem: (id: string) => void;
 }

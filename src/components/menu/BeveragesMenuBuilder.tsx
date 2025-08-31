@@ -7,7 +7,7 @@ import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "../ui/tooltip";
-import { Plus, Search, Check, X, Square, CheckSquare } from "lucide-react";
+import { Plus, Search, Check, X, Square, CheckSquare, Printer } from "lucide-react";
 import { menuAPI, materialsAPI, stockAPI } from "@/api/inventory.api";
 import { Material } from "@/types/inventory";
 import { toast } from "../ui/use-toast";
@@ -15,12 +15,14 @@ import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { BeveragesMenuBuilderProps } from "@/types/menuItems";
 import { BeverageItemFormDialog, BeverageDetailsDialog } from "./components/BeveragesMenuDialogs";
 import { useBeveragesMenuColumns } from "./components/BeveragesMenuColumns";
+import { PrinterAssignmentDialog } from "../inventory/PrinterAssignmentDialog";
+import { BulkPrinterAssignmentDialog } from "../inventory/BulkPrinterAssignmentDialog";
 
 const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, categories, onCreateBeverageItem, onUpdateBeverageItem, onDeleteBeverageItem }) => {
   const { fetchTabData } = useInventoryStore();
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<MenuItemCategory | "all">("all");
   const [showBeverageItemForm, setShowBeverageItemForm] = useState(false);
@@ -29,17 +31,17 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
   const [selectedBeverageItems, setSelectedBeverageItems] = useState<Set<string>>(new Set());
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedBeverageDetails, setSelectedBeverageDetails] = useState<MenuItem | null>(null);
+  const [showPrinterDialog, setShowPrinterDialog] = useState(false);
+  const [selectedMenuItemForPrinter, setSelectedMenuItemForPrinter] = useState<MenuItem | null>(null);
+  const [showBulkPrinterDialog, setShowBulkPrinterDialog] = useState(false);
 
   // Fetch materials and stock entries on component mount
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch materials
         const materialsData = await materialsAPI.getMaterials();
         setMaterials(materialsData);
-
-        // Fetch stock entries
         const stockData = await stockAPI.getStockEntries({
           limit: 1000,
           includeMaterial: "true"
@@ -107,12 +109,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
         if (!response) {
           throw new Error("Failed to update beverage item POS visibility");
         }
-        toast({
-          title: "Success",
-          description: `${item.name} is now ${newPOSStatus ? "available in" : "hidden from"} POS`,
-          variant: "default",
-          duration: 1000
-        });
         await fetchTabData("menu");
         if (onUpdateBeverageItem) {
           onUpdateBeverageItem(item.id, { ...item, isPOSItem: newPOSStatus });
@@ -132,11 +128,8 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
 
   // Handlers
   const handleEditBeverageItem = useCallback((menuItem: MenuItem) => {
-    // Create a deep copy of the menu item to avoid reference issues
     const menuItemCopy = JSON.parse(JSON.stringify(menuItem));
-    // Ensure the category is properly set
     if (menuItemCopy.category) {
-      // If category is a string, try to find the full category object
       if (typeof menuItemCopy.category === 'string') {
         const categoryObj = categories.find(cat => cat.id === menuItemCopy.category || cat.name === menuItemCopy.category);
         if (categoryObj) {
@@ -179,12 +172,6 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
           categoryId: categoryId
         };
         await onUpdateBeverageItem(id, updateData);
-        toast({
-          title: "Success",
-          description: "Beverage item updated successfully",
-          variant: "default",
-          duration: 1000
-        });
         handleCloseModal();
       } catch (error) {
         console.error("Error updating beverage item:", error);
@@ -208,11 +195,46 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
     [onDeleteBeverageItem]
   );
 
+  const handleOpenPrinterDialog = useCallback((menuItem: MenuItem) => {
+    setSelectedMenuItemForPrinter(menuItem);
+    setShowPrinterDialog(true);
+  }, []);
+
+  const handleClosePrinterDialog = useCallback(() => {
+    setShowPrinterDialog(false);
+    setSelectedMenuItemForPrinter(null);
+  }, []);
+
+  const handlePrinterAssignment = useCallback(async () => {
+    handleClosePrinterDialog();
+  }, [handleClosePrinterDialog]);
+
+  const handleBulkPrinterAssignment = useCallback(() => {
+    if (selectedBeverageItems.size > 0) {
+      setShowBulkPrinterDialog(true);
+    } else {
+      toast({
+        title: "No items selected",
+        description: "Please select at least one menu item",
+        variant: "destructive",
+        duration: 1000
+      });
+    }
+  }, [selectedBeverageItems]);
+
+  const handleBulkPrinterAssignmentComplete = useCallback(() => {
+    setShowBulkPrinterDialog(false);
+    // Clear selection after assignment
+    setSelectedBeverageItems(new Set());
+    setBulkSelectionMode(false);
+  }, []);
+
   // Use the extracted columns component
   const { columns } = useBeveragesMenuColumns({
     categories,
     bulkSelectionMode,
     handleTogglePOSVisibility,
+    handleOpenPrinterDialog,
     handleEditBeverageItem,
     handleDeleteBeverageItem
   });
@@ -378,6 +400,26 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                 handleEditBeverageItem(menuItem);
               }}
             />
+
+            {/* Printer Assignment Dialog */}
+            {selectedMenuItemForPrinter && (
+              <PrinterAssignmentDialog
+                open={showPrinterDialog}
+                onOpenChange={setShowPrinterDialog}
+                item={selectedMenuItemForPrinter}
+                itemType="menu"
+                onAssignmentChange={handlePrinterAssignment}
+              />
+            )}
+            
+            {/* Bulk Printer Assignment Dialog */}
+            <BulkPrinterAssignmentDialog
+              open={showBulkPrinterDialog}
+              onOpenChange={setShowBulkPrinterDialog}
+              selectedItems={selectedBeverageItems}
+              itemType="menu"
+              onAssignmentChange={handleBulkPrinterAssignmentComplete}
+            />
           </CardContent>
         </Card>
 
@@ -397,6 +439,23 @@ const BeveragesMenuBuilder: React.FC<BeveragesMenuBuilderProps> = ({ menuItems, 
                       <p>{selectedBeverageItems.size === filteredBeverageItems.length ? "Deselect all beverage items" : "Select all visible beverage items"}</p>
                     </TooltipContent>
                   </Tooltip>
+                  
+                  {selectedBeverageItems.size > 0 && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          className="h-9 px-3 rounded-full bg-white/95 backdrop-blur-sm hover:bg-white text-gray-700 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 text-xs font-medium border border-blue-500"
+                          onClick={handleBulkPrinterAssignment}
+                        >
+                          <Printer className="h-3.5 w-3.5 mr-1.5" />
+                          Assign Printer
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Assign printer to selected items</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
               </div>
             )}

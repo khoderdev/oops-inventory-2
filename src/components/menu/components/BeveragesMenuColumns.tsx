@@ -3,11 +3,11 @@ import { MenuItem } from "@/types/inventory";
 import { createColumnHelper } from "@tanstack/react-table";
 import { Button } from "../../ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent } from "../../ui/tooltip";
-import { Eye, Edit, Trash2 } from "lucide-react";
+import { Eye, Edit, Printer, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { BeveragesMenuColumnsProps } from "@/types/menuItems";
 
-export const useBeveragesMenuColumns = ({ categories, bulkSelectionMode, handleTogglePOSVisibility, handleEditBeverageItem, handleDeleteBeverageItem }: BeveragesMenuColumnsProps) => {
+export const useBeveragesMenuColumns = ({ categories, bulkSelectionMode, handleTogglePOSVisibility, handleOpenPrinterDialog, handleEditBeverageItem, handleDeleteBeverageItem }: BeveragesMenuColumnsProps) => {
   const columnHelper = createColumnHelper<MenuItem>();
 
   const columns = useMemo(
@@ -98,6 +98,25 @@ export const useBeveragesMenuColumns = ({ categories, bulkSelectionMode, handleT
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleOpenPrinterDialog(row.original);
+                  }}
+                  aria-label={`Assign printer to ${row.original.name}`}
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Assign printer to {row.original.name}</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={e => {
@@ -137,7 +156,7 @@ export const useBeveragesMenuColumns = ({ categories, bulkSelectionMode, handleT
         size: 120
       })
     ],
-    [categories, bulkSelectionMode, handleTogglePOSVisibility, handleEditBeverageItem, handleDeleteBeverageItem]
+    [categories, bulkSelectionMode, handleTogglePOSVisibility, handleOpenPrinterDialog, handleEditBeverageItem, handleDeleteBeverageItem]
   );
 
   return { columns, columnHelper };
