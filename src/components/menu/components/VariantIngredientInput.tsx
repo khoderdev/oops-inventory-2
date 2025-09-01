@@ -24,6 +24,25 @@ interface VariantIngredientInputProps {
 }
 
 export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ variantName, materials, stockEntries, sauces = [], existingIngredients = [], onAddIngredient, onRemoveIngredient, errors = {} }) => {
+  
+  // Define variant color schemes
+  const getVariantColorScheme = (variant: string) => {
+    const colorSchemes = {
+      // Container types
+      bottle: { border: "border-blue-300", bg: "bg-blue-50", badge: "bg-blue-100 text-blue-800", accent: "border-l-blue-500" },
+      can: { border: "border-green-300", bg: "bg-green-50", badge: "bg-green-100 text-green-800", accent: "border-l-green-500" },
+      glass: { border: "border-purple-300", bg: "bg-purple-50", badge: "bg-purple-100 text-purple-800", accent: "border-l-purple-500" },
+      large: { border: "border-indigo-300", bg: "bg-indigo-50", badge: "bg-indigo-100 text-indigo-800", accent: "border-l-indigo-500" },
+      shot: { border: "border-red-300", bg: "bg-red-50", badge: "bg-red-100 text-red-800", accent: "border-l-red-500" },
+      // Default fallback
+      default: { border: "border-slate-300", bg: "bg-slate-50", badge: "bg-slate-100 text-slate-800", accent: "border-l-slate-500" }
+    };
+    
+    const variantLower = variant.toLowerCase();
+    return colorSchemes[variantLower as keyof typeof colorSchemes] || colorSchemes.default;
+  };
+
+  const colorScheme = getVariantColorScheme(variantName);
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
   const [ingredientQuantity, setIngredientQuantity] = useState("");
@@ -234,7 +253,7 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
       },
       container: {
         label: "Container",
-        units: ["bottle", "can", "pint", "pitcher", "mini", "standard", "magnum"]
+        units: ["bottle", "can"]
       },
       count: {
         label: "Count",
@@ -412,7 +431,7 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
               const itemName = material?.name || sauce?.name || `Material ID: ${ingredient.materialId}`;
               
               return (
-                <div key={idx} className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded border border-gray-200">
+                <div key={idx} className={`p-3 border ${colorScheme.border} rounded-lg ${colorScheme.bg} border-l-4 ${colorScheme.accent} flex items-center justify-between`}>
                   <div className="flex flex-col">
                     <span className="font-medium">{itemName}</span>
                     <div className="flex gap-2 text-xs text-gray-600">
