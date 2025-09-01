@@ -58,7 +58,7 @@ export function VariantIngredientForm({
 
   const availableUnits = useMemo(() => {
     if (ingredientType === "material" && selectedMaterial) {
-      return getAvailableUnits(selectedMaterial.unitType);
+      return getAvailableUnits(selectedMaterial.unitType, selectedMaterial.unit);
     }
     if (ingredientType === "sauce" && selectedSauce) {
       return [selectedSauce.yieldUnit || "ml"];

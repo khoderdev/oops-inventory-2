@@ -186,10 +186,5 @@ export const availableVariantTypes = [
   { name: "glass", defaultVolume: 200, defaultUnit: "ml", defaultPrice: 0 },
   { name: "shot", defaultVolume: 10, defaultUnit: "ml", defaultPrice: 0 },
   { name: "can", defaultVolume: 33, defaultUnit: "cl", defaultPrice: 0 },
-  { name: "bottle", defaultVolume: 75, defaultUnit: "cl", defaultPrice: 0 },
-  { name: "pint", defaultVolume: 47, defaultUnit: "cl", defaultPrice: 0 },
-  { name: "pitcher", defaultVolume: 150, defaultUnit: "cl", defaultPrice: 0 },
-  { name: "mini", defaultVolume: 18, defaultUnit: "cl", defaultPrice: 0 },
-  { name: "standard", defaultVolume: 70, defaultUnit: "cl", defaultPrice: 0 },
-  { name: "magnum", defaultVolume: 150, defaultUnit: "cl", defaultPrice: 0 }
+  { name: "bottle", defaultVolume: 75, defaultUnit: "cl", defaultPrice: 0 }
 ];

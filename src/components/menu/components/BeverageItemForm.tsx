@@ -549,12 +549,42 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
 
           {/* Variant Type Selection */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-4">
-            {availableVariantTypes.map(variantType => (
-              <label key={variantType.name} className="flex items-center space-x-2 cursor-pointer">
-                <input type="checkbox" checked={selectedVariantTypes.includes(variantType.name)} onChange={e => handleVariantTypeChange(variantType.name, e.target.checked)} className="rounded border-gray-300" />
-                <span className="text-sm capitalize">{variantType.name}</span>
-              </label>
-            ))}
+            {availableVariantTypes.map((variantType, index) => {
+              const isSelected = selectedVariantTypes.includes(variantType.name);
+              const colorClasses = [
+                { border: 'border-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
+                { border: 'border-green-500', bg: 'bg-green-50', text: 'text-green-700' },
+                { border: 'border-purple-500', bg: 'bg-purple-50', text: 'text-purple-700' },
+                { border: 'border-orange-500', bg: 'bg-orange-50', text: 'text-orange-700' },
+                { border: 'border-pink-500', bg: 'bg-pink-50', text: 'text-pink-700' },
+                { border: 'border-indigo-500', bg: 'bg-indigo-50', text: 'text-indigo-700' },
+                { border: 'border-red-500', bg: 'bg-red-50', text: 'text-red-700' },
+                { border: 'border-teal-500', bg: 'bg-teal-50', text: 'text-teal-700' }
+              ];
+              const colorClass = colorClasses[index % colorClasses.length];
+              
+              return (
+                <label 
+                  key={variantType.name} 
+                  className={`
+                    relative flex items-center justify-center p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ease-in-out
+                    ${isSelected 
+                      ? `${colorClass.border} ${colorClass.bg} ${colorClass.text} shadow-md` 
+                      : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                    }
+                    hover:shadow-sm active:scale-95
+                  `}
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={isSelected} 
+                    onChange={e => handleVariantTypeChange(variantType.name, e.target.checked)} 
+                    className="sr-only" 
+                  />
+                  <span className="text-sm font-medium capitalize">{variantType.name}</span>
+                </label>
+              );
+            })}
           </div>
 
           {/* Variant Configuration */}
@@ -564,8 +594,22 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                 const input = variantInputs[variantName];
                 if (!input) return null;
 
+                // Find the index of this variant in the availableVariantTypes to get matching color
+                const variantIndex = availableVariantTypes.findIndex(vt => vt.name === variantName);
+                const colorClasses = [
+                  { border: 'border-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' },
+                  { border: 'border-green-500', bg: 'bg-green-50', text: 'text-green-700' },
+                  { border: 'border-purple-500', bg: 'bg-purple-50', text: 'text-purple-700' },
+                  { border: 'border-orange-500', bg: 'bg-orange-50', text: 'text-orange-700' },
+                  { border: 'border-pink-500', bg: 'bg-pink-50', text: 'text-pink-700' },
+                  { border: 'border-indigo-500', bg: 'bg-indigo-50', text: 'text-indigo-700' },
+                  { border: 'border-red-500', bg: 'bg-red-50', text: 'text-red-700' },
+                  { border: 'border-teal-500', bg: 'bg-teal-50', text: 'text-teal-700' }
+                ];
+                const colorClass = colorClasses[variantIndex % colorClasses.length];
+
                 return (
-                  <div key={variantName} className="border rounded-md p-4 space-y-4">
+                  <div key={variantName} className={`border-2 rounded-md p-4 space-y-4 ${colorClass.border} ${colorClass.bg}`}>
                     <h5 className="font-medium mb-2 capitalize">{variantName}</h5>
 
                     {/* Variant Basic Info */}
