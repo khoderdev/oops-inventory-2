@@ -3,45 +3,15 @@ import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { getAvailableUnits } from "@/utils/getAvailableUnits";
 import { getConversionFactor } from "@/utils/getConversionFactor";
-import { Material, MenuItemIngredient, Sauce, StockEntry } from "@/types/inventory";
+import { MenuItemIngredient } from "@/types/inventory";
 import { Selection } from "../../ui/Selection";
 import { Plus } from "lucide-react";
 import { calculateVariantIngredientCost } from "@/utils/calculateVariantIngredientCost";
 import { Badge } from "../../ui/badge";
-
-interface VariantIngredientInputProps {
-  variantName: string;
-  materials: Material[];
-  stockEntries: StockEntry[];
-  sauces?: Sauce[];
-  existingIngredients?: MenuItemIngredient[];
-  onAddIngredient: (variantName: string, ingredient: MenuItemIngredient) => void;
-  onRemoveIngredient?: (variantName: string, ingredientIndex: number) => void;
-  errors?: {
-    ingredients?: string;
-    ingredientQuantity?: string;
-  };
-}
+import { getVariantColorScheme, unitGroups, VariantIngredientInputProps } from "../constants";
+import { formatNumber, formatCurrency } from "@/utils/formatNumbers";
 
 export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ variantName, materials, stockEntries, sauces = [], existingIngredients = [], onAddIngredient, onRemoveIngredient, errors = {} }) => {
-  
-  // Define variant color schemes
-  const getVariantColorScheme = (variant: string) => {
-    const colorSchemes = {
-      // Container types
-      bottle: { border: "border-blue-300", bg: "bg-blue-50", badge: "bg-blue-100 text-blue-800", accent: "border-l-blue-500" },
-      can: { border: "border-green-300", bg: "bg-green-50", badge: "bg-green-100 text-green-800", accent: "border-l-green-500" },
-      glass: { border: "border-purple-300", bg: "bg-purple-50", badge: "bg-purple-100 text-purple-800", accent: "border-l-purple-500" },
-      large: { border: "border-indigo-300", bg: "bg-indigo-50", badge: "bg-indigo-100 text-indigo-800", accent: "border-l-indigo-500" },
-      shot: { border: "border-red-300", bg: "bg-red-50", badge: "bg-red-100 text-red-800", accent: "border-l-red-500" },
-      // Default fallback
-      default: { border: "border-slate-300", bg: "bg-slate-50", badge: "bg-slate-100 text-slate-800", accent: "border-l-slate-500" }
-    };
-    
-    const variantLower = variant.toLowerCase();
-    return colorSchemes[variantLower as keyof typeof colorSchemes] || colorSchemes.default;
-  };
-
   const colorScheme = getVariantColorScheme(variantName);
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
@@ -50,7 +20,6 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
   const [selectedItemType, setSelectedItemType] = useState<"material" | "sauce">("material");
   const materialSelectRef = useRef<HTMLInputElement>(null);
 
-  // Combine materials and sauces for selection
   const allSelectableItems = useMemo(() => {
     const materialItems = (materials || []).map(m => ({
       ...m,
@@ -65,7 +34,6 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
     return [...materialItems, ...sauceItems];
   }, [materials, sauces]);
 
-  // Filter available items (exclude beverages and already used items)
   const availableItems = useMemo(() => {
     const excludedCategories = ["beverages", "cold", "hot", "alcohol"];
     const result = allSelectableItems.filter(item => {
@@ -79,11 +47,8 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
         } else if (typeof material.category === "object" && material.category?.value) {
           categoryName = material.category.value.toLowerCase();
         }
-
-        // Allow beverage materials for beverage menu items (ingredients like syrups, mixers, etc.)
         const isBeverageCategory = categoryName.includes("beverage") || categoryName.includes("drink");
         const shouldExclude = excludedCategories.includes(categoryName) && !isBeverageCategory;
-
         return !shouldExclude;
       }
       return true;
@@ -91,7 +56,6 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
     return result;
   }, [allSelectableItems]);
 
-  // Filter items based on search term
   const filteredItems = useMemo(() => {
     if (!materialSearchTerm.trim()) {
       return availableItems;
@@ -100,12 +64,9 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
     return result;
   }, [availableItems, materialSearchTerm]);
 
-  // Calculate ingredient cost
   const calculateIngredientCost = useCallback(
     (ingredient: Omit<MenuItemIngredient, "cost">) => {
-      // Check if this is a sauce
       const isSauce = sauces.some(sauce => sauce.id.toString() === ingredient.materialId);
-
       if (isSauce) {
         const sauce = sauces.find(s => s.id.toString() === ingredient.materialId);
         if (!sauce) {
@@ -121,14 +82,11 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
           return 0;
         }
       }
-
-      // For materials, use the calculateVariantIngredientCost utility
       return calculateVariantIngredientCost(ingredient, materials, stockEntries);
     },
     [materials, stockEntries, sauces]
   );
 
-  // Handle material selection
   const handleMaterialSelect = useCallback(
     (itemId: string, itemName?: string) => {
       let actualId = itemId;
@@ -160,7 +118,6 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
     [materials, sauces]
   );
 
-  // Handle search term changes
   const handleMaterialSearchChange = useCallback((value: string) => {
     setMaterialSearchTerm(value);
     setSelectedMaterialId("");
@@ -168,7 +125,6 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
     setIngredientUnit("");
   }, []);
 
-  // Handle keyboard events
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -179,33 +135,27 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
     }
   };
 
-  // Handle adding ingredient
   const handleAddIngredient = useCallback(() => {
     if (!selectedMaterialId || !ingredientQuantity || !ingredientUnit) {
       return;
     }
-
     const quantity = parseFloat(ingredientQuantity);
     if (isNaN(quantity) || quantity <= 0) {
       return;
     }
-
     const selectedItem = allSelectableItems.find(item => {
       const prefixedId = `${selectedItemType}-${selectedMaterialId}`;
       return item.id === prefixedId;
     });
-
     if (!selectedItem) {
       return;
     }
-
     const cost = calculateIngredientCost({
       materialId: selectedMaterialId,
       quantity,
       unit: ingredientUnit,
       type: selectedItem.type
     });
-
     const newIngredient: MenuItemIngredient = {
       materialId: selectedMaterialId,
       quantity,
@@ -213,64 +163,19 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
       cost,
       type: selectedItem.type
     };
-
-    // Log the ingredient being added to the specific variant
-    console.log(`Adding ingredient to variant ${variantName}:`, {
-      ingredient: newIngredient,
-      materialName: materials.find(m => String(m.id) === selectedMaterialId)?.name || 'Unknown material'
-    });
-
-    // Call the parent component's handler with the variant name and new ingredient
     onAddIngredient(variantName, newIngredient);
-
-    // Clear input fields
     setSelectedMaterialId("");
     setMaterialSearchTerm("");
     setIngredientQuantity("");
     setIngredientUnit("");
     setSelectedItemType("material");
-    
-    // Focus back on the material search field for quick consecutive additions
     if (materialSelectRef.current) {
       materialSelectRef.current.focus();
     }
   }, [selectedMaterialId, selectedItemType, ingredientQuantity, ingredientUnit, allSelectableItems, calculateIngredientCost, onAddIngredient, variantName, materials]);
 
-  // Define unit groups for better organization
-  const unitGroups = useMemo(() => {
-    return {
-      mass: {
-        label: "Mass",
-        units: ["g", "kg", "lb", "oz"]
-      },
-      volume: {
-        label: "Volume",
-        units: ["ml", "cl", "dl", "l", "fl_oz", "cup", "pt", "qt", "gal"]
-      },
-      package: {
-        label: "Package",
-        units: ["piece", "box", "bag", "pack", "bottle", "can"]
-      },
-      container: {
-        label: "Container",
-        units: ["bottle", "can"]
-      },
-      count: {
-        label: "Count",
-        units: ["piece", "unit", "each", "serving"]
-      },
-      custom: {
-        label: "Custom",
-        units: []
-      }
-    };
-  }, []);
-
-  // Get available units for the selected material/sauce with grouping
   const availableUnitGroups = useMemo(() => {
     if (!selectedMaterialId) return [];
-
-    // Special case for beverage ingredients - always show all volume units and container types
     if (variantName) {
       return [
         {
@@ -283,12 +188,9 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
         }
       ];
     }
-
     if (selectedItemType === "sauce") {
       const sauce = sauces.find(s => String(s.id) === selectedMaterialId);
       if (!sauce) return [];
-
-      // For sauces, we typically only have one unit
       return [
         {
           label: "Sauce Unit",
@@ -313,7 +215,6 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
         });
       } else if (material.unitType === "package") {
         if (material.baseUnit === "bottle") {
-          // For bottled items, show both container types and volume units
           result.push({
             label: unitGroups.container.label,
             units: unitGroups.container.units
@@ -334,19 +235,16 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
             units: packageUnits
           });
         } else {
-          // Custom package units
           const customUnits = [material.baseUnit];
           if (material.inputUnit && material.inputUnit !== material.baseUnit) {
             customUnits.push(material.inputUnit);
           }
-
           result.push({
             label: "Package Units",
             units: customUnits
           });
         }
       } else {
-        // Default to all available units from the utility function
         const availableUnits = getAvailableUnits(selectedMaterialId, materials);
         result.push({
           label: "Available Units",
@@ -358,10 +256,8 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
     }
   }, [selectedMaterialId, selectedItemType, materials, sauces, unitGroups, variantName]);
 
-  // Format units for Selection component
   const unitSelectionItems = useMemo(() => {
     const items: { id: string; name: string; group: string }[] = [];
-
     availableUnitGroups.forEach(group => {
       group.units.forEach(unit => {
         items.push({
@@ -371,26 +267,17 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
         });
       });
     });
-
     return items;
   }, [availableUnitGroups]);
 
-  // Flatten all available units for validation
-  const availableUnits = useMemo(() => {
-    return availableUnitGroups.flatMap(group => group.units);
-  }, [availableUnitGroups]);
-
-  // State for unit search
   const [unitSearchTerm, setUnitSearchTerm] = useState("");
   const unitSelectRef = useRef<HTMLInputElement>(null);
 
-  // Handle unit selection and update search term
   const handleUnitSelect = useCallback((unitId: string, displayName: string) => {
     setIngredientUnit(unitId);
     setUnitSearchTerm(displayName);
   }, []);
 
-  // Update unit search term when unit changes or when material changes
   useEffect(() => {
     if (ingredientUnit) {
       const selectedUnit = unitSelectionItems.find(item => String(item.id) === ingredientUnit);
@@ -406,47 +293,34 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
     <div className="border-t pt-4 mt-2">
       <div className="flex items-center gap-2 mb-2">
         <h4 className="text-md font-medium">Variant Ingredients for</h4>
-        <Badge variant="outline" className="capitalize">{variantName}</Badge>
+        <Badge variant="outline" className="capitalize">
+          {variantName}
+        </Badge>
       </div>
       {errors.ingredients && <p className="text-sm text-red-500 mb-2">{errors.ingredients}</p>}
 
-      {/* Display existing ingredients */}
       {existingIngredients && existingIngredients.length > 0 && (
         <div className="mb-4">
           <h5 className="text-sm font-medium mb-2">Current Ingredients:</h5>
           <div className="space-y-2">
             {existingIngredients.map((ingredient, idx) => {
-              // Try to find material by ID (handle both string and number IDs)
-              const material = materials.find(m => 
-                String(m.id) === String(ingredient.materialId) || 
-                m.id === ingredient.materialId ||
-                Number(m.id) === Number(ingredient.materialId)
-              );
-              const sauce = sauces.find(s => 
-                String(s.id) === String(ingredient.materialId) || 
-                s.id === ingredient.materialId ||
-                Number(s.id) === Number(ingredient.materialId)
-              );
-              
+              const material = materials.find(m => String(m.id) === String(ingredient.materialId) || m.id === ingredient.materialId || Number(m.id) === Number(ingredient.materialId));
+              const sauce = sauces.find(s => String(s.id) === String(ingredient.materialId) || s.id === ingredient.materialId || Number(s.id) === Number(ingredient.materialId));
               const itemName = material?.name || sauce?.name || `Material ID: ${ingredient.materialId}`;
-              
               return (
                 <div key={idx} className={`p-3 border ${colorScheme.border} rounded-lg ${colorScheme.bg} border-l-4 ${colorScheme.accent} flex items-center justify-between`}>
                   <div className="flex flex-col">
                     <span className="font-medium">{itemName}</span>
                     <div className="flex gap-2 text-xs text-gray-600">
-                      <span>{ingredient.quantity} {ingredient.unit}</span>
+                      <span>
+                        {formatNumber(ingredient.quantity)} {ingredient.unit}
+                      </span>
                       <span>·</span>
-                      <span>Cost: ${typeof ingredient.cost === "number" ? ingredient.cost.toFixed(4) : ingredient.cost}</span>
+                      <span>Cost: {formatCurrency(ingredient.cost)}</span>
                     </div>
                   </div>
                   {onRemoveIngredient && (
-                    <button 
-                      type="button" 
-                      onClick={() => onRemoveIngredient(variantName, idx)} 
-                      className="text-red-500 hover:text-red-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 transition-colors" 
-                      title={`Remove ${itemName} from ${variantName}`}
-                    >
+                    <button type="button" onClick={() => onRemoveIngredient(variantName, idx)} className="text-red-500 hover:text-red-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 transition-colors" title={`Remove ${itemName} from ${variantName}`}>
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                       </svg>
@@ -460,7 +334,7 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
           <div className="border-t pt-2 mt-2">
             <div className="flex justify-between text-sm font-medium">
               <span>Total Ingredients Cost:</span>
-              <span>${existingIngredients.reduce((sum, ing) => sum + (typeof ing.cost === "number" ? ing.cost : Number(ing.cost) || 0), 0).toFixed(2)}</span>
+              <span>{formatCurrency(existingIngredients.reduce((sum, ing) => sum + (typeof ing.cost === "number" ? ing.cost : Number(ing.cost) || 0), 0))}</span>
             </div>
           </div>
         </div>
@@ -535,17 +409,10 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
       </div>
 
       <div className="flex justify-end mt-4">
-        <Button 
-          onClick={handleAddIngredient} 
-          disabled={!selectedMaterialId || !ingredientQuantity || !ingredientUnit} 
-          aria-label={`Add ingredient to ${variantName}`}
-          className="relative group"
-        >
+        <Button onClick={handleAddIngredient} disabled={!selectedMaterialId || !ingredientQuantity || !ingredientUnit} aria-label={`Add ingredient to ${variantName}`} className="relative group">
           <Plus className="h-4 w-4 mr-2" />
           Add to {variantName}
-          <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            Add ingredient to {variantName} variant
-          </span>
+          <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200">Add ingredient to {variantName} variant</span>
         </Button>
       </div>
     </div>

@@ -9,11 +9,33 @@ import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Minus, Package, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useWatch } from "react-hook-form";
+import type { Path, PathValue } from "react-hook-form";
+import { convertMass, convertVolume, isMassUnit, isVolumeUnit, formatNumber, formatCurrencyUI } from "@/utils/conversionLogic";
 
 export function UpdateEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: UpdateEntryTabProps) {
-  const [lastChangedField, setLastChangedField] = useState<string | null>(null);
+  // Utility functions for number handling and formatting
+  const toNumber = (v: string | undefined | null): number => {
+    if (!v || v === "") return NaN;
+    const n = parseFloat(v);
+    return isNaN(n) || !isFinite(n) ? NaN : n;
+  };
+
+  const fmtMoney = (n: number): string => {
+    if (isNaN(n) || !isFinite(n)) return "";
+    return Math.max(0, n).toFixed(2);
+  };
+
+  const setValue = <K extends Path<StockFormInputs>>(name: K, value: PathValue<StockFormInputs, K>) => {
+    form.setValue(name, value, { shouldValidate: true });
+  };
+
+  const fmtCPU = (n: number): string => {
+    if (!isFinite(n) || isNaN(n) || n < 0) return "";
+    const s = formatCurrencyUI(n);
+    return s.startsWith("$") ? s.slice(1) : s;
+  };
 
   // Ensure materialId is always a string
   useEffect(() => {
@@ -47,68 +69,133 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     }
   }, [stockEntry, materials, form]);
 
-  // Combined effect for handling all field changes and calculations
-  useEffect(() => {
-    const isQuantityEmpty = watchedQuantity === "";
-    const isCostPerUnitEmpty = watchedCostPerUnit === "";
-    const isTotalCostEmpty = watchedTotalCost === "";
-    const quantity = isQuantityEmpty ? 0 : parseFloat(watchedQuantity);
-    const costPerUnit = isCostPerUnitEmpty ? 0 : parseFloat(watchedCostPerUnit);
-    const totalCost = isTotalCostEmpty ? 0 : parseFloat(watchedTotalCost);
+  // Recompute functions for handling field changes without infinite loops
+  const recomputeFromQuantity = (qtyStr: string) => {
+    setValue("purchasedQuantity", qtyStr);
+    const qty = toNumber(qtyStr);
+    const total = toNumber(form.getValues("totalCost"));
+    const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
     
-    if (lastChangedField === "totalCost") {
-      // When total cost changes directly
-      console.log("🔄 Total Cost changed manually:", watchedTotalCost);
-      
-      // Calculate cost per unit if quantity is available
-      if (quantity > 0) {
-        const calculatedCostPerUnit = totalCost / quantity;
-        console.log("📊 Updating cost per unit based on total cost:", calculatedCostPerUnit);
-        form.setValue(
-          "costPerPurchasedUnit", 
-          isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toFixed(6), 
-          { shouldValidate: true }
-        );
-      }
-      // Don't override the total cost that was just entered
-    } else if (lastChangedField === "purchasedQuantity") {
-      if (isQuantityEmpty) {
-        if (!isCostPerUnitEmpty) {
-          form.setValue("totalCost", "", { shouldValidate: true });
-        }
-      } else if (quantity > 0) {
-        if (costPerUnit > 0) {
-          const calculatedTotal = quantity * costPerUnit;
-          console.log("📊 Quantity changed, updating total cost:", calculatedTotal);
-          form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
-        } else if (!isTotalCostEmpty) {
-          const calculatedCostPerUnit = totalCost / quantity;
-          if (!isNaN(calculatedCostPerUnit) && calculatedCostPerUnit > 0) {
-            form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toFixed(6), { shouldValidate: true });
-          }
-        }
-      }
-    } else if (lastChangedField === "costPerPurchasedUnit") {
-      if (isCostPerUnitEmpty) {
-        if (!isQuantityEmpty) {
-          form.setValue("totalCost", "", { shouldValidate: true });
-        }
-      } else if (costPerUnit > 0) {
-        if (quantity > 0) {
-          const calculatedTotal = quantity * costPerUnit;
-          console.log("📊 Cost per unit changed, updating total cost:", calculatedTotal);
-          form.setValue("totalCost", calculatedTotal.toFixed(2), { shouldValidate: true });
-        } else if (!isTotalCostEmpty) {
-          const calculatedQuantity = totalCost / costPerUnit;
-          if (!isNaN(calculatedQuantity) && calculatedQuantity > 0) {
-            form.setValue("purchasedQuantity", Math.round(calculatedQuantity).toString(), { shouldValidate: true });
-          }
-        }
+    if (isNaN(qty) || qty <= 0) {
+      setValue("totalCost", "");
+      return;
+    }
+    
+    if (!isNaN(cpu) && cpu > 0) {
+      setValue("totalCost", fmtMoney(qty * cpu));
+    } else if (!isNaN(total)) {
+      setValue("costPerPurchasedUnit", fmtCPU(total / qty));
+    } else {
+      setValue("totalCost", "");
+      setValue("costPerPurchasedUnit", "");
+    }
+  };
+
+  const recomputeFromTotal = (totalStr: string) => {
+    setValue("totalCost", totalStr);
+    const total = toNumber(totalStr);
+    const qty = toNumber(form.getValues("purchasedQuantity"));
+    const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
+    
+    if (isNaN(total)) {
+      setValue("costPerPurchasedUnit", "");
+      return;
+    }
+    
+    if (!isNaN(qty) && qty > 0) {
+      setValue("costPerPurchasedUnit", fmtCPU(total / qty));
+    } else if (!isNaN(cpu) && cpu > 0) {
+      const calcQty = total / cpu;
+      if (isFinite(calcQty) && !isNaN(calcQty) && calcQty > 0) {
+        const unit = form.getValues("purchasedUnit");
+        setValue("purchasedQuantity", formatNumber(calcQty, unit));
       }
     }
-  }, [watchedQuantity, watchedCostPerUnit, watchedTotalCost, lastChangedField, form]);
-  const handleSubmit = (data: StockFormInputs) => {
-    const formData = data as unknown as StockFormData;
+  };
+
+  const recomputeFromCPU = (cpuStr: string) => {
+    setValue("costPerPurchasedUnit", cpuStr);
+    const cpu = toNumber(cpuStr);
+    const qty = toNumber(form.getValues("purchasedQuantity"));
+    const total = toNumber(form.getValues("totalCost"));
+    
+    if (isNaN(cpu)) {
+      setValue("totalCost", "");
+      return;
+    }
+    
+    if (!isNaN(qty) && qty > 0) {
+      setValue("totalCost", fmtMoney(qty * cpu));
+    } else if (!isNaN(total) && cpu > 0) {
+      const calcQty = total / cpu;
+      if (isFinite(calcQty) && !isNaN(calcQty)) {
+        const unit = form.getValues("purchasedUnit");
+        setValue("purchasedQuantity", formatNumber(Math.max(0, calcQty), unit));
+      }
+    }
+  };
+
+  const handleUnitChange = (newUnit: string) => {
+    const currentUnit = form.getValues("purchasedUnit");
+    if (!newUnit) return;
+    setValue("purchasedUnit", newUnit);
+    if (!currentUnit || newUnit === currentUnit) return;
+    
+    const qty = toNumber(form.getValues("purchasedQuantity"));
+    if (isNaN(qty) || qty <= 0) return;
+    
+    let newQty = qty;
+    if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
+      newQty = convertMass(qty, currentUnit, newUnit);
+    } else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
+      newQty = convertVolume(qty, currentUnit, newUnit);
+    } else {
+      return;
+    }
+    
+    const total = toNumber(form.getValues("totalCost"));
+    const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
+    setValue("purchasedQuantity", formatNumber(newQty, newUnit));
+    
+    if (!isNaN(total) && newQty > 0) {
+      setValue("costPerPurchasedUnit", fmtCPU(total / newQty));
+    } else if (!isNaN(cpu)) {
+      let cpuNew = cpu;
+      if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
+        const oneNewInOld = convertMass(1, newUnit, currentUnit);
+        cpuNew = cpu * oneNewInOld;
+      } else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
+        const oneNewInOld = convertVolume(1, newUnit, currentUnit);
+        cpuNew = cpu * oneNewInOld;
+      }
+      setValue("costPerPurchasedUnit", fmtCPU(cpuNew));
+      setValue("totalCost", fmtMoney(cpuNew * newQty));
+    }
+  };
+  const handleSubmit = async (data: StockFormInputs) => {
+    await form.trigger();
+    const qty = toNumber(data.purchasedQuantity);
+    const total = toNumber(data.totalCost);
+    const cpu = !data.costPerPurchasedUnit || data.costPerPurchasedUnit === "" ? (!isNaN(qty) && qty > 0 && !isNaN(total) ? total / qty : NaN) : toNumber(data.costPerPurchasedUnit);
+    
+    if (isNaN(qty) || qty <= 0) {
+      form.setError("purchasedQuantity", { type: "manual", message: "Quantity must be greater than 0" });
+    }
+    if (isNaN(cpu) || cpu < 0) {
+      form.setError("costPerPurchasedUnit", { type: "manual", message: "Cost per unit must be ≥ 0" });
+    }
+    
+    const hasErrors = Object.keys(form.formState.errors).length > 0;
+    if (hasErrors) {
+      const firstError = Object.keys(form.formState.errors)[0] as keyof StockFormInputs | undefined;
+      if (firstError) form.setFocus(firstError as any);
+      return;
+    }
+    
+    const formData: StockFormData = {
+      ...(data as any),
+      costPerPurchasedUnit: fmtMoney(cpu)
+    } as unknown as StockFormData;
     onSubmit(formData);
   };
 
@@ -202,10 +289,9 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         size="icon"
                         className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
                         onClick={() => {
-                          const currentValue = parseInt(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 1);
-                          field.onChange(newValue.toString());
-                          setLastChangedField("purchasedQuantity");
+                          const current = Number(field.value) || 0;
+                          const next = Math.max(0, current - 1).toString();
+                          recomputeFromQuantity(next);
                         }}
                         disabled={parseInt(field.value) <= 0}
                       >
@@ -218,8 +304,10 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         placeholder="0"
                         {...field}
                         onChange={e => {
-                          field.onChange(e.target.value === "" ? "" : e.target.value);
-                          setLastChangedField("purchasedQuantity");
+                          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                          const parts = cleaned.split(".");
+                          const normalized = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : cleaned;
+                          recomputeFromQuantity(normalized);
                         }}
                         className="h-11 border-green-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -229,10 +317,9 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         size="icon"
                         className="h-11 w-11 border-green-300 hover:border-green-500 hover:bg-green-50"
                         onClick={() => {
-                          const currentValue = parseInt(field.value) || 0;
-                          const newValue = currentValue + 1;
-                          field.onChange(newValue.toString());
-                          setLastChangedField("purchasedQuantity");
+                          const current = Number(field.value) || 0;
+                          const next = (current + 1).toString();
+                          recomputeFromQuantity(next);
                         }}
                       >
                         <Plus className="h-4 w-4" />
@@ -250,7 +337,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Unit</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={handleUnitChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select unit" />
@@ -283,10 +370,9 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         size="icon"
                         className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
-                          const currentValue = parseFloat(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 0.000001);
-                          field.onChange(newValue.toFixed(6));
-                          setLastChangedField("costPerPurchasedUnit");
+                          const current = parseFloat(field.value) || 0;
+                          const next = Math.max(0, current - 0.01).toFixed(2);
+                          recomputeFromCPU(next);
                         }}
                         disabled={parseFloat(field.value) <= 0}
                       >
@@ -299,9 +385,8 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         placeholder="0.000000"
                         value={field.value}
                         onChange={(e) => {
-                          const newValue = e.target.value;
-                          field.onChange(newValue);
-                          setLastChangedField("costPerPurchasedUnit");
+                          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                          recomputeFromCPU(cleaned);
                         }}
                         className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -311,10 +396,9 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         size="icon"
                         className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
-                          const currentValue = parseFloat(field.value) || 0;
-                          const newValue = currentValue + 0.000001;
-                          field.onChange(newValue.toFixed(6));
-                          setLastChangedField("costPerPurchasedUnit");
+                          const current = parseFloat(field.value) || 0;
+                          const next = (current + 0.01).toFixed(2);
+                          recomputeFromCPU(next);
                         }}
                       >
                         <Plus className="h-4 w-4" />
@@ -340,11 +424,10 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         size="icon"
                         className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
-                          const currentValue = parseFloat(field.value) || 0;
+                          const currentValue = field.value === "" ? 0 : parseFloat(field.value);
                           const newValue = Math.max(0, currentValue - 0.01);
-                          field.onChange(newValue.toFixed(2));
-                          setLastChangedField("totalCost");
-                          console.log("🔽 Decreased total cost to:", newValue);
+                          const next = newValue === 0 ? "" : newValue.toFixed(2);
+                          recomputeFromTotal(next);
                         }}
                         disabled={parseFloat(field.value) <= 0}
                       >
@@ -356,10 +439,9 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         min="0"
                         placeholder="0.00"
                         value={field.value}
-                        onChange={(e) => {
-                          const newValue = e.target.value;
-                          field.onChange(newValue);
-                          setLastChangedField("totalCost");
+                        onChange={e => {
+                          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                          recomputeFromTotal(cleaned);
                         }}
                         className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -369,10 +451,10 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         size="icon"
                         className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                         onClick={() => {
-                          const currentValue = parseFloat(field.value) || 0;
+                          const currentValue = field.value === "" ? 0 : parseFloat(field.value);
                           const newValue = currentValue + 0.01;
-                          field.onChange(newValue.toFixed(2));
-                          setLastChangedField("totalCost");
+                          const next = newValue.toFixed(2);
+                          recomputeFromTotal(next);
                         }}
                       >
                         <Plus className="h-4 w-4" />

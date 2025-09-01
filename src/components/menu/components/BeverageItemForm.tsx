@@ -672,20 +672,6 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         </div>
       )}
 
-      {/* Cost Breakdown Section */}
-      {selectedBeverageStock && (
-        <CostBreakdown
-          selectedBeverageStock={selectedBeverageStock}
-          price={price}
-          variantData={{
-            selectedVariants: selectedVariantTypes,
-            variantPrices: Object.fromEntries(selectedVariantTypes.map(name => [name, parseFloat(variantInputs[name]?.price || "0")])),
-            variantVolumes: Object.fromEntries(selectedVariantTypes.map(name => [name, parseFloat(variantInputs[name]?.volume || "0")])),
-            variantVolumeUnits: Object.fromEntries(selectedVariantTypes.map(name => [name, variantInputs[name]?.unit || "cl"]))
-          }}
-        />
-      )}
-
       {/* Ingredients Toggle Button - Only show when no variants are selected */}
       {!selectedVariantTypes.length && materials && stockEntries && materials.length > 0 && stockEntries.length > 0 && (
         <div className="border-t pt-4">
@@ -728,16 +714,12 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         />
       )}
 
-      {/* <div className="border-t pt-4">
-        <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
-      </div> */}
-
       <div className="flex justify-end gap-2 pt-4">
         <Button variant="outline" onClick={onCancel} aria-label="Cancel form">
           Cancel
         </Button>
         <Button onClick={handleSubmit} disabled={!name.trim() || !categoryId || (selectedVariantTypes.length === 0 && (!price || parseFloat(price) <= 0))}>
-          {menuItem ? "Update" : "Create"} Beverage Item
+          {menuItem ? "Update" : "Create"} Item
         </Button>
       </div>
     </div>
