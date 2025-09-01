@@ -94,6 +94,31 @@ const StockEntry = sequelize.define(
       allowNull: false,
       defaultValue: false,
       comment: "Whether this material should be visible in the POS system"
+    },
+    
+    // Enhanced volume and cost calculations for beverages
+    volumePerUnit: {
+      type: DataTypes.DECIMAL(10, 3),
+      allowNull: true,
+      comment: "Volume per individual unit (e.g., 75cl per bottle)"
+    },
+    
+    volumeUnit: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Unit for volumePerUnit (ml, cl, l, etc.)"
+    },
+    
+    totalVolume: {
+      type: DataTypes.DECIMAL(15, 3),
+      allowNull: true,
+      comment: "Total volume available (volumePerUnit × individual quantity)"
+    },
+    
+    costPerVolumeUnit: {
+      type: DataTypes.DECIMAL(10, 6),
+      allowNull: true,
+      comment: "Cost per volume unit (e.g., cost per cl)"
     }
   },
   {
@@ -102,9 +127,11 @@ const StockEntry = sequelize.define(
     hooks: {
       beforeCreate: async (stockEntry, options) => {
         await calculateConvertedValues(stockEntry);
+        await calculateVolumeValues(stockEntry);
       },
       beforeUpdate: async (stockEntry, options) => {
         await calculateConvertedValues(stockEntry);
+        await calculateVolumeValues(stockEntry);
       }
     }
   }
@@ -188,6 +215,55 @@ async function calculateConvertedValues(stockEntry) {
     console.error("Error calculating converted values:", error);
     stockEntry.purchasedConvertedQuantity = stockEntry.purchasedQuantity;
     stockEntry.purchasedConvertedUnit = stockEntry.purchasedUnit;
+  }
+}
+
+// Helper function to calculate volume-based values for beverage materials
+async function calculateVolumeValues(stockEntry) {
+  try {
+    const material = await Material.findByPk(stockEntry.materialId);
+    if (!material) {
+      console.warn(`Material not found for volumeValues calculation with materialId: ${stockEntry.materialId}`);
+      return;
+    }
+
+    // Only calculate volume values for materials that have volume information
+    if (material.volumePerUnit && material.volumeUnit && stockEntry.purchasedIndividualQuantity) {
+      // Set volume per unit from material
+      stockEntry.volumePerUnit = material.volumePerUnit;
+      stockEntry.volumeUnit = material.volumeUnit;
+      
+      // Calculate total volume (individual quantity × volume per unit)
+      const totalVolume = parseFloat(stockEntry.purchasedIndividualQuantity) * parseFloat(material.volumePerUnit);
+      stockEntry.totalVolume = Math.round(totalVolume * 1000) / 1000; // Round to 3 decimal places
+      
+      // Calculate cost per volume unit if we have total cost
+      if (stockEntry.totalCost && totalVolume > 0) {
+        const costPerVolumeUnit = parseFloat(stockEntry.totalCost) / totalVolume;
+        stockEntry.costPerVolumeUnit = Math.round(costPerVolumeUnit * 1000000) / 1000000; // Round to 6 decimal places
+      }
+      
+      console.log(`📊 [calculateVolumeValues] Volume calculations for ${material.name}:`, {
+        individualQuantity: stockEntry.purchasedIndividualQuantity,
+        volumePerUnit: stockEntry.volumePerUnit,
+        volumeUnit: stockEntry.volumeUnit,
+        totalVolume: stockEntry.totalVolume,
+        costPerVolumeUnit: stockEntry.costPerVolumeUnit
+      });
+    } else {
+      // Clear volume fields for non-beverage materials or materials without volume info
+      stockEntry.volumePerUnit = null;
+      stockEntry.volumeUnit = null;
+      stockEntry.totalVolume = null;
+      stockEntry.costPerVolumeUnit = null;
+    }
+  } catch (error) {
+    console.error("Error calculating volume values:", error);
+    // Clear volume fields on error
+    stockEntry.volumePerUnit = null;
+    stockEntry.volumeUnit = null;
+    stockEntry.totalVolume = null;
+    stockEntry.costPerVolumeUnit = null;
   }
 }
 

@@ -24,7 +24,7 @@ const stockEntriesController = {
         Op
       );
 
-      const selectedFields = parseFieldSelection(fields, ["id", "materialId", "supplier", "purchasedQuantity", "purchasedUnit", "purchasedIndividualQuantity", "purchasedIndividualUnit", "costPerPurchasedUnit", "costPerBaseUnit", "totalCost", "purchaseDate", "expiryDate", "isPOSItem", "printerId", "notes", "createdAt", "updatedAt"]);
+      const selectedFields = parseFieldSelection(fields, ["id", "materialId", "supplier", "purchasedQuantity", "purchasedUnit", "purchasedIndividualQuantity", "purchasedIndividualUnit", "costPerPurchasedUnit", "costPerBaseUnit", "totalCost", "purchaseDate", "expiryDate", "isPOSItem", "printerId", "notes", "volumePerUnit", "volumeUnit", "totalVolume", "costPerVolumeUnit", "createdAt", "updatedAt"]);
       const queryOptions = {
         where: whereClause,
         order: [[paginationParams.sortBy, paginationParams.sortOrder]],
@@ -38,7 +38,7 @@ const stockEntriesController = {
           {
             model: Material,
             as: "material",
-            attributes: ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "categoryId"],
+            attributes: ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "categoryId", "volumePerUnit", "volumeUnit"],
             include: [
               {
                 model: Category,
