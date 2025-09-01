@@ -22,39 +22,27 @@ export const VariantSelectionModal: React.FC<VariantSelectionModalProps> = ({ is
         // Try to extract container type from name
         const name = v.name.toLowerCase();
         if (name.includes("glass")) return "glass";
+        if (name.includes("shot")) return "shot";
         if (name.includes("bottle")) return "bottle";
         if (name.includes("can")) return "can";
-        if (name.includes("pint")) return "pint";
-        if (name.includes("pitcher")) return "pitcher";
-        if (name.includes("mini")) return "mini";
-        if (name.includes("standard")) return "standard";
-        if (name.includes("magnum")) return "magnum";
         return name; // Default to the variant name if no match
       })
     )
   );
 
-  // Get icon for container type
-  const getContainerIcon = (containerType: string) => {
+  // Get icon path for container type
+  const getContainerIconPath = (containerType: string) => {
     switch (containerType.toLowerCase()) {
       case "glass":
-        return "🥃";
+        return "/icons/glass.png";
+      case "shot":
+        return "/icons/shot.png";
       case "bottle":
-        return "🍾";
+        return "/icons/bottle.png";
       case "can":
-        return "🥤";
-      case "pint":
-        return "🍺";
-      case "pitcher":
-        return "🍺";
-      case "mini":
-        return "🥃";
-      case "standard":
-        return "🍾";
-      case "magnum":
-        return "🍾";
+        return "/icons/can.png";
       default:
-        return "🥤";
+        return "/icons/glass.png";
     }
   };
 
@@ -67,7 +55,7 @@ export const VariantSelectionModal: React.FC<VariantSelectionModalProps> = ({ is
         ...selectedItem,
         selectedVariant: variant,
         price: parseFloat(variant.price.toString()) || selectedItem.price,
-        displayName: `${selectedItem.name} (${variant.name} - ${variant.volume}${variant.unit})`
+        displayName: `${selectedItem.name} (${variant.name} - ${parseFloat(variant.volume.toString()).toString()}${variant.unit})`
       };
       onAddToCart(itemWithVariant);
       onClose();
@@ -96,12 +84,18 @@ export const VariantSelectionModal: React.FC<VariantSelectionModalProps> = ({ is
               if (!variant) return null;
 
               return (
-                <Button key={containerType} className="h-32 flex flex-col items-center justify-center gap-2 bg-primary/80 hover:bg-primary" onClick={() => handleVariantSelect(variant)}>
-                  <div className="text-3xl mb-2">{getContainerIcon(containerType)}</div>
-                  <div className="font-semibold">{variant.name}</div>
-                  <div className="text-sm opacity-90">
-                    {variant.volume}
-                    {variant.unit} - {formatPOSPrice(parseFloat(variant.price.toString()) || selectedItem.price)}
+                <Button key={containerType} className="h-32 flex flex-col items-center justify-center gap-2 bg-transparent ring-2 ring-primary/80 hover:bg-primary group" onClick={() => handleVariantSelect(variant)}>
+                  <div
+                    className={cn("relative ", {
+                      "w-10 h-10": containerType !== "shot",
+                      "w-12 h-12": containerType === "shot"
+                    })}
+                  >
+                    <img src={getContainerIconPath(containerType)} alt={`${containerType} icon`} className="w-full h-full object-contain" />
+                  </div>
+                  <div className="text-lg font-bold text-primary group-hover:text-white">{variant.name}</div>
+                  <div className="text-md opacity-90 text-primary group-hover:text-white">
+                    <span className="font-bold text-lg">{formatPOSPrice(parseFloat(variant.price.toString()) || selectedItem.price)}</span> - {parseFloat(variant.volume.toString()).toString()} {variant.unit}
                   </div>
                 </Button>
               );

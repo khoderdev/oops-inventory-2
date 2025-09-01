@@ -175,14 +175,16 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
             {/* Enhanced Hover Overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-            {/* Price Overlay - Enhanced with subtle animation */}
-            <div className="absolute bottom-2 left-0 right-0 flex justify-center">
-              <div className="bg-white/95 backdrop-blur-sm rounded-md px-3 py-1.5 shadow-md border border-white/20 transform translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out">
-                <div className="flex items-center justify-center">
-                  <span className={`${textSizes.price} font-bold text-primary`}>{formatPOSPrice(item.price)}</span>
+            {/* Price Overlay - Enhanced with subtle animation - Only show for items without variants */}
+            {!hasVariants && (
+              <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+                <div className="bg-white/95 backdrop-blur-sm rounded-md px-3 py-1.5 shadow-md border border-white/20 transform translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out">
+                  <div className="flex items-center justify-center">
+                    <span className={`${textSizes.price} font-bold text-primary`}>{formatPOSPrice(item.price)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Content Section */}
