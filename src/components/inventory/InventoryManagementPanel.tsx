@@ -16,7 +16,7 @@ import { Package, Warehouse, Loader2, Tags } from "lucide-react";
 import { useAtom } from "jotai";
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
-import { activeTabAtom, showMaterialFormAtom, showStockFormAtom, selectedMaterialAtom, selectedStockEntryAtom } from "@/store/inventoryAtoms";
+import { showMaterialFormAtom, showStockFormAtom, selectedMaterialAtom, selectedStockEntryAtom } from "@/store/inventoryAtoms";
 
 export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMaterials, onDeleteStockEntry }: InventoryManagementPanelProps = {}) {
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -172,7 +172,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
     async (data: MaterialFormData) => {
       console.log("🎯 InventoryManagementPanel handleMaterialSubmit called with data:", data);
       console.log("🎯 selectedMaterial:", selectedMaterial);
-      
+
       setOperationLoading(prev => ({ ...prev, material: true }));
       try {
         if (selectedMaterial) {
@@ -185,7 +185,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
             volumeUnit: data.volumeUnit
           };
           console.log("🎯 Update data:", updateData);
-          
+
           await materialsAPI.updateMaterial(selectedMaterial.id, updateData);
           toast({
             title: "Updated",
@@ -214,7 +214,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
             duration: 1000
           });
         }
-        
+
         console.log("🎯 API call successful, refreshing materials...");
         await refresh("materials");
         setShowMaterialForm(false);
@@ -607,49 +607,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
     },
     [refresh, setShowStockForm]
   );
-
-  // const handleBulkDeleteMaterials = useCallback(
-  //   async (materialIds: string[]) => {
-  //     try {
-  //       const response = await materialsAPI.bulkDeleteMaterials(materialIds);
-
-  //       // If backend returns details about the operation
-  //       if (response.data) {
-  //         const { deletedCount, notFoundIds } = response.data;
-
-  //         if (notFoundIds && notFoundIds.length > 0) {
-  //           toast({
-  //             title: "Partial Success",
-  //             description: `Deleted ${deletedCount} materials, ${notFoundIds.length} not found`,
-  //             variant: "default",
-  //             duration: 1000
-  //           });
-  //         } else {
-  //           toast({
-  //             title: "Success",
-  //             description: `Deleted ${deletedCount} material(s)`,
-  //             variant: "default",
-  //             duration: 1000
-  //           });
-  //         }
-  //       }
-
-  //       await refresh("materials");
-  //       await refresh("stock");
-  //       return true;
-  //     } catch (error) {
-  //       console.error("❌ Error bulk deleting materials:", error);
-  //       toast({
-  //         title: "Error",
-  //         description: "Failed to delete materials",
-  //         variant: "destructive",
-  //         duration: 1000
-  //       });
-  //       return false;
-  //     }
-  //   },
-  //   [refresh]
-  // );
 
   const handleBulkUpdateCategories = useCallback(
     async (materialIds: string[], categoryId: number) => {

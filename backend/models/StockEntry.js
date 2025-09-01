@@ -6,6 +6,9 @@ import Printer from "./Printer.js";
 const StockEntry = sequelize.define(
   "StockEntry",
   {
+    // ==========================================
+    // CORE IDENTIFICATION
+    // ==========================================
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
@@ -23,6 +26,22 @@ const StockEntry = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true
     },
+
+    // ==========================================
+    // PURCHASE INFORMATION
+    // ==========================================
+    purchaseDate: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    expiryDate: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+
+    // ==========================================
+    // QUANTITY & UNITS (Raw Purchase Data)
+    // ==========================================
     purchasedQuantity: {
       type: DataTypes.DECIMAL(10, 0),
       allowNull: true
@@ -39,13 +58,32 @@ const StockEntry = sequelize.define(
       type: DataTypes.STRING,
       allowNull: true
     },
+
+    // ==========================================
+    // CONVERTED VALUES (Normalized)
+    // ==========================================
+    purchasedConvertedQuantity: {
+      type: DataTypes.DECIMAL(10, 0),
+      allowNull: true
+    },
     purchasedConvertedUnit: {
       type: DataTypes.STRING,
       allowNull: true
     },
-    purchasedConvertedQuantity: {
-      type: DataTypes.DECIMAL(10, 0),
-      allowNull: true
+
+    // ==========================================
+    // COST INFORMATION
+    // ==========================================
+    totalCost: {
+      type: DataTypes.DECIMAL(10, 6),
+      allowNull: true,
+      get() {
+        const rawValue = this.getDataValue('totalCost');
+        if (rawValue === null || rawValue === undefined) return null;
+        // For currency, keep 2 decimal places but remove trailing zeros
+        const formatted = parseFloat(rawValue).toFixed(2);
+        return parseFloat(formatted).toString();
+      }
     },
     costPerPurchasedUnit: {
       type: DataTypes.DECIMAL(10, 6),
@@ -61,16 +99,87 @@ const StockEntry = sequelize.define(
       type: DataTypes.DECIMAL(10, 6),
       allowNull: true
     },
-    totalCost: {
+
+    // ==========================================
+    // VOLUME CALCULATIONS (Beverages)
+    // ==========================================
+    volumePerUnit: {
+      type: DataTypes.DECIMAL(10, 3),
+      allowNull: true,
+      comment: "Volume per individual unit (e.g., 75cl per bottle)"
+    },
+    volumeUnit: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Unit for volumePerUnit (ml, cl, l, etc.)"
+    },
+    totalVolume: {
+      type: DataTypes.DECIMAL(15, 3),
+      allowNull: true,
+      comment: "Total volume available (volumePerUnit × individual quantity)"
+    },
+    costPerVolumeUnit: {
       type: DataTypes.DECIMAL(10, 6),
       allowNull: true,
-      get() {
-        const rawValue = this.getDataValue('totalCost');
-        if (rawValue === null || rawValue === undefined) return null;
-        // For currency, keep 2 decimal places but remove trailing zeros
-        const formatted = parseFloat(rawValue).toFixed(2);
-        return parseFloat(formatted).toString();
-      }
+      comment: "Cost per volume unit (e.g., cost per cl)"
+    },
+
+    // ==========================================
+    // MASS CALCULATIONS (Ingredients)
+    // ==========================================
+    massPerUnit: {
+      type: DataTypes.DECIMAL(10, 3),
+      allowNull: true,
+      comment: "Mass per individual unit (e.g., 500g per bag)"
+    },
+    massUnit: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Unit for massPerUnit (g, kg, lb, etc.)"
+    },
+    totalMass: {
+      type: DataTypes.DECIMAL(15, 3),
+      allowNull: true,
+      comment: "Total mass available (massPerUnit × individual quantity)"
+    },
+    costPerMassUnit: {
+      type: DataTypes.DECIMAL(10, 6),
+      allowNull: true,
+      comment: "Cost per mass unit (e.g., cost per gram)"
+    },
+
+    // ==========================================
+    // PACKAGE/PIECE CALCULATIONS (Supplies)
+    // ==========================================
+    piecesPerPackage: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "Number of pieces per package (e.g., 50 napkins per pack)"
+    },
+    totalPieces: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "Total pieces available (piecesPerPackage × package quantity)"
+    },
+    costPerPiece: {
+      type: DataTypes.DECIMAL(10, 6),
+      allowNull: true,
+      comment: "Cost per individual piece"
+    },
+    unitDescription: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Description of the unit (e.g., 'napkins', 'cups', 'plates')"
+    },
+
+    // ==========================================
+    // SYSTEM CONFIGURATION
+    // ==========================================
+    isPOSItem: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "Whether this material should be visible in the POS system"
     },
     printerId: {
       type: DataTypes.INTEGER,
@@ -80,95 +189,6 @@ const StockEntry = sequelize.define(
         key: "id"
       },
       comment: "Assigned printer for this stock entry item when used in POS orders"
-    },
-    purchaseDate: {
-      type: DataTypes.DATE,
-      allowNull: true
-    },
-    expiryDate: {
-      type: DataTypes.DATE,
-      allowNull: true
-    },
-    isPOSItem: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-      comment: "Whether this material should be visible in the POS system"
-    },
-    
-    // Enhanced volume and cost calculations for beverages
-    volumePerUnit: {
-      type: DataTypes.DECIMAL(10, 3),
-      allowNull: true,
-      comment: "Volume per individual unit (e.g., 75cl per bottle)"
-    },
-    
-    volumeUnit: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: "Unit for volumePerUnit (ml, cl, l, etc.)"
-    },
-    
-    totalVolume: {
-      type: DataTypes.DECIMAL(15, 3),
-      allowNull: true,
-      comment: "Total volume available (volumePerUnit × individual quantity)"
-    },
-    
-    costPerVolumeUnit: {
-      type: DataTypes.DECIMAL(10, 6),
-      allowNull: true,
-      comment: "Cost per volume unit (e.g., cost per cl)"
-    },
-    
-    // Enhanced calculations for mass materials
-    massPerUnit: {
-      type: DataTypes.DECIMAL(10, 3),
-      allowNull: true,
-      comment: "Mass per individual unit (e.g., 500g per bag)"
-    },
-    
-    massUnit: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: "Unit for massPerUnit (g, kg, lb, etc.)"
-    },
-    
-    totalMass: {
-      type: DataTypes.DECIMAL(15, 3),
-      allowNull: true,
-      comment: "Total mass available (massPerUnit × individual quantity)"
-    },
-    
-    costPerMassUnit: {
-      type: DataTypes.DECIMAL(10, 6),
-      allowNull: true,
-      comment: "Cost per mass unit (e.g., cost per gram)"
-    },
-    
-    // Enhanced calculations for package materials
-    piecesPerPackage: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      comment: "Number of pieces per package (e.g., 50 napkins per pack)"
-    },
-    
-    totalPieces: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      comment: "Total pieces available (piecesPerPackage × package quantity)"
-    },
-    
-    costPerPiece: {
-      type: DataTypes.DECIMAL(10, 6),
-      allowNull: true,
-      comment: "Cost per individual piece"
-    },
-    
-    unitDescription: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      comment: "Description of the unit (e.g., 'napkins', 'cups', 'plates')"
     }
   },
   {
