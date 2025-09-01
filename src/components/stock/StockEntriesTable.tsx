@@ -706,7 +706,30 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quantity</span>
                         <p className={`text-sm font-medium ${isNegative ? "text-red-600" : isVirtual ? "text-orange-600" : "text-gray-900"}`}>
-                          {formatNumber(entry.purchasedIndividualQuantity)} {entry.purchasedIndividualUnit}
+                          {(() => {
+                            // For bottles, show total volume instead of bottle count
+                            if (entry.purchasedIndividualUnit === "bottle" && material) {
+                              let volumePerBottle = 0;
+                              
+                              // Get volume per bottle from material configuration
+                              if (material.volumePerBottle && material.volumePerBottle > 0) {
+                                volumePerBottle = material.volumePerBottle;
+                              } else if (material.volumePerUnit && material.volumePerUnit > 0) {
+                                volumePerBottle = material.volumePerUnit;
+                              } else if (material.packageQuantity && material.packageQuantity > 0) {
+                                volumePerBottle = material.packageQuantity;
+                              }
+                              
+                              if (volumePerBottle > 0) {
+                                const totalVolume = entry.purchasedIndividualQuantity * volumePerBottle;
+                                const volumeUnit = material.baseUnit === "ml" ? "ml" : "cl";
+                                return `${formatNumber(totalVolume)} ${volumeUnit}`;
+                              }
+                            }
+                            
+                            // Default display for non-bottle units or when volume data is unavailable
+                            return `${formatNumber(entry.purchasedIndividualQuantity)} ${entry.purchasedIndividualUnit}`;
+                          })()}
                         </p>
                       </div>
                       <div className="space-y-1">
