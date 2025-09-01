@@ -8,29 +8,46 @@ export const hasNegativeStock = (entry: StockEntryWithMaterial) => {
 
 export const renderQuantityDisplay = (entry: StockEntryWithMaterial) => {
   const isNegative = hasNegativeStock(entry);
-  const { material } = entry;
   
-  // For bottle materials with volume data, calculate total volume
-  if (material?.unitType === "package" && 
-      entry.purchasedUnit === "bottle" && 
-      material.volumePerUnit && 
-      material.volumeUnit) {
-    
-    const totalVolume = entry.purchasedQuantity * parseFloat(material.volumePerUnit.toString());
-    const volumeUnit = material.volumeUnit;
-    
+  // Use backend calculated values directly - no frontend calculations
+  if (entry.totalVolume && entry.volumeUnit) {
     return (
       <div className={`w-[150px] rounded-full font-bold text-primary flex items-center justify-center gap-1 p-1 px-2 ${isNegative ? "text-red-600" : ""}`}>
         {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
         <div className="text-center">
-          <div>{formatNumber(totalVolume)} {volumeUnit}</div>
-          <div className="text-[0.55rem] opacity-75">(from {entry.purchasedQuantity} bottle{entry.purchasedQuantity !== 1 ? 's' : ''})</div>
+          <div>{formatNumber(entry.totalVolume)} {entry.volumeUnit}</div>
+          <div className="text-[0.55rem] opacity-75">(from {entry.purchasedQuantity} {entry.purchasedUnit}{entry.purchasedQuantity !== 1 ? 's' : ''})</div>
         </div>
       </div>
     );
   }
   
-  // Default behavior for other materials
+  // Use backend calculated mass values
+  if (entry.totalMass && entry.massUnit) {
+    return (
+      <div className={`w-[150px] rounded-full font-bold text-primary flex items-center justify-center gap-1 px-2 ${isNegative ? "text-red-600" : ""}`}>
+        {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
+        <span>
+          {formatNumber(entry.totalMass)} {entry.massUnit}
+        </span>
+      </div>
+    );
+  }
+  
+  // Use backend calculated piece values
+  if (entry.totalPieces) {
+    const unit = entry.unitDescription || 'pieces';
+    return (
+      <div className={`w-[150px] rounded-full font-bold text-primary flex items-center justify-center gap-1 px-2 ${isNegative ? "text-red-600" : ""}`}>
+        {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
+        <span>
+          {formatNumber(entry.totalPieces)} {unit}
+        </span>
+      </div>
+    );
+  }
+  
+  // Fallback to raw purchase data if no calculated values available
   const currentQty = entry.purchasedIndividualQuantity || entry.purchasedQuantity || 0;
   const unit = entry.purchasedIndividualUnit || entry.material?.baseUnit || entry.purchasedUnit || 'pc';
 

@@ -58,18 +58,48 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
   const fetchStock = useCallback(async () => {
     setLoading(prev => ({ ...prev, stock: true }));
     try {
+      console.log("🔄 Fetching stock entries from API...");
       const response = await stockAPI.getStockEntries({
         limit: 10000,
         _t: Date.now(),
         sortBy: "purchaseDate",
         sortOrder: "DESC"
       });
+      
+      console.log("📦 Raw API response:", response);
+      
       if (response) {
+        let stockData = [];
         if (Array.isArray(response)) {
-          setStock(response);
+          stockData = response;
+          console.log("📊 Response is array, using directly");
         } else if ((response as any).data && Array.isArray((response as any).data)) {
-          setStock((response as any).data);
+          stockData = (response as any).data;
+          console.log("📊 Response has data property, using response.data");
         }
+        
+        console.log("📋 Final stock data structure:");
+        console.log("  - Total entries:", stockData.length);
+        if (stockData.length > 0) {
+          console.log("  - First entry sample:", stockData[0]);
+          console.log("  - Available fields:", Object.keys(stockData[0]));
+          
+          // Check for calculated fields
+          const firstEntry = stockData[0];
+          console.log("🧮 Calculated fields verification:");
+          console.log("  - volumePerUnit:", firstEntry.volumePerUnit);
+          console.log("  - volumeUnit:", firstEntry.volumeUnit);
+          console.log("  - totalVolume:", firstEntry.totalVolume);
+          console.log("  - costPerVolumeUnit:", firstEntry.costPerVolumeUnit);
+          console.log("  - massPerUnit:", firstEntry.massPerUnit);
+          console.log("  - totalMass:", firstEntry.totalMass);
+          console.log("  - piecesPerPackage:", firstEntry.piecesPerPackage);
+          console.log("  - totalPieces:", firstEntry.totalPieces);
+          console.log("  - costPerPiece:", firstEntry.costPerPiece);
+        }
+        
+        setStock(stockData);
+        console.log("✅ Stock entries loaded successfully");
       }
     } catch (error) {
       console.error("❌ Error fetching stock entries:", error);

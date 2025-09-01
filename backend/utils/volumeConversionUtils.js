@@ -53,35 +53,140 @@ export const PACKAGE_UNITS = [
 ];
 
 /**
- * Convert volume from one unit to another
- * @param {number} volume - Volume amount
- * @param {string} fromUnit - Source unit
- * @param {string} toUnit - Target unit
- * @param {Object} materialContext - Material info for package units
- * @returns {number} Converted volume
+ * Convert volume from one unit to another with material context support
+ * @param {number} value - The value to convert
+ * @param {string} fromUnit - The unit to convert from
+ * @param {string} toUnit - The unit to convert to
+ * @param {Object} materialContext - Optional material context for package units
+ * @returns {number} The converted value
  */
-export const convertVolume = (volume, fromUnit, toUnit, materialContext = null) => {
-  if (!volume || volume <= 0) return 0;
-  if (fromUnit === toUnit) return volume;
+export function convertVolume(value, fromUnit, toUnit, materialContext = null) {
+  if (fromUnit === toUnit) return value;
   
-  // Normalize unit names
-  const normalizedFromUnit = normalizeUnit(fromUnit);
-  const normalizedToUnit = normalizeUnit(toUnit);
-  
-  // Get conversion factors
-  const fromFactor = getConversionFactor(normalizedFromUnit, materialContext);
-  const toFactor = getConversionFactor(normalizedToUnit, materialContext);
-  
-  if (fromFactor === null || toFactor === null) {
-    throw new Error(`Cannot convert from ${fromUnit} to ${toUnit}. Missing material context for package units.`);
+  // Handle package units with material context
+  if ((fromUnit === 'bottle' || fromUnit === 'can' || fromUnit === 'package') && materialContext) {
+    const volumePerUnit = materialContext.volumePerUnit || materialContext.volume || 700; // Default 700ml
+    const volumeUnit = materialContext.volumeUnit || 'ml';
+    
+    console.log(`🔄 Converting ${value} ${fromUnit} to ${toUnit} using material context: ${volumePerUnit}${volumeUnit} per unit`);
+    
+    // Convert package to volume first
+    const totalVolume = value * volumePerUnit;
+    console.log(`🔄 Package to volume: ${value} × ${volumePerUnit} = ${totalVolume}${volumeUnit}`);
+    
+    // Use direct conversion to avoid recursion
+    if (volumeUnit === toUnit) {
+      return totalVolume;
+    } else {
+      return convertVolumeStandard(totalVolume, volumeUnit, toUnit);
+    }
   }
   
-  // Convert: volume -> ml -> target unit
-  const volumeInMl = volume * fromFactor;
-  const convertedVolume = volumeInMl / toFactor;
+  if ((toUnit === 'bottle' || toUnit === 'can' || toUnit === 'package') && materialContext) {
+    const volumePerUnit = materialContext.volumePerUnit || materialContext.volume || 700; // Default 700ml
+    const volumeUnit = materialContext.volumeUnit || 'ml';
+    
+    console.log(`🔄 Converting ${value} ${fromUnit} to ${toUnit} using material context: ${volumePerUnit}${volumeUnit} per unit`);
+    
+    // Convert to volume first, then to packages
+    const volumeInTargetUnit = convertVolumeStandard(value, fromUnit, volumeUnit);
+    const packageCount = volumeInTargetUnit / volumePerUnit;
+    console.log(`🔄 Volume to package: ${volumeInTargetUnit}${volumeUnit} ÷ ${volumePerUnit} = ${packageCount} ${toUnit}`);
+    return packageCount;
+  }
   
-  return Math.round(convertedVolume * 1000) / 1000; // Round to 3 decimal places
-};
+  // Standard volume conversions
+  return convertVolumeStandard(value, fromUnit, toUnit);
+}
+
+/**
+ * Standard volume conversion without material context (prevents recursion)
+ */
+function convertVolumeStandard(value, fromUnit, toUnit) {
+  if (fromUnit === toUnit) return value;
+  
+  // Convert to ml first
+  let mlValue = value;
+  
+  switch (fromUnit.toLowerCase()) {
+    case 'l': case 'liter': case 'litre':
+      mlValue = value * 1000;
+      break;
+    case 'cl': case 'centiliter': case 'centilitre':
+      mlValue = value * 10;
+      break;
+    case 'dl': case 'deciliter': case 'decilitre':
+      mlValue = value * 100;
+      break;
+    case 'fl_oz': case 'fluid_ounce':
+      mlValue = value * 29.5735;
+      break;
+    case 'cup':
+      mlValue = value * 236.588;
+      break;
+    case 'pt': case 'pint':
+      mlValue = value * 473.176;
+      break;
+    case 'qt': case 'quart':
+      mlValue = value * 946.353;
+      break;
+    case 'gal': case 'gallon':
+      mlValue = value * 3785.41;
+      break;
+    case 'ml': case 'milliliter': case 'millilitre':
+      mlValue = value;
+      break;
+    default:
+      mlValue = value; // Assume ml if unknown
+  }
+  
+  // Convert from ml to target unit
+  switch (toUnit.toLowerCase()) {
+    case 'l': case 'liter': case 'litre':
+      return mlValue / 1000;
+    case 'cl': case 'centiliter': case 'centilitre':
+      return mlValue / 10;
+    case 'dl': case 'deciliter': case 'decilitre':
+      return mlValue / 100;
+    case 'fl_oz': case 'fluid_ounce':
+      return mlValue / 29.5735;
+    case 'cup':
+      return mlValue / 236.588;
+    case 'pt': case 'pint':
+      return mlValue / 473.176;
+    case 'qt': case 'quart':
+      return mlValue / 946.353;
+    case 'gal': case 'gallon':
+      return mlValue / 3785.41;
+    case 'ml': case 'milliliter': case 'millilitre':
+      return mlValue;
+    default:
+      return mlValue; // Return ml if unknown target unit
+  }
+}
+
+/**
+ * Enhanced conversion with automatic material context fetching
+ * @param {number} value - The value to convert
+ * @param {string} fromUnit - The unit to convert from
+ * @param {string} toUnit - The unit to convert to
+ * @param {Object} material - Material object with volumePerUnit and volumeUnit
+ * @returns {number} The converted value
+ */
+export function convertVolumeWithMaterial(value, fromUnit, toUnit, material) {
+  if (fromUnit === toUnit) return value;
+  
+  // Create material context from material object
+  const materialContext = {
+    volumePerUnit: material.volumePerUnit,
+    volumeUnit: material.volumeUnit || 'ml',
+    volume: material.volumePerUnit // Alias for compatibility
+  };
+  
+  console.log(`🔄 Converting with material context: ${material.name} (${materialContext.volumePerUnit}${materialContext.volumeUnit} per unit)`);
+  
+  return convertVolume(value, fromUnit, toUnit, materialContext);
+}
 
 /**
  * Convert volume to milliliters (base unit)
@@ -106,7 +211,54 @@ export const convertFromMl = (volumeInMl, targetUnit, materialContext = null) =>
 };
 
 /**
- * Calculate how many units of material are needed for a variant
+ * Calculate deduction from calculated total fields (aligned with stock deduction logic)
+ * @param {Object} stockEntry - Stock entry with calculated total fields
+ * @param {number} variantVolume - Volume of the variant being sold
+ * @param {string} variantUnit - Unit of the variant volume
+ * @param {number} quantity - Quantity being sold
+ * @returns {Object} Deduction details for calculated total fields
+ */
+export const calculateTotalVolumeDeduction = (stockEntry, variantVolume, variantUnit, quantity) => {
+  try {
+    if (!stockEntry.totalVolume || stockEntry.totalVolume <= 0) {
+      console.warn('Stock entry has no totalVolume available for deduction');
+      return {
+        deductionAmount: 0,
+        isValid: false,
+        message: 'No volume available in totalVolume field'
+      };
+    }
+
+    // Convert variant volume to ml for consistent calculation
+    const variantVolumeInMl = convertToMl(variantVolume, variantUnit);
+    const totalDeductionInMl = variantVolumeInMl * quantity;
+
+    // Convert back to the stock entry's volume unit if needed
+    const stockVolumeUnit = stockEntry.volumeUnit || 'ml';
+    const deductionAmount = convertVolume(totalDeductionInMl, 'ml', stockVolumeUnit);
+
+    const result = {
+      deductionAmount,
+      variantVolumeInMl,
+      totalDeductionInMl,
+      stockVolumeUnit,
+      availableVolume: stockEntry.totalVolume,
+      isValid: stockEntry.totalVolume >= deductionAmount,
+      message: stockEntry.totalVolume >= deductionAmount 
+        ? 'Sufficient volume available in totalVolume' 
+        : `Insufficient volume: ${stockEntry.totalVolume} available, ${deductionAmount} required`
+    };
+
+    console.log(`🥃 [calculateTotalVolumeDeduction] Result:`, result);
+    return result;
+  } catch (error) {
+    console.error(`❌ [calculateTotalVolumeDeduction] Error:`, error);
+    throw new Error(`Failed to calculate total volume deduction: ${error.message}`);
+  }
+};
+
+/**
+ * Legacy beverage deduction calculation (kept for backward compatibility)
  * @param {number} variantVolume - Volume of the variant
  * @param {string} variantUnit - Unit of the variant
  * @param {Object} material - Material object with volume info
@@ -119,7 +271,7 @@ export const calculateBeverageDeduction = (variantVolume, variantUnit, material,
     const materialVolumePerUnit = getMaterialVolumePerUnit(material);
     const materialUnit = getMaterialVolumeUnit(material);
     
-    console.log(`🧮 [calculateBeverageDeduction] Input:`, {
+    console.log(` [calculateBeverageDeduction] Input:`, {
       variantVolume,
       variantUnit,
       materialName: material.name,
@@ -359,6 +511,57 @@ export const getSuggestedUnits = (volumeInMl) => {
   return suggestions.filter(s => s.value > 0);
 };
 
+/**
+ * Calculate beverage variant deduction using calculated total fields
+ * Updated to work with backend stock deduction logic that uses totalVolume, totalMass, totalPieces
+ */
+export function calculateSourceFraction(variantVolume, variantUnit, sourceVolume, sourceUnit) {
+  const normalizedVariantVolume = convertVolume(variantVolume, variantUnit, 'ml');
+  const normalizedSourceVolume = convertVolume(sourceVolume, sourceUnit, 'ml');
+  return normalizedVariantVolume / normalizedSourceVolume;
+}
+
+export function calculateDeductionAmount(variantVolume, variantUnit, sourceVolume, sourceUnit, quantity) {
+  const fractionPerUnit = calculateSourceFraction(variantVolume, variantUnit, sourceVolume, sourceUnit);
+  return fractionPerUnit * quantity;
+}
+
+/**
+ * Validate if stock entry has sufficient volume for deduction
+ * @param {Object} stockEntry - Stock entry with calculated total fields
+ * @param {number} deductionAmount - Amount to deduct
+ * @returns {Object} Validation result with isValid and message
+ */
+export function validateVolumeDeduction(stockEntry, deductionAmount) {
+  const availableVolume = stockEntry.totalVolume || 0;
+  const isValid = availableVolume >= deductionAmount;
+  
+  return {
+    isValid,
+    availableVolume,
+    deductionAmount,
+    message: isValid 
+      ? 'Sufficient volume available' 
+      : `Insufficient volume: ${availableVolume} available, ${deductionAmount} required`
+  };
+}
+
+export function logVariantDeduction(menuItemName, variantName, variantVolume, variantUnit, sourceVolume, sourceUnit, quantity, deductionAmount) {
+  const normalizedVariantVolume = convertVolume(variantVolume, variantUnit, 'ml');
+  const normalizedSourceVolume = convertVolume(sourceVolume, sourceUnit, 'ml');
+  const totalDeducted = normalizedVariantVolume * quantity;
+  
+  console.log(`🥃 Beverage Variant Deduction (Using Calculated Totals):
+  - Menu Item: ${menuItemName}
+  - Variant: ${variantName} (${variantVolume}${variantUnit})
+  - Source: ${sourceVolume}${sourceUnit} (${normalizedSourceVolume}ml)
+  - Quantity Sold: ${quantity}
+  - Volume Per Unit: ${normalizedVariantVolume}ml
+  - Total Volume Deducted: ${totalDeducted}ml
+  - Fraction of Source: ${(deductionAmount * 100).toFixed(2)}%
+  - Note: Deduction applied to totalVolume field`);
+}
+
 export default {
   VOLUME_CONVERSIONS,
   VALID_BEVERAGE_UNITS,
@@ -367,6 +570,11 @@ export default {
   convertToMl,
   convertFromMl,
   calculateBeverageDeduction,
+  calculateTotalVolumeDeduction,
+  calculateSourceFraction,
+  calculateDeductionAmount,
+  validateVolumeDeduction,
+  logVariantDeduction,
   isValidBeverageUnit,
   getMaterialVolumePerUnit,
   getMaterialVolumeUnit,

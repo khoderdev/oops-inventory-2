@@ -215,22 +215,49 @@ export interface CachedStockEntryData {
 //-----------------------------------------------------------------------------
 
 export interface StockEntry {
+  // Core identification
   id: string;
   materialId: string;
   supplier: string;
+
+  // Purchase information
+  purchaseDate: Date;
+  expiryDate?: Date;
+
+  // Quantity & units (raw purchase data)
   purchasedQuantity: number;
   purchasedUnit: string;
   purchasedIndividualQuantity?: number;
   purchasedIndividualUnit?: string;
+
+  // Converted values (normalized)
   purchasedConvertedQuantity?: number;
   purchasedConvertedUnit?: string;
-  costPerPurchasedUnit: number;
+
+  // Cost information
   totalCost: number;
+  costPerPurchasedUnit: number;
   costPerBaseUnit?: number;
-  purchaseDate: Date;
-  expiryDate?: Date;
-  batchNumber?: string;
-  notes?: string;
+
+  // Volume calculations (beverages)
+  volumePerUnit?: number;
+  volumeUnit?: string;
+  totalVolume?: number;
+  costPerVolumeUnit?: number;
+
+  // Mass calculations (ingredients)
+  massPerUnit?: number;
+  massUnit?: string;
+  totalMass?: number;
+  costPerMassUnit?: number;
+
+  // Package/piece calculations (supplies)
+  piecesPerPackage?: number;
+  totalPieces?: number;
+  costPerPiece?: number;
+  unitDescription?: string;
+
+  // System configuration
   isPOSItem: boolean;
   printerId?: number | null;
   assignedPrinter?: {
@@ -239,8 +266,14 @@ export interface StockEntry {
     type: string;
     status: string;
   };
+
+  // Timestamps
   createdAt: Date;
   updatedAt: Date;
+
+  // Legacy fields (for backward compatibility)
+  batchNumber?: string;
+  notes?: string;
 }
 
 export interface StockEntryWithMaterial extends StockEntry {
@@ -254,14 +287,13 @@ export interface CreateStockEntryData {
   purchasedUnit: string;
   purchasedIndividualQuantity?: number;
   purchasedIndividualUnit?: string;
-  purchasedConvertedQuantity?: number;
-  purchasedConvertedUnit?: string;
   costPerPurchasedUnit: number;
   totalCost: number;
   purchaseDate: Date;
   expiryDate?: Date;
   batchNumber?: string;
   notes?: string;
+  // Note: Converted values and calculations are handled by backend
 }
 
 export interface UpdateStockEntryData {
@@ -271,14 +303,13 @@ export interface UpdateStockEntryData {
   purchasedUnit?: string;
   purchasedIndividualQuantity?: number;
   purchasedIndividualUnit?: string;
-  purchasedConvertedQuantity?: number;
-  purchasedConvertedUnit?: string;
   costPerPurchasedUnit?: number;
   totalCost?: number;
   purchaseDate?: Date;
   expiryDate?: Date;
   batchNumber?: string;
   notes?: string;
+  // Note: Converted values and calculations are handled by backend
 }
 
 export interface MaterialWithStock extends Material {

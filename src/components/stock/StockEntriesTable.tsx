@@ -85,24 +85,22 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
   useEffect(() => {
     const handleStockEntryCreated = (event: CustomEvent) => {
       const newEntry = event.detail;
-      console.log('📝 StockEntriesTable: New stock entry created:', newEntry);
+      console.log("📝 StockEntriesTable: New stock entry created:", newEntry);
       setStockEntries(prev => [newEntry, ...prev]);
     };
 
     const handleStockEntryUpdated = (event: CustomEvent) => {
       const updatedEntry = event.detail;
-      console.log('✏️ StockEntriesTable: Stock entry updated:', updatedEntry);
-      setStockEntries(prev => prev.map(entry => 
-        entry.id === updatedEntry.id ? { ...entry, ...updatedEntry } : entry
-      ));
+      console.log("✏️ StockEntriesTable: Stock entry updated:", updatedEntry);
+      setStockEntries(prev => prev.map(entry => (entry.id === updatedEntry.id ? { ...entry, ...updatedEntry } : entry)));
     };
 
-    window.addEventListener('stockEntryCreated', handleStockEntryCreated as EventListener);
-    window.addEventListener('stockEntryUpdated', handleStockEntryUpdated as EventListener);
+    window.addEventListener("stockEntryCreated", handleStockEntryCreated as EventListener);
+    window.addEventListener("stockEntryUpdated", handleStockEntryUpdated as EventListener);
 
     return () => {
-      window.removeEventListener('stockEntryCreated', handleStockEntryCreated as EventListener);
-      window.removeEventListener('stockEntryUpdated', handleStockEntryUpdated as EventListener);
+      window.removeEventListener("stockEntryCreated", handleStockEntryCreated as EventListener);
+      window.removeEventListener("stockEntryUpdated", handleStockEntryUpdated as EventListener);
     };
   }, []);
 
@@ -265,16 +263,14 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
 
   // Helper function to add new stock entry to local state
   const addStockEntry = useCallback((newEntry: StockEntry) => {
-    console.log('➕ StockEntriesTable: Adding new stock entry to local state:', newEntry);
+    console.log("➕ StockEntriesTable: Adding new stock entry to local state:", newEntry);
     setStockEntries(prev => [newEntry, ...prev]);
   }, []);
 
   // Helper function to update existing stock entry in local state
   const updateStockEntry = useCallback((updatedEntry: Partial<StockEntry> & { id: string | number }) => {
-    console.log('🔄 StockEntriesTable: Updating stock entry in local state:', updatedEntry);
-    setStockEntries(prev => prev.map(entry => 
-      entry.id === updatedEntry.id ? { ...entry, ...updatedEntry } : entry
-    ));
+    console.log("🔄 StockEntriesTable: Updating stock entry in local state:", updatedEntry);
+    setStockEntries(prev => prev.map(entry => (entry.id === updatedEntry.id ? { ...entry, ...updatedEntry } : entry)));
   }, []);
 
   // Expose methods for external components to trigger instant updates
@@ -338,14 +334,10 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
       return;
     }
     const newPOSStatus = !entry.isPOSItem;
-    
+
     // Update local state immediately
-    setStockEntries(prev => prev.map(stockEntry => 
-      stockEntry.id === entry.id 
-        ? { ...stockEntry, isPOSItem: newPOSStatus }
-        : stockEntry
-    ));
-    
+    setStockEntries(prev => prev.map(stockEntry => (stockEntry.id === entry.id ? { ...stockEntry, isPOSItem: newPOSStatus } : stockEntry)));
+
     try {
       if (onTogglePOSVisibility) {
         await onTogglePOSVisibility(entry);
@@ -358,11 +350,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
         }
       }
     } catch (error) {
-      setStockEntries(prev => prev.map(stockEntry => 
-        stockEntry.id === entry.id 
-          ? { ...stockEntry, isPOSItem: !newPOSStatus }
-          : stockEntry
-      ));
+      setStockEntries(prev => prev.map(stockEntry => (stockEntry.id === entry.id ? { ...stockEntry, isPOSItem: !newPOSStatus } : stockEntry)));
       console.error("Error updating stock entry POS visibility:", error);
       toast({
         title: "Error",
@@ -380,33 +368,29 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
 
   const handleEditStockEntry = async (stockEntry: StockEntry) => {
     setSelectedStockEntry(stockEntry);
-    
+
     // First try to find the material in the current materials list
-    let material = (materials as (MaterialWithStock | Material)[]).find(
-      m => String(m.id) === String(stockEntry.materialId)
-    ) as MaterialWithStock | undefined;
-    
+    let material = (materials as (MaterialWithStock | Material)[]).find(m => String(m.id) === String(stockEntry.materialId)) as MaterialWithStock | undefined;
+
     // If material is not found in current state, fetch fresh materials data
     if (!material) {
       try {
         const freshMaterials = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
         setMaterials(freshMaterials);
-        
+
         // Try to find the material in the fresh data
-        material = freshMaterials.find(
-          m => String(m.id) === String(stockEntry.materialId)
-        ) as MaterialWithStock | undefined;
+        material = freshMaterials.find(m => String(m.id) === String(stockEntry.materialId)) as MaterialWithStock | undefined;
       } catch (err) {
-        console.error('❌ Failed to fetch fresh materials data:', err);
+        console.error("❌ Failed to fetch fresh materials data:", err);
       }
     }
-    
+
     if (material) {
       setSelectedMaterial(material);
     } else {
-      console.warn('⚠️ Could not find material with ID:', stockEntry.materialId);
+      console.warn("⚠️ Could not find material with ID:", stockEntry.materialId);
     }
-    
+
     setShowStockForm(true);
   };
 
@@ -425,7 +409,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
         variant: "default",
         duration: 1000
       });
-      
+
       // Clear selections after deletion
       setSelectedStockEntries(new Set());
       if (bulkSelectionMode) {
@@ -513,12 +497,8 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
 
   const handlePrinterAssignmentChange = async (updatedEntry?: StockEntry) => {
     if (updatedEntry) {
-      setStockEntries(prev => prev.map(stockEntry => 
-        stockEntry.id === updatedEntry.id 
-          ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter }
-          : stockEntry
-      ));
-      
+      setStockEntries(prev => prev.map(stockEntry => (stockEntry.id === updatedEntry.id ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter } : stockEntry)));
+
       // Clear selections after printer assignment
       setSelectedStockEntries(new Set());
       if (bulkSelectionMode) {
@@ -564,12 +544,12 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
 
   const handleBulkPrinterAssignmentComplete = async (updatedEntries?: StockEntry[]) => {
     if (updatedEntries && updatedEntries.length > 0) {
-      setStockEntries(prev => prev.map(stockEntry => {
-        const updatedEntry = updatedEntries.find(updated => updated.id === stockEntry.id);
-        return updatedEntry 
-          ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter }
-          : stockEntry;
-      }));
+      setStockEntries(prev =>
+        prev.map(stockEntry => {
+          const updatedEntry = updatedEntries.find(updated => updated.id === stockEntry.id);
+          return updatedEntry ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter } : stockEntry;
+        })
+      );
     }
     setSelectedStockEntries(new Set());
     setBulkSelectionMode(false);
@@ -707,40 +687,25 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quantity</span>
                         <p className={`text-sm font-medium ${isNegative ? "text-red-600" : isVirtual ? "text-orange-600" : "text-gray-900"}`}>
                           {(() => {
-                            // For bottles, show total volume instead of bottle count
-                            if (entry.purchasedIndividualUnit === "bottle" && material) {
-                              let volumePerBottle = 0;
-                              
-                              // Get volume per bottle from material configuration
-                              if (material.volumePerBottle && material.volumePerBottle > 0) {
-                                volumePerBottle = material.volumePerBottle;
-                              } else if (material.volumePerUnit && material.volumePerUnit > 0) {
-                                volumePerBottle = material.volumePerUnit;
-                              } else if (material.packageQuantity && material.packageQuantity > 0) {
-                                volumePerBottle = material.packageQuantity;
-                              }
-                              
-                              if (volumePerBottle > 0) {
-                                const totalVolume = entry.purchasedIndividualQuantity * volumePerBottle;
-                                const volumeUnit = material.baseUnit === "ml" ? "ml" : "cl";
-                                return `${formatNumber(totalVolume)} ${volumeUnit}`;
-                              }
+                            // Use backend calculated values directly
+                            if (entry.totalVolume && entry.volumeUnit) {
+                              return `${formatNumber(entry.totalVolume)} ${entry.volumeUnit}`;
+                            } else if (entry.totalMass && entry.massUnit) {
+                              return `${formatNumber(entry.totalMass)} ${entry.massUnit}`;
+                            } else if (entry.totalPieces && entry.unitDescription) {
+                              return `${formatNumber(entry.totalPieces)} ${entry.unitDescription}`;
+                            } else if (entry.totalPieces) {
+                              return `${formatNumber(entry.totalPieces)} pieces`;
                             }
-                            
-                            // Default display for non-bottle units or when volume data is unavailable
+
+                            // Fallback to raw purchase data if no calculated values
                             return `${formatNumber(entry.purchasedIndividualQuantity)} ${entry.purchasedIndividualUnit}`;
                           })()}
                         </p>
                       </div>
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Unit Cost</span>
-                        <p className="text-sm font-medium text-gray-900">
-                          {Number(entry.costPerPurchasedUnit) > 0 
-                            ? formatCurrency(Number(entry.costPerPurchasedUnit))
-                            : entry.costPerBaseUnit 
-                              ? `${formatCurrency(Number(entry.costPerBaseUnit))} per ${entry.material?.baseUnit || 'unit'}`
-                              : '$0.00'}
-                        </p>
+                        <p className="text-sm font-medium text-gray-900">{Number(entry.costPerPurchasedUnit) > 0 ? formatCurrency(Number(entry.costPerPurchasedUnit)) : entry.costPerBaseUnit ? `${formatCurrency(Number(entry.costPerBaseUnit))} per ${entry.material?.baseUnit || "unit"}` : "$0.00"}</p>
                       </div>
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Cost</span>

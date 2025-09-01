@@ -447,25 +447,58 @@ const salesController = {
               continue;
             }
 
-            // Deduct from stock entries using FIFO logic
+            // Deduct from stock entries using FIFO logic with calculated totals
             let remainingToDeduct = stockDeductionQuantity;
             for (const stockEntry of stockEntries) {
               if (remainingToDeduct <= 0) break;
 
-              const availableQuantity = stockEntry.purchasedIndividualQuantity;
+              // Determine which calculated field to use based on material type and available data
+              let availableQuantity = 0;
+              let fieldToUpdate = null;
+              let unitType = 'unknown';
+              
+              if (stockEntry.totalVolume > 0 && (material.unitType === 'volume' || material.unitType === 'package')) {
+                availableQuantity = stockEntry.totalVolume;
+                fieldToUpdate = 'totalVolume';
+                unitType = 'volume';
+              } else if (stockEntry.totalMass > 0 && material.unitType === 'mass') {
+                availableQuantity = stockEntry.totalMass;
+                fieldToUpdate = 'totalMass';
+                unitType = 'mass';
+              } else if (stockEntry.totalPieces > 0 && (material.unitType === 'piece' || material.unitType === 'package')) {
+                availableQuantity = stockEntry.totalPieces;
+                fieldToUpdate = 'totalPieces';
+                unitType = 'pieces';
+              } else {
+                // Fallback to raw purchase data
+                availableQuantity = stockEntry.purchasedIndividualQuantity || 0;
+                fieldToUpdate = 'purchasedIndividualQuantity';
+                unitType = 'fallback';
+              }
+
               const deductFromThisEntry = Math.min(remainingToDeduct, availableQuantity);
 
               if (deductFromThisEntry > 0) {
-                // Update stock entry
-                const newIndividualQuantity = availableQuantity - deductFromThisEntry;
-                stockEntry.purchasedIndividualQuantity = Math.round(newIndividualQuantity);
-                await stockEntry.save({ transaction });
+                // Update the appropriate field
+                const newQuantity = availableQuantity - deductFromThisEntry;
+                const updateData = { [fieldToUpdate]: Math.round(newQuantity) };
+                
+                // Also update cost per unit if we're updating calculated fields
+                if (unitType === 'volume' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                  updateData.costPerVolumeUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+                } else if (unitType === 'mass' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                  updateData.costPerMassUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+                } else if (unitType === 'pieces' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                  updateData.costPerPiece = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+                }
 
-                console.log(`Deducted ${deductFromThisEntry} ${material.baseUnit} from stock entry ${stockEntry.id} for POS item ${material.name}`);
+                await stockEntry.update(updateData, { transaction });
+
+                console.log(`Deducted ${deductFromThisEntry} from ${fieldToUpdate} (${unitType}) in stock entry ${stockEntry.id} for POS item ${material.name}`);
 
                 // Log negative stock warning if needed
-                if (Math.round(newIndividualQuantity) < 0) {
-                  console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for POS item ${material.name} now has negative individual quantity: ${Math.round(newIndividualQuantity)}`);
+                if (Math.round(newQuantity) < 0) {
+                  console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for POS item ${material.name} now has negative ${fieldToUpdate}: ${Math.round(newQuantity)}`);
                   negativeStockWarnings.push({
                     materialId: material.id,
                     materialName: material.name,
@@ -474,7 +507,8 @@ const salesController = {
                     availableQuantity: availableQuantity,
                     requiredQuantity: deductFromThisEntry,
                     shortageQuantity: Math.max(0, deductFromThisEntry - availableQuantity),
-                    unit: material.baseUnit
+                    unit: material.baseUnit,
+                    fieldUpdated: fieldToUpdate
                   });
                 }
 
@@ -554,15 +588,48 @@ const salesController = {
           // Only update assignedIndividualQuantity, keep assignedQuantity unchanged
           assignment.assignedIndividualQuantity = Math.round(newAssignedIndividualQuantity);
           await assignment.save();
-          // Update stock entry quantities - deduct from individual quantity only (can go negative)
-          const newIndividualQuantity = stockEntry.purchasedIndividualQuantity - stockEntryDeductionQuantity;
-          // Only update individual quantity, keep package quantity unchanged
-          stockEntry.purchasedIndividualQuantity = Math.round(newIndividualQuantity);
-          await stockEntry.save();
+          // Update stock entry quantities using calculated totals
+          // Determine which calculated field to use based on material type and available data
+          let availableQuantity = 0;
+          let fieldToUpdate = null;
+          let unitType = 'unknown';
+          
+          if (stockEntry.totalVolume > 0 && (material.unitType === 'volume' || material.unitType === 'package')) {
+            availableQuantity = stockEntry.totalVolume;
+            fieldToUpdate = 'totalVolume';
+            unitType = 'volume';
+          } else if (stockEntry.totalMass > 0 && material.unitType === 'mass') {
+            availableQuantity = stockEntry.totalMass;
+            fieldToUpdate = 'totalMass';
+            unitType = 'mass';
+          } else if (stockEntry.totalPieces > 0 && (material.unitType === 'piece' || material.unitType === 'package')) {
+            availableQuantity = stockEntry.totalPieces;
+            fieldToUpdate = 'totalPieces';
+            unitType = 'pieces';
+          } else {
+            // Fallback to raw purchase data
+            availableQuantity = stockEntry.purchasedIndividualQuantity || 0;
+            fieldToUpdate = 'purchasedIndividualQuantity';
+            unitType = 'fallback';
+          }
+
+          const newQuantity = availableQuantity - stockEntryDeductionQuantity;
+          const updateData = { [fieldToUpdate]: Math.round(newQuantity) };
+          
+          // Also update cost per unit if we're updating calculated fields
+          if (unitType === 'volume' && newQuantity > 0 && stockEntry.totalCost > 0) {
+            updateData.costPerVolumeUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+          } else if (unitType === 'mass' && newQuantity > 0 && stockEntry.totalCost > 0) {
+            updateData.costPerMassUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+          } else if (unitType === 'pieces' && newQuantity > 0 && stockEntry.totalCost > 0) {
+            updateData.costPerPiece = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+          }
+
+          await stockEntry.update(updateData, { transaction });
 
           // Log negative stock warning for individual item sales
-          if (Math.round(newIndividualQuantity) < 0) {
-            console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for ${material.name} now has negative individual quantity: ${Math.round(newIndividualQuantity)}`);
+          if (Math.round(newQuantity) < 0) {
+            console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for ${material.name} now has negative ${fieldToUpdate}: ${Math.round(newQuantity)}`);
           }
         }
       }
@@ -608,9 +675,22 @@ const salesController = {
               transaction
             });
 
-            // Calculate total available quantity in base units (can now be negative)
+            // Calculate total available quantity using calculated totals (can now be negative)
             const totalAvailableQuantity = stockEntries.reduce((sum, entry) => {
-              return sum + (entry.purchasedIndividualQuantity || 0);
+              let availableInEntry = 0;
+              
+              if (entry.totalVolume > 0 && (material.unitType === 'volume' || material.unitType === 'package')) {
+                availableInEntry = entry.totalVolume;
+              } else if (entry.totalMass > 0 && material.unitType === 'mass') {
+                availableInEntry = entry.totalMass;
+              } else if (entry.totalPieces > 0 && (material.unitType === 'piece' || material.unitType === 'package')) {
+                availableInEntry = entry.totalPieces;
+              } else {
+                // Fallback to raw purchase data
+                availableInEntry = entry.purchasedIndividualQuantity || 0;
+              }
+              
+              return sum + availableInEntry;
             }, 0);
 
             // Convert ingredient quantity to base units if needed
@@ -671,24 +751,59 @@ const salesController = {
                 action: "Created virtual negative stock entry"
               });
             } else {
-              // Deduct quantities from stock entries using FIFO (now allows negative values)
+              // Deduct quantities from stock entries using FIFO with calculated totals (now allows negative values)
               let remainingToDeduct = requiredQuantityInBaseUnits;
               for (const stockEntry of stockEntries) {
                 if (remainingToDeduct <= 0) break;
 
-                const availableInThisEntry = stockEntry.purchasedIndividualQuantity;
+                // Determine which calculated field to use based on material type and available data
+                let availableInThisEntry = 0;
+                let fieldToUpdate = null;
+                let unitType = 'unknown';
+                
+                if (stockEntry.totalVolume > 0 && (material.unitType === 'volume' || material.unitType === 'package')) {
+                  availableInThisEntry = stockEntry.totalVolume;
+                  fieldToUpdate = 'totalVolume';
+                  unitType = 'volume';
+                } else if (stockEntry.totalMass > 0 && material.unitType === 'mass') {
+                  availableInThisEntry = stockEntry.totalMass;
+                  fieldToUpdate = 'totalMass';
+                  unitType = 'mass';
+                } else if (stockEntry.totalPieces > 0 && (material.unitType === 'piece' || material.unitType === 'package')) {
+                  availableInThisEntry = stockEntry.totalPieces;
+                  fieldToUpdate = 'totalPieces';
+                  unitType = 'pieces';
+                } else {
+                  // Fallback to raw purchase data
+                  availableInThisEntry = stockEntry.purchasedIndividualQuantity || 0;
+                  fieldToUpdate = 'purchasedIndividualQuantity';
+                  unitType = 'fallback';
+                }
+
                 // MODIFIED: Remove Math.min to allow negative deduction
                 const deductFromThisEntry = remainingToDeduct; // Deduct full remaining amount
+                
                 // Update stock entry - can now go negative
                 const newQuantity = Math.round(availableInThisEntry - deductFromThisEntry);
-                stockEntry.purchasedIndividualQuantity = newQuantity;
-                await stockEntry.save({ transaction });
+                const updateData = { [fieldToUpdate]: newQuantity };
+                
+                // Also update cost per unit if we're updating calculated fields
+                if (unitType === 'volume' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                  updateData.costPerVolumeUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+                } else if (unitType === 'mass' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                  updateData.costPerMassUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+                } else if (unitType === 'pieces' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                  updateData.costPerPiece = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+                }
+
+                await stockEntry.update(updateData, { transaction });
 
                 // Update remaining to deduct
                 remainingToDeduct = Math.max(0, remainingToDeduct - Math.max(0, availableInThisEntry));
+                
                 // Log negative stock entry
                 if (newQuantity < 0) {
-                  console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for ${material.name} now has negative quantity: ${newQuantity}`);
+                  console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for ${material.name} now has negative ${fieldToUpdate}: ${newQuantity}`);
                 }
 
                 // If this entry handled all remaining deduction, break

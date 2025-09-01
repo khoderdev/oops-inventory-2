@@ -78,7 +78,7 @@ const StockEntry = sequelize.define(
       type: DataTypes.DECIMAL(10, 6),
       allowNull: true,
       get() {
-        const rawValue = this.getDataValue('totalCost');
+        const rawValue = this.getDataValue("totalCost");
         if (rawValue === null || rawValue === undefined) return null;
         // For currency, keep 2 decimal places but remove trailing zeros
         const formatted = parseFloat(rawValue).toFixed(2);
@@ -89,7 +89,7 @@ const StockEntry = sequelize.define(
       type: DataTypes.DECIMAL(10, 6),
       allowNull: true,
       get() {
-        const rawValue = this.getDataValue('costPerPurchasedUnit');
+        const rawValue = this.getDataValue("costPerPurchasedUnit");
         if (rawValue === null || rawValue === undefined) return null;
         // Remove trailing zeros and unnecessary decimal point
         return parseFloat(rawValue).toString();
@@ -196,12 +196,12 @@ const StockEntry = sequelize.define(
     timestamps: true,
     hooks: {
       beforeCreate: async (stockEntry, options) => {
-        await calculateConvertedValues(stockEntry);
-        await calculateEnhancedValues(stockEntry);
+        await calculateConvertedValues(stockEntry, options);
+        await calculateEnhancedValues(stockEntry, options);
       },
       beforeUpdate: async (stockEntry, options) => {
-        await calculateConvertedValues(stockEntry);
-        await calculateEnhancedValues(stockEntry);
+        await calculateConvertedValues(stockEntry, options);
+        await calculateEnhancedValues(stockEntry, options);
       }
     }
   }
@@ -255,9 +255,9 @@ function convertVolumeToMilliliters(value, fromUnit) {
 }
 
 // Helper function to calculate converted values
-async function calculateConvertedValues(stockEntry) {
+async function calculateConvertedValues(stockEntry, options) {
   try {
-    const material = await Material.findByPk(stockEntry.materialId);
+    const material = await Material.findByPk(stockEntry.materialId, { transaction: options?.transaction });
     if (!material) {
       console.warn(`Material not found for stockEntry with materialId: ${stockEntry.materialId}`);
       stockEntry.purchasedConvertedQuantity = stockEntry.purchasedQuantity;
@@ -289,79 +289,102 @@ async function calculateConvertedValues(stockEntry) {
 }
 
 // Helper function to calculate enhanced values for all material types
-async function calculateEnhancedValues(stockEntry) {
+async function calculateEnhancedValues(stockEntry, options) {
   try {
-    const material = await Material.findByPk(stockEntry.materialId);
+    const material = await Material.findByPk(stockEntry.materialId, { transaction: options?.transaction });
     if (!material) {
       console.warn(`Material not found for enhanced calculations with materialId: ${stockEntry.materialId}`);
       return;
     }
 
-    // Clear all enhanced fields first
+    // Check if this is a manual update (totalVolume being explicitly set)
+    const isManualVolumeUpdate = stockEntry.changed("totalVolume") && stockEntry.totalVolume !== null;
+    const isManualMassUpdate = stockEntry.changed("totalMass") && stockEntry.totalMass !== null;
+    const isManualPiecesUpdate = stockEntry.changed("totalPieces") && stockEntry.totalPieces !== null;
+
+    // Clear all enhanced fields first (but preserve manually set values)
+    const preservedTotalVolume = isManualVolumeUpdate ? stockEntry.totalVolume : null;
+    const preservedTotalMass = isManualMassUpdate ? stockEntry.totalMass : null;
+    const preservedTotalPieces = isManualPiecesUpdate ? stockEntry.totalPieces : null;
+
     clearEnhancedFields(stockEntry);
+
+    // Restore manually set values
+    if (preservedTotalVolume !== null) stockEntry.totalVolume = preservedTotalVolume;
+    if (preservedTotalMass !== null) stockEntry.totalMass = preservedTotalMass;
+    if (preservedTotalPieces !== null) stockEntry.totalPieces = preservedTotalPieces;
 
     const individualQuantity = parseFloat(stockEntry.purchasedIndividualQuantity || 0);
     const totalCost = parseFloat(stockEntry.totalCost || 0);
 
-    // Volume calculations for beverage materials
-    if (material.unitType === 'volume' && material.volumePerUnit && material.volumeUnit && individualQuantity > 0) {
+    // Volume calculations for beverage materials (both volume and package types with volume data)
+    if ((material.unitType === "volume" || material.unitType === "package") && material.volumePerUnit && material.volumeUnit && individualQuantity > 0) {
       stockEntry.volumePerUnit = material.volumePerUnit;
       stockEntry.volumeUnit = material.volumeUnit;
-      
-      const totalVolume = individualQuantity * parseFloat(material.volumePerUnit);
-      stockEntry.totalVolume = Math.round(totalVolume * 1000) / 1000;
-      
-      if (totalCost > 0 && totalVolume > 0) {
-        stockEntry.costPerVolumeUnit = Math.round((totalCost / totalVolume) * 1000000) / 1000000;
+
+      // Only recalculate totalVolume if it wasn't manually set
+      if (!isManualVolumeUpdate) {
+        const totalVolume = individualQuantity * parseFloat(material.volumePerUnit);
+        stockEntry.totalVolume = Math.round(totalVolume * 1000) / 1000;
+        console.log(`🍺 [Volume] ${material.name}: ${individualQuantity} × ${material.volumePerUnit}${material.volumeUnit} = ${stockEntry.totalVolume}${material.volumeUnit}`);
+      } else {
+        console.log(`🔒 [Volume] ${material.name}: Manual totalVolume preserved: ${stockEntry.totalVolume}${material.volumeUnit}`);
       }
-      
-      console.log(`🍺 [Volume] ${material.name}: ${individualQuantity} × ${material.volumePerUnit}${material.volumeUnit} = ${stockEntry.totalVolume}${material.volumeUnit}`);
+
+      // Always recalculate cost per unit based on current totalVolume
+      if (totalCost > 0 && stockEntry.totalVolume > 0) {
+        stockEntry.costPerVolumeUnit = Math.round((totalCost / stockEntry.totalVolume) * 1000000) / 1000000;
+      }
     }
-    
+
     // Mass calculations for mass materials
-    else if (material.unitType === 'mass' && material.massPerUnit && material.massUnit && individualQuantity > 0) {
+    else if (material.unitType === "mass" && material.massPerUnit && material.massUnit && individualQuantity > 0) {
       stockEntry.massPerUnit = material.massPerUnit;
       stockEntry.massUnit = material.massUnit;
       stockEntry.unitDescription = material.unitDescription;
-      
+
       const totalMass = individualQuantity * parseFloat(material.massPerUnit);
       stockEntry.totalMass = Math.round(totalMass * 1000) / 1000;
-      
+
       if (totalCost > 0 && totalMass > 0) {
         stockEntry.costPerMassUnit = Math.round((totalCost / totalMass) * 1000000) / 1000000;
       }
-      
+
       console.log(`⚖️ [Mass] ${material.name}: ${individualQuantity} × ${material.massPerUnit}${material.massUnit} = ${stockEntry.totalMass}${material.massUnit}`);
     }
-    
-    // Package calculations for package materials
-    else if (material.unitType === 'package' && (material.piecesPerPackage || material.packageQuantity) && stockEntry.purchasedQuantity > 0) {
+
+    // Package calculations for package materials (only if no volume data)
+    else if (
+      material.unitType === "package" &&
+      !material.volumePerUnit && // Only if no volume data
+      (material.piecesPerPackage || material.packageQuantity) &&
+      stockEntry.purchasedQuantity > 0
+    ) {
       const piecesPerPkg = material.piecesPerPackage || material.packageQuantity;
       stockEntry.piecesPerPackage = piecesPerPkg;
       stockEntry.unitDescription = material.unitDescription;
-      
+
       const totalPieces = parseFloat(stockEntry.purchasedQuantity) * piecesPerPkg;
       stockEntry.totalPieces = Math.round(totalPieces);
-      
+
       if (totalCost > 0 && totalPieces > 0) {
         stockEntry.costPerPiece = Math.round((totalCost / totalPieces) * 1000000) / 1000000;
       }
-      
-      console.log(`📦 [Package] ${material.name}: ${stockEntry.purchasedQuantity} × ${piecesPerPkg} = ${stockEntry.totalPieces} ${material.unitDescription || 'pieces'}`);
+
+      console.log(`📦 [Package] ${material.name}: ${stockEntry.purchasedQuantity} × ${piecesPerPkg} = ${stockEntry.totalPieces} ${material.unitDescription || "pieces"}`);
     }
-    
+
     // Individual piece calculations for piece materials
-    else if (material.unitType === 'piece' && individualQuantity > 0) {
+    else if (material.unitType === "piece" && individualQuantity > 0) {
       stockEntry.unitDescription = material.unitDescription;
       stockEntry.totalPieces = Math.round(individualQuantity);
-      
+
       if (totalCost > 0 && individualQuantity > 0) {
         stockEntry.costPerPiece = Math.round((totalCost / individualQuantity) * 1000000) / 1000000;
       }
-      
-      console.log(`🔧 [Piece] ${material.name}: ${individualQuantity} ${material.unitDescription || 'pieces'}`);
-    }
 
+      console.log(`🔧 [Piece] ${material.name}: ${individualQuantity} ${material.unitDescription || "pieces"}`);
+    }
   } catch (error) {
     console.error("Error calculating enhanced values:", error);
     clearEnhancedFields(stockEntry);
@@ -375,13 +398,13 @@ function clearEnhancedFields(stockEntry) {
   stockEntry.volumeUnit = null;
   stockEntry.totalVolume = null;
   stockEntry.costPerVolumeUnit = null;
-  
+
   // Mass fields
   stockEntry.massPerUnit = null;
   stockEntry.massUnit = null;
   stockEntry.totalMass = null;
   stockEntry.costPerMassUnit = null;
-  
+
   // Package/piece fields
   stockEntry.piecesPerPackage = null;
   stockEntry.totalPieces = null;
