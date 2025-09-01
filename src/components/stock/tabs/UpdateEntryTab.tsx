@@ -10,7 +10,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Minus, Package, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
 import { useEffect } from "react";
-import { useWatch } from "react-hook-form";
 import type { Path, PathValue } from "react-hook-form";
 import { convertMass, convertVolume, isMassUnit, isVolumeUnit, formatNumber, formatCurrencyUI } from "@/utils/conversionLogic";
 
