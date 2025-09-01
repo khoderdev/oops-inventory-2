@@ -523,15 +523,13 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
             placeholder={!selectedMaterialId ? "Select material first" : "Select unit..."}
             noResultsText={`No units found matching "{searchTerm}"`}
             inputRef={unitSelectRef}
-            disabled={!selectedMaterialId}
+            isLoading={!selectedMaterialId}
             itemRenderer={({ item, onSelect }) => (
               <button key={String(item.id)} type="button" className="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-b border-border last:border-b-0" onClick={() => onSelect(String(item.id), item.name)} onMouseDown={e => e.preventDefault()}>
                 <div className="font-medium">{item.name}</div>
                 <div className="text-xs text-muted-foreground">{item.group}</div>
               </button>
             )}
-            groupBy={item => item.group}
-            renderGroupHeader={group => <div className="px-3 py-1.5 bg-muted/50 text-sm font-medium text-muted-foreground">{group}</div>}
           />
         </div>
       </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
 import { Switch } from "../../ui/switch";
-import { ImageUpload } from "../../ui/image-upload";
+// import { ImageUpload } from "../../ui/image-upload";
 import { CostBreakdown } from "./CostBreakdown";
 import { Ingredients } from "./Ingredients";
 import { VariantIngredientInput } from "./VariantIngredientInput";
@@ -612,31 +612,43 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                   <div key={variantName} className={`border-2 rounded-md p-4 space-y-4 ${colorClass.border} ${colorClass.bg}`}>
                     <h5 className="font-medium mb-2 capitalize">{variantName}</h5>
 
-                    {/* Variant Basic Info */}
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Volume</label>
-                        <Input type="number" value={input.volume} onChange={e => handleVariantInputChange(variantName, "volume", e.target.value)} placeholder="Volume" min="0" step="0.1" />
+                    {/* Variant Configuration Section */}
+                    <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        <h6 className="text-sm font-semibold text-gray-700">Variant Configuration</h6>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Unit</label>
-                        <select value={input.unit} onChange={e => handleVariantInputChange(variantName, "unit", e.target.value)} className="w-full px-3 py-2 border border-input bg-background rounded-md">
-                          <option value="cl">cl</option>
-                          <option value="ml">ml</option>
-                          <option value="l">l</option>
-                          <option value="oz">oz</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Price ($)</label>
-                        <Input type="number" value={input.price} onChange={e => handleVariantInputChange(variantName, "price", e.target.value)} placeholder="0.00" min="0" step="0.01" />
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-gray-600">Volume</label>
+                          <Input type="number" value={input.volume} onChange={e => handleVariantInputChange(variantName, "volume", e.target.value)} placeholder="Volume" min="0" step="0.1" className="bg-gray-50 border-gray-200" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-gray-600">Unit</label>
+                          <select value={input.unit} onChange={e => handleVariantInputChange(variantName, "unit", e.target.value)} className="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-md">
+                            <option value="cl">cl</option>
+                            <option value="ml">ml</option>
+                            <option value="l">l</option>
+                            <option value="oz">oz</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-1 text-gray-600">Price ($)</label>
+                          <Input type="number" value={input.price} onChange={e => handleVariantInputChange(variantName, "price", e.target.value)} placeholder="0.00" min="0" step="0.01" className="bg-gray-50 border-gray-200" />
+                        </div>
                       </div>
                     </div>
 
-                    {/* Variant Ingredients */}
-                    <div className="border-t pt-3">
-                      <h6 className="text-sm font-medium mb-3">Ingredients for {variantName}</h6>
-
+                    {/* Variant Ingredients Section */}
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg border-2 border-dashed border-amber-200 p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                        <h6 className="text-sm font-semibold text-amber-800">Ingredients for {variantName}</h6>
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">Optional</span>
+                      </div>
+                      <div className="text-xs text-amber-600 mb-3">
+                        Add specific ingredients that are unique to this variant size/type
+                      </div>
 
                       {/* Add New Ingredient */}
                       <VariantIngredientInput 
@@ -716,9 +728,9 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         />
       )}
 
-      <div className="border-t pt-4">
+      {/* <div className="border-t pt-4">
         <ImageUpload value={image} onChange={handleImageChange} maxSizeInMB={5} acceptedFormats={["image/jpeg", "image/png", "image/webp", "image/gif"]} />
-      </div>
+      </div> */}
 
       <div className="flex justify-end gap-2 pt-4">
         <Button variant="outline" onClick={onCancel} aria-label="Cancel form">
