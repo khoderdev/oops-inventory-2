@@ -593,49 +593,18 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                     <div className="border-t pt-3">
                       <h6 className="text-sm font-medium mb-3">Ingredients for {variantName}</h6>
 
-                      {/* Existing Ingredients Table */}
-                      {variantIngredients[variantName] && variantIngredients[variantName].length > 0 && (
-                        <div className="mb-4">
-                          {/* Variant ingredients list */}
-                          <div className="mt-4">
-                            <h4 className="text-sm font-medium mb-2">Ingredients:</h4>
-                            <ul className="space-y-2">
-                              {variantIngredients[variantName].map((ingredient, idx) => {
-                                const material = materials.find(m => String(m.id) === ingredient.materialId);
-                                return (
-                                  <li key={idx} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded border border-gray-200">
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">{material?.name}</span>
-                                      <div className="flex gap-2 text-xs text-gray-600">
-                                        <span>
-                                          {ingredient.quantity} {ingredient.unit}
-                                        </span>
-                                        <span>·</span>
-                                        <span>Cost: {typeof ingredient.cost === "number" ? ingredient.cost.toFixed(6) : ingredient.cost}</span>
-                                      </div>
-                                    </div>
-                                    <button type="button" onClick={() => removeIngredientFromVariant(variantName, idx)} className="text-red-500 hover:text-red-700 flex items-center gap-1" title="Remove ingredient">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                      </svg>
-                                      <span className="text-xs">Remove</span>
-                                    </button>
-                                  </li>
-                                );
-                              })}
-                            </ul>
-                          </div>
-                          <div className="border-t pt-2 mt-2">
-                            <div className="flex justify-between text-sm font-medium">
-                              <span>Total Ingredients Cost:</span>
-                              <span>${Array.isArray(variantIngredients[variantName]) ? parseFloat(variantIngredients[variantName].reduce((sum, ing) => sum + (typeof ing.cost === "number" ? ing.cost : Number(ing.cost) || 0), 0).toString()).toFixed(2) : "0.00"}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
 
                       {/* Add New Ingredient */}
-                      <VariantIngredientInput variantName={variantName} materials={materials} stockEntries={stockEntries} sauces={[]} onAddIngredient={addIngredientToVariant} errors={{}} />
+                      <VariantIngredientInput 
+                        variantName={variantName} 
+                        materials={materials} 
+                        stockEntries={stockEntries} 
+                        sauces={[]} 
+                        existingIngredients={variantIngredients[variantName] || []}
+                        onAddIngredient={addIngredientToVariant} 
+                        onRemoveIngredient={removeIngredientFromVariant}
+                        errors={{}} 
+                      />
                     </div>
                   </div>
                 );

@@ -14,14 +14,16 @@ interface VariantIngredientInputProps {
   materials: Material[];
   stockEntries: StockEntry[];
   sauces?: Sauce[];
+  existingIngredients?: MenuItemIngredient[];
   onAddIngredient: (variantName: string, ingredient: MenuItemIngredient) => void;
+  onRemoveIngredient?: (variantName: string, ingredientIndex: number) => void;
   errors?: {
     ingredients?: string;
     ingredientQuantity?: string;
   };
 }
 
-export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ variantName, materials, stockEntries, sauces = [], onAddIngredient, errors = {} }) => {
+export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ variantName, materials, stockEntries, sauces = [], existingIngredients = [], onAddIngredient, onRemoveIngredient, errors = {} }) => {
   const [selectedMaterialId, setSelectedMaterialId] = useState("");
   const [materialSearchTerm, setMaterialSearchTerm] = useState("");
   const [ingredientQuantity, setIngredientQuantity] = useState("");
@@ -388,6 +390,64 @@ export const VariantIngredientInput: React.FC<VariantIngredientInputProps> = ({ 
         <Badge variant="outline" className="capitalize">{variantName}</Badge>
       </div>
       {errors.ingredients && <p className="text-sm text-red-500 mb-2">{errors.ingredients}</p>}
+
+      {/* Display existing ingredients */}
+      {existingIngredients && existingIngredients.length > 0 && (
+        <div className="mb-4">
+          <h5 className="text-sm font-medium mb-2">Current Ingredients:</h5>
+          <div className="space-y-2">
+            {existingIngredients.map((ingredient, idx) => {
+              // Try to find material by ID (handle both string and number IDs)
+              const material = materials.find(m => 
+                String(m.id) === String(ingredient.materialId) || 
+                m.id === ingredient.materialId ||
+                Number(m.id) === Number(ingredient.materialId)
+              );
+              const sauce = sauces.find(s => 
+                String(s.id) === String(ingredient.materialId) || 
+                s.id === ingredient.materialId ||
+                Number(s.id) === Number(ingredient.materialId)
+              );
+              
+              const itemName = material?.name || sauce?.name || `Material ID: ${ingredient.materialId}`;
+              
+              return (
+                <div key={idx} className="flex justify-between items-center text-sm bg-gray-50 p-3 rounded border border-gray-200">
+                  <div className="flex flex-col">
+                    <span className="font-medium">{itemName}</span>
+                    <div className="flex gap-2 text-xs text-gray-600">
+                      <span>{ingredient.quantity} {ingredient.unit}</span>
+                      <span>·</span>
+                      <span>Cost: ${typeof ingredient.cost === "number" ? ingredient.cost.toFixed(4) : ingredient.cost}</span>
+                    </div>
+                  </div>
+                  {onRemoveIngredient && (
+                    <button 
+                      type="button" 
+                      onClick={() => onRemoveIngredient(variantName, idx)} 
+                      className="text-red-500 hover:text-red-700 flex items-center gap-1 px-2 py-1 rounded hover:bg-red-50 transition-colors" 
+                      title={`Remove ${itemName} from ${variantName}`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-xs">Remove</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="border-t pt-2 mt-2">
+            <div className="flex justify-between text-sm font-medium">
+              <span>Total Ingredients Cost:</span>
+              <span>${existingIngredients.reduce((sum, ing) => sum + (typeof ing.cost === "number" ? ing.cost : Number(ing.cost) || 0), 0).toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <h5 className="text-sm font-medium mb-3">Add New Ingredient:</h5>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Selection
