@@ -119,6 +119,56 @@ const StockEntry = sequelize.define(
       type: DataTypes.DECIMAL(10, 6),
       allowNull: true,
       comment: "Cost per volume unit (e.g., cost per cl)"
+    },
+    
+    // Enhanced calculations for mass materials
+    massPerUnit: {
+      type: DataTypes.DECIMAL(10, 3),
+      allowNull: true,
+      comment: "Mass per individual unit (e.g., 500g per bag)"
+    },
+    
+    massUnit: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Unit for massPerUnit (g, kg, lb, etc.)"
+    },
+    
+    totalMass: {
+      type: DataTypes.DECIMAL(15, 3),
+      allowNull: true,
+      comment: "Total mass available (massPerUnit × individual quantity)"
+    },
+    
+    costPerMassUnit: {
+      type: DataTypes.DECIMAL(10, 6),
+      allowNull: true,
+      comment: "Cost per mass unit (e.g., cost per gram)"
+    },
+    
+    // Enhanced calculations for package materials
+    piecesPerPackage: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "Number of pieces per package (e.g., 50 napkins per pack)"
+    },
+    
+    totalPieces: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "Total pieces available (piecesPerPackage × package quantity)"
+    },
+    
+    costPerPiece: {
+      type: DataTypes.DECIMAL(10, 6),
+      allowNull: true,
+      comment: "Cost per individual piece"
+    },
+    
+    unitDescription: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Description of the unit (e.g., 'napkins', 'cups', 'plates')"
     }
   },
   {
@@ -127,11 +177,11 @@ const StockEntry = sequelize.define(
     hooks: {
       beforeCreate: async (stockEntry, options) => {
         await calculateConvertedValues(stockEntry);
-        await calculateVolumeValues(stockEntry);
+        await calculateEnhancedValues(stockEntry);
       },
       beforeUpdate: async (stockEntry, options) => {
         await calculateConvertedValues(stockEntry);
-        await calculateVolumeValues(stockEntry);
+        await calculateEnhancedValues(stockEntry);
       }
     }
   }
@@ -218,53 +268,105 @@ async function calculateConvertedValues(stockEntry) {
   }
 }
 
-// Helper function to calculate volume-based values for beverage materials
-async function calculateVolumeValues(stockEntry) {
+// Helper function to calculate enhanced values for all material types
+async function calculateEnhancedValues(stockEntry) {
   try {
     const material = await Material.findByPk(stockEntry.materialId);
     if (!material) {
-      console.warn(`Material not found for volumeValues calculation with materialId: ${stockEntry.materialId}`);
+      console.warn(`Material not found for enhanced calculations with materialId: ${stockEntry.materialId}`);
       return;
     }
 
-    // Only calculate volume values for materials that have volume information
-    if (material.volumePerUnit && material.volumeUnit && stockEntry.purchasedIndividualQuantity) {
-      // Set volume per unit from material
+    // Clear all enhanced fields first
+    clearEnhancedFields(stockEntry);
+
+    const individualQuantity = parseFloat(stockEntry.purchasedIndividualQuantity || 0);
+    const totalCost = parseFloat(stockEntry.totalCost || 0);
+
+    // Volume calculations for beverage materials
+    if (material.unitType === 'volume' && material.volumePerUnit && material.volumeUnit && individualQuantity > 0) {
       stockEntry.volumePerUnit = material.volumePerUnit;
       stockEntry.volumeUnit = material.volumeUnit;
       
-      // Calculate total volume (individual quantity × volume per unit)
-      const totalVolume = parseFloat(stockEntry.purchasedIndividualQuantity) * parseFloat(material.volumePerUnit);
-      stockEntry.totalVolume = Math.round(totalVolume * 1000) / 1000; // Round to 3 decimal places
+      const totalVolume = individualQuantity * parseFloat(material.volumePerUnit);
+      stockEntry.totalVolume = Math.round(totalVolume * 1000) / 1000;
       
-      // Calculate cost per volume unit if we have total cost
-      if (stockEntry.totalCost && totalVolume > 0) {
-        const costPerVolumeUnit = parseFloat(stockEntry.totalCost) / totalVolume;
-        stockEntry.costPerVolumeUnit = Math.round(costPerVolumeUnit * 1000000) / 1000000; // Round to 6 decimal places
+      if (totalCost > 0 && totalVolume > 0) {
+        stockEntry.costPerVolumeUnit = Math.round((totalCost / totalVolume) * 1000000) / 1000000;
       }
       
-      console.log(`📊 [calculateVolumeValues] Volume calculations for ${material.name}:`, {
-        individualQuantity: stockEntry.purchasedIndividualQuantity,
-        volumePerUnit: stockEntry.volumePerUnit,
-        volumeUnit: stockEntry.volumeUnit,
-        totalVolume: stockEntry.totalVolume,
-        costPerVolumeUnit: stockEntry.costPerVolumeUnit
-      });
-    } else {
-      // Clear volume fields for non-beverage materials or materials without volume info
-      stockEntry.volumePerUnit = null;
-      stockEntry.volumeUnit = null;
-      stockEntry.totalVolume = null;
-      stockEntry.costPerVolumeUnit = null;
+      console.log(`🍺 [Volume] ${material.name}: ${individualQuantity} × ${material.volumePerUnit}${material.volumeUnit} = ${stockEntry.totalVolume}${material.volumeUnit}`);
     }
+    
+    // Mass calculations for mass materials
+    else if (material.unitType === 'mass' && material.massPerUnit && material.massUnit && individualQuantity > 0) {
+      stockEntry.massPerUnit = material.massPerUnit;
+      stockEntry.massUnit = material.massUnit;
+      stockEntry.unitDescription = material.unitDescription;
+      
+      const totalMass = individualQuantity * parseFloat(material.massPerUnit);
+      stockEntry.totalMass = Math.round(totalMass * 1000) / 1000;
+      
+      if (totalCost > 0 && totalMass > 0) {
+        stockEntry.costPerMassUnit = Math.round((totalCost / totalMass) * 1000000) / 1000000;
+      }
+      
+      console.log(`⚖️ [Mass] ${material.name}: ${individualQuantity} × ${material.massPerUnit}${material.massUnit} = ${stockEntry.totalMass}${material.massUnit}`);
+    }
+    
+    // Package calculations for package materials
+    else if (material.unitType === 'package' && (material.piecesPerPackage || material.packageQuantity) && stockEntry.purchasedQuantity > 0) {
+      const piecesPerPkg = material.piecesPerPackage || material.packageQuantity;
+      stockEntry.piecesPerPackage = piecesPerPkg;
+      stockEntry.unitDescription = material.unitDescription;
+      
+      const totalPieces = parseFloat(stockEntry.purchasedQuantity) * piecesPerPkg;
+      stockEntry.totalPieces = Math.round(totalPieces);
+      
+      if (totalCost > 0 && totalPieces > 0) {
+        stockEntry.costPerPiece = Math.round((totalCost / totalPieces) * 1000000) / 1000000;
+      }
+      
+      console.log(`📦 [Package] ${material.name}: ${stockEntry.purchasedQuantity} × ${piecesPerPkg} = ${stockEntry.totalPieces} ${material.unitDescription || 'pieces'}`);
+    }
+    
+    // Individual piece calculations for piece materials
+    else if (material.unitType === 'piece' && individualQuantity > 0) {
+      stockEntry.unitDescription = material.unitDescription;
+      stockEntry.totalPieces = Math.round(individualQuantity);
+      
+      if (totalCost > 0 && individualQuantity > 0) {
+        stockEntry.costPerPiece = Math.round((totalCost / individualQuantity) * 1000000) / 1000000;
+      }
+      
+      console.log(`🔧 [Piece] ${material.name}: ${individualQuantity} ${material.unitDescription || 'pieces'}`);
+    }
+
   } catch (error) {
-    console.error("Error calculating volume values:", error);
-    // Clear volume fields on error
-    stockEntry.volumePerUnit = null;
-    stockEntry.volumeUnit = null;
-    stockEntry.totalVolume = null;
-    stockEntry.costPerVolumeUnit = null;
+    console.error("Error calculating enhanced values:", error);
+    clearEnhancedFields(stockEntry);
   }
+}
+
+// Helper function to clear all enhanced calculation fields
+function clearEnhancedFields(stockEntry) {
+  // Volume fields
+  stockEntry.volumePerUnit = null;
+  stockEntry.volumeUnit = null;
+  stockEntry.totalVolume = null;
+  stockEntry.costPerVolumeUnit = null;
+  
+  // Mass fields
+  stockEntry.massPerUnit = null;
+  stockEntry.massUnit = null;
+  stockEntry.totalMass = null;
+  stockEntry.costPerMassUnit = null;
+  
+  // Package/piece fields
+  stockEntry.piecesPerPackage = null;
+  stockEntry.totalPieces = null;
+  stockEntry.costPerPiece = null;
+  stockEntry.unitDescription = null;
 }
 
 export default StockEntry;

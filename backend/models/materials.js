@@ -88,11 +88,62 @@ const Material = sequelize.define(
         }
       },
       comment: "Unit for volumePerUnit field (ml, cl, l, etc.)"
+    },
+
+    // Enhanced quantity calculations for all material types
+    massPerUnit: {
+      type: DataTypes.DECIMAL(10, 3),
+      allowNull: true,
+      validate: {
+        min: { args: [0], msg: "Mass per unit must be non-negative" }
+      },
+      comment: "Mass per unit for mass materials (e.g., 500g per bag, 1kg per box)"
+    },
+
+    massUnit: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      validate: {
+        isIn: {
+          args: [['g', 'kg', 'lb', 'oz', 'mg']],
+          msg: "Mass unit must be a valid mass measurement"
+        }
+      },
+      comment: "Unit for massPerUnit field (g, kg, lb, etc.)"
+    },
+
+    piecesPerPackage: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      validate: {
+        min: { args: [1], msg: "Pieces per package must be at least 1" }
+      },
+      comment: "Number of pieces per package (e.g., 50 napkins per pack, 100 cups per sleeve)"
+    },
+
+    unitDescription: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: "Description of the unit (e.g., 'napkins', 'cups', 'plates', 'pieces')"
     }
   },
   {
     tableName: "materials",
-    timestamps: true
+    timestamps: true,
+    hooks: {
+      beforeSave: (material, options) => {
+        // Validate that appropriate fields are set based on unitType
+        if (material.unitType === 'volume' && !material.volumePerUnit) {
+          console.warn(`Volume material ${material.name} should have volumePerUnit defined`);
+        }
+        if (material.unitType === 'mass' && !material.massPerUnit) {
+          console.warn(`Mass material ${material.name} should have massPerUnit defined`);
+        }
+        if (material.unitType === 'package' && !material.piecesPerPackage && !material.packageQuantity) {
+          console.warn(`Package material ${material.name} should have piecesPerPackage or packageQuantity defined`);
+        }
+      }
+    }
   }
 );
 

@@ -1,7 +1,7 @@
-# Beverage Volume Calculations Enhancement
+# Enhanced Stock Calculations for All Material Types
 
 ## Overview
-Enhanced the stock entry system to automatically calculate and display volume-based information for beverage materials, providing clear visibility into actual inventory amounts in terms of bottles and total volume.
+Enhanced the stock entry system to automatically calculate and display comprehensive quantity information for all material types (volume, mass, package, piece), providing clear visibility into actual inventory amounts with detailed cost breakdowns.
 
 ## New StockEntry Fields
 
