@@ -1,12 +1,48 @@
 import { Op } from "sequelize";
+import sequelize from "../config/database.js";
 import { auditOrderOperation } from "../middleware/auditMiddleware.js";
-import { Assignment, Material, MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, Order, OrderItem, sequelize, StockEntry, Table, User, PrintJob, Printer, PrinterChannel } from "../models/index.js";
+import { Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, Table, PrintJob, PrinterChannel } from "../models/index.js";
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 import { calculateDeductionAmount, logVariantDeduction } from "../utils/beverageVariantUtils.js";
-import { calculateBeverageDeduction, convertToMl, isValidBeverageUnit } from "../utils/volumeConversionUtils.js";
+import { calculateBeverageDeduction, convertToMl, convertFromMl, isValidBeverageUnit } from "../utils/volumeConversionUtils.js";
 
-export const deductIngredientStock = async (menuItemId, orderQuantity, transaction, selectedVariant = null) => {
+// Helper function to detect variant from item name when selectedVariant is null
+const detectVariantFromItemName = async (menuItemId, itemName, deductionId, transaction) => {
+  try {
+    // Extract variant name from item name like "Long Island (glass - 200ml)"
+    const variantMatch = itemName.match(/\(([^-]+)\s*-\s*([^)]+)\)/);
+    if (!variantMatch) {
+      console.log(`🔍 [${deductionId}] No variant pattern found in item name: ${itemName}`);
+      return null;
+    }
+    
+    const variantName = variantMatch[1].trim();
+    console.log(`🔍 [${deductionId}] Detected variant name from item: ${variantName}`);
+    
+    // Find the variant in the database
+    const variant = await Variants.findOne({
+      where: { 
+        menuItemId: menuItemId,
+        name: { [Op.iLike]: variantName }
+      },
+      transaction
+    });
+    
+    if (variant) {
+      console.log(`✅ [${deductionId}] Found variant: ${variant.name} (ID: ${variant.id})`);
+      return variant;
+    } else {
+      console.log(`❌ [${deductionId}] Variant not found: ${variantName} for menu item ${menuItemId}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`❌ [${deductionId}] Error detecting variant:`, error);
+    return null;
+  }
+};
+
+export const deductIngredientStock = async (menuItemId, orderQuantity, transaction, selectedVariant = null, fullItemName = null) => {
   const deductionId = Math.random().toString(36).substr(2, 9);
   try {
     console.log(`🔍 [${deductionId}] Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
@@ -110,13 +146,69 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
     if (allIngredients.length === 0) {
       console.log(`🍾 [${deductionId}] No ingredients or sauces found for menu item "${menuItem.name}"`);
       
+      // Try to detect variant from item name if selectedVariant is null
+      let detectedVariant = selectedVariant;
+      if (!selectedVariant) {
+        const itemNameToCheck = fullItemName || menuItem.name;
+        console.log(`🔍 [${deductionId}] Checking for variant in item name: "${itemNameToCheck}"`);
+        detectedVariant = await detectVariantFromItemName(menuItem.id, itemNameToCheck, deductionId, transaction);
+      }
+      
       // Special handling for beverage variants
-      if (selectedVariant) {
-        console.log(`🥃 [${deductionId}] Processing beverage variant: ${selectedVariant.name}`);
+      if (detectedVariant) {
+        console.log(`🥃 [${deductionId}] Processing beverage variant: ${detectedVariant.name}`);
+        
+        // Check for variant ingredients first
+        const variantIngredients = await VariantIngredient.findAll({
+          where: { variantId: detectedVariant.id, isActive: true },
+          include: [
+            { model: Material, as: 'material' },
+            { model: Sauce, as: 'sauce' }
+          ],
+          transaction
+        });
+        
+        if (variantIngredients.length > 0) {
+          console.log(`🧪 [${deductionId}] Found ${variantIngredients.length} variant ingredients for ${detectedVariant.name}`);
+          
+          // Process variant ingredients
+          for (const variantIngredient of variantIngredients) {
+            const ingredient = variantIngredient.material || variantIngredient.sauce;
+            const ingredientType = variantIngredient.material ? 'material' : 'sauce';
+            
+            console.log(`🔄 [${deductionId}] Processing variant ingredient: ${ingredient.name}, quantity: ${variantIngredient.quantity} ${variantIngredient.unit}`);
+            
+            if (ingredientType === 'material') {
+              // Calculate total quantity needed
+              const totalQuantityNeeded = parseFloat(variantIngredient.quantity) * orderQuantity;
+              
+              // Convert to material's base unit if needed
+              let quantityToDeduct = totalQuantityNeeded;
+              if (variantIngredient.unit !== ingredient.baseUnit) {
+                // Use volume conversion for beverages
+                if (ingredient.unitType === 'volume') {
+                  try {
+                    quantityToDeduct = convertToMl(totalQuantityNeeded, variantIngredient.unit);
+                    if (ingredient.baseUnit !== 'ml') {
+                      quantityToDeduct = convertFromMl(quantityToDeduct, ingredient.baseUnit);
+                    }
+                  } catch (conversionError) {
+                    console.warn(`⚠️ [${deductionId}] Volume conversion failed, using original quantity`);
+                  }
+                }
+              }
+              
+              await deductStockFromMaterial(ingredient.id, quantityToDeduct, `${menuItem.name} (${detectedVariant.name} variant)`, transaction);
+              console.log(`✅ [${deductionId}] Deducted ${quantityToDeduct} ${ingredient.baseUnit} of ${ingredient.name} for variant ${detectedVariant.name}`);
+            }
+          }
+          
+          return; // Exit early since we processed variant ingredients
+        }
         
         // Validate variant unit
-        if (!isValidBeverageUnit(selectedVariant.unit)) {
-          console.warn(`⚠️ [${deductionId}] Invalid beverage unit: ${selectedVariant.unit}. Proceeding with fallback logic.`);
+        if (!isValidBeverageUnit(detectedVariant.unit)) {
+          console.warn(`⚠️ [${deductionId}] Invalid beverage unit: ${detectedVariant.unit}. Proceeding with fallback logic.`);
         }
         
         // Find the source material for this beverage
@@ -131,15 +223,15 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           try {
             // Use the new comprehensive volume conversion system
             const deductionResult = calculateBeverageDeduction(
-              selectedVariant.volume,
-              selectedVariant.unit,
+              detectedVariant.volume,
+              detectedVariant.unit,
               matchingMaterial,
               orderQuantity
             );
             
             console.log(`📊 [${deductionId}] Beverage deduction calculation:`, {
-              variantName: selectedVariant.name,
-              variantVolume: `${selectedVariant.volume} ${selectedVariant.unit}`,
+              variantName: detectedVariant.name,
+              variantVolume: `${detectedVariant.volume} ${detectedVariant.unit}`,
               materialName: matchingMaterial.name,
               unitsToDeduct: deductionResult.unitsToDeduct,
               exactUnitsNeeded: deductionResult.exactUnitsNeeded,
@@ -157,19 +249,19 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
               console.log(`⚠️ [${deductionId}] High waste detected: ${deductionResult.wastePercentage}% (${deductionResult.wasteVolumeInMl}ml unused)`);
             }
             
-            console.log(`✅ [${deductionId}] Deducted ${deductionResult.unitsToDeduct} ${deductionResult.materialUnit} of ${matchingMaterial.name} for variant ${selectedVariant.name}`);
+            console.log(`✅ [${deductionId}] Deducted ${deductionResult.unitsToDeduct} ${deductionResult.materialUnit} of ${matchingMaterial.name} for variant ${detectedVariant.name}`);
             
           } catch (conversionError) {
-            console.error(`❌ [${deductionId}] Volume conversion failed for variant ${selectedVariant.name}:`, conversionError);
+            console.error(`❌ [${deductionId}] Volume conversion failed for variant ${detectedVariant.name}:`, conversionError);
             
             // Fallback to legacy calculation
-            console.log(`🔄 [${deductionId}] Using fallback calculation for ${selectedVariant.name}`);
+            console.log(`🔄 [${deductionId}] Using fallback calculation for ${detectedVariant.name}`);
             const materialVolume = matchingMaterial.packageQuantity || 1;
             const materialUnit = matchingMaterial.packageUnit || matchingMaterial.baseUnit || 'unit';
             
             const deductionAmount = calculateDeductionAmount(
-              selectedVariant.volume,
-              selectedVariant.unit,
+              detectedVariant.volume,
+              detectedVariant.unit,
               materialVolume,
               materialUnit,
               orderQuantity
@@ -651,7 +743,7 @@ export const ordersController = {
                   console.log(`🥃 Found selected variant for ${item.name}: ${item.selectedVariant.name}`);
                   await deductIngredientStock(item.menuItemId, item.quantity, transaction, item.selectedVariant);
                 } else {
-                  await deductIngredientStock(item.menuItemId, item.quantity, transaction);
+                  await deductIngredientStock(item.menuItemId, item.quantity, transaction, null, item.name);
                 }
                 
                 console.log(`✅ Stock deduction completed for menu item: ${item.name}`);
@@ -921,7 +1013,7 @@ export const ordersController = {
                     console.log(`🥃 Found selected variant for ${item.name}: ${item.selectedVariant.name}`);
                     await deductIngredientStock(item.menuItemId, item.quantity, transaction, item.selectedVariant);
                   } else {
-                    await deductIngredientStock(item.menuItemId, item.quantity, transaction);
+                    await deductIngredientStock(item.menuItemId, item.quantity, transaction, null, item.name);
                   }
                 } else if (item.type === "material" && item.materialId) {
                   console.log(`📦 Processing direct material for stock deduction: ${item.name} (ID: ${item.materialId}), Quantity: ${item.quantity}`);
