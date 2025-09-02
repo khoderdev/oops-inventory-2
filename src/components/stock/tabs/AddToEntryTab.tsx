@@ -39,7 +39,53 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
     if (currentMaterialId !== undefined && typeof currentMaterialId === "number") {
       form.setValue("materialId", String(currentMaterialId));
     }
-  }, [form]);
+    
+    // Set default unit if not already set
+    const currentUnit = form.getValues("purchasedUnit");
+    if (!currentUnit && selectedMaterial) {
+      // Determine available units
+      let materialUnits: string[] = [];
+      if (selectedMaterial.unitType === "package" && selectedMaterial.inputUnit) {
+        materialUnits = [selectedMaterial.inputUnit];
+        if (selectedMaterial.baseUnit && selectedMaterial.baseUnit !== selectedMaterial.inputUnit) {
+          materialUnits.push(selectedMaterial.baseUnit);
+        }
+        if (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl") {
+          if (!materialUnits.includes("bottle")) {
+            materialUnits.push("bottle");
+          }
+          if (!materialUnits.includes("ml")) {
+            materialUnits.push("ml");
+          }
+        } else {
+          if (!materialUnits.includes("piece")) {
+            materialUnits.push("piece");
+          }
+        }
+      } else if (selectedMaterial.unitType === "mass") {
+        materialUnits = ["g", "kg"];
+      } else if (selectedMaterial.unitType === "volume") {
+        materialUnits = ["ml", "L"];
+      } else {
+        materialUnits = [stockEntry?.purchasedUnit || ""];
+      }
+      
+      materialUnits = [...new Set(materialUnits)].filter(unit => unit);
+      if (materialUnits.length === 0) {
+        materialUnits = [...new Set(availableUnits)].filter(unit => unit);
+      }
+      
+      // Set the first available unit as default
+      if (materialUnits.length > 0) {
+        console.log("🔄 Setting default unit:", materialUnits[0]);
+        form.setValue("purchasedUnit", materialUnits[0], { 
+          shouldValidate: true,
+          shouldDirty: true,
+          shouldTouch: true
+        });
+      }
+    }
+  }, [form, selectedMaterial, stockEntry, availableUnits]);
 
   useEffect(() => {
     if (selectedMaterial && stockEntry && watchedUnit) {
