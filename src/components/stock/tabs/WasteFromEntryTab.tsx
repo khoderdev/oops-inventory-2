@@ -18,13 +18,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       // Use the enhanced cost calculation system
       const costResult = calculateCostBreakdown(selectedMaterial, stockEntry, quantity, watchedUnit);
       
-      console.log(" WasteFromEntryTab cost calculation:", {
-        material: selectedMaterial.name,
-        quantity,
-        unit: watchedUnit,
-        costResult
-      });
-
       // Update cost per unit field
       const formattedCostPerUnit = costResult.costPerUnit.toFixed(6);
       form.setValue("costPerPurchasedUnit", formattedCostPerUnit, { shouldValidate: true });

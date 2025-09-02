@@ -138,12 +138,12 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     if (selectedMaterial && currentUnit) {
       // Use enhanced cost calculation system
       const costResult = calculateCostBreakdown(selectedMaterial, stockEntry, qty, currentUnit);
-      
+
       console.log("🔍 Enhanced cost calculation result:", costResult);
 
       // Update cost per unit
       const formattedCPU = fmtCPU(costResult.costPerUnit, currentUnit);
-      form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: true });
+      form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: false });
 
       // Update total cost with smart formatting
       let formattedTotalCost;
@@ -154,14 +154,14 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
       } else {
         formattedTotalCost = fmtMoney(costResult.totalCost);
       }
-      
+
       console.log("🔍 Setting totalCost to:", formattedTotalCost);
-      form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
+      form.setValue("totalCost", formattedTotalCost, { shouldValidate: false });
     } else {
       // Fallback to basic calculation if no material selected
       const cpu = toNumber(form.getValues("costPerPurchasedUnit") as string);
       const total = toNumber(form.getValues("totalCost") as string);
-      
+
       if (!isNaN(cpu) && cpu > 0) {
         const calculatedTotal = qty * cpu;
         const formattedValue = fmtMoney(calculatedTotal);
@@ -259,7 +259,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
       } else {
         formattedTotalCost = fmtMoney(calculatedTotal);
       }
-      
+
       form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
     } else {
       // Calculate quantity from total cost if available
@@ -278,20 +278,20 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
 
   const handleUnitChange = (newUnit: string) => {
     console.log(" handleUnitChange CALLED with:", { newUnit });
-    const currentUnit = previousUnitRef.current || form.getValues(unitFieldName as any) as string;
+    const currentUnit = previousUnitRef.current || (form.getValues(unitFieldName as any) as string);
     console.log(" handleUnitChange current unit:", { currentUnit, newUnit, fromRef: previousUnitRef.current });
     if (!newUnit) return;
-    
+
     // Check if units are the same BEFORE updating the form
     if (!currentUnit || newUnit === currentUnit) {
       console.log(" handleUnitChange EARLY RETURN:", { currentUnit, newUnit, reason: "same unit or no current unit" });
-      form.setValue(unitFieldName as any, newUnit, { shouldValidate: true });
+      form.setValue(unitFieldName as any, newUnit, { shouldValidate: false });
       previousUnitRef.current = newUnit;
       return;
     }
-    
+
     // Now update the form value after we've confirmed the units are different
-    form.setValue(unitFieldName as any, newUnit, { shouldValidate: true });
+    form.setValue(unitFieldName as any, newUnit, { shouldValidate: false });
     previousUnitRef.current = newUnit;
 
     const qty = toNumber(form.getValues(quantityFieldName as any) as string);
@@ -300,7 +300,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
       if (selectedMaterial) {
         const costResult = calculateCostBreakdown(selectedMaterial, stockEntry, 1, newUnit);
         const formattedCPU = fmtCPU(costResult.costPerUnit, newUnit);
-        form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: true });
+        form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: false });
       }
       return;
     }
@@ -319,19 +319,19 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
       });
 
       const costResult = calculateCostBreakdown(selectedMaterial, stockEntry, newQty, newUnit);
-      
+
       console.log("🔄 handleUnitChange: Cost calculation result", {
         oldUnit: currentUnit,
         newUnit,
         quantity: newQty,
         costResult
       });
-      
-      // Update cost per unit
-      const formattedCPU = fmtCPU(costResult.costPerUnit, newUnit);
-      form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: true });
 
-      // Update total cost with smart formatting
+      // Update cost per unit - format as string for form field
+      const formattedCPU = fmtCPU(costResult.costPerUnit, newUnit);
+      form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: false });
+
+      // Update total cost - format as string for form field
       let formattedTotalCost;
       if (costResult.totalCost < 0.01 && costResult.totalCost > 0) {
         formattedTotalCost = costResult.totalCost.toFixed(4);
@@ -340,12 +340,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
       } else {
         formattedTotalCost = fmtMoney(costResult.totalCost);
       }
-      
-      form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
+
+      form.setValue("totalCost", formattedTotalCost, { shouldValidate: false });
 
       console.log("🔄 handleUnitChange: Updated form values", {
         costPerUnit: formattedCPU,
         totalCost: formattedTotalCost,
+        rawCostPerUnit: costResult.costPerUnit,
         rawTotalCost: costResult.totalCost
       });
     } else {
@@ -393,12 +394,27 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     await form.trigger();
     const qty = toNumber(data[quantityFieldName as keyof StockFormInputs] as string);
     const total = toNumber(data.totalCost as string);
-    const cpu = !data.costPerPurchasedUnit || data.costPerPurchasedUnit === "" ? (!isNaN(qty) && qty > 0 && !isNaN(total) ? total / qty : NaN) : toNumber(data.costPerPurchasedUnit as string);
+    
+    // Calculate CPU safely, never allowing NaN
+    let cpu: number;
+    if (!data.costPerPurchasedUnit || data.costPerPurchasedUnit === "") {
+      // Calculate from total/qty, but ensure we never get NaN
+      if (!isNaN(qty) && qty > 0 && !isNaN(total) && total >= 0) {
+        cpu = total / qty;
+      } else {
+        cpu = 0; // Safe fallback instead of NaN
+      }
+    } else {
+      cpu = toNumber(data.costPerPurchasedUnit as string);
+      if (isNaN(cpu)) {
+        cpu = 0; // Safe fallback instead of NaN
+      }
+    }
 
     if (isNaN(qty) || qty <= 0) {
       form.setError(quantityFieldName as any, { type: "manual", message: "Quantity must be greater than 0" });
     }
-    if (isNaN(cpu) || cpu < 0) {
+    if (cpu < 0) {
       form.setError("costPerPurchasedUnit", { type: "manual", message: "Cost per unit must be ≥ 0" });
     }
 
@@ -503,20 +519,6 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                     <FormLabel>Quantity</FormLabel>
                     <FormControl>
                       <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className={`h-11 w-11 border-${headerColor}-300 hover:border-${headerColor}-500 hover:bg-${headerColor}-50`}
-                          onClick={() => {
-                            const current = Number(field.value) || 0;
-                            const next = Math.max(0, current - 1).toString();
-                            recomputeFromQuantity(next);
-                          }}
-                          disabled={parseFloat(field.value?.toString() || "0") <= 0 || disabledFields.includes("quantity")}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
                         <Input
                           type="number"
                           step="1"
@@ -539,7 +541,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           size="icon"
                           className={`h-11 w-11 border-${headerColor}-300 hover:border-${headerColor}-500 hover:bg-${headerColor}-50`}
                           onClick={() => {
-                            const current = Number(field.value) || 0;
+                            const current = toNumber(field.value?.toString()) || 0;
                             const next = (current + 1).toString();
                             recomputeFromQuantity(next);
                           }}
@@ -744,11 +746,11 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           size="icon"
                           className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                           onClick={() => {
-                            const current = parseFloat(field.value as string) || 0;
+                            const current = toNumber(field.value as string) || 0;
                             const next = Math.max(0, current - 0.01).toFixed(2);
                             recomputeFromCPU(next);
                           }}
-                          disabled={parseFloat(field.value as string) <= 0 || disabledFields.includes("costPerUnit") || readOnlyFields.includes("costPerUnit")}
+                          disabled={toNumber(field.value as string) <= 0 || disabledFields.includes("costPerUnit") || readOnlyFields.includes("costPerUnit")}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -772,7 +774,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           size="icon"
                           className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                           onClick={() => {
-                            const current = parseFloat(field.value as string) || 0;
+                            const current = toNumber(field.value as string) || 0;
                             const next = (current + 0.01).toFixed(2);
                             recomputeFromCPU(next);
                           }}
@@ -810,7 +812,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           size="icon"
                           className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                           onClick={() => {
-                            const currentValue = field.value === "" ? 0 : parseFloat(field.value as string);
+                            const currentValue = field.value === "" ? 0 : toNumber(field.value as string);
                             const currentUnit = form.watch(unitFieldName) as string;
 
                             // Determine step size based on unit
@@ -841,7 +843,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
 
                             recomputeFromTotal(next);
                           }}
-                          disabled={parseFloat(field.value as string) <= 0 || disabledFields.includes("totalCost") || readOnlyFields.includes("totalCost")}
+                          disabled={toNumber(field.value as string) <= 0 || disabledFields.includes("totalCost") || readOnlyFields.includes("totalCost")}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -853,7 +855,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           value={(() => {
                             // Get the current unit and value
                             const currentUnit = form.watch(unitFieldName) as string;
-                            
+
                             // Parse the value, ensuring we strip any currency symbols first
                             const rawValue = field.value as string;
                             const numericValue = rawValue ? parseCurrency(rawValue) : 0;
@@ -906,7 +908,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           size="icon"
                           className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                           onClick={() => {
-                            const currentValue = field.value === "" ? 0 : parseFloat(field.value as string);
+                            const currentValue = field.value === "" ? 0 : toNumber(field.value as string);
                             const currentUnit = form.watch(unitFieldName) as string;
 
                             // Determine step size based on unit
@@ -941,7 +943,6 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                         </Button>
                       </div>
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />

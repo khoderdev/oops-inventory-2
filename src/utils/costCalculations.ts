@@ -39,20 +39,20 @@ export function calculateCostPerUnit(material: Material, stockEntry: StockEntry 
  */
 export function getVolumePerUnit(material: Material, stockEntry: StockEntry | null): number {
   // Try to get volume from stock entry first (most specific)
-  if (stockEntry?.volumePerUnit && stockEntry.volumePerUnit > 0) {
+  if (stockEntry?.volumePerUnit && stockEntry.volumePerUnit > 0 && !isNaN(stockEntry.volumePerUnit)) {
     return stockEntry.volumePerUnit;
   }
 
   // Then try material configuration
-  if (material.volumePerBottle && material.volumePerBottle > 0) {
+  if (material.volumePerBottle && material.volumePerBottle > 0 && !isNaN(material.volumePerBottle)) {
     return material.volumePerBottle;
   }
 
-  if (material.volumePerUnit && material.volumePerUnit > 0) {
+  if (material.volumePerUnit && material.volumePerUnit > 0 && !isNaN(material.volumePerUnit)) {
     return material.volumePerUnit;
   }
 
-  if (material.packageQuantity && material.packageQuantity > 0 && (material.baseUnit === "ml" || material.baseUnit === "cl")) {
+  if (material.packageQuantity && material.packageQuantity > 0 && !isNaN(material.packageQuantity) && (material.baseUnit === "ml" || material.baseUnit === "cl")) {
     return material.packageQuantity;
   }
 
@@ -68,8 +68,26 @@ export function getVolumePerUnit(material: Material, stockEntry: StockEntry | nu
  * Calculate comprehensive cost breakdown for a material
  */
 export function calculateCostBreakdown(material: Material, stockEntry: StockEntry | null, quantity: number, purchasedUnit: string): CostCalculationResult {
+  // Validate inputs first
+  if (!material || isNaN(quantity) || quantity <= 0) {
+    console.warn("🚨 Invalid inputs to calculateCostBreakdown:", { material: !!material, quantity, purchasedUnit });
+    return {
+      costPerUnit: 0,
+      totalCost: 0
+    };
+  }
+
   const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
   const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
+  
+  // Validate that we have valid costs
+  if (isNaN(stockEntryCost) || isNaN(materialCost)) {
+    console.warn("🚨 Invalid costs in calculateCostBreakdown:", { stockEntryCost, materialCost });
+    return {
+      costPerUnit: 0,
+      totalCost: 0
+    };
+  }
   
   // Always use the original material/stock entry cost, not the current form cost
   let baseCost = materialCost;
@@ -188,13 +206,16 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
 
     if (purchasedUnit === "ml" && (material.baseUnit === "ml" || material.baseUnit === "cl" || material.baseUnit === "l")) {
       volumePerUnit = getVolumePerUnit(material, stockEntry);
-      if (volumePerUnit > 0) {
+      if (volumePerUnit > 0 && !isNaN(volumePerUnit)) {
         costPerUnit = baseCost / volumePerUnit;
         costPerMl = costPerUnit;
         costPerCl = costPerMl * 10;
+      } else {
+        console.warn("🚨 Invalid volumePerUnit in package calculation:", { volumePerUnit, material: material.name });
+        costPerUnit = baseCost;
       }
     } else if (purchasedUnit === "piece" || purchasedUnit === "bottle") {
-      costPerUnit = packageQuantity > 0 ? baseCost / packageQuantity : baseCost;
+      costPerUnit = (packageQuantity > 0 && !isNaN(packageQuantity)) ? baseCost / packageQuantity : baseCost;
     } else {
       costPerUnit = baseCost;
     }
@@ -234,16 +255,26 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
     }
   }
 
+  // Final validation to ensure no NaN values are returned
   const result = {
-    costPerUnit,
-    costPerMl,
-    costPerCl,
-    costPerBaseUnit,
-    totalCost,
-    volumePerUnit
+    costPerUnit: isNaN(costPerUnit) ? 0 : costPerUnit,
+    costPerMl: costPerMl !== undefined && isNaN(costPerMl) ? undefined : costPerMl,
+    costPerCl: costPerCl !== undefined && isNaN(costPerCl) ? undefined : costPerCl,
+    costPerBaseUnit: costPerBaseUnit !== undefined && isNaN(costPerBaseUnit) ? undefined : costPerBaseUnit,
+    totalCost: isNaN(totalCost) ? 0 : totalCost,
+    volumePerUnit: volumePerUnit !== undefined && isNaN(volumePerUnit) ? undefined : volumePerUnit
   };
 
   console.log("🔍 calculateCostBreakdown result:", result);
+  
+  // Double-check for any remaining NaN values
+  if (isNaN(result.costPerUnit) || isNaN(result.totalCost)) {
+    console.error("🚨 NaN detected in final result, returning safe defaults:", result);
+    return {
+      costPerUnit: 0,
+      totalCost: 0
+    };
+  }
   
   return result;
 }
