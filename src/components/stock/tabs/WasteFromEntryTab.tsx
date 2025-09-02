@@ -11,7 +11,6 @@ import { format } from "date-fns";
 import { CalendarIcon, FileText, Minus, Package, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useWatch } from "react-hook-form";
-import { CostBreakdown } from "../CostBreakdown";
 import { calculateCostPerUnit, formatQuantity } from "@/utils/costCalculations";
 import { VirtualSelect } from "@/components/ui/VirtualSelect";
 
