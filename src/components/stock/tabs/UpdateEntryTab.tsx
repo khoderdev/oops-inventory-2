@@ -14,7 +14,7 @@ import type { Path, PathValue } from "react-hook-form";
 import { convertMass, convertVolume, isMassUnit, isVolumeUnit, formatNumber, formatCurrencyUI } from "@/utils/conversionLogic";
 
 export function UpdateEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: UpdateEntryTabProps) {
-  // Utility functions for number handling and formatting
+  // Utility functions for number handling and formatting 
   const toNumber = (v: string | undefined | null): number => {
     if (!v || v === "") return NaN;
     const n = parseFloat(v);

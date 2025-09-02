@@ -145,7 +145,7 @@ const stockEntriesController = {
   createStockEntries: async (req, res, next) => {
     try {
       const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
-      if (!materialId || !supplier || !purchasedQuantity || !purchasedUnit || !totalCost || !purchaseDate) {
+      if (!materialId || !purchasedQuantity || !purchasedUnit || !totalCost || !purchaseDate) {
         return res.status(400).json({ error: "Missing required fields" });
       }
       const numericPurchasedQuantity = parseFloat(purchasedQuantity);

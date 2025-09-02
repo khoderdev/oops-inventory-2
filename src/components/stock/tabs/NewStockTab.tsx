@@ -192,7 +192,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
               render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel className="flex items-center gap-1">
-                    Supplier <span className="text-red-500">*</span>
+                    Supplier
                   </FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="e.g., ABC Food Distributors" className="h-10 w-full border-gray-200" />

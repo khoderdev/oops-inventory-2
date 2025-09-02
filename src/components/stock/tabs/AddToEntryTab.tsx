@@ -238,10 +238,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       const costPerPurchasedUnit = parseFloat(data.costPerPurchasedUnit);
       const totalCost = parseFloat(data.totalCost);
       if (isNaN(additionalQuantity) || additionalQuantity <= 0) {
-        console.error("❌ Invalid additional quantity:", { purchasedQuantity: data.purchasedQuantity, additionalQuantity });
         form.setError("purchasedQuantity", {
           type: "manual",
-          message: "Additional quantity must be a positive number"
+          message: "You must enter the quantity you are adding to the stock, it must be greater than 0"
         });
         return;
       }
@@ -267,7 +266,6 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
         }
       }
       if (!data.purchasedUnit) {
-        console.error("❌ Missing unit:", { purchasedUnit: data.purchasedUnit });
         form.setError("purchasedUnit", {
           type: "manual",
           message: "Unit is required"
