@@ -1,5 +1,3 @@
-import React from "react";
-
 interface ValidationHelperProps {
   isRequired: boolean;
   hasValue: boolean;

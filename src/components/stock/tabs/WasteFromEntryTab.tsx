@@ -221,6 +221,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       showReasonField={true}
       reasonFieldName="wasteReason"
       submitButtonText="Record Waste"
+      hiddenFields={["supplier"]}
     >
       {/* Error Messages */}
       {errorMessage && (

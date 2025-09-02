@@ -26,56 +26,35 @@ export interface StockEntryFormProps {
   stockEntry?: any;
   onSubmit: (data: StockFormData) => void;
   onCancel: () => void;
-  
+
   // Dynamic props for customization
   headerIcon: LucideIcon;
   headerColor: "green" | "blue" | "red";
   headerTitle: string;
   headerDescription: string;
   getCurrentStockDisplay: () => string;
-  
+
   // Field names and customization
   quantityFieldName: Path<StockFormInputs>;
   unitFieldName: Path<StockFormInputs>;
   dateFieldName: Path<StockFormInputs>;
   dateFieldLabel: string;
-  
+
   // Optional fields
   showReasonField?: boolean;
   reasonFieldName?: Path<StockFormInputs>;
-  
+
+  // Field visibility control
+  hiddenFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason" | "costBreakdown">;
+
   // Button customization
   submitButtonText: string;
-  
+
   // Children elements
   children?: React.ReactNode;
 }
 
-export function StockEntryForm({
-  form,
-  materials,
-  availableUnits,
-  selectedMaterial,
-  watchedQuantity,
-  watchedCostPerUnit,
-  watchedTotalCost,
-  stockEntry,
-  onSubmit,
-  onCancel,
-  headerIcon: HeaderIcon,
-  headerColor,
-  headerTitle,
-  headerDescription,
-  getCurrentStockDisplay,
-  quantityFieldName,
-  unitFieldName,
-  dateFieldName,
-  dateFieldLabel,
-  showReasonField = false,
-  reasonFieldName,
-  submitButtonText,
-  children
-}: StockEntryFormProps) {
+export function StockEntryForm({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel, headerIcon: HeaderIcon, headerColor, headerTitle, headerDescription, getCurrentStockDisplay, quantityFieldName, unitFieldName, dateFieldName, dateFieldLabel, showReasonField = false, reasonFieldName, hiddenFields = [], submitButtonText, children }: StockEntryFormProps) {
   // Utility functions for number handling and formatting
   const toNumber = (v: string | undefined | null): number => {
     if (!v || v === "") return NaN;
@@ -132,9 +111,9 @@ export function StockEntryForm({
     setValue("totalCost", totalStr);
     const total = toNumber(totalStr);
     const qtyValue = form.getValues(quantityFieldName);
-    const qty = typeof qtyValue === 'string' ? toNumber(qtyValue) : 0;
+    const qty = typeof qtyValue === "string" ? toNumber(qtyValue) : 0;
     const cpuValue = form.getValues("costPerPurchasedUnit");
-    const cpu = typeof cpuValue === 'string' ? toNumber(cpuValue) : 0;
+    const cpu = typeof cpuValue === "string" ? toNumber(cpuValue) : 0;
 
     if (isNaN(total)) {
       setValue("costPerPurchasedUnit", "");
@@ -257,142 +236,155 @@ export function StockEntryForm({
         <div className="space-y-6">
           {/* Render children at the top of the form */}
           {children}
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-            <FormField
-              control={form.control}
-              name="materialId"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    Material <span className="text-red-500">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <div className="w-full">
-                      <VirtualSelect
-                        inputHeight="45px"
-                        disabled
-                        items={materials.map(material => {
-                          const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
-                          return {
-                            id: material.id.toString(),
-                            label: `${material.name} (${displayUnit})`
-                          };
-                        })}
-                        value={
-                          field.value
-                            ? {
-                                id: field.value,
-                                label: materials.find(m => m.id.toString() === field.value)?.name + ` (${materials.find(m => m.id.toString() === field.value)?.unitType === "package" && materials.find(m => m.id.toString() === field.value)?.inputUnit ? materials.find(m => m.id.toString() === field.value)?.inputUnit : materials.find(m => m.id.toString() === field.value)?.baseUnit})`
-                              }
-                            : null
-                        }
-                        onChange={item => field.onChange(item?.id || "")}
-                        placeholder="Select material"
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="supplier"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Supplier</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., ABC Food Distributors" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name={quantityFieldName as any}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quantity</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className={`h-11 w-11 border-${headerColor}-300 hover:border-${headerColor}-500 hover:bg-${headerColor}-50`}
-                        onClick={() => {
-                          const current = Number(field.value) || 0;
-                          const next = Math.max(0, current - 1).toString();
-                          recomputeFromQuantity(next);
-                        }}
-                        disabled={parseFloat(field.value?.toString() || "0") <= 0}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <Input
-                        type="number"
-                        step="1"
-                        min="0"
-                        placeholder="0"
-                        {...field}
-                        onChange={e => {
-                          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
-                          const parts = cleaned.split(".");
-                          const normalized = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : cleaned;
-                          recomputeFromQuantity(normalized);
-                        }}
-                        className={`h-11 border-${headerColor}-300 focus:border-${headerColor}-500 focus:ring-${headerColor}-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className={`h-11 w-11 border-${headerColor}-300 hover:border-${headerColor}-500 hover:bg-${headerColor}-50`}
-                        onClick={() => {
-                          const current = Number(field.value) || 0;
-                          const next = (current + 1).toString();
-                          recomputeFromQuantity(next);
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name={unitFieldName as any}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Unit</FormLabel>
-                  <Select onValueChange={handleUnitChange} value={field.value?.toString() || ""}>
+            {/* Material Field */}
+            {!hiddenFields.includes("material") && (
+              <FormField
+                control={form.control}
+                name="materialId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-2 text-md font-medium text-gray-700">
+                      Item <span className="text-red-500">*</span>
+                    </FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select unit" />
-                      </SelectTrigger>
+                      <div className="w-full">
+                        <VirtualSelect
+                          //   inputHeight="45px"
+                          disabled
+                          items={materials.map(material => {
+                            const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
+                            return {
+                              id: material.id.toString(),
+                              label: `${material.name} (${displayUnit})`
+                            };
+                          })}
+                          value={
+                            field.value
+                              ? {
+                                  id: field.value,
+                                  label: materials.find(m => m.id.toString() === field.value)?.name + ` (${materials.find(m => m.id.toString() === field.value)?.unitType === "package" && materials.find(m => m.id.toString() === field.value)?.inputUnit ? materials.find(m => m.id.toString() === field.value)?.inputUnit : materials.find(m => m.id.toString() === field.value)?.baseUnit})`
+                                }
+                              : null
+                          }
+                          onChange={item => field.onChange(item?.id || "")}
+                          placeholder="Select material"
+                        />
+                      </div>
                     </FormControl>
-                    <SelectContent>
-                      {availableUnits.map(unit => (
-                        <SelectItem key={unit} value={unit}>
-                          {unit}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
-            {showReasonField && reasonFieldName && (
+            {/* Supplier Field */}
+            {!hiddenFields.includes("supplier") && (
+              <FormField
+                control={form.control}
+                name="supplier"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Supplier</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., ABC Food Distributors" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Quantity Field */}
+            {!hiddenFields.includes("quantity") && (
+              <FormField
+                control={form.control}
+                name={quantityFieldName as any}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Quantity</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className={`h-11 w-11 border-${headerColor}-300 hover:border-${headerColor}-500 hover:bg-${headerColor}-50`}
+                          onClick={() => {
+                            const current = Number(field.value) || 0;
+                            const next = Math.max(0, current - 1).toString();
+                            recomputeFromQuantity(next);
+                          }}
+                          disabled={parseFloat(field.value?.toString() || "0") <= 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Input
+                          type="number"
+                          step="1"
+                          min="0"
+                          placeholder="0"
+                          {...field}
+                          onChange={e => {
+                            const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                            const parts = cleaned.split(".");
+                            const normalized = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : cleaned;
+                            recomputeFromQuantity(normalized);
+                          }}
+                          className={`h-11 border-${headerColor}-300 focus:border-${headerColor}-500 focus:ring-${headerColor}-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className={`h-11 w-11 border-${headerColor}-300 hover:border-${headerColor}-500 hover:bg-${headerColor}-50`}
+                          onClick={() => {
+                            const current = Number(field.value) || 0;
+                            const next = (current + 1).toString();
+                            recomputeFromQuantity(next);
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Unit Field */}
+            {!hiddenFields.includes("unit") && (
+              <FormField
+                control={form.control}
+                name={unitFieldName as any}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Unit</FormLabel>
+                    <Select onValueChange={handleUnitChange} value={field.value?.toString() || ""}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableUnits.map(unit => (
+                          <SelectItem key={unit} value={unit}>
+                            {unit}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Reason Field */}
+            {showReasonField && reasonFieldName && !hiddenFields.includes("reason") && (
               <FormField
                 control={form.control}
                 name={reasonFieldName as any}
@@ -419,158 +411,158 @@ export function StockEntryForm({
               />
             )}
 
-            <FormField
-              control={form.control}
-              name="costPerPurchasedUnit"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cost Per Unit ($)</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
-                        onClick={() => {
-                          const current = parseFloat(field.value as string) || 0;
-                          const next = Math.max(0, current - 0.01).toFixed(2);
-                          recomputeFromCPU(next);
-                        }}
-                        disabled={parseFloat(field.value as string) <= 0}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <Input
-                        type="number"
-                        step="0.000001"
-                        min="0"
-                        placeholder="0.000000"
-                        value={field.value}
-                        onChange={e => {
-                          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
-                          recomputeFromCPU(cleaned);
-                        }}
-                        className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
-                        onClick={() => {
-                          const current = parseFloat(field.value as string) || 0;
-                          const next = (current + 0.01).toFixed(2);
-                          recomputeFromCPU(next);
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="totalCost"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Total Cost ($)</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
-                        onClick={() => {
-                          const currentValue = field.value === "" ? 0 : parseFloat(field.value as string);
-                          const newValue = Math.max(0, currentValue - 0.01);
-                          const next = newValue === 0 ? "" : newValue.toFixed(2);
-                          recomputeFromTotal(next);
-                        }}
-                        disabled={parseFloat(field.value as string) <= 0}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={field.value}
-                        onChange={e => {
-                          const cleaned = e.target.value.replace(/[^0-9.]/g, "");
-                          recomputeFromTotal(cleaned);
-                        }}
-                        className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
-                        onClick={() => {
-                          const currentValue = field.value === "" ? 0 : parseFloat(field.value as string);
-                          const newValue = currentValue + 0.01;
-                          const next = newValue.toFixed(2);
-                          recomputeFromTotal(next);
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name={dateFieldName as any}
-              render={({ field }) => (
-                <FormItem className="flex flex-col mt-3">
-                  <FormLabel>{dateFieldLabel}</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                          {field.value ? format(field.value as Date, "PPP") : <span>Pick a date</span>}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+            {/* Cost Per Unit Field */}
+            {!hiddenFields.includes("costPerUnit") && (
+              <FormField
+                control={form.control}
+                name="costPerPurchasedUnit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cost Per Unit ($)</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          onClick={() => {
+                            const current = parseFloat(field.value as string) || 0;
+                            const next = Math.max(0, current - 0.01).toFixed(2);
+                            recomputeFromCPU(next);
+                          }}
+                          disabled={parseFloat(field.value as string) <= 0}
+                        >
+                          <Minus className="h-4 w-4" />
                         </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value as Date}
-                        onSelect={field.onChange}
-                        disabled={(date: Date) => date > new Date()}
-                        initialFocus
-                        className="p-3 pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        <Input
+                          type="number"
+                          step="0.000001"
+                          min="0"
+                          placeholder="0.000000"
+                          value={field.value}
+                          onChange={e => {
+                            const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                            recomputeFromCPU(cleaned);
+                          }}
+                          className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          onClick={() => {
+                            const current = parseFloat(field.value as string) || 0;
+                            const next = (current + 0.01).toFixed(2);
+                            recomputeFromCPU(next);
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Total Cost Field */}
+            {!hiddenFields.includes("totalCost") && (
+              <FormField
+                control={form.control}
+                name="totalCost"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Total Cost ($)</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          onClick={() => {
+                            const currentValue = field.value === "" ? 0 : parseFloat(field.value as string);
+                            const newValue = Math.max(0, currentValue - 0.01);
+                            const next = newValue === 0 ? "" : newValue.toFixed(2);
+                            recomputeFromTotal(next);
+                          }}
+                          disabled={parseFloat(field.value as string) <= 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          value={field.value}
+                          onChange={e => {
+                            const cleaned = e.target.value.replace(/[^0-9.]/g, "");
+                            recomputeFromTotal(cleaned);
+                          }}
+                          className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
+                          onClick={() => {
+                            const currentValue = field.value === "" ? 0 : parseFloat(field.value as string);
+                            const newValue = currentValue + 0.01;
+                            const next = newValue.toFixed(2);
+                            recomputeFromTotal(next);
+                          }}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Date Field */}
+            {!hiddenFields.includes("date") && (
+              <FormField
+                control={form.control}
+                name={dateFieldName as any}
+                render={({ field }) => (
+                  <FormItem className="flex flex-col mt-3">
+                    <FormLabel>{dateFieldLabel}</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                            {field.value ? format(field.value as Date, "PPP") : <span>Pick a date</span>}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={field.value as Date} onSelect={field.onChange} disabled={(date: Date) => date > new Date()} initialFocus className="p-3 pointer-events-auto" />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch(unitFieldName) as string} costPerPurchasedUnit={watchedCostPerUnit} totalCost={watchedTotalCost} />
+          {/* Cost Breakdown */}
+          {!hiddenFields.includes("costBreakdown") && <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedQuantity} purchasedUnit={form.watch(unitFieldName) as string} costPerPurchasedUnit={watchedCostPerUnit} totalCost={watchedTotalCost} />}
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              onClick={form.handleSubmit(handleSubmit)}
-            >
+            <Button type="button" onClick={form.handleSubmit(handleSubmit)}>
               {submitButtonText}
             </Button>
           </div>
