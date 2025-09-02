@@ -1,10 +1,9 @@
 import { StockFormData, WasteFromEntryTabProps } from "@/types/inventory";
-import { formatCurrencyUI, formatNumberUI } from "@/utils/conversionLogic";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { StockEntryForm } from "../form/StockEntryForm";
-import { Button } from "@/components/ui/button";
 import { getCurrentStockDisplay } from "@/utils/getCurrentStockDisplay";
+import { OriginalEntryCostInfo } from "./OriginalEntryCostInfo";
 
 export function WasteFromEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,83 +91,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
     }
   };
 
-  if (!stockEntry) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <Trash2 className="h-5 w-5 text-red-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-red-800">No Stock Entry Selected</h3>
-          </div>
-          <p className="text-sm text-red-700 mb-4">Please select a stock entry from the table to record waste from it.</p>
-          <div className="flex gap-3 justify-end">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Go Back
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Original Entry Cost Context component
-  const OriginalEntryCostContext = () => (
-    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-      <h4 className="text-sm font-medium text-gray-700 mb-2">Original Entry Cost Information</h4>
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <span className="text-gray-500">Original Total Cost:</span>
-          <span className="ml-2 font-medium">{formatCurrencyUI(stockEntry.totalCost || 0)}</span>
-        </div>
-        <div>
-          <span className="text-gray-500">Original Quantity:</span>
-          <span className="ml-2 font-medium">
-            {(() => {
-              if (stockEntry.totalVolume && stockEntry.volumePerUnit && stockEntry.purchasedUnit === "bottle") {
-                const totalVolume = typeof stockEntry.totalVolume === "string" ? parseFloat(stockEntry.totalVolume) : stockEntry.totalVolume;
-                const volumePerUnit = typeof stockEntry.volumePerUnit === "string" ? parseFloat(stockEntry.volumePerUnit) : stockEntry.volumePerUnit;
-                const actualBottleCount = Math.round((totalVolume / volumePerUnit) * 100) / 100;
-                return `${actualBottleCount} ${actualBottleCount === 1 ? "bottle" : "bottles"}`;
-              }
-              return `${stockEntry.purchasedQuantity || "0"} ${stockEntry.purchasedUnit || "units"}`;
-            })()}
-          </span>
-        </div>
-        <div>
-          <span className="text-gray-500">
-            Cost per{" "}
-            {(() => {
-              if (stockEntry.totalVolume && stockEntry.volumePerUnit && stockEntry.purchasedUnit === "bottle") {
-                return "bottle";
-              }
-              return stockEntry.purchasedUnit || "unit";
-            })()}
-            :
-          </span>
-          <span className="ml-2 font-medium">
-            $
-            {(() => {
-              const totalCost = Number(stockEntry.totalCost || 0);
-              if (stockEntry.totalVolume && stockEntry.volumePerUnit && stockEntry.purchasedUnit === "bottle") {
-                const totalVolume = typeof stockEntry.totalVolume === "string" ? parseFloat(stockEntry.totalVolume) : stockEntry.totalVolume;
-                const volumePerUnit = typeof stockEntry.volumePerUnit === "string" ? parseFloat(stockEntry.volumePerUnit) : stockEntry.volumePerUnit;
-                const actualBottleCount = totalVolume / volumePerUnit;
-                return formatNumberUI(totalCost / actualBottleCount);
-              }
-              return formatNumberUI(totalCost / Number(stockEntry.purchasedQuantity || 1));
-            })()}
-          </span>
-        </div>
-        <div>
-          <span className="text-gray-500">Remaining Stock:</span>
-          <span className="ml-2 font-medium">{getCurrentStockDisplay(stockEntry)}</span>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <StockEntryForm
       form={form}
@@ -208,7 +130,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       )}
 
       {/* Original Entry Cost Context */}
-      <OriginalEntryCostContext />
+      <OriginalEntryCostInfo form={form} stockEntry={stockEntry} />
     </StockEntryForm>
   );
 }

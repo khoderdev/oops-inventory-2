@@ -1139,6 +1139,11 @@ export interface WasteFromEntryTabProps {
   onCancel: () => void;
 }
 
+export interface OriginalEntryCostInfoProps {
+  form: UseFormReturn<StockFormInputs>;
+  stockEntry: StockEntry;
+}
+
 export interface AddToEntryTabProps {
   form: UseFormReturn<StockFormInputs>;
   materials: Material[];
