@@ -89,18 +89,31 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   useEffect(() => {
     let currentCost = parseFloat(watchedCostPerUnit) || 0;
     const quantity = parseFloat(watchedPurchasedQuantity) || 0;
-    if (selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle")) {
+    
+    if (selectedMaterial?.unitType === "package") {
       const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
       const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
       const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-      const packageQuantity = selectedMaterial?.packageQuantity || 1;
-      if (packageQuantity > 0) {
-        currentCost = boxCost / packageQuantity;
+      
+      if (watchedUnit === "ml") {
+        // Calculate cost per ml for bottle-based materials
+        const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
+        if (volumePerUnit > 0) {
+          // Format to 4 decimal places for readability
+          currentCost = parseFloat((boxCost / volumePerUnit).toFixed(4));
+        }
+      } else if (watchedUnit === "piece" || watchedUnit === "bottle") {
+        // Calculate cost per piece/bottle
+        const packageQuantity = selectedMaterial?.packageQuantity || 1;
+        if (packageQuantity > 0) {
+          currentCost = boxCost / packageQuantity;
+        }
       }
     }
 
     const calculatedTotal = !isNaN(currentCost) && !isNaN(quantity) ? currentCost * quantity : 0;
     form.setValue("totalCost", calculatedTotal.toString(), { shouldValidate: true });
+    console.log("💰 Total cost calculation:", { unit: watchedUnit, quantity, costPerUnit: currentCost, calculatedTotal });
 
     if (selectedMaterial && !isNaN(currentCost)) {
       if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && watchedUnit !== "bottle" && selectedMaterial.inputUnit === watchedUnit) {
@@ -140,6 +153,27 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
           message: "Additional quantity must be a positive number"
         });
         return;
+      }
+
+      // Add validation for ml quantities when adding to bottle stock
+      if (selectedMaterial?.unitType === "package" && data.purchasedUnit === "ml" && stockEntry) {
+        const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
+
+        // Check if ml quantity is too small (less than 5% of a bottle)
+        if (additionalQuantity < volumePerUnit * 0.05) {
+          console.warn("⚠️ Very small ml quantity:", { additionalQuantity, volumePerUnit });
+          if (!confirm(`You're adding only ${additionalQuantity}ml, which is less than 5% of a bottle (${volumePerUnit}ml). Are you sure?`)) {
+            return;
+          }
+        }
+
+        // Check if ml quantity is too large (more than 2 bottles)
+        if (additionalQuantity > volumePerUnit * 2) {
+          console.warn("⚠️ Very large ml quantity:", { additionalQuantity, volumePerUnit });
+          if (!confirm(`You're adding ${additionalQuantity}ml, which is more than ${Math.round((additionalQuantity / volumePerUnit) * 10) / 10} bottles. Are you sure?`)) {
+            return;
+          }
+        }
       }
       if (!data.purchasedUnit) {
         console.error("❌ Missing unit:", { purchasedUnit: data.purchasedUnit });
@@ -264,7 +298,15 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         className="h-11 w-11 border-gray-300 hover:border-red-500 hover:bg-red-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const decrement = selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") ? 1 : 1;
+                          let decrement = 1;
+
+                          // For ml units on bottle materials, decrement by 50ml
+                          if (selectedMaterial?.unitType === "package" && watchedUnit === "ml") {
+                            decrement = 50; // Use 50ml as a reasonable decrement for bottles
+                          } else if (selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle")) {
+                            decrement = 1;
+                          }
+
                           const newValue = Math.max(0, currentValue - decrement);
                           field.onChange(watchedUnit === "piece" || watchedUnit === "bottle" ? Math.round(newValue) : newValue);
                         }}
@@ -274,7 +316,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                       </Button>
                       <Input
                         type="number"
-                        step={selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") ? 1 : 1}
+                        step={selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") ? 1 : selectedMaterial?.unitType === "package" && watchedUnit === "ml" ? 50 : 1}
                         min="0"
                         placeholder="0"
                         {...field}
@@ -292,7 +334,15 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         className="h-11 w-11 border-gray-300 hover:border-green-500 hover:bg-green-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const increment = selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") ? 1 : 1;
+                          let increment = 1;
+
+                          // For ml units on bottle materials, increment by 50ml
+                          if (selectedMaterial?.unitType === "package" && watchedUnit === "ml") {
+                            increment = 50; // Use 50ml as a reasonable increment for bottles
+                          } else if (selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle")) {
+                            increment = 1;
+                          }
+
                           const newValue = currentValue + increment;
                           field.onChange(watchedUnit === "piece" || watchedUnit === "bottle" ? Math.round(newValue) : newValue);
                         }}
@@ -304,6 +354,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                   <p className="text-xs text-green-600 mt-1">
                     This will be added to the existing {stockEntry?.purchasedQuantity || 0} {stockEntry?.purchasedUnit || "units"}
                     {selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") && <span className="block text-xs text-green-600 mt-1">Individual {watchedUnit} quantities are allowed</span>}
+                    {selectedMaterial?.unitType === "package" && watchedUnit === "ml" && <span className="block text-xs text-green-600 mt-1">Adding in ml will be converted to bottle quantities ({stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700}ml = 1 bottle)</span>}
                   </p>
                   <FormMessage />
                 </FormItem>
@@ -337,6 +388,10 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                             if (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl") {
                               if (!materialUnits.includes("bottle")) {
                                 materialUnits.push("bottle");
+                              }
+                              // Add ml as an option for bottle-based materials
+                              if (!materialUnits.includes("ml")) {
+                                materialUnits.push("ml");
                               }
                             } else {
                               if (!materialUnits.includes("piece")) {
@@ -379,12 +434,20 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                       })()}
                     </p>
                   )}
+                  {watchedUnit === "ml" && selectedMaterial?.unitType === "package" && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      {(() => {
+                        const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || selectedMaterial?.volumePerBottle || 700;
+                        return `1 bottle = ${volumePerUnit} ml. Adding in ml will convert to the appropriate bottle quantity.`;
+                      })()}
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {(watchedUnit !== "piece" && watchedUnit !== "bottle") || selectedMaterial?.unitType !== "package" ? (
+            {(watchedUnit !== "piece" && watchedUnit !== "bottle" && watchedUnit !== "ml") || selectedMaterial?.unitType !== "package" ? (
               <FormField
                 control={form.control}
                 name="costPerPurchasedUnit"
@@ -406,7 +469,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
               <FormItem>
                 <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
                   <Package className="h-4 w-4 text-green-600" />
-                  Cost per {watchedUnit === "bottle" ? "Bottle" : "Piece"}
+                  Cost per {watchedUnit === "bottle" ? "Bottle" : watchedUnit === "ml" ? "ml" : "Piece"}
                 </FormLabel>
                 <p className="text-sm font-medium text-gray-900">
                   $
@@ -415,8 +478,18 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
                     const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
                     const packageQuantity = selectedMaterial?.packageQuantity || 1;
-                    const costPerPiece = packageQuantity > 0 ? boxCost / packageQuantity : 0;
-                    return formatNumberUI(costPerPiece);
+
+                    if (watchedUnit === "ml") {
+                      // Calculate cost per ml
+                      const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
+                      const costPerMl = boxCost / volumePerUnit;
+                      // Format to 4 decimal places for readability
+                      return formatNumberUI(parseFloat(costPerMl.toFixed(4)));
+                    } else {
+                      // Calculate cost per piece/bottle
+                      const costPerPiece = packageQuantity > 0 ? boxCost / packageQuantity : 0;
+                      return formatNumberUI(costPerPiece);
+                    }
                   })()}{" "}
                   (calculated)
                 </p>
@@ -428,7 +501,15 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
                     return formatNumberUI(boxCost);
                   })()}{" "}
-                  per {stockEntry?.purchasedUnit} ÷ {selectedMaterial?.packageQuantity || 1} {selectedMaterial?.baseUnit}
+                  {watchedUnit === "ml" ? (
+                    <>
+                      per {stockEntry?.purchasedUnit} ÷ {stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700} ml
+                    </>
+                  ) : (
+                    <>
+                      per {stockEntry?.purchasedUnit} ÷ {selectedMaterial?.packageQuantity || 1} {selectedMaterial?.baseUnit}
+                    </>
+                  )}
                 </p>
               </FormItem>
             )}
@@ -484,13 +565,22 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
             quantity={watchedPurchasedQuantity}
             purchasedUnit={watchedUnit}
             costPerPurchasedUnit={
-              selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle")
+              selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle" || watchedUnit === "ml")
                 ? (() => {
                     const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
                     const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
                     const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-                    const packageQuantity = selectedMaterial?.packageQuantity || 1;
-                    return packageQuantity > 0 ? (boxCost / packageQuantity).toString() : "0";
+
+                    if (watchedUnit === "ml") {
+                      // Calculate cost per ml
+                      const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
+                      // Format to 4 decimal places for readability
+                      return volumePerUnit > 0 ? parseFloat((boxCost / volumePerUnit).toFixed(4)).toString() : "0";
+                    } else {
+                      // Calculate cost per piece/bottle
+                      const packageQuantity = selectedMaterial?.packageQuantity || 1;
+                      return packageQuantity > 0 ? (boxCost / packageQuantity).toString() : "0";
+                    }
                   })()
                 : watchedCostPerUnit
             }

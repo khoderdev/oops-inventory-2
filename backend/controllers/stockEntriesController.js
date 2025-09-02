@@ -562,6 +562,22 @@ const stockEntriesController = {
             additionalInOriginalUnit = numericAdditionalQuantity;
           } else if ((unit === "piece" || unit === "bottle") && material.packageQuantity && material.packageQuantity > 0) {
             additionalInOriginalUnit = numericAdditionalQuantity / material.packageQuantity;
+          } else if (unit === "ml" && material.volumePerUnit && material.volumePerUnit > 0) {
+            // Handle ml units for bottle-based materials
+            console.log(`🔄 [addToSpecificEntry] Converting ${numericAdditionalQuantity} ml to ${stockEntry.purchasedUnit} for ${material.name}`);
+            
+            // Validate reasonable ml quantities for bottle-based materials
+            // Warn if adding less than 5% or more than 200% of a standard bottle
+            if (numericAdditionalQuantity < material.volumePerUnit * 0.05) {
+              console.warn(`⚠️ [addToSpecificEntry] Very small ml quantity (${numericAdditionalQuantity}ml) being added to ${material.name} - standard bottle is ${material.volumePerUnit}ml`);
+            } else if (numericAdditionalQuantity > material.volumePerUnit * 2) {
+              console.warn(`⚠️ [addToSpecificEntry] Very large ml quantity (${numericAdditionalQuantity}ml) being added to ${material.name} - standard bottle is ${material.volumePerUnit}ml`);
+            }
+            
+            const { convertVolume } = require("../utils/volumeConversionUtils");
+            // Convert ml to bottles/packages using material context
+            additionalInOriginalUnit = convertVolume(numericAdditionalQuantity, "ml", stockEntry.purchasedUnit, material);
+            console.log(`🔄 [addToSpecificEntry] Conversion result: ${numericAdditionalQuantity} ml = ${additionalInOriginalUnit} ${stockEntry.purchasedUnit}`);
           } else {
             return res.status(400).json({
               error: `Package unit mismatch: cannot add ${unit} to ${stockEntry.purchasedUnit}`
@@ -577,7 +593,14 @@ const stockEntriesController = {
       let newIndividualQuantity;
       let newIndividualUnit;
       if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-        newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + (unit === "piece" || unit === "bottle" ? Math.round(numericAdditionalQuantity) : Math.round(numericAdditionalQuantity * material.packageQuantity));
+        if (unit === "ml" && material.volumePerUnit && material.volumePerUnit > 0) {
+          // For ml additions to bottle-based materials, calculate individual pieces
+          const bottlesEquivalent = numericAdditionalQuantity / material.volumePerUnit;
+          newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + Math.round(bottlesEquivalent * material.packageQuantity);
+          console.log(`🔢 [addToSpecificEntry] Individual calculation: ${numericAdditionalQuantity} ml ÷ ${material.volumePerUnit} ml/bottle × ${material.packageQuantity} pieces/bottle = ${Math.round(bottlesEquivalent * material.packageQuantity)} pieces`);
+        } else {
+          newIndividualQuantity = (stockEntry.purchasedIndividualQuantity || 0) + (unit === "piece" || unit === "bottle" ? Math.round(numericAdditionalQuantity) : Math.round(numericAdditionalQuantity * material.packageQuantity));
+        }
         newIndividualUnit = material.baseUnit;
       } else if (material.unitType === "mass") {
         if (unit === material.baseUnit) {
@@ -642,7 +665,21 @@ const stockEntriesController = {
         newCostPerMassUnit = newTotalMass > 0 ? totalMassCost / newTotalMass : 0;
       } else {
         // Add to total pieces
-        const additionalPieces = material.unitType === "package" && material.packageQuantity > 0 ? (unit === material.baseUnit ? numericAdditionalQuantity : numericAdditionalQuantity * material.packageQuantity) : numericAdditionalQuantity;
+        let additionalPieces;
+        if (material.unitType === "package" && material.packageQuantity > 0) {
+          if (unit === "ml" && material.volumePerUnit && material.volumePerUnit > 0) {
+            // For ml additions to package materials, calculate pieces based on volume
+            const bottlesEquivalent = numericAdditionalQuantity / material.volumePerUnit;
+            additionalPieces = bottlesEquivalent * material.packageQuantity;
+            console.log(`🔢 [addToSpecificEntry] Pieces calculation: ${numericAdditionalQuantity} ml ÷ ${material.volumePerUnit} ml/bottle × ${material.packageQuantity} pieces/bottle = ${additionalPieces} pieces`);
+          } else if (unit === material.baseUnit) {
+            additionalPieces = numericAdditionalQuantity;
+          } else {
+            additionalPieces = numericAdditionalQuantity * material.packageQuantity;
+          }
+        } else {
+          additionalPieces = numericAdditionalQuantity;
+        }
         newTotalPieces += additionalPieces;
 
         // Recalculate cost per piece
