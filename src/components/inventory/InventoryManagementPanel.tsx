@@ -23,7 +23,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
   const [stock, setStock] = useState<StockEntry[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState({ materials: false, stock: false });
-  // const [activeTab, setActiveTab] = useAtom(activeTabAtom);
   const [activeTab, setActiveTab] = useState("stock");
   const [showMaterialForm, setShowMaterialForm] = useAtom(showMaterialFormAtom);
   const [showStockForm, setShowStockForm] = useAtom(showStockFormAtom);
@@ -714,7 +713,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
 
       {/* Stock Form Dialog */}
       <Dialog open={showStockForm} onOpenChange={setShowStockForm} modal={true}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] sm:w-[95vw] md:w-[65vw] xl:w-[48vw] rounded-lg p-0 py-2" onPointerDownOutside={e => e.preventDefault()} onInteractOutside={e => e.preventDefault()}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] sm:w-[95vw] md:w-[65vw] xl:w-[48vw] rounded-lg p-0 py-2">
           <DialogHeader className="px-4 sm:px-6 py">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Package className="h-4 w-4 sm:h-5 sm:w-5" />

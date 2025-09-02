@@ -12,9 +12,10 @@ import { CostBreakdown } from "../CostBreakdown";
 import { useEffect } from "react";
 import type { Path, PathValue } from "react-hook-form";
 import { convertMass, convertVolume, isMassUnit, isVolumeUnit, formatNumber, formatCurrencyUI } from "@/utils/conversionLogic";
+import { VirtualSelect } from "@/components/ui/VirtualSelect";
 
 export function UpdateEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: UpdateEntryTabProps) {
-  // Utility functions for number handling and formatting 
+  // Utility functions for number handling and formatting
   const toNumber = (v: string | undefined | null): number => {
     if (!v || v === "") return NaN;
     const n = parseFloat(v);
@@ -47,22 +48,22 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
   // Effect to ensure material is properly loaded when editing
   useEffect(() => {
     if (stockEntry && stockEntry.materialId) {
-      console.log('🔍 Setting material ID for editing:', stockEntry.materialId);
-      
+      console.log("🔍 Setting material ID for editing:", stockEntry.materialId);
+
       // Force reset the form value to ensure UI updates
       form.setValue("materialId", "", { shouldValidate: false });
-      
+
       // Small timeout to ensure the reset takes effect before setting the new value
       setTimeout(() => {
         form.setValue("materialId", String(stockEntry.materialId), { shouldValidate: true });
-        console.log('💾 Material ID set in form:', String(stockEntry.materialId));
-        
+        console.log("💾 Material ID set in form:", String(stockEntry.materialId));
+
         // Find the material in the materials list
         const material = materials.find(m => String(m.id) === String(stockEntry.materialId));
         if (material) {
-          console.log('✅ Found material for editing:', material.name);
+          console.log("✅ Found material for editing:", material.name);
         } else {
-          console.warn('⚠️ Could not find material with ID:', stockEntry.materialId);
+          console.warn("⚠️ Could not find material with ID:", stockEntry.materialId);
         }
       }, 0);
     }
@@ -74,12 +75,12 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     const qty = toNumber(qtyStr);
     const total = toNumber(form.getValues("totalCost"));
     const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
-    
+
     if (isNaN(qty) || qty <= 0) {
       setValue("totalCost", "");
       return;
     }
-    
+
     if (!isNaN(cpu) && cpu > 0) {
       setValue("totalCost", fmtMoney(qty * cpu));
     } else if (!isNaN(total)) {
@@ -95,12 +96,12 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     const total = toNumber(totalStr);
     const qty = toNumber(form.getValues("purchasedQuantity"));
     const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
-    
+
     if (isNaN(total)) {
       setValue("costPerPurchasedUnit", "");
       return;
     }
-    
+
     if (!isNaN(qty) && qty > 0) {
       setValue("costPerPurchasedUnit", fmtCPU(total / qty));
     } else if (!isNaN(cpu) && cpu > 0) {
@@ -117,12 +118,12 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     const cpu = toNumber(cpuStr);
     const qty = toNumber(form.getValues("purchasedQuantity"));
     const total = toNumber(form.getValues("totalCost"));
-    
+
     if (isNaN(cpu)) {
       setValue("totalCost", "");
       return;
     }
-    
+
     if (!isNaN(qty) && qty > 0) {
       setValue("totalCost", fmtMoney(qty * cpu));
     } else if (!isNaN(total) && cpu > 0) {
@@ -139,10 +140,10 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     if (!newUnit) return;
     setValue("purchasedUnit", newUnit);
     if (!currentUnit || newUnit === currentUnit) return;
-    
+
     const qty = toNumber(form.getValues("purchasedQuantity"));
     if (isNaN(qty) || qty <= 0) return;
-    
+
     let newQty = qty;
     if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
       newQty = convertMass(qty, currentUnit, newUnit);
@@ -151,11 +152,11 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     } else {
       return;
     }
-    
+
     const total = toNumber(form.getValues("totalCost"));
     const cpu = toNumber(form.getValues("costPerPurchasedUnit"));
     setValue("purchasedQuantity", formatNumber(newQty, newUnit));
-    
+
     if (!isNaN(total) && newQty > 0) {
       setValue("costPerPurchasedUnit", fmtCPU(total / newQty));
     } else if (!isNaN(cpu)) {
@@ -176,21 +177,21 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
     const qty = toNumber(data.purchasedQuantity);
     const total = toNumber(data.totalCost);
     const cpu = !data.costPerPurchasedUnit || data.costPerPurchasedUnit === "" ? (!isNaN(qty) && qty > 0 && !isNaN(total) ? total / qty : NaN) : toNumber(data.costPerPurchasedUnit);
-    
+
     if (isNaN(qty) || qty <= 0) {
       form.setError("purchasedQuantity", { type: "manual", message: "Quantity must be greater than 0" });
     }
     if (isNaN(cpu) || cpu < 0) {
       form.setError("costPerPurchasedUnit", { type: "manual", message: "Cost per unit must be ≥ 0" });
     }
-    
+
     const hasErrors = Object.keys(form.formState.errors).length > 0;
     if (hasErrors) {
       const firstError = Object.keys(form.formState.errors)[0] as keyof StockFormInputs | undefined;
       if (firstError) form.setFocus(firstError as any);
       return;
     }
-    
+
     const formData: StockFormData = {
       ...(data as any),
       costPerPurchasedUnit: fmtMoney(cpu)
@@ -224,37 +225,33 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
               control={form.control}
               name="materialId"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Material</FormLabel>
-                  <Select 
-                    onValueChange={(value) => {
-                      field.onChange(value);
-                      console.log('🔄 Material selected manually:', value);
-                      // Find the selected material
-                      const material = materials.find(m => String(m.id) === String(value));
-                      if (material) {
-                        console.log('✅ Material found after selection:', material.name);
-                      }
-                    }} 
-                    value={field.value}
-                    defaultValue={stockEntry?.materialId ? String(stockEntry.materialId) : undefined}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select material" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {materials.map(material => {
-                        const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
-                        return (
-                          <SelectItem key={material.id} value={String(material.id)}>
-                            {material.name} ({displayUnit})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                <FormItem className="flex flex-col">
+                  <FormLabel className="flex items-center gap-1">
+                    Material <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <div className="w-full">
+                      <VirtualSelect
+                        items={materials.map(material => {
+                          const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
+                          return {
+                            id: material.id.toString(),
+                            label: `${material.name} (${displayUnit})`
+                          };
+                        })}
+                        value={
+                          field.value
+                            ? {
+                                id: field.value,
+                                label: materials.find(m => m.id.toString() === field.value)?.name + ` (${materials.find(m => m.id.toString() === field.value)?.unitType === "package" && materials.find(m => m.id.toString() === field.value)?.inputUnit ? materials.find(m => m.id.toString() === field.value)?.inputUnit : materials.find(m => m.id.toString() === field.value)?.baseUnit})`
+                              }
+                            : null
+                        }
+                        onChange={item => field.onChange(item?.id || "")}
+                        placeholder="Select material"
+                      />
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -383,7 +380,7 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
                         min="0"
                         placeholder="0.000000"
                         value={field.value}
-                        onChange={(e) => {
+                        onChange={e => {
                           const cleaned = e.target.value.replace(/[^0-9.]/g, "");
                           recomputeFromCPU(cleaned);
                         }}

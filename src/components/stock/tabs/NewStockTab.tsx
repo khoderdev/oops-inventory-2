@@ -11,6 +11,7 @@ import { CalendarIcon, Minus, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
 import type { Path, PathValue } from "react-hook-form";
 import { convertMass, convertVolume, isMassUnit, isVolumeUnit, formatNumber, formatCurrencyUI } from "@/utils/conversionLogic";
+import { VirtualSelect } from "@/components/ui/VirtualSelect";
 
 export function NewStockTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: NewStockTabProps) {
   const toNumber = (v: string | undefined | null): number => {
@@ -163,23 +164,29 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                   <FormLabel className="flex items-center gap-1">
                     Material <span className="text-red-500">*</span>
                   </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="h-10 w-full border-gray-200">
-                        <SelectValue placeholder="Select material" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {materials.map(material => {
-                        const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
-                        return (
-                          <SelectItem key={material.id} value={material.id.toString()}>
-                            {material.name} ({displayUnit})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <div className="w-full">
+                      <VirtualSelect
+                        items={materials.map(material => {
+                          const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
+                          return {
+                            id: material.id.toString(),
+                            label: `${material.name} (${displayUnit})`
+                          };
+                        })}
+                        value={
+                          field.value
+                            ? {
+                                id: field.value,
+                                label: materials.find(m => m.id.toString() === field.value)?.name + ` (${materials.find(m => m.id.toString() === field.value)?.unitType === "package" && materials.find(m => m.id.toString() === field.value)?.inputUnit ? materials.find(m => m.id.toString() === field.value)?.inputUnit : materials.find(m => m.id.toString() === field.value)?.baseUnit})`
+                              }
+                            : null
+                        }
+                        onChange={item => field.onChange(item?.id || "")}
+                        placeholder="Select material"
+                      />
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -191,9 +198,7 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
               name="supplier"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel className="flex items-center gap-1">
-                    Supplier
-                  </FormLabel>
+                  <FormLabel className="flex items-center gap-1">Supplier</FormLabel>
                   <FormControl>
                     <Input {...field} placeholder="e.g., ABC Food Distributors" className="h-10 w-full border-gray-200" />
                   </FormControl>

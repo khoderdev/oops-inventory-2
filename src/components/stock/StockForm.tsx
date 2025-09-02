@@ -2,7 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StockFormData, StockFormInputs, StockFormProps } from "@/types/inventory";
 import { getSuggestedUnits } from "@/utils/inventoryCalculations";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Package, Plus, Trash2, TrendingUp } from "lucide-react";
+import { Package, Trash2, TrendingUp } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { stockSchema } from "./stockSchema";

@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { useWatch } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
 import { calculateCostPerUnit, formatQuantity } from "@/utils/costCalculations";
+import { VirtualSelect } from "@/components/ui/VirtualSelect";
 
 export function WasteFromEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -361,29 +362,33 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
               control={form.control}
               name="materialId"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <Package className="h-4 w-4 text-red-600" />
-                    Material
+                <FormItem className="flex flex-col">
+                  <FormLabel className="flex items-center gap-1">
+                    Material <span className="text-red-500">*</span>
                   </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled>
-                    <FormControl>
-                      <SelectTrigger className="h-11 border-gray-300">
-                        <SelectValue placeholder="Select material" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {materials.map(material => {
-                        const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
-                        return (
-                          <SelectItem key={material.id} value={String(material.id)}>
-                            {material.name} ({displayUnit})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">Select the material you want to record waste for</p>
+                  <FormControl>
+                    <div className="w-full">
+                      <VirtualSelect
+                        items={materials.map(material => {
+                          const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
+                          return {
+                            id: material.id.toString(),
+                            label: `${material.name} (${displayUnit})`
+                          };
+                        })}
+                        value={
+                          field.value
+                            ? {
+                                id: field.value,
+                                label: materials.find(m => m.id.toString() === field.value)?.name + ` (${materials.find(m => m.id.toString() === field.value)?.unitType === "package" && materials.find(m => m.id.toString() === field.value)?.inputUnit ? materials.find(m => m.id.toString() === field.value)?.inputUnit : materials.find(m => m.id.toString() === field.value)?.baseUnit})`
+                              }
+                            : null
+                        }
+                        onChange={item => field.onChange(item?.id || "")}
+                        placeholder="Select material"
+                      />
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

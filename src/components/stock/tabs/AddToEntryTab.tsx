@@ -13,9 +13,9 @@ import { CostBreakdown } from "../CostBreakdown";
 import { Calendar } from "@/components/ui/calendar";
 import { useWatch } from "react-hook-form";
 import { calculateCostPerUnit, formatCostPerUnitDisplay, formatQuantity } from "@/utils/costCalculations";
+import { VirtualSelect } from "@/components/ui/VirtualSelect";
 
 export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
-  
   const getCurrentStockDisplay = (): string => {
     if (stockEntry?.totalVolume && stockEntry?.volumePerUnit && stockEntry?.purchasedUnit === "bottle") {
       const totalVolume = typeof stockEntry.totalVolume === "string" ? parseFloat(stockEntry.totalVolume) : stockEntry.totalVolume;
@@ -36,13 +36,12 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   const watchedPurchasedQuantity = useWatch({ control: form.control, name: "purchasedQuantity" });
   const [lastChangedField, setLastChangedField] = useState<string | null>(null);
 
-
   useEffect(() => {
     const currentMaterialId = form.getValues("materialId");
     if (currentMaterialId !== undefined && typeof currentMaterialId === "number") {
       form.setValue("materialId", String(currentMaterialId));
     }
-    
+
     // Set default unit if not already set
     const currentUnit = form.getValues("purchasedUnit");
     if (!currentUnit && selectedMaterial) {
@@ -72,15 +71,15 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       } else {
         materialUnits = [stockEntry?.purchasedUnit || ""];
       }
-      
+
       materialUnits = [...new Set(materialUnits)].filter(unit => unit);
       if (materialUnits.length === 0) {
         materialUnits = [...new Set(availableUnits)].filter(unit => unit);
       }
-      
+
       // Set the first available unit as default
       if (materialUnits.length > 0) {
-        form.setValue("purchasedUnit", materialUnits[0], { 
+        form.setValue("purchasedUnit", materialUnits[0], {
           shouldValidate: true,
           shouldDirty: true,
           shouldTouch: true
@@ -139,12 +138,12 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
 
     let currentCost = parseFloat(watchedCostPerUnit || "0");
     let quantity = parseFloat(watchedPurchasedQuantity || "0");
-    
+
     if (selectedMaterial?.unitType === "package") {
       const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
       const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
       const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-      
+
       if (watchedUnit === "ml") {
         // Calculate cost per ml for bottle-based materials
         const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
@@ -163,14 +162,12 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
 
     // Use dynamic cost calculation for consistent formatting with CostBreakdown
     let calculatedTotal = 0;
-    
+
     if (selectedMaterial && !isNaN(quantity)) {
       // Calculate costs directly like in CostBreakdown component
-      if (selectedMaterial.unitType === "package" && 
-          (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl" || selectedMaterial.baseUnit === "l")) {
-        
+      if (selectedMaterial.unitType === "package" && (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl" || selectedMaterial.baseUnit === "l")) {
         const volumePerUnit = selectedMaterial.volumePerUnit || selectedMaterial.volumePerBottle || 700;
-        
+
         if (watchedUnit === "ml" && volumePerUnit > 0) {
           // For ml purchases, currentCost is already cost per ml
           calculatedTotal = quantity * currentCost;
@@ -189,7 +186,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       // Fallback calculation
       calculatedTotal = !isNaN(currentCost) && !isNaN(quantity) ? currentCost * quantity : 0;
     }
-    
+
     // Format the total cost with appropriate precision (show more decimals for small values)
     let formattedTotalCost;
     if (calculatedTotal < 0.01 && calculatedTotal > 0) {
@@ -341,29 +338,33 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
               control={form.control}
               name="materialId"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <Package className="h-4 w-4 text-green-600" />
-                    Material
+                <FormItem className="flex flex-col">
+                  <FormLabel className="flex items-center gap-1">
+                    Material <span className="text-red-500">*</span>
                   </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled>
-                    <FormControl>
-                      <SelectTrigger className="h-11 border-gray-300 bg-gray-50">
-                        <SelectValue placeholder="Select material" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {materials.map(material => {
-                        const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
-                        return (
-                          <SelectItem key={material.id} value={String(material.id)}>
-                            {material.name} ({displayUnit})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">Material is locked for this entry</p>
+                  <FormControl>
+                    <div className="w-full">
+                      <VirtualSelect
+                        items={materials.map(material => {
+                          const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
+                          return {
+                            id: material.id.toString(),
+                            label: `${material.name} (${displayUnit})`
+                          };
+                        })}
+                        value={
+                          field.value
+                            ? {
+                                id: field.value,
+                                label: materials.find(m => m.id.toString() === field.value)?.name + ` (${materials.find(m => m.id.toString() === field.value)?.unitType === "package" && materials.find(m => m.id.toString() === field.value)?.inputUnit ? materials.find(m => m.id.toString() === field.value)?.inputUnit : materials.find(m => m.id.toString() === field.value)?.baseUnit})`
+                              }
+                            : null
+                        }
+                        onChange={item => field.onChange(item?.id || "")}
+                        placeholder="Select material"
+                      />
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -427,7 +428,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         onBlur={e => {
                           // Format the value when the field loses focus
                           if (e.target.value === "") return;
-                          
+
                           if (watchedUnit === "piece" || watchedUnit === "bottle") {
                             // For piece/bottle, ensure it's a whole number
                             const value = Math.round(parseFloat(e.target.value) || 0);
