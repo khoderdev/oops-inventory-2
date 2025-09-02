@@ -31,6 +31,15 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       return `${formattedVolume} ${volumeUnit} from ${actualBottleCount} ${actualBottleCount === 1 ? "bottle" : "bottles"} main stock`;
     }
 
+    // For package materials with pieces information (like bags of buns)
+    if (stockEntry?.totalPieces && stockEntry?.piecesPerPackage && (stockEntry?.purchasedUnit === "bag" || stockEntry?.purchasedUnit === "pack" || stockEntry?.purchasedUnit === "package")) {
+      const totalPieces = typeof stockEntry.totalPieces === "string" ? parseInt(stockEntry.totalPieces) : stockEntry.totalPieces;
+      const purchasedQuantity = typeof stockEntry.purchasedQuantity === "string" ? parseFloat(stockEntry.purchasedQuantity) : stockEntry.purchasedQuantity;
+      const packageUnit = stockEntry.purchasedUnit === "bag" ? "bags" : stockEntry.purchasedUnit === "pack" ? "packs" : "packages";
+
+      return `${purchasedQuantity} ${packageUnit} (${totalPieces} pieces)`;
+    }
+
     // For non-bottle items or when totalVolume is not available
     let quantity = stockEntry?.purchasedQuantity;
     if (!quantity || Number(quantity) === 0) {
@@ -233,7 +242,9 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
   }, [watchedCostPerUnit, watchedWasteQuantity, watchedTotalCost, watchedUnit, selectedMaterial, form, lastChangedField]);
 
   const onSubmit = async (data: any) => {
-    if (isSubmitting) { return; }
+    if (isSubmitting) {
+      return;
+    }
     setIsSubmitting(true);
     try {
       if (typeof data.materialId === "number") {
@@ -355,7 +366,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
                     <Package className="h-4 w-4 text-red-600" />
                     Material
                   </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled>
                     <FormControl>
                       <SelectTrigger className="h-11 border-gray-300">
                         <SelectValue placeholder="Select material" />
@@ -373,46 +384,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-gray-500">Select the material you want to record waste for</p>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Stock Entry Selection */}
-            <FormField
-              control={form.control}
-              name="stockEntryId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <Package className="h-4 w-4 text-red-600" />
-                    Stock Entry
-                  </FormLabel>
-                  <Select
-                    onValueChange={value => {
-                      field.onChange(value);
-                      // Set the unit to match the stock entry's unit
-                      if (stockEntry) {
-                        form.setValue("purchasedUnit", stockEntry.purchasedUnit || "");
-                      }
-                    }}
-                    value={stockEntry?.id || field.value}
-                    disabled={true} // Always disabled since we auto-select
-                  >
-                    <FormControl>
-                      <SelectTrigger className="h-11 border-gray-300">
-                        <SelectValue placeholder={stockEntry ? "Auto-selected entry" : "No entry available"} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {stockEntry && (
-                        <SelectItem key={stockEntry.id} value={stockEntry.id}>
-                          {getCurrentStockDisplay()} (purchased: {new Date(stockEntry.purchaseDate).toLocaleDateString()})
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500">{stockEntry ? "This stock entry is auto-selected for waste recording" : "No stock entry available"}</p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -747,22 +718,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
             </div>
           )}
 
-          <CostBreakdown
-            selectedMaterial={selectedMaterial}
-            quantity={watchedWasteQuantity}
-            purchasedUnit={watchedUnit}
-            costPerPurchasedUnit={
-              selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle" || watchedUnit === "ml")
-                ? (() => {
-                    if (!selectedMaterial) return "0";
-                    const costPerUnit = calculateCostPerUnit(selectedMaterial, stockEntry, watchedUnit);
-                    return costPerUnit.toString();
-                  })()
-                : watchedCostPerUnit
-            }
-            totalCost={watchedTotalCost}
-          />
-
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
@@ -771,32 +726,16 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
               type="button"
               className="bg-red-600 hover:bg-red-700 text-white"
               onClick={e => {
-                console.log("🚨 RECORD WASTE BUTTON CLICKED!");
-                console.log("🚨 Form validation state:", form.formState);
-                console.log("🚨 Form errors:", form.formState.errors);
-                console.log("🚨 Form is valid:", form.formState.isValid);
-                console.log("🚨 Current form values:", form.getValues());
-
-                // Check specific field values
-                const currentValues = form.getValues();
-                console.log("🚨 wasteQuantity:", currentValues.wasteQuantity);
-                console.log("🚨 purchasedUnit:", currentValues.purchasedUnit);
-                console.log("🚨 materialId:", currentValues.materialId);
-                console.log("🚨 stockEntry ID:", stockEntry?.id);
-
                 try {
                   const result = form.handleSubmit(
                     data => {
-                      console.log("✅ FORM VALIDATION PASSED - onSubmit called with:", data);
                       return onSubmit(data);
                     },
                     errors => {
                       console.error("❌ FORM VALIDATION FAILED - errors:", errors);
                     }
                   );
-                  console.log("🚨 Calling form.handleSubmit result...");
                   result(e);
-                  console.log("🚨 form.handleSubmit execution completed");
                 } catch (error) {
                   console.error("🚨 ERROR in form.handleSubmit:", error);
                 }
