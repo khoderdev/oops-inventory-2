@@ -186,7 +186,24 @@ export function calculateIngredientCost(material: Material, quantity: number, un
   return normalizedQuantity * material.costPerUnit;
 }
 
-export function formatCurrency(amount: number): string {
+export function parseCurrency(value: string | number): number {
+  // If already a number, return it
+  if (typeof value === 'number') return value;
+  
+  // If empty string or null/undefined, return 0
+  if (!value) return 0;
+  
+  // Remove currency symbols, commas, and other non-numeric characters except decimal point
+  const cleanedValue = value.replace(/[^0-9.]/g, '');
+  
+  // Parse the cleaned string to a number
+  const parsedValue = parseFloat(cleanedValue);
+  
+  // Return 0 if parsing resulted in NaN
+  return isNaN(parsedValue) ? 0 : parsedValue;
+}
+
+export function formatCurrency(amount: number, decimalPlaces: number = 2): string {
   // Handle invalid inputs (NaN, undefined, null)
   if (amount == null || isNaN(amount) || !isFinite(amount)) {
     return "$0.00";
@@ -202,32 +219,43 @@ export function formatCurrency(amount: number): string {
     }).format(amount);
   }
 
-  // For normal amounts, use standard formatting
+  // For normal amounts, use specified formatting
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    minimumFractionDigits: decimalPlaces,
+    maximumFractionDigits: decimalPlaces
   }).format(amount);
 }
 
-export function formatCurrencyUI(amount: number): string {
+export function formatCurrencyUI(amount: number, decimalPlaces?: number): string {
   // Handle invalid inputs
   if (amount == null || isNaN(amount) || !isFinite(amount)) {
     return "$0.00";
   }
+  
+  // Use specified decimal places if provided
+  const fractionDigits = decimalPlaces !== undefined ? decimalPlaces : 2;
 
+  // For very small amounts, use more decimal places unless explicitly specified
+  if (decimalPlaces === undefined && amount < 0.01 && amount > 0) {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 4,
+      maximumFractionDigits: 6
+    }).format(amount);
+  }
+  
   // Handle recurring decimals like 8.333333333333334
   // Check if this is likely a recurring decimal by comparing rounded values
   const decimalPart = Math.abs(amount - Math.round(amount));
-
+  
   // If it has significant decimal places
   if (decimalPart > 0.0001) {
     // Check for common recurring decimal patterns
     const decimalStr = amount.toString();
-
-    // Pattern for 1/3 (0.3333...), 1/6 (0.1666...), 1/12 (0.0833...)
-    if (decimalStr.includes("33333") || decimalStr.includes("66666") || decimalStr.includes("83333") || decimalStr.includes("16666") || decimalStr.includes("41666") || decimalStr.includes("58333") || decimalStr.includes("91666") || decimalStr.includes("08333") || (decimalStr.includes("25") && decimalStr.length > 6) || (decimalStr.length > 8 && decimalStr.includes("."))) {
+    if (decimalPlaces === undefined && (decimalStr.includes("33333") || decimalStr.includes("66666") || decimalStr.includes("83333") || decimalStr.includes("16666") || decimalStr.includes("41666") || decimalStr.includes("58333") || decimalStr.includes("91666") || decimalStr.includes("08333") || (decimalStr.includes("25") && decimalStr.length > 6) || (decimalStr.length > 8 && decimalStr.includes(".")))) {
       // For recurring decimals, show 4 decimal places
       return new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -237,9 +265,14 @@ export function formatCurrencyUI(amount: number): string {
       }).format(amount);
     }
   }
-
-  // Use standard formatting for normal amounts
-  return formatCurrency(amount);
+  
+  // Use the specified decimal places for normal formatting
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
+  }).format(amount);
 }
 
 // Helper functions for unit type checking

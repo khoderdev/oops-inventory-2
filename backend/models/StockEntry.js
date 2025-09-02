@@ -297,15 +297,21 @@ async function calculateEnhancedValues(stockEntry, options) {
       return;
     }
 
-    // Check if this is a manual update (totalVolume being explicitly set)
+    // Check if this is a manual update (fields being explicitly set)
     const isManualVolumeUpdate = stockEntry.changed("totalVolume") && stockEntry.totalVolume !== null;
     const isManualMassUpdate = stockEntry.changed("totalMass") && stockEntry.totalMass !== null;
     const isManualPiecesUpdate = stockEntry.changed("totalPieces") && stockEntry.totalPieces !== null;
+    const isManualMassUnitUpdate = stockEntry.changed("massUnit") && stockEntry.massUnit !== null;
+    const isManualMassPerUnitUpdate = stockEntry.changed("massPerUnit") && stockEntry.massPerUnit !== null;
+    const isManualCostPerMassUnitUpdate = stockEntry.changed("costPerMassUnit") && stockEntry.costPerMassUnit !== null;
     
     console.log(`🔍 [calculateEnhancedValues] Manual update flags:`, {
       isManualVolumeUpdate,
       isManualMassUpdate, 
       isManualPiecesUpdate,
+      isManualMassUnitUpdate,
+      isManualMassPerUnitUpdate,
+      isManualCostPerMassUnitUpdate,
       changedFields: stockEntry.changed()
     });
 
@@ -313,6 +319,11 @@ async function calculateEnhancedValues(stockEntry, options) {
     const preservedTotalVolume = isManualVolumeUpdate ? stockEntry.totalVolume : null;
     const preservedTotalMass = isManualMassUpdate ? stockEntry.totalMass : null;
     const preservedTotalPieces = isManualPiecesUpdate ? stockEntry.totalPieces : null;
+    
+    // Preserve manually set mass-related fields
+    const preservedMassUnit = isManualMassUnitUpdate ? stockEntry.massUnit : null;
+    const preservedMassPerUnit = isManualMassPerUnitUpdate ? stockEntry.massPerUnit : null;
+    const preservedCostPerMassUnit = isManualCostPerMassUnitUpdate ? stockEntry.costPerMassUnit : null;
 
     clearEnhancedFields(stockEntry);
 
@@ -320,6 +331,11 @@ async function calculateEnhancedValues(stockEntry, options) {
     if (preservedTotalVolume !== null) stockEntry.totalVolume = preservedTotalVolume;
     if (preservedTotalMass !== null) stockEntry.totalMass = preservedTotalMass;
     if (preservedTotalPieces !== null) stockEntry.totalPieces = preservedTotalPieces;
+    
+    // Restore manually set mass-related fields
+    if (preservedMassUnit !== null) stockEntry.massUnit = preservedMassUnit;
+    if (preservedMassPerUnit !== null) stockEntry.massPerUnit = preservedMassPerUnit;
+    if (preservedCostPerMassUnit !== null) stockEntry.costPerMassUnit = preservedCostPerMassUnit;
 
     const individualQuantity = parseFloat(stockEntry.purchasedIndividualQuantity || 0);
     const totalCost = parseFloat(stockEntry.totalCost || 0);
@@ -396,6 +412,15 @@ async function calculateEnhancedValues(stockEntry, options) {
       }
 
       console.log(`🔧 [Piece] ${material.name}: ${individualQuantity} ${material.unitDescription || "pieces"}`);
+    }
+    // Final verification log to confirm mass fields are preserved
+    if (stockEntry.massUnit || stockEntry.massPerUnit || stockEntry.costPerMassUnit) {
+      console.log(`✅ [calculateEnhancedValues] Final mass values preserved:`, {
+        massUnit: stockEntry.massUnit,
+        massPerUnit: stockEntry.massPerUnit,
+        totalMass: stockEntry.totalMass,
+        costPerMassUnit: stockEntry.costPerMassUnit
+      });
     }
   } catch (error) {
     console.error("Error calculating enhanced values:", error);

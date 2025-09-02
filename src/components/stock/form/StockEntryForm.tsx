@@ -11,9 +11,37 @@ import { CalendarIcon, LucideIcon, Minus, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
 import { useEffect } from "react";
 import type { Path, PathValue, UseFormReturn } from "react-hook-form";
-import { convertMass, convertVolume, isMassUnit, isVolumeUnit, formatNumber, formatCurrencyUI } from "@/utils/conversionLogic";
+import { convertMass, convertVolume, formatCurrencyUI, formatNumberUI, isMassUnit, isVolumeUnit, parseCurrency } from "@/utils/conversionLogic";
 import { VirtualSelect } from "@/components/ui/VirtualSelect";
 import { Material } from "@/types/inventory";
+import { fmtCPU, fmtTotalCost, getFormattedTotalCostLabel } from "@/utils/getCurrentStockDisplay";
+
+// Define the cost per unit label function
+const getFormattedCostPerUnitLabel = (unitFieldName: string): string => {
+  const unit = unitFieldName || "Unit";
+
+  // For mass units, show the appropriate unit in the label
+  if (isMassUnit(unit)) {
+    // For kg, show both kg and g equivalents
+    if (unit === "kg") {
+      return `Cost Per kg (per 1000g)`;
+    }
+    // For g, show per g
+    else if (unit === "g") {
+      return `Cost Per g`;
+    }
+    // For lb, show both lb and oz equivalents
+    else if (unit === "lb") {
+      return `Cost Per lb (per 16oz)`;
+    }
+    // For oz, show per oz
+    else if (unit === "oz") {
+      return `Cost Per oz`;
+    }
+  }
+
+  return `Cost Per ${unit}`;
+};
 
 export interface StockEntryFormProps {
   form: UseFormReturn<StockFormInputs>;
@@ -66,17 +94,12 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
 
   const fmtMoney = (n: number): string => {
     if (isNaN(n) || !isFinite(n)) return "";
-    return Math.max(0, n).toFixed(2);
+    // Use the fmtTotalCost function from getCurrentStockDisplay.tsx for better precision with mass units
+    return fmtTotalCost(Math.max(0, n), form.getValues(unitFieldName) as string);
   };
 
   const setValue = <K extends Path<StockFormInputs>>(name: K, value: PathValue<StockFormInputs, K>) => {
     form.setValue(name, value, { shouldValidate: true });
-  };
-
-  const fmtCPU = (n: number): string => {
-    if (!isFinite(n) || isNaN(n) || n < 0) return "";
-    const s = formatCurrencyUI(n);
-    return s.startsWith("$") ? s.slice(1) : s;
   };
 
   // Ensure materialId is always a string
@@ -87,109 +110,203 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     }
   }, [form]);
 
+  // Update labels when unit changes
+  useEffect(() => {
+    // This will force a re-render when the unit changes
+    const currentUnit = form.getValues(unitFieldName);
+    // We don't need to do anything here, just watching the unit field
+  }, [form.watch(unitFieldName), unitFieldName]);
+
   // Recompute functions for handling field changes without infinite loops
   const recomputeFromQuantity = (qtyStr: string) => {
-    setValue(quantityFieldName as any, qtyStr);
+    console.log("🔍 recomputeFromQuantity CALLED with:", qtyStr);
+    form.setValue(quantityFieldName as any, qtyStr, { shouldValidate: true });
     const qty = toNumber(qtyStr);
     const total = toNumber(form.getValues("totalCost") as string);
     const cpu = toNumber(form.getValues("costPerPurchasedUnit") as string);
+    const currentUnit = form.getValues(unitFieldName as any) as string;
+
+    console.log("🔍 INPUTS:", { qty, total, cpu, currentUnit });
 
     if (isNaN(qty) || qty <= 0) {
-      setValue("totalCost", "");
+      console.log("🔍 Invalid quantity, setting totalCost to empty");
+      form.setValue("totalCost", "", { shouldValidate: true });
       return;
     }
 
     if (!isNaN(cpu) && cpu > 0) {
-      setValue("totalCost", fmtMoney(qty * cpu));
+      // Calculate the total cost
+      const calculatedTotal = qty * cpu;
+      console.log("🔍 Calculated total cost:", calculatedTotal, "from qty:", qty, "and cpu:", cpu);
+
+      // Format with proper precision based on unit
+      if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
+        console.log("🔍 Using mass unit precision for:", currentUnit);
+        // For small mass units, use appropriate precision
+        if (calculatedTotal < 0.01 && calculatedTotal > 0) {
+          console.log("🔍 Very small value, using 4 decimal places");
+          const formattedValue = calculatedTotal.toFixed(4);
+          console.log("🔍 Setting totalCost to:", formattedValue);
+          form.setValue("totalCost", formattedValue, { shouldValidate: true });
+        } else if (calculatedTotal < 0.1 && calculatedTotal > 0) {
+          console.log("🔍 Small value, using 3 decimal places");
+          const formattedValue = calculatedTotal.toFixed(3);
+          console.log("🔍 Setting totalCost to:", formattedValue);
+          form.setValue("totalCost", formattedValue, { shouldValidate: true });
+        } else {
+          console.log("🔍 Normal value, using fmtMoney");
+          const formattedValue = fmtMoney(calculatedTotal);
+          console.log("🔍 Setting totalCost to:", formattedValue);
+          form.setValue("totalCost", formattedValue, { shouldValidate: true });
+        }
+      } else {
+        console.log("🔍 Using standard formatting with fmtMoney");
+        const formattedValue = fmtMoney(calculatedTotal);
+        console.log("🔍 Setting totalCost to:", formattedValue);
+        form.setValue("totalCost", formattedValue, { shouldValidate: true });
+      }
     } else if (!isNaN(total)) {
-      setValue("costPerPurchasedUnit", fmtCPU(total / qty));
+      console.log("🔍 Computing CPU from total:", total, "and qty:", qty);
+      const formattedCPU = fmtCPU(total / qty, currentUnit);
+      console.log("🔍 Setting costPerPurchasedUnit to:", formattedCPU);
+      form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: true });
     } else {
-      setValue("totalCost", "");
-      setValue("costPerPurchasedUnit", "");
+      console.log("🔍 No valid inputs, clearing fields");
+      form.setValue("totalCost", "", { shouldValidate: true });
+      form.setValue("costPerPurchasedUnit", "", { shouldValidate: true });
     }
+
+    console.log("🔍 AFTER recomputeFromQuantity, form values:", {
+      totalCost: form.getValues("totalCost"),
+      costPerPurchasedUnit: form.getValues("costPerPurchasedUnit"),
+      quantity: form.getValues(quantityFieldName as any)
+    });
   };
 
-  const recomputeFromTotal = (totalStr: string) => {
-    setValue("totalCost", totalStr);
-    const total = toNumber(totalStr);
-    const qtyValue = form.getValues(quantityFieldName);
-    const qty = typeof qtyValue === "string" ? toNumber(qtyValue) : 0;
-    const cpuValue = form.getValues("costPerPurchasedUnit");
-    const cpu = typeof cpuValue === "string" ? toNumber(cpuValue) : 0;
+  const recomputeFromTotal = (totalCostValue: string) => {
+    console.log("🔄 recomputeFromTotal called with:", totalCostValue);
 
-    if (isNaN(total)) {
-      setValue("costPerPurchasedUnit", "");
+    // Get current values
+    const quantity = form.getValues(quantityFieldName as any) || 0;
+    const unit = form.getValues(unitFieldName as any) || "";
+    const currentUnit = form.getValues(unitFieldName as any) as string;
+
+    // Parse the total cost value using the parseCurrency utility
+    const total = parseCurrency(totalCostValue);
+    console.log("🔄 Parsed totalCost:", total);
+
+    if (isNaN(total) || total <= 0 || quantity <= 0) {
+      console.log("🔄 Invalid values detected, not updating");
+      form.setValue("costPerPurchasedUnit", "", { shouldValidate: true });
       return;
     }
 
+    // Store the numeric value directly in the form state
+    // This ensures the input field gets a clean numeric value without currency symbols
+    let numericValue;
+    if (isMassUnit(unit) && (unit === "g" || unit === "oz")) {
+      if (total < 0.01) {
+        numericValue = parseFloat(total.toFixed(4));
+        console.log("🔥 Very small value < 0.01, using 4 decimal places:", numericValue);
+      } else if (total < 0.1) {
+        numericValue = parseFloat(total.toFixed(3));
+        console.log("🔥 Small value < 0.1, using 3 decimal places:", numericValue);
+      } else {
+        numericValue = parseFloat(total.toFixed(2));
+        console.log("🔥 Normal value for small mass unit, using 2 decimal places:", numericValue);
+      }
+    } else {
+      numericValue = parseFloat(total.toFixed(2));
+      console.log("🔥 Not a small mass unit, using default formatting:", numericValue);
+    }
+
+    // Set the raw numeric value to the form
+    form.setValue("totalCost", numericValue.toString(), { shouldValidate: true });
+    console.log("🔥 AFTER setting totalCost, form value is:", form.getValues("totalCost"));
+
+    const qtyValue = form.getValues(quantityFieldName as any);
+    const qty = typeof qtyValue === "string" ? parseFloat(qtyValue) : qtyValue;
+    const cpuValue = form.getValues("costPerPurchasedUnit");
+    const cpu = typeof cpuValue === "string" ? parseFloat(cpuValue) : cpuValue;
+
     if (!isNaN(qty) && qty > 0) {
-      setValue("costPerPurchasedUnit", fmtCPU(total / qty));
+      form.setValue("costPerPurchasedUnit", fmtCPU(total / qty, currentUnit), { shouldValidate: true });
     } else if (!isNaN(cpu) && cpu > 0) {
       const calcQty = total / cpu;
       if (isFinite(calcQty) && !isNaN(calcQty) && calcQty > 0) {
-        const unit = form.getValues(unitFieldName) as string;
-        setValue(quantityFieldName, formatNumber(calcQty, unit));
+        form.setValue(quantityFieldName as any, formatNumberUI(calcQty, currentUnit), { shouldValidate: true });
       }
     }
   };
 
   const recomputeFromCPU = (cpuStr: string) => {
-    setValue("costPerPurchasedUnit", cpuStr);
+    form.setValue("costPerPurchasedUnit", cpuStr, { shouldValidate: true });
     const cpu = toNumber(cpuStr);
-    const qty = toNumber(form.getValues(quantityFieldName) as string);
+    const qty = toNumber(form.getValues(quantityFieldName as any) as string);
     const total = toNumber(form.getValues("totalCost") as string);
+    const currentUnit = form.getValues(unitFieldName as any) as string;
 
-    if (isNaN(cpu)) {
-      setValue("totalCost", "");
+    if (isNaN(cpu) || cpu <= 0) {
+      form.setValue("totalCost", "", { shouldValidate: true });
       return;
     }
 
     if (!isNaN(qty) && qty > 0) {
-      setValue("totalCost", fmtMoney(qty * cpu));
-    } else if (!isNaN(total) && cpu > 0) {
+      // Calculate the total cost
+      const calculatedTotal = qty * cpu;
+
+      // Format with proper precision based on unit
+      if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
+        // For small mass units, use appropriate precision
+        if (calculatedTotal < 0.01 && calculatedTotal > 0) {
+          form.setValue("totalCost", calculatedTotal.toFixed(4), { shouldValidate: true });
+        } else if (calculatedTotal < 0.1 && calculatedTotal > 0) {
+          form.setValue("totalCost", calculatedTotal.toFixed(3), { shouldValidate: true });
+        } else {
+          form.setValue("totalCost", fmtMoney(calculatedTotal), { shouldValidate: true });
+        }
+      } else {
+        form.setValue("totalCost", fmtMoney(calculatedTotal), { shouldValidate: true });
+      }
+    } else if (!isNaN(total) && total > 0) {
       const calcQty = total / cpu;
-      if (isFinite(calcQty) && !isNaN(calcQty)) {
-        const unit = form.getValues(unitFieldName) as string;
-        setValue(quantityFieldName, formatNumber(Math.max(0, calcQty), unit));
+      if (isFinite(calcQty) && !isNaN(calcQty) && calcQty > 0) {
+        form.setValue(quantityFieldName as any, formatNumberUI(calcQty, currentUnit), { shouldValidate: true });
       }
     }
   };
 
   const handleUnitChange = (newUnit: string) => {
-    const currentUnit = form.getValues(unitFieldName) as string;
+    const currentUnit = form.getValues(unitFieldName as any) as string;
     if (!newUnit) return;
-    setValue(unitFieldName as any, newUnit);
+    form.setValue(unitFieldName as any, newUnit, { shouldValidate: true });
     if (!currentUnit || newUnit === currentUnit) return;
 
-    const qty = toNumber(form.getValues(quantityFieldName) as string);
+    const qty = toNumber(form.getValues(quantityFieldName as any) as string);
     if (isNaN(qty) || qty <= 0) return;
 
     let newQty = qty;
     let conversionApplied = false;
-    
+
     // Handle mass unit conversions
     if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
       newQty = convertMass(qty, currentUnit, newUnit);
       conversionApplied = true;
-    } 
+    }
     // Handle volume unit conversions
     else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
       newQty = convertVolume(qty, currentUnit, newUnit);
       conversionApplied = true;
-    } 
+    }
     // Handle package to piece conversions if we have a selected material
-    else if (selectedMaterial?.unitType === "package" && 
-             stockEntry?.purchasedIndividualUnit && 
-             stockEntry?.purchasedIndividualQuantity) {
+    else if (selectedMaterial?.unitType === "package" && stockEntry?.purchasedIndividualUnit && stockEntry?.purchasedIndividualQuantity) {
       // Converting from package to individual units
-      if (UNIT_OPTIONS.package.includes(currentUnit) && 
-          (newUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(newUnit))) {
+      if (UNIT_OPTIONS.package.includes(currentUnit) && (newUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(newUnit))) {
         newQty = qty * (stockEntry.purchasedIndividualQuantity || 1);
         conversionApplied = true;
-      } 
+      }
       // Converting from individual units to package
-      else if ((currentUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(currentUnit)) && 
-               UNIT_OPTIONS.package.includes(newUnit)) {
+      else if ((currentUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(currentUnit)) && UNIT_OPTIONS.package.includes(newUnit)) {
         const individualQty = stockEntry.purchasedIndividualQuantity || 1;
         if (individualQty > 0) {
           newQty = qty / individualQty;
@@ -197,7 +314,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
         }
       }
     }
-    
+
     // If no conversion was applied, keep the same quantity
     if (!conversionApplied) {
       // Just update the unit without changing quantity
@@ -207,21 +324,21 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
 
     const total = toNumber(form.getValues("totalCost") as string);
     const cpu = toNumber(form.getValues("costPerPurchasedUnit") as string);
-    setValue(quantityFieldName as any, formatNumber(newQty, newUnit));
+    setValue(quantityFieldName as any, formatNumberUI(newQty, newUnit));
 
     // Update cost per unit based on total cost
     if (!isNaN(total) && newQty > 0) {
-      setValue("costPerPurchasedUnit", fmtCPU(total / newQty));
-    } 
+      setValue("costPerPurchasedUnit", fmtCPU(total / newQty, unitFieldName));
+    }
     // Or update total cost based on cost per unit
     else if (!isNaN(cpu)) {
       let cpuNew = cpu;
-      
+
       // Adjust cost per unit for mass conversions
       if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
         const oneNewInOld = convertMass(1, newUnit, currentUnit);
         cpuNew = cpu * oneNewInOld;
-      } 
+      }
       // Adjust cost per unit for volume conversions
       else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
         const oneNewInOld = convertVolume(1, newUnit, currentUnit);
@@ -230,18 +347,16 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
       // Adjust cost per unit for package/piece conversions
       else if (selectedMaterial?.unitType === "package" && stockEntry?.purchasedIndividualQuantity) {
         // Converting from package to individual units
-        if (UNIT_OPTIONS.package.includes(currentUnit) && 
-            (newUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(newUnit))) {
+        if (UNIT_OPTIONS.package.includes(currentUnit) && (newUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(newUnit))) {
           cpuNew = cpu / (stockEntry.purchasedIndividualQuantity || 1);
-        } 
+        }
         // Converting from individual units to package
-        else if ((currentUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(currentUnit)) && 
-                 UNIT_OPTIONS.package.includes(newUnit)) {
+        else if ((currentUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(currentUnit)) && UNIT_OPTIONS.package.includes(newUnit)) {
           cpuNew = cpu * (stockEntry.purchasedIndividualQuantity || 1);
         }
       }
-      
-      setValue("costPerPurchasedUnit", fmtCPU(cpuNew));
+
+      setValue("costPerPurchasedUnit", fmtCPU(cpuNew, unitFieldName));
       setValue("totalCost", fmtMoney(cpuNew * newQty));
     }
   };
@@ -421,12 +536,12 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                   <FormItem>
                     <FormLabel>Unit</FormLabel>
                     <FormControl>
-                      <Select 
-                        onValueChange={(value) => {
+                      <Select
+                        onValueChange={value => {
                           field.onChange(value);
                           handleUnitChange(value);
-                        }} 
-                        value={field.value || ""} 
+                        }}
+                        value={field.value || ""}
                         disabled={disabledFields.includes("unit")}
                       >
                         <SelectTrigger className={readOnlyFields.includes("unit") ? "pointer-events-none" : ""}>
@@ -437,16 +552,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                             // Simplified logic to show only directly relevant units
                             if (selectedMaterial && stockEntry) {
                               const relevantUnits = new Set<string>();
-                              
+
                               // Case 1: Volume materials with bottle/container units
                               // Example: "1300 ml from 1.86 bottles"
-                              if (selectedMaterial.unitType === "volume" && 
-                                  stockEntry.purchasedUnit && 
-                                  ["bottle", "can", "glass"].includes(stockEntry.purchasedUnit)) {
-                                
+                              if (selectedMaterial.unitType === "volume" && stockEntry.purchasedUnit && ["bottle", "can", "glass"].includes(stockEntry.purchasedUnit)) {
                                 // Add the container unit (bottle, can, glass)
                                 relevantUnits.add(stockEntry.purchasedUnit);
-                                
+
                                 // Add the volume unit (ml, l)
                                 if (stockEntry.volumeUnit) {
                                   relevantUnits.add(stockEntry.volumeUnit);
@@ -457,24 +569,43 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                                   relevantUnits.add("ml");
                                 }
                               }
-                              
+
                               // Case 2: Package materials with individual units
                               // Example: "3 bags (17 pieces)"
-                              else if (selectedMaterial.unitType === "package" && 
-                                       stockEntry.purchasedUnit && 
-                                       stockEntry.purchasedIndividualUnit) {
-                                
+                              else if (selectedMaterial.unitType === "package" && stockEntry.purchasedUnit && stockEntry.purchasedIndividualUnit) {
                                 // Add the package unit (bag, box, etc)
                                 relevantUnits.add(stockEntry.purchasedUnit);
-                                
+
                                 // Add the individual unit (piece, unit, etc)
                                 relevantUnits.add(stockEntry.purchasedIndividualUnit);
                               }
-                              
+
+                              // Case 3: Mass materials with mass units
+                              // Example: "500 g" or "2 kg"
+                              else if (selectedMaterial.unitType === "mass" && stockEntry.purchasedUnit) {
+                                // Add the purchased unit (kg, g, etc)
+                                relevantUnits.add(stockEntry.purchasedUnit);
+
+                                // If purchased unit is kg, also add g for more granular measurements
+                                if (stockEntry.purchasedUnit === "kg") {
+                                  relevantUnits.add("g");
+                                }
+                                // If purchased unit is g, also add kg for larger measurements
+                                else if (stockEntry.purchasedUnit === "g") {
+                                  relevantUnits.add("kg");
+                                }
+                                // For other mass units like lb, add oz and vice versa
+                                else if (stockEntry.purchasedUnit === "lb") {
+                                  relevantUnits.add("oz");
+                                } else if (stockEntry.purchasedUnit === "oz") {
+                                  relevantUnits.add("lb");
+                                }
+                              }
+
                               // If we have relevant units, return them
                               if (relevantUnits.size > 0) {
                                 const unitsArray = Array.from(relevantUnits);
-                                
+
                                 // Auto-select the first unit if no unit is currently selected
                                 if (!field.value && unitsArray.length > 0) {
                                   // Use setTimeout to avoid React state update during render
@@ -482,7 +613,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                                     handleUnitChange(unitsArray[0]);
                                   }, 0);
                                 }
-                                
+
                                 return unitsArray.map(unit => (
                                   <SelectItem key={unit} value={unit}>
                                     {unit}
@@ -490,7 +621,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                                 ));
                               }
                             }
-                            
+
                             // Fallback: If no stock entry or no relevant units found,
                             // show only the material's base unit or all available units
                             if (selectedMaterial?.baseUnit) {
@@ -501,17 +632,17 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                                   handleUnitChange(selectedMaterial.baseUnit);
                                 }, 0);
                               }
-                              
+
                               return (
                                 <SelectItem key={selectedMaterial.baseUnit} value={selectedMaterial.baseUnit}>
                                   {selectedMaterial.baseUnit}
                                 </SelectItem>
                               );
                             }
-                            
+
                             // Last resort: show all available units
                             const units = availableUnits;
-                            
+
                             // Auto-select the first unit if no unit is currently selected and units exist
                             if (!field.value && units.length > 0) {
                               // Use setTimeout to avoid React state update during render
@@ -519,13 +650,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                                 handleUnitChange(units[0]);
                               }, 0);
                             }
-                            
+
                             return units.map(unit => (
                               <SelectItem key={unit} value={unit}>
                                 {unit}
                               </SelectItem>
                             ));
-                          })()} 
+                          })()}
                         </SelectContent>
                       </Select>
                     </FormControl>
@@ -570,7 +701,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                 name="costPerPurchasedUnit"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Cost Per Unit ($)</FormLabel>
+                    <FormLabel>
+                      {(() => {
+                        // Get the current unit value directly from the form
+                        const currentUnit = form.watch(unitFieldName) as string;
+                        return `${getFormattedCostPerUnitLabel(currentUnit)} ($)`;
+                      })()}
+                    </FormLabel>
                     <FormControl>
                       <div className="flex items-center gap-2">
                         <Button
@@ -630,7 +767,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                 name="totalCost"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Total Cost ($)</FormLabel>
+                    <FormLabel>
+                      {(() => {
+                        // Get the current unit value directly from the form
+                        const currentUnit = form.watch(unitFieldName) as string;
+                        return `${getFormattedTotalCostLabel(currentUnit)} ($)`;
+                      })()}
+                    </FormLabel>
                     <FormControl>
                       <div className="flex items-center gap-2">
                         <Button
@@ -640,8 +783,34 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                           onClick={() => {
                             const currentValue = field.value === "" ? 0 : parseFloat(field.value as string);
-                            const newValue = Math.max(0, currentValue - 0.01);
-                            const next = newValue === 0 ? "" : newValue.toFixed(2);
+                            const currentUnit = form.watch(unitFieldName) as string;
+
+                            // Determine step size based on unit
+                            let stepSize = 0.01; // Default step
+                            if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
+                              if (currentValue < 0.1) {
+                                stepSize = 0.001; // Smaller step for small values in small mass units
+                              }
+                            }
+
+                            const newValue = Math.max(0, currentValue - stepSize);
+
+                            // Format with appropriate precision
+                            let next;
+                            if (newValue === 0) {
+                              next = "";
+                            } else if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
+                              if (newValue < 0.01) {
+                                next = newValue.toFixed(4);
+                              } else if (newValue < 0.1) {
+                                next = newValue.toFixed(3);
+                              } else {
+                                next = newValue.toFixed(2);
+                              }
+                            } else {
+                              next = newValue.toFixed(2);
+                            }
+
                             recomputeFromTotal(next);
                           }}
                           disabled={parseFloat(field.value as string) <= 0 || disabledFields.includes("totalCost") || readOnlyFields.includes("totalCost")}
@@ -650,13 +819,54 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                         </Button>
                         <Input
                           type="number"
-                          step="0.01"
+                          step="0.0001"
                           min="0"
-                          placeholder="0.00"
-                          value={field.value}
+                          placeholder="0.0000"
+                          value={(() => {
+                            // Get the current unit and value
+                            const currentUnit = form.watch(unitFieldName) as string;
+                            
+                            // Parse the value, ensuring we strip any currency symbols first
+                            const rawValue = field.value as string;
+                            const numericValue = rawValue ? parseCurrency(rawValue) : 0;
+
+                            console.log("🔍 TOTAL COST INPUT RENDERING:", {
+                              currentUnit,
+                              numericValue,
+                              rawFieldValue: rawValue,
+                              isMassUnit: isMassUnit(currentUnit),
+                              isSmallMassUnit: currentUnit === "g" || currentUnit === "oz"
+                            });
+
+                            // For mass units, especially small quantities, use appropriate precision
+                            if (isMassUnit(currentUnit)) {
+                              // For small units like g, ensure we have enough precision for small values
+                              if (currentUnit === "g" || currentUnit === "oz") {
+                                // For very small values, use 4 decimal places
+                                if (numericValue < 0.01 && numericValue > 0) {
+                                  const formatted = numericValue.toFixed(4);
+                                  console.log("🔍 Very small value < 0.01, using 4 decimal places:", formatted);
+                                  return formatted;
+                                }
+                                // For small values, use 3 decimal places
+                                else if (numericValue < 0.1 && numericValue > 0) {
+                                  const formatted = numericValue.toFixed(3);
+                                  console.log("🔍 Small value < 0.1, using 3 decimal places:", formatted);
+                                  return formatted;
+                                }
+                                console.log("🔍 Normal value for small mass unit, using 2 decimal places");
+                                return numericValue.toFixed(2);
+                              }
+                            }
+
+                            // Default to numeric value with 2 decimal places
+                            console.log("🔍 Using default formatting for value:", numericValue);
+                            return numericValue === 0 && rawValue === "" ? "" : numericValue.toFixed(2);
+                          })()}
                           disabled={disabledFields.includes("totalCost")}
                           readOnly={readOnlyFields.includes("totalCost")}
                           onChange={e => {
+                            // Strip any non-numeric characters except decimal point
                             const cleaned = e.target.value.replace(/[^0-9.]/g, "");
                             recomputeFromTotal(cleaned);
                           }}
@@ -669,8 +879,32 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           className="h-11 w-11 border-gray-300 hover:border-blue-500 hover:bg-blue-50"
                           onClick={() => {
                             const currentValue = field.value === "" ? 0 : parseFloat(field.value as string);
-                            const newValue = currentValue + 0.01;
-                            const next = newValue.toFixed(2);
+                            const currentUnit = form.watch(unitFieldName) as string;
+
+                            // Determine step size based on unit
+                            let stepSize = 0.01; // Default step
+                            if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
+                              if (currentValue < 0.1) {
+                                stepSize = 0.001; // Smaller step for small values in small mass units
+                              }
+                            }
+
+                            const newValue = currentValue + stepSize;
+
+                            // Format with appropriate precision
+                            let next;
+                            if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
+                              if (newValue < 0.01) {
+                                next = newValue.toFixed(4);
+                              } else if (newValue < 0.1) {
+                                next = newValue.toFixed(3);
+                              } else {
+                                next = newValue.toFixed(2);
+                              }
+                            } else {
+                              next = newValue.toFixed(2);
+                            }
+
                             recomputeFromTotal(next);
                           }}
                           disabled={disabledFields.includes("totalCost") || readOnlyFields.includes("totalCost")}

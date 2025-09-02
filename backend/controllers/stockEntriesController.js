@@ -252,7 +252,68 @@ const stockEntriesController = {
         purchasedIndividualQuantity,
         finalCostPerBaseUnit
       });
-
+      
+      // Calculate mass-related fields for mass unit types
+      let massUnit = null;
+      let massPerUnit = null;
+      let totalMass = 0;
+      let costPerMassUnit = 0;
+      
+      // Check if this is a mass unit type material OR if the purchasedUnit is a mass unit
+      const massUnits = ["kg", "g", "lb", "oz"];
+      const isMassUnit = massUnits.includes(purchasedUnit.toLowerCase());
+      
+      if (material.unitType === "mass" || isMassUnit) {
+        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+        const conversionFactor = massConversions[purchasedUnit.toLowerCase()] || 1;
+        
+        // Set mass unit to g for consistency in calculations
+        massUnit = "g";
+        
+        // Calculate mass per unit based on the unit
+        if (purchasedUnit.toLowerCase() === "kg") {
+          massPerUnit = 1000; // 1 kg = 1000 g
+        } else if (purchasedUnit.toLowerCase() === "g") {
+          massPerUnit = 1; // 1 g = 1 g
+        } else if (purchasedUnit.toLowerCase() === "lb") {
+          massPerUnit = 453.592; // 1 lb = 453.592 g
+        } else if (purchasedUnit.toLowerCase() === "oz") {
+          massPerUnit = 28.3495; // 1 oz = 28.3495 g
+        } else {
+          massPerUnit = 1; // Default to 1 if unknown unit
+        }
+        
+        // Calculate total mass in grams
+        totalMass = numericPurchasedQuantity * conversionFactor;
+        
+        // Calculate cost per mass unit (per gram)
+        costPerMassUnit = totalMass > 0 ? numericTotalCost / totalMass : 0;
+        
+        console.log(`🔄 [createStockEntries] Setting mass values for ${material.name}:`, {
+          purchasedUnit,
+          conversionFactor,
+          massUnit,
+          massPerUnit,
+          totalMass,
+          costPerMassUnit
+        });
+        
+        // Force material unitType to "mass" when using mass units
+        if (!material.unitType || material.unitType !== "mass") {
+          console.log(`⚠️ [createStockEntries] Material ${material.name} has unitType ${material.unitType} but is using mass units. Treating as mass material.`);
+        }
+      }
+      
+      // Log all mass-related fields before creating the stock entry to verify they're being set
+      console.log(`📋 [createStockEntries] Final values for ${material.name} before DB save:`, {
+        massUnit,
+        massPerUnit,
+        totalMass,
+        costPerMassUnit,
+        isMassUnit: massUnits.includes(purchasedUnit.toLowerCase()),
+        materialUnitType: material.unitType
+      });
+      
       const stockEntry = await StockEntry.create({
         materialId,
         supplier,
@@ -266,13 +327,30 @@ const stockEntriesController = {
         costPerPurchasedUnit: finalCostPerPurchasedUnit,
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: numericTotalCost,
+        // Add mass-related fields
+        massUnit: massUnit,
+        massPerUnit: massPerUnit,
+        totalMass: totalMass,
+        costPerMassUnit: costPerMassUnit,
         purchaseDate,
         expiryDate,
         isPOSItem: isPOSItem !== undefined ? isPOSItem : false
       });
+      
       const createdStockEntry = await StockEntry.findByPk(stockEntry.id, {
         include: { model: Material, as: "material" }
       });
+      
+      // Verify that mass-related fields were properly saved
+      console.log(`🔍 [createStockEntries] Verification after DB save for ${material.name}:`, {
+        massUnit: createdStockEntry.massUnit,
+        massPerUnit: createdStockEntry.massPerUnit,
+        totalMass: createdStockEntry.totalMass,
+        costPerMassUnit: createdStockEntry.costPerMassUnit,
+        materialUnitType: material.unitType,
+        purchasedUnit: createdStockEntry.purchasedUnit
+      });
+      
       try {
         const user = req.user || { id: null, fullName: "System", username: "system" };
         await StockEntryAuditHelperSimple.logStockCreation(createdStockEntry.toJSON(), user, req, {
@@ -428,6 +506,48 @@ const stockEntriesController = {
         updatedIndividualQuantity,
         finalCostPerBaseUnit
       });
+      
+      // Calculate mass-related fields for mass unit types
+      let massUnit = stockEntry.massUnit;
+      let massPerUnit = stockEntry.massPerUnit;
+      let totalMass = stockEntry.totalMass;
+      let costPerMassUnit = stockEntry.costPerMassUnit;
+      
+      if (material.unitType === "mass") {
+        const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+        const conversionFactor = massConversions[finalPurchasedUnit.toLowerCase()] || 1;
+        
+        // Set mass unit to g for consistency in calculations
+        massUnit = "g";
+        
+        // Calculate mass per unit based on the unit
+        if (finalPurchasedUnit.toLowerCase() === "kg") {
+          massPerUnit = 1000; // 1 kg = 1000 g
+        } else if (finalPurchasedUnit.toLowerCase() === "g") {
+          massPerUnit = 1; // 1 g = 1 g
+        } else if (finalPurchasedUnit.toLowerCase() === "lb") {
+          massPerUnit = 453.592; // 1 lb = 453.592 g
+        } else if (finalPurchasedUnit.toLowerCase() === "oz") {
+          massPerUnit = 28.3495; // 1 oz = 28.3495 g
+        } else {
+          massPerUnit = 1; // Default to 1 if unknown unit
+        }
+        
+        // Calculate total mass in grams
+        totalMass = finalPurchasedQuantity * conversionFactor;
+        
+        // Calculate cost per mass unit (per gram)
+        costPerMassUnit = totalMass > 0 ? finalTotalCost / totalMass : 0;
+        
+        console.log(`🔄 [updateStockEntries] Setting mass values for ${material.name}:`, {
+          finalPurchasedUnit,
+          conversionFactor,
+          massUnit,
+          massPerUnit,
+          totalMass,
+          costPerMassUnit
+        });
+      }
 
       await stockEntry.update({
         materialId: materialId ?? stockEntry.materialId,
@@ -442,6 +562,11 @@ const stockEntriesController = {
         costPerPurchasedUnit: finalCostPerPurchasedUnit,
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: finalTotalCost,
+        // Add mass-related fields
+        massUnit: massUnit,
+        massPerUnit: massPerUnit,
+        totalMass: totalMass,
+        costPerMassUnit: costPerMassUnit,
         purchaseDate: purchaseDate ?? stockEntry.purchaseDate,
         expiryDate: expiryDate ?? stockEntry.expiryDate,
         isPOSItem: isPOSItem !== undefined ? isPOSItem : stockEntry.isPOSItem
@@ -621,25 +746,16 @@ const stockEntriesController = {
       const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
 
       // CRITICAL FIX: Ensure converted quantities are synchronized with individual quantities
-      let finalConvertedQuantity, finalConvertedUnit;
-      if (material.unitType === "mass") {
-        finalConvertedQuantity = newIndividualQuantity;
-        finalConvertedUnit = material.baseUnit;
-      } else if (material.unitType === "package") {
-        finalConvertedQuantity = newPurchasedQuantity;
-        finalConvertedUnit = stockEntry.purchasedUnit;
-      } else {
-        finalConvertedQuantity = newIndividualQuantity;
-        finalConvertedUnit = newIndividualUnit;
-      }
-
-      // Update calculated total fields (aligned with enhanced stock system)
       let newTotalVolume = parseFloat(stockEntry.totalVolume) || 0;
       let newTotalMass = stockEntry.totalMass || 0;
       let newTotalPieces = stockEntry.totalPieces || 0;
       let newCostPerVolumeUnit = stockEntry.costPerVolumeUnit || 0;
       let newCostPerMassUnit = stockEntry.costPerMassUnit || 0;
       let newCostPerPiece = stockEntry.costPerPiece || 0;
+      
+      // Initialize mass-related variables to prevent ReferenceError
+      let newMassUnit = stockEntry.massUnit || "g";
+      let newMassPerUnit = stockEntry.massPerUnit || 1;
 
       if (material.unitType === "volume" || (material.unitType === "package" && unit === "ml")) {
         // Add to total volume
@@ -658,11 +774,39 @@ const stockEntriesController = {
         const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
         const conversionFactor = massConversions[unit.toLowerCase()] || 1;
         const additionalMassInGrams = numericAdditionalQuantity * conversionFactor;
+        
+        // Update mass unit if not already set
+        newMassUnit = stockEntry.massUnit || "g";
+        
+        // Set mass per unit based on the unit
+        if (unit.toLowerCase() === "kg") {
+          newMassPerUnit = 1000; // 1 kg = 1000 g
+        } else if (unit.toLowerCase() === "g") {
+          newMassPerUnit = 1; // 1 g = 1 g
+        } else if (unit.toLowerCase() === "lb") {
+          newMassPerUnit = 453.592; // 1 lb = 453.592 g
+        } else if (unit.toLowerCase() === "oz") {
+          newMassPerUnit = 28.3495; // 1 oz = 28.3495 g
+        } else {
+          newMassPerUnit = stockEntry.massPerUnit || 1;
+        }
+        
+        // Add to total mass
         newTotalMass += additionalMassInGrams;
 
         // Recalculate cost per mass unit
-        const totalMassCost = stockEntry.totalMass * stockEntry.costPerMassUnit + additionalMassInGrams * finalCostPerPurchasedUnit;
+        const totalMassCost = (stockEntry.totalMass * (stockEntry.costPerMassUnit || 0)) + (additionalMassInGrams * finalCostPerPurchasedUnit);
         newCostPerMassUnit = newTotalMass > 0 ? totalMassCost / newTotalMass : 0;
+        
+        console.log(`🔄 [addToSpecificEntry] Updating mass values for ${material.name}:`, {
+          unit,
+          additionalMassInGrams,
+          originalTotalMass: stockEntry.totalMass,
+          newTotalMass,
+          newMassUnit,
+          newMassPerUnit,
+          newCostPerMassUnit
+        });
       } else {
         // Add to total pieces
         let additionalPieces;
@@ -692,6 +836,9 @@ const stockEntriesController = {
         totalVolume: parseFloat(newTotalVolume.toFixed(3)),
         totalMass: newTotalMass,
         totalPieces: Math.round(newTotalPieces),
+        // Update mass-related fields
+        massUnit: material.unitType === "mass" ? (newMassUnit || "g") : stockEntry.massUnit,
+        massPerUnit: material.unitType === "mass" ? (newMassPerUnit || 1) : stockEntry.massPerUnit,
         costPerVolumeUnit: typeof newCostPerVolumeUnit === "number" ? parseFloat(newCostPerVolumeUnit.toFixed(6)) : 0,
         costPerMassUnit: typeof newCostPerMassUnit === "number" ? parseFloat(newCostPerMassUnit.toFixed(6)) : 0,
         costPerPiece: typeof newCostPerPiece === "number" ? parseFloat(newCostPerPiece.toFixed(6)) : 0,
@@ -718,7 +865,7 @@ const stockEntriesController = {
         const originalStockEntry = { ...stockEntry.toJSON() }; // Store original before update
         await StockEntryAuditHelperSimple.logAddToStock(originalStockEntry, updatedEntry.toJSON(), numericAdditionalQuantity, unit, user, req, {
           notes: notes,
-          wasteDate: wasteDate,
+          additionDate: additionDate || new Date(),
           costPerPurchasedUnit: stockEntry.costPerPurchasedUnit
         });
         console.log(`✅ Stock addition logged for material ${updatedEntry.material?.name} (ID: ${updatedEntry.id}) - Added ${numericAdditionalQuantity} ${unit}`);
@@ -794,13 +941,27 @@ const stockEntriesController = {
           const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
           const originalUnitFactor = massConversions[stockEntry.purchasedUnit.toLowerCase()];
           const wasteUnitFactor = massConversions[unit.toLowerCase()];
+          
           if (originalUnitFactor && wasteUnitFactor) {
+            // FRONTEND REQUEST HANDLING: Respect the unit sent from frontend
+            // Convert waste quantity to the original purchased unit for stock deduction
             wasteInOriginalUnit = numericWasteQuantity * (wasteUnitFactor / originalUnitFactor);
-            wasteInSmallerUnit = numericWasteQuantity * wasteUnitFactor;
-            wasteUnitForRecord = material.baseUnit;
+            
+            // Store waste in the unit requested by frontend for consistency with UI
+            wasteInSmallerUnit = numericWasteQuantity;
+            wasteUnitForRecord = unit; // Use the exact unit from frontend request
+            
+            // For internal calculations, also track the base value (in g)
+            const wasteInGrams = numericWasteQuantity * wasteUnitFactor;
+            
+            console.log(`🔄 [wasteFromSpecificEntry] Mass conversion (frontend ${unit}):
+              - Frontend requested: ${numericWasteQuantity} ${unit}
+              - Converted to purchased unit: ${wasteInOriginalUnit.toFixed(3)} ${stockEntry.purchasedUnit}
+              - Internal tracking in g: ${wasteInGrams.toFixed(3)} g
+              - Recording waste as: ${wasteInSmallerUnit} ${wasteUnitForRecord} (preserving frontend unit)`);
           } else {
             return res.status(400).json({
-              error: `Cannot convert between units: ${unit} and ${stockEntry.purchasedUnit}`
+              error: `Cannot convert between mass units: ${unit} and ${stockEntry.purchasedUnit}. Supported units: kg, g, lb, oz`
             });
           }
         } else {
@@ -861,8 +1022,23 @@ const stockEntriesController = {
           const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
           const wasteUnitFactor = massConversions[unit.toLowerCase()];
           const availableUnitFactor = massConversions[availableUnit.toLowerCase()];
+          
           if (wasteUnitFactor && availableUnitFactor) {
+            // Convert from frontend unit to available unit for stock comparison
             wasteInAvailableUnit = numericWasteQuantity * (wasteUnitFactor / availableUnitFactor);
+            
+            // Example cases:
+            // 1. Frontend requests waste 2 kg, stock is tracked in g: convert 2 kg to 2000 g
+            // 2. Frontend requests waste 500 g, stock is tracked in kg: convert 500 g to 0.5 kg
+            
+            console.log(`🔄 [wasteFromSpecificEntry] Mass unit conversion for availability check:
+              - Frontend requested: ${numericWasteQuantity} ${unit}
+              - Stock available in: ${availableUnit}
+              - Converted amount: ${wasteInAvailableUnit.toFixed(3)} ${availableUnit}
+              - Conversion factor: ${wasteUnitFactor}/${availableUnitFactor}`);
+          } else {
+            console.error(`❌ [wasteFromSpecificEntry] Invalid mass units for conversion: ${unit} to ${availableUnit}`);
+            // Continue with best effort - don't block the operation if logging fails
           }
         } else if (material.unitType === "package") {
           // Handle package unit conversions (bag to pieces, etc.)
@@ -999,30 +1175,83 @@ const stockEntriesController = {
         isWastingAll
       });
 
+      // Ensure massUnit is properly set for mass materials
+      let updatedMassUnit = stockEntry.massUnit;
+      let updatedMassPerUnit = stockEntry.massPerUnit;
+      let updatedCostPerMassUnit = stockEntry.costPerMassUnit;
+      
+      // Check if this is a mass unit type material OR if the unit is a mass unit
+      const massUnits = ["kg", "g", "lb", "oz"];
+      const isMassUnit = massUnits.includes(unit.toLowerCase()) || massUnits.includes(stockEntry.purchasedUnit.toLowerCase());
+      
+      if (material.unitType === 'mass' || isMassUnit) {
+        // Always use 'g' as the standard massUnit for consistency in database
+        updatedMassUnit = 'g';
+        
+        // Ensure massPerUnit is set if it wasn't before
+        if (!updatedMassPerUnit && stockEntry.purchasedUnit.toLowerCase() === 'kg') {
+          updatedMassPerUnit = 1000; // 1 kg = 1000 g
+        } else if (!updatedMassPerUnit && stockEntry.purchasedUnit.toLowerCase() === 'g') {
+          updatedMassPerUnit = 1; // 1 g = 1 g
+        } else if (!updatedMassPerUnit) {
+          // Default fallback
+          updatedMassPerUnit = 1;
+        }
+        
+        // Recalculate costPerMassUnit if needed
+        if (newTotalMass > 0 && newTotalCost > 0) {
+          updatedCostPerMassUnit = newTotalCost / newTotalMass;
+        }
+        
+        console.log(`🔄 [wasteFromSpecificEntry] Setting mass fields for consistency:`, {
+          massUnit: updatedMassUnit,
+          massPerUnit: updatedMassPerUnit,
+          costPerMassUnit: updatedCostPerMassUnit,
+          totalMass: newTotalMass
+        });
+      }
+
       console.log(`🔄 [wasteFromSpecificEntry] About to update stock entry with:`, {
         totalVolume: parseFloat(newTotalVolume.toFixed(3)),
         totalMass: newTotalMass,
         totalPieces: Math.round(newTotalPieces),
         purchasedQuantity: newPurchasedQuantity,
-        purchasedIndividualQuantity: newIndividualQuantity
+        purchasedIndividualQuantity: newIndividualQuantity,
+        massUnit: updatedMassUnit,
+        massPerUnit: updatedMassPerUnit,
+        costPerMassUnit: updatedCostPerMassUnit
       });
+      
+      // Explicitly mark mass fields as changed to ensure they're preserved by the model hooks
+      if (material.unitType === 'mass' || isMassUnit) {
+        stockEntry.set('massUnit', updatedMassUnit);
+        stockEntry.set('massPerUnit', updatedMassPerUnit);
+        stockEntry.set('costPerMassUnit', updatedCostPerMassUnit);
+        // Force these fields to be marked as changed
+        stockEntry.changed('massUnit', true);
+        stockEntry.changed('massPerUnit', true);
+        stockEntry.changed('costPerMassUnit', true);
+      }
 
-      await stockEntry.update({
+      // Create update object with all fields that need to be updated
+      const updateObject = {
         // Update calculated total fields (primary)
         totalVolume: parseFloat(newTotalVolume.toFixed(3)),
         totalMass: newTotalMass,
         totalPieces: Math.round(newTotalPieces),
         costPerVolumeUnit: newCostPerVolumeUnit,
-        costPerMassUnit: newCostPerMassUnit,
+        costPerMassUnit: updatedCostPerMassUnit,
         costPerPiece: newCostPerPiece,
 
-        // Preserve all metadata fields - don't clear them during partial waste
+        // Explicitly set mass fields for mass materials to ensure they're saved
+        massUnit: updatedMassUnit,
+        massPerUnit: updatedMassPerUnit,
+        
+        // Preserve other metadata fields
         volumePerUnit: stockEntry.volumePerUnit,
         volumeUnit: stockEntry.volumeUnit,
-        massPerUnit: stockEntry.massPerUnit,
-        massUnit: stockEntry.massUnit,
         piecesPerPackage: stockEntry.piecesPerPackage,
-
+        
         // Update legacy fields (for backward compatibility)
         purchasedQuantity: newPurchasedQuantity,
         purchasedIndividualQuantity: newIndividualQuantity,
@@ -1034,7 +1263,18 @@ const stockEntriesController = {
         updatedAt: new Date(),
         notes: notes ? `${stockEntry.notes || ""}\n[${new Date().toLocaleDateString()}] Waste: ${numericWasteQuantity} ${unit} (${wasteReason}). ${notes}`.trim() : stockEntry.notes,
         wasteReason: wasteReason
-      });
+      };
+      
+      // Add additional logging to verify mass fields before update
+      if (material.unitType === 'mass' || isMassUnit) {
+        console.log(`🔍 [wasteFromSpecificEntry] Mass fields in updateObject:`, {
+          massUnit: updateObject.massUnit,
+          massPerUnit: updateObject.massPerUnit,
+          costPerMassUnit: updateObject.costPerMassUnit
+        });
+      }
+      
+      await stockEntry.update(updateObject);
 
       console.log(`✅ [wasteFromSpecificEntry] Stock entry updated successfully. Verifying final state...`);
       
@@ -1045,8 +1285,29 @@ const stockEntriesController = {
         totalMass: stockEntry.totalMass,
         totalPieces: stockEntry.totalPieces,
         purchasedQuantity: stockEntry.purchasedQuantity,
-        purchasedIndividualQuantity: stockEntry.purchasedIndividualQuantity
+        purchasedIndividualQuantity: stockEntry.purchasedIndividualQuantity,
+        massUnit: stockEntry.massUnit,
+        massPerUnit: stockEntry.massPerUnit,
+        costPerMassUnit: stockEntry.costPerMassUnit,
+        materialUnitType: material.unitType,
+        isMassUnitMaterial: material.unitType === 'mass' || isMassUnit,
+        originalMassUnit: stockEntry._previousDataValues.massUnit,
+        originalCostPerMassUnit: stockEntry._previousDataValues.costPerMassUnit
       });
+      
+      // Alert if mass fields were not saved correctly
+      if ((material.unitType === 'mass' || isMassUnit) && 
+          (stockEntry.massUnit !== updatedMassUnit || 
+           stockEntry.costPerMassUnit !== updatedCostPerMassUnit)) {
+        console.error(`⚠️ [wasteFromSpecificEntry] WARNING: Mass fields were not saved correctly!`, {
+          expectedMassUnit: updatedMassUnit,
+          actualMassUnit: stockEntry.massUnit,
+          expectedCostPerMassUnit: updatedCostPerMassUnit,
+          actualCostPerMassUnit: stockEntry.costPerMassUnit
+        });
+      } else if (material.unitType === 'mass' || isMassUnit) {
+        console.log(`✅ [wasteFromSpecificEntry] Mass fields saved correctly!`);
+      }
 
       const wasteRecord = await Wasting.create({
         stockEntryId: stockEntry.id,
@@ -1115,6 +1376,45 @@ const stockEntriesController = {
           return res.status(404).json({ error: `Material with ID ${materialId} not found` });
         }
 
+        // Handle mass unit conversions and settings
+        let massUnit = null;
+        let massPerUnit = null;
+        let totalMass = 0;
+        let costPerMassUnit = 0;
+        
+        if (material.unitType === "mass") {
+          const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
+          const unitFactor = massConversions[unit.toLowerCase()];
+          
+          // Set mass unit to g for consistency in calculations
+          massUnit = "g";
+          
+          // Calculate mass per unit based on the unit
+          if (unit.toLowerCase() === "kg") {
+            massPerUnit = 1000; // 1 kg = 1000 g
+          } else if (unit.toLowerCase() === "g") {
+            massPerUnit = 1; // 1 g = 1 g
+          } else if (unit.toLowerCase() === "lb") {
+            massPerUnit = 453.592; // 1 lb = 453.592 g
+          } else if (unit.toLowerCase() === "oz") {
+            massPerUnit = 28.3495; // 1 oz = 28.3495 g
+          }
+          
+          // Calculate total mass in grams
+          totalMass = quantity * (unitFactor || 1);
+          
+          // Calculate cost per mass unit (per gram)
+          costPerMassUnit = totalMass > 0 ? (costPerUnit * quantity) / totalMass : 0;
+          
+          console.log(`🔄 [addToStock] Setting mass values for ${material.name}:`, {
+            unit,
+            massUnit,
+            massPerUnit,
+            totalMass,
+            costPerMassUnit
+          });
+        }
+        
         const stockEntry = await StockEntry.create({
           materialId,
           purchasedQuantity: quantity,
@@ -1122,7 +1422,13 @@ const stockEntriesController = {
           costPerPurchasedUnit: costPerUnit,
           totalCost: totalCost || (quantity * costPerUnit),
           totalVolume: material.unitType === "volume" ? convertToMl(quantity, unit, material) : 0,
-          totalMass: material.unitType === "mass" ? quantity : 0,
+          
+          // Set mass-related fields
+          massUnit: material.unitType === "mass" ? massUnit : null,
+          massPerUnit: material.unitType === "mass" ? massPerUnit : null,
+          totalMass: material.unitType === "mass" ? totalMass : 0,
+          costPerMassUnit: material.unitType === "mass" ? costPerMassUnit : 0,
+          
           totalPieces: material.unitType === "package" ? quantity : 0,
           notes: notes || "",
           createdAt: new Date(),
