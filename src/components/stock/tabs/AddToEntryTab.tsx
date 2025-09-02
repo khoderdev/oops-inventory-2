@@ -14,6 +14,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useWatch } from "react-hook-form";
 
 export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
+  
   const getCurrentStockDisplay = (): string => {
     if (stockEntry?.totalVolume && stockEntry?.volumePerUnit && stockEntry?.purchasedUnit === "bottle") {
       const totalVolume = typeof stockEntry.totalVolume === "string" ? parseFloat(stockEntry.totalVolume) : stockEntry.totalVolume;
@@ -33,6 +34,28 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   const watchedUnit = form.watch("purchasedUnit");
   const watchedPurchasedQuantity = useWatch({ control: form.control, name: "purchasedQuantity" });
   const [lastChangedField, setLastChangedField] = useState<string | null>(null);
+  
+  // Format quantity to a reasonable number of decimal places
+  const formatQuantity = (value: string | number): string => {
+    if (!value && value !== 0) return "";
+    
+    const numValue = typeof value === "string" ? parseFloat(value) : value;
+    
+    if (isNaN(numValue)) return "";
+    
+    // For whole numbers, return as is
+    if (Number.isInteger(numValue)) return numValue.toString();
+    
+    // For values with many decimal places, format appropriately
+    // Use 2 decimal places for most values, but handle special cases
+    const decimalPlaces = Math.abs(numValue) < 0.01 ? 4 : 2;
+    
+    // Format the number with the appropriate decimal places
+    const formatted = numValue.toFixed(decimalPlaces);
+    
+    // Remove trailing zeros after the decimal point
+    return formatted.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+  };
 
   useEffect(() => {
     const currentMaterialId = form.getValues("materialId");
@@ -133,8 +156,10 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   }, [watchedUnit, selectedMaterial, stockEntry, form]);
 
   useEffect(() => {
-    let currentCost = parseFloat(watchedCostPerUnit) || 0;
-    const quantity = parseFloat(watchedPurchasedQuantity) || 0;
+    if (lastChangedField === "totalCost") return;
+
+    let currentCost = parseFloat(watchedCostPerUnit || "0");
+    let quantity = parseFloat(watchedPurchasedQuantity || "0");
     
     if (selectedMaterial?.unitType === "package") {
       const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
@@ -192,8 +217,36 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       }
     }
     
-    form.setValue("totalCost", calculatedTotal.toString(), { shouldValidate: true });
-    console.log("💰 Total cost calculation:", { unit: watchedUnit, quantity, costPerUnit: currentCost, calculatedTotal });
+    // Format the total cost to 2 decimal places for display
+    const formattedTotalCost = calculatedTotal.toFixed(2);
+    
+    // For bottle-based materials, ensure we display clean values
+    // This is especially important for values that should be whole numbers
+    if (selectedMaterial?.unitType === "package" && watchedUnit === "ml") {
+      const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
+      const bottleFraction = quantity / volumePerUnit;
+      
+      // If very close to a multiple of the bottle cost, use the exact multiple
+      const nearestMultiple = Math.round(bottleFraction);
+      if (Math.abs(bottleFraction - nearestMultiple) < 0.01 && nearestMultiple > 0) {
+        const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? 
+          parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+        const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? 
+          parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
+        const bottleCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
+        
+        // Use the exact multiple of the bottle cost
+        const exactCost = (nearestMultiple * bottleCost).toFixed(2);
+        form.setValue("totalCost", exactCost, { shouldValidate: true });
+        console.log("💰 Using exact bottle cost multiple:", { bottleCount: nearestMultiple, bottleCost, exactCost });
+      } else {
+        form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
+      }
+    } else {
+      form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
+    }
+    
+    console.log("💰 Total cost calculation:", { unit: watchedUnit, quantity, costPerUnit: currentCost, calculatedTotal, formattedTotalCost });
 
     if (selectedMaterial && !isNaN(currentCost)) {
       if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && watchedUnit !== "bottle" && selectedMaterial.inputUnit === watchedUnit) {
@@ -401,9 +454,36 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         placeholder="0"
                         {...field}
                         onChange={e => {
-                          const value = watchedUnit === "piece" || (watchedUnit === "bottle" && e.target.value !== "") ? Math.round(parseFloat(e.target.value) || 0) : e.target.value === "" ? "" : e.target.value;
+                          // Handle integer units (piece, bottle) vs decimal units (ml, g, etc.)
+                          let value;
+                          if (watchedUnit === "piece" || watchedUnit === "bottle") {
+                            // For piece/bottle, always round to whole numbers
+                            value = e.target.value === "" ? "" : Math.round(parseFloat(e.target.value) || 0);
+                          } else if (e.target.value === "") {
+                            value = "";
+                          } else {
+                            // For other units, keep the raw value during typing
+                            value = e.target.value;
+                          }
                           field.onChange(value);
                           setLastChangedField("purchasedQuantity");
+                        }}
+                        onBlur={e => {
+                          // Format the value when the field loses focus
+                          if (e.target.value === "") return;
+                          
+                          if (watchedUnit === "piece" || watchedUnit === "bottle") {
+                            // For piece/bottle, ensure it's a whole number
+                            const value = Math.round(parseFloat(e.target.value) || 0);
+                            field.onChange(value.toString());
+                          } else {
+                            // For decimal units like ml, format to reasonable precision
+                            const parsedValue = parseFloat(e.target.value);
+                            if (!isNaN(parsedValue)) {
+                              const formattedValue = formatQuantity(parsedValue);
+                              field.onChange(formattedValue);
+                            }
+                          }
                         }}
                         className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
