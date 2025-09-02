@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { StockFormData, StockFormInputs } from "@/types/inventory";
+import { StockFormData, StockFormInputs, UNIT_OPTIONS } from "@/types/inventory";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, LucideIcon, Minus, Plus } from "lucide-react";
@@ -165,11 +165,43 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     if (isNaN(qty) || qty <= 0) return;
 
     let newQty = qty;
+    let conversionApplied = false;
+    
+    // Handle mass unit conversions
     if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
       newQty = convertMass(qty, currentUnit, newUnit);
-    } else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
+      conversionApplied = true;
+    } 
+    // Handle volume unit conversions
+    else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
       newQty = convertVolume(qty, currentUnit, newUnit);
-    } else {
+      conversionApplied = true;
+    } 
+    // Handle package to piece conversions if we have a selected material
+    else if (selectedMaterial?.unitType === "package" && 
+             stockEntry?.purchasedIndividualUnit && 
+             stockEntry?.purchasedIndividualQuantity) {
+      // Converting from package to individual units
+      if (UNIT_OPTIONS.package.includes(currentUnit) && 
+          (newUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(newUnit))) {
+        newQty = qty * (stockEntry.purchasedIndividualQuantity || 1);
+        conversionApplied = true;
+      } 
+      // Converting from individual units to package
+      else if ((currentUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(currentUnit)) && 
+               UNIT_OPTIONS.package.includes(newUnit)) {
+        const individualQty = stockEntry.purchasedIndividualQuantity || 1;
+        if (individualQty > 0) {
+          newQty = qty / individualQty;
+          conversionApplied = true;
+        }
+      }
+    }
+    
+    // If no conversion was applied, keep the same quantity
+    if (!conversionApplied) {
+      // Just update the unit without changing quantity
+      setValue(unitFieldName as any, newUnit);
       return;
     }
 
@@ -177,17 +209,38 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     const cpu = toNumber(form.getValues("costPerPurchasedUnit") as string);
     setValue(quantityFieldName as any, formatNumber(newQty, newUnit));
 
+    // Update cost per unit based on total cost
     if (!isNaN(total) && newQty > 0) {
       setValue("costPerPurchasedUnit", fmtCPU(total / newQty));
-    } else if (!isNaN(cpu)) {
+    } 
+    // Or update total cost based on cost per unit
+    else if (!isNaN(cpu)) {
       let cpuNew = cpu;
+      
+      // Adjust cost per unit for mass conversions
       if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
         const oneNewInOld = convertMass(1, newUnit, currentUnit);
         cpuNew = cpu * oneNewInOld;
-      } else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
+      } 
+      // Adjust cost per unit for volume conversions
+      else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
         const oneNewInOld = convertVolume(1, newUnit, currentUnit);
         cpuNew = cpu * oneNewInOld;
       }
+      // Adjust cost per unit for package/piece conversions
+      else if (selectedMaterial?.unitType === "package" && stockEntry?.purchasedIndividualQuantity) {
+        // Converting from package to individual units
+        if (UNIT_OPTIONS.package.includes(currentUnit) && 
+            (newUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(newUnit))) {
+          cpuNew = cpu / (stockEntry.purchasedIndividualQuantity || 1);
+        } 
+        // Converting from individual units to package
+        else if ((currentUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(currentUnit)) && 
+                 UNIT_OPTIONS.package.includes(newUnit)) {
+          cpuNew = cpu * (stockEntry.purchasedIndividualQuantity || 1);
+        }
+      }
+      
       setValue("costPerPurchasedUnit", fmtCPU(cpuNew));
       setValue("totalCost", fmtMoney(cpuNew * newQty));
     }
@@ -368,16 +421,111 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                   <FormItem>
                     <FormLabel>Unit</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={disabledFields.includes("unit")}>
+                      <Select 
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          handleUnitChange(value);
+                        }} 
+                        value={field.value || ""} 
+                        disabled={disabledFields.includes("unit")}
+                      >
                         <SelectTrigger className={readOnlyFields.includes("unit") ? "pointer-events-none" : ""}>
                           <SelectValue placeholder="Select unit" />
                         </SelectTrigger>
                         <SelectContent>
-                          {[...new Set(availableUnits)].map(unit => (
-                            <SelectItem key={unit} value={unit}>
-                              {unit}
-                            </SelectItem>
-                          ))}
+                          {(() => {
+                            // Simplified logic to show only directly relevant units
+                            if (selectedMaterial && stockEntry) {
+                              const relevantUnits = new Set<string>();
+                              
+                              // Case 1: Volume materials with bottle/container units
+                              // Example: "1300 ml from 1.86 bottles"
+                              if (selectedMaterial.unitType === "volume" && 
+                                  stockEntry.purchasedUnit && 
+                                  ["bottle", "can", "glass"].includes(stockEntry.purchasedUnit)) {
+                                
+                                // Add the container unit (bottle, can, glass)
+                                relevantUnits.add(stockEntry.purchasedUnit);
+                                
+                                // Add the volume unit (ml, l)
+                                if (stockEntry.volumeUnit) {
+                                  relevantUnits.add(stockEntry.volumeUnit);
+                                } else if (selectedMaterial.volumeUnit) {
+                                  relevantUnits.add(selectedMaterial.volumeUnit);
+                                } else {
+                                  // Default to ml if no specific volume unit
+                                  relevantUnits.add("ml");
+                                }
+                              }
+                              
+                              // Case 2: Package materials with individual units
+                              // Example: "3 bags (17 pieces)"
+                              else if (selectedMaterial.unitType === "package" && 
+                                       stockEntry.purchasedUnit && 
+                                       stockEntry.purchasedIndividualUnit) {
+                                
+                                // Add the package unit (bag, box, etc)
+                                relevantUnits.add(stockEntry.purchasedUnit);
+                                
+                                // Add the individual unit (piece, unit, etc)
+                                relevantUnits.add(stockEntry.purchasedIndividualUnit);
+                              }
+                              
+                              // If we have relevant units, return them
+                              if (relevantUnits.size > 0) {
+                                const unitsArray = Array.from(relevantUnits);
+                                
+                                // Auto-select the first unit if no unit is currently selected
+                                if (!field.value && unitsArray.length > 0) {
+                                  // Use setTimeout to avoid React state update during render
+                                  setTimeout(() => {
+                                    handleUnitChange(unitsArray[0]);
+                                  }, 0);
+                                }
+                                
+                                return unitsArray.map(unit => (
+                                  <SelectItem key={unit} value={unit}>
+                                    {unit}
+                                  </SelectItem>
+                                ));
+                              }
+                            }
+                            
+                            // Fallback: If no stock entry or no relevant units found,
+                            // show only the material's base unit or all available units
+                            if (selectedMaterial?.baseUnit) {
+                              // Auto-select the base unit if no unit is currently selected
+                              if (!field.value) {
+                                // Use setTimeout to avoid React state update during render
+                                setTimeout(() => {
+                                  handleUnitChange(selectedMaterial.baseUnit);
+                                }, 0);
+                              }
+                              
+                              return (
+                                <SelectItem key={selectedMaterial.baseUnit} value={selectedMaterial.baseUnit}>
+                                  {selectedMaterial.baseUnit}
+                                </SelectItem>
+                              );
+                            }
+                            
+                            // Last resort: show all available units
+                            const units = availableUnits;
+                            
+                            // Auto-select the first unit if no unit is currently selected and units exist
+                            if (!field.value && units.length > 0) {
+                              // Use setTimeout to avoid React state update during render
+                              setTimeout(() => {
+                                handleUnitChange(units[0]);
+                              }, 0);
+                            }
+                            
+                            return units.map(unit => (
+                              <SelectItem key={unit} value={unit}>
+                                {unit}
+                              </SelectItem>
+                            ));
+                          })()} 
                         </SelectContent>
                       </Select>
                     </FormControl>
