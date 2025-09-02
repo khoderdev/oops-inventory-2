@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { CostBreakdown } from "../CostBreakdown";
 import { Calendar } from "@/components/ui/calendar";
 import { useWatch } from "react-hook-form";
+import { calculateCostBreakdown, calculateCostPerUnit, formatCostPerUnitDisplay } from "@/utils/costCalculations";
 
 export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
   
@@ -185,76 +186,26 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
     // Base calculation using cost per unit × quantity
     let calculatedTotal = !isNaN(currentCost) && !isNaN(quantity) ? currentCost * quantity : 0;
     
-    // Enhanced calculation for ml quantities in bottle-based materials
-    if (selectedMaterial?.unitType === "package" && watchedUnit === "ml" && stockEntry) {
-      const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
-      
-      if (volumePerUnit > 0) {
-        // Get the cost per bottle
-        const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? 
-          parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
-        const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? 
-          parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
-        const bottleCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-        
-        // Calculate bottle fraction (e.g., 350ml = 0.5 bottles for a 700ml bottle)
-        const bottleFraction = quantity / volumePerUnit;
-        
-        // Calculate total cost based on bottle fraction × bottle cost
-        // This ensures proportional pricing for any ml quantity
-        calculatedTotal = bottleFraction * bottleCost;
-        
-        // Special case: if very close to a whole bottle (within 1%), use exact bottle cost
-        const nearestWholeBottle = Math.round(bottleFraction);
-        if (Math.abs(bottleFraction - nearestWholeBottle) < 0.01 && nearestWholeBottle > 0) {
-          calculatedTotal = nearestWholeBottle * bottleCost;
-          console.log("🧮 Adjusted to exact bottle cost:", 
-            { mlQuantity: quantity, bottleCount: nearestWholeBottle, bottleCost, adjustedTotal: calculatedTotal });
-        } else {
-          console.log("🧮 Calculated proportional bottle cost:", 
-            { mlQuantity: quantity, bottleFraction, bottleCost, proportionalCost: calculatedTotal });
-        }
-      }
+    // Use dynamic cost calculation for all materials
+    if (selectedMaterial && !isNaN(quantity)) {
+      const costBreakdown = calculateCostBreakdown(selectedMaterial, stockEntry, quantity, watchedUnit);
+      calculatedTotal = costBreakdown.totalCost;
     }
     
     // Format the total cost to 2 decimal places for display
     const formattedTotalCost = calculatedTotal.toFixed(2);
-    
-    // For bottle-based materials, ensure we display clean values
-    // This is especially important for values that should be whole numbers
-    if (selectedMaterial?.unitType === "package" && watchedUnit === "ml") {
-      const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
-      const bottleFraction = quantity / volumePerUnit;
-      
-      // If very close to a multiple of the bottle cost, use the exact multiple
-      const nearestMultiple = Math.round(bottleFraction);
-      if (Math.abs(bottleFraction - nearestMultiple) < 0.01 && nearestMultiple > 0) {
-        const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? 
-          parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
-        const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? 
-          parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
-        const bottleCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-        
-        // Use the exact multiple of the bottle cost
-        const exactCost = (nearestMultiple * bottleCost).toFixed(2);
-        form.setValue("totalCost", exactCost, { shouldValidate: true });
-        console.log("💰 Using exact bottle cost multiple:", { bottleCount: nearestMultiple, bottleCost, exactCost });
-      } else {
-        form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
-      }
-    } else {
-      form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
-    }
+    form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
     
     console.log("💰 Total cost calculation:", { unit: watchedUnit, quantity, costPerUnit: currentCost, calculatedTotal, formattedTotalCost });
 
     if (selectedMaterial && !isNaN(currentCost)) {
-      if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && watchedUnit !== "bottle" && selectedMaterial.inputUnit === watchedUnit) {
-        const packageCost = typeof selectedMaterial.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial.costPerUnit || 0;
-        if (packageCost > 0 && Math.abs(currentCost - packageCost) / packageCost > 0.5) {
+      // Validate cost reasonableness
+      if (selectedMaterial && selectedMaterial.unitType === "package" && selectedMaterial.inputUnit === watchedUnit) {
+        const expectedCost = calculateCostPerUnit(selectedMaterial, null, watchedUnit);
+        if (expectedCost > 0 && Math.abs(currentCost - expectedCost) / expectedCost > 0.5) {
           form.setError("costPerPurchasedUnit", {
             type: "manual",
-            message: `Cost per ${watchedUnit} ($${formatNumberUI(currentCost)}) deviates significantly from expected ($${formatNumberUI(packageCost)})`
+            message: `Cost per ${watchedUnit} ($${formatNumberUI(currentCost)}) deviates significantly from expected ($${formatNumberUI(expectedCost)})`
           });
         } else {
           form.clearErrors("costPerPurchasedUnit");
@@ -634,47 +585,17 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                 <p className="text-sm font-medium text-gray-900">
                   $
                   {(() => {
-                    const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
-                    const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
-                    const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-                    const packageQuantity = selectedMaterial?.packageQuantity || 1;
-
-                    if (watchedUnit === "ml") {
-                      // Special case for Bombay Gin
-                      if (selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin")) {
-                        return "0.01714";
-                      }
-                      
-                      // Calculate cost per ml for other materials
-                      const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
-                      const costPerMl = boxCost / volumePerUnit;
-                      return formatNumberUI(costPerMl);
-                    } else {
-                      // Calculate cost per piece/bottle
-                      const costPerPiece = packageQuantity > 0 ? boxCost / packageQuantity : 0;
-                      return formatNumberUI(costPerPiece);
-                    }
+                    if (!selectedMaterial) return "0";
+                    const costPerUnit = calculateCostPerUnit(selectedMaterial, stockEntry, watchedUnit);
+                    return formatNumberUI(costPerUnit);
                   })()}{" "}
                   (calculated)
                 </p>
                 <p className="text-xs text-green-600 mt-1">
-                  Calculated from: $
                   {(() => {
-                    const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
-                    const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
-                    const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-                    return formatNumberUI(boxCost);
-                  })()}{" "}
-                  {watchedUnit === "ml" ? (
-                    <>
-                      per {selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin") ? "bottle" : stockEntry?.purchasedUnit} 
-                      {selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin") ? "" : `÷ ${stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700} ml`}
-                    </>
-                  ) : (
-                    <>
-                      per {stockEntry?.purchasedUnit} ÷ {selectedMaterial?.packageQuantity || 1} {selectedMaterial?.baseUnit}
-                    </>
-                  )}
+                    if (!selectedMaterial) return "No material selected";
+                    return formatCostPerUnitDisplay(selectedMaterial, stockEntry, watchedUnit);
+                  })()}
                 </p>
               </FormItem>
             )}
@@ -732,25 +653,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
             costPerPurchasedUnit={
               selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle" || watchedUnit === "ml")
                 ? (() => {
-                    const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
-                    const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
-                    const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-
-                    if (watchedUnit === "ml") {
-                      // Special case for Bombay Gin
-                      if (selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin")) {
-                        return "0.01714";
-                      }
-                      
-                      // Calculate cost per ml for other materials
-                      const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
-                      // Format to 4 decimal places for readability
-                      return volumePerUnit > 0 ? parseFloat((boxCost / volumePerUnit).toFixed(4)).toString() : "0";
-                    } else {
-                      // Calculate cost per piece/bottle
-                      const packageQuantity = selectedMaterial?.packageQuantity || 1;
-                      return packageQuantity > 0 ? (boxCost / packageQuantity).toString() : "0";
-                    }
+                    if (!selectedMaterial) return "0";
+                    const costPerUnit = calculateCostPerUnit(selectedMaterial, stockEntry, watchedUnit);
+                    return costPerUnit.toString();
                   })()
                 : watchedCostPerUnit
             }

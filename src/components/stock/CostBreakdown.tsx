@@ -4,6 +4,7 @@ import { formatCurrencyUI, formatNumberUI } from "@/utils/conversionLogic";
 import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Calculator, DollarSign, Package } from "lucide-react";
 import { Badge } from "../ui/badge";
+import { calculateCostBreakdown } from "@/utils/costCalculations";
 
 // Use the enhanced UI-friendly formatting utilities
 const formatCurrency = formatCurrencyUI;
@@ -41,165 +42,21 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
     );
   }
 
-  let costPerBaseUnit = 0;
-  let costPerCl = 0;
-  let costPerMl = 0;
-  let calculatedTotalCost = 0;
-  let showVolumeBreakdown = false;
-
-  if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity && selectedMaterial.baseUnit) {
-    let costPerPackage: number;
-    if (purchasedUnit === selectedMaterial.baseUnit) {
-      costPerPackage = numCostPerUnit * selectedMaterial.packageQuantity;
-    } else {
-      costPerPackage = numCostPerUnit;
-    }
-    const validPackageUnits: PackageUnit[] = ["box", "pack", "case", "piece", "bottle", "bag"];
-    const packageType: PackageUnit = validPackageUnits.includes(selectedMaterial.inputUnit as PackageUnit) ? (selectedMaterial.inputUnit as PackageUnit) : "pack";
-
-    const packagedGood: PackagedGood = {
-      name: selectedMaterial.name || "Unknown Material",
-      costPerPackage,
-      unitsPerPackage: selectedMaterial.packageQuantity,
-      baseUnit: selectedMaterial.baseUnit,
-      packageType
-    };
-
-    if (packagedGood.unitsPerPackage <= 0) {
-      console.warn("Invalid packagedGood data (missing unitsPerPackage):", packagedGood);
-      return (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mt-4">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Calculator className="h-5 w-5 text-blue-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-blue-800">Cost Breakdown</h3>
-          </div>
-          <p className="text-sm text-red-600">Invalid package data: Missing quantity per package configuration.</p>
-        </div>
-      );
-    }
-    costPerBaseUnit = packagedGood.costPerPackage / packagedGood.unitsPerPackage;
-    calculatedTotalCost = numQuantity * numCostPerUnit;
-
-    // For volume-based package materials (like bottles), calculate cost per cl/ml
-    if (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl" || selectedMaterial.baseUnit === "l") {
-      showVolumeBreakdown = true;
-      
-      // If purchasing bottles and we know the volume per bottle
-      if (purchasedUnit === "bottle") {
-        let volumePerBottle = 0;
-        
-        // Try to get volume from material configuration in order of preference
-        if (selectedMaterial.volumePerBottle && selectedMaterial.volumePerBottle > 0) {
-          volumePerBottle = selectedMaterial.volumePerBottle;
-        } else if (selectedMaterial.volumePerUnit && selectedMaterial.volumePerUnit > 0) {
-          volumePerBottle = selectedMaterial.volumePerUnit;
-        } else if (selectedMaterial.packageQuantity && selectedMaterial.packageQuantity > 0) {
-          volumePerBottle = selectedMaterial.packageQuantity;
-        }
-        
-        // Only proceed if we have valid volume data
-        if (volumePerBottle <= 0) {
-          console.warn(`No volume configuration found for bottle material: ${selectedMaterial.name}`);
-          return;
-        }
-        
-        const baseUnit = selectedMaterial.baseUnit || "cl";
-        
-        // For Bombay Gin and similar spirits, hardcode the correct cost per ml
-        if (selectedMaterial.name && selectedMaterial.name.includes("Bombay Gin")) {
-          costPerMl = 0.01714; // $12 / 700ml = 0.01714
-          costPerCl = costPerMl * 10;
-        } else {
-          if (baseUnit === "cl") {
-            costPerCl = numCostPerUnit / volumePerBottle;
-            costPerMl = costPerCl / 10;
-          } else if (baseUnit === "ml") {
-            costPerMl = numCostPerUnit / volumePerBottle;
-            costPerCl = costPerMl * 10;
-          } else if (baseUnit === "l") {
-            const costPerLiter = numCostPerUnit / volumePerBottle;
-            costPerCl = costPerLiter / 100;
-            costPerMl = costPerLiter / 1000;
-          } else {
-            // Default: assume volume is in cl for bottles
-            costPerCl = numCostPerUnit / volumePerBottle;
-            costPerMl = costPerCl / 10;
-          }
-        }
-      }
-    }
-  } else if (selectedMaterial.unitType === "volume") {
-    showVolumeBreakdown = true;
-    calculatedTotalCost = numQuantity * numCostPerUnit;
-
-    // Calculate cost per cl and ml for volume materials
-    if (purchasedUnit === "bottle") {
-      let volumePerBottle = 0;
-      
-      // Try to get volume from material configuration in order of preference
-      if (selectedMaterial.volumePerBottle && selectedMaterial.volumePerBottle > 0) {
-        volumePerBottle = selectedMaterial.volumePerBottle;
-      } else if (selectedMaterial.volumePerUnit && selectedMaterial.volumePerUnit > 0) {
-        volumePerBottle = selectedMaterial.volumePerUnit;
-      } else if (selectedMaterial.packageQuantity && selectedMaterial.packageQuantity > 0) {
-        volumePerBottle = selectedMaterial.packageQuantity;
-      }
-      
-      // Only proceed if we have valid volume data
-      if (volumePerBottle <= 0) {
-        console.warn(`No volume configuration found for bottle material: ${selectedMaterial.name}`);
-        // Skip volume breakdown for this material
-        showVolumeBreakdown = false;
-      } else {
-        costPerCl = numCostPerUnit / volumePerBottle;
-        costPerMl = costPerCl / 10;
-      }
-    } else if (purchasedUnit === "cl") {
-      costPerCl = numCostPerUnit;
-      costPerMl = numCostPerUnit / 10;
-    } else if (purchasedUnit === "ml") {
-      costPerMl = numCostPerUnit;
-      costPerCl = numCostPerUnit * 10;
-    } else if (purchasedUnit === "l") {
-      costPerCl = numCostPerUnit / 100;
-      costPerMl = numCostPerUnit / 1000;
-    }
-
-    // Calculate cost per base unit
-    if (purchasedUnit && selectedMaterial?.baseUnit) {
-      if (purchasedUnit === "cl" && selectedMaterial.baseUnit === "ml") {
-        costPerBaseUnit = numCostPerUnit / 10;
-      } else if (purchasedUnit === "ml" && selectedMaterial.baseUnit === "cl") {
-        costPerBaseUnit = numCostPerUnit * 10;
-      } else if (purchasedUnit === "l" && selectedMaterial.baseUnit === "ml") {
-        costPerBaseUnit = numCostPerUnit / 1000;
-      } else if (purchasedUnit === "l" && selectedMaterial.baseUnit === "cl") {
-        costPerBaseUnit = numCostPerUnit / 100;
-      } else {
-        const conversionFactor = getConversionFactor(purchasedUnit, selectedMaterial.baseUnit, selectedMaterial.unitType, selectedMaterial);
-        if (conversionFactor > 0) {
-          costPerBaseUnit = numCostPerUnit / conversionFactor;
-        }
-      }
-    }
-  } else {
-    calculatedTotalCost = numQuantity * numCostPerUnit;
-    
-    if (purchasedUnit && selectedMaterial?.baseUnit) {
-      if (purchasedUnit === "g" && selectedMaterial.baseUnit === "kg") {
-        costPerBaseUnit = numCostPerUnit * 1000;
-      } else if (purchasedUnit === "kg" && selectedMaterial.baseUnit === "g") {
-        costPerBaseUnit = numCostPerUnit / 1000;
-      } else {
-        const conversionFactor = getConversionFactor(purchasedUnit, selectedMaterial.baseUnit, selectedMaterial.unitType, selectedMaterial);
-        if (conversionFactor > 0) {
-          costPerBaseUnit = numCostPerUnit / conversionFactor;
-        }
-      }
-    }
-  }
+  // Use the dynamic cost calculation utility
+  const costBreakdown = calculateCostBreakdown(selectedMaterial, null, numQuantity, purchasedUnit);
+  
+  const {
+    costPerUnit,
+    costPerMl = 0,
+    costPerCl = 0,
+    costPerBaseUnit = 0,
+    totalCost: calculatedTotalCost,
+    volumePerUnit
+  } = costBreakdown;
+  
+  const showVolumeBreakdown = selectedMaterial.unitType === "package" && 
+    (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl" || selectedMaterial.baseUnit === "l") ||
+    selectedMaterial.unitType === "volume";
 
   const existingCostPerBaseUnit = parseFloat(String(selectedMaterial?.costPerUnit || 0)) || 0;
   const costDifferencePercent = existingCostPerBaseUnit > 0 ? ((costPerBaseUnit - existingCostPerBaseUnit) / existingCostPerBaseUnit) * 100 : 0;
@@ -238,35 +95,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
             <span className="text-sm font-medium text-gray-600">Total Cost</span>
           </div>
           <p className="text-xl font-bold text-gray-800">
-            {(() => {
-              // Special case for Bombay Gin with 700ml
-              if (selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin") && 
-                  purchasedUnit === "ml" && numQuantity === 700) {
-                return "$12.00";
-              }
-              
-              // For other bottle-based materials with ml units
-              if (selectedMaterial?.unitType === "package" && purchasedUnit === "ml") {
-                const volumePerUnit = selectedMaterial?.volumePerUnit || selectedMaterial?.volumePerBottle || 700;
-                const bottleFraction = numQuantity / volumePerUnit;
-                const nearestMultiple = Math.round(bottleFraction);
-                
-                // If very close to a whole bottle multiple (within 1%), use exact bottle cost
-                if (Math.abs(bottleFraction - nearestMultiple) < 0.01 && nearestMultiple > 0) {
-                  // For Bombay Gin, use $12.00 per bottle
-                  if (selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin")) {
-                    return formatCurrency(nearestMultiple * 12);
-                  }
-                  
-                  const bottleCost = numCostPerUnit * volumePerUnit;
-                  const exactCost = nearestMultiple * bottleCost;
-                  return formatCurrency(exactCost);
-                }
-              }
-              
-              return formatCurrency(calculatedTotalCost);
-            })()
-            }
+            {formatCurrency(calculatedTotalCost)}
           </p>
         </div>
 
@@ -287,7 +116,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
               <span className="text-sm font-medium text-gray-600">Cost per ml</span>
             </div>
             <p className="text-xl font-bold text-gray-800">
-              {selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin") ? "$0.01714" : formatCurrency(costPerMl)}
+              {formatCurrency(costPerMl)}
             </p>
           </div>
         )}
