@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { CostBreakdown } from "../CostBreakdown";
 import { Calendar } from "@/components/ui/calendar";
 import { useWatch } from "react-hook-form";
-import { calculateCostPerUnit, formatCostPerUnitDisplay } from "@/utils/costCalculations";
+import { calculateCostPerUnit, formatCostPerUnitDisplay, formatQuantity } from "@/utils/costCalculations";
 
 export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
   
@@ -35,28 +35,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   const watchedUnit = form.watch("purchasedUnit");
   const watchedPurchasedQuantity = useWatch({ control: form.control, name: "purchasedQuantity" });
   const [lastChangedField, setLastChangedField] = useState<string | null>(null);
-  
-  // Format quantity to a reasonable number of decimal places
-  const formatQuantity = (value: string | number): string => {
-    if (!value && value !== 0) return "";
-    
-    const numValue = typeof value === "string" ? parseFloat(value) : value;
-    
-    if (isNaN(numValue)) return "";
-    
-    // For whole numbers, return as is
-    if (Number.isInteger(numValue)) return numValue.toString();
-    
-    // For values with many decimal places, format appropriately
-    // Use 2 decimal places for most values, but handle special cases
-    const decimalPlaces = Math.abs(numValue) < 0.01 ? 4 : 2;
-    
-    // Format the number with the appropriate decimal places
-    const formatted = numValue.toFixed(decimalPlaces);
-    
-    // Remove trailing zeros after the decimal point
-    return formatted.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
-  };
+
 
   useEffect(() => {
     const currentMaterialId = form.getValues("materialId");
