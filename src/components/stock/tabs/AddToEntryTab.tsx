@@ -157,7 +157,41 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       }
     }
 
-    const calculatedTotal = !isNaN(currentCost) && !isNaN(quantity) ? currentCost * quantity : 0;
+    // Base calculation using cost per unit × quantity
+    let calculatedTotal = !isNaN(currentCost) && !isNaN(quantity) ? currentCost * quantity : 0;
+    
+    // Enhanced calculation for ml quantities in bottle-based materials
+    if (selectedMaterial?.unitType === "package" && watchedUnit === "ml" && stockEntry) {
+      const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
+      
+      if (volumePerUnit > 0) {
+        // Get the cost per bottle
+        const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? 
+          parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+        const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? 
+          parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
+        const bottleCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
+        
+        // Calculate bottle fraction (e.g., 350ml = 0.5 bottles for a 700ml bottle)
+        const bottleFraction = quantity / volumePerUnit;
+        
+        // Calculate total cost based on bottle fraction × bottle cost
+        // This ensures proportional pricing for any ml quantity
+        calculatedTotal = bottleFraction * bottleCost;
+        
+        // Special case: if very close to a whole bottle (within 1%), use exact bottle cost
+        const nearestWholeBottle = Math.round(bottleFraction);
+        if (Math.abs(bottleFraction - nearestWholeBottle) < 0.01 && nearestWholeBottle > 0) {
+          calculatedTotal = nearestWholeBottle * bottleCost;
+          console.log("🧮 Adjusted to exact bottle cost:", 
+            { mlQuantity: quantity, bottleCount: nearestWholeBottle, bottleCost, adjustedTotal: calculatedTotal });
+        } else {
+          console.log("🧮 Calculated proportional bottle cost:", 
+            { mlQuantity: quantity, bottleFraction, bottleCost, proportionalCost: calculatedTotal });
+        }
+      }
+    }
+    
     form.setValue("totalCost", calculatedTotal.toString(), { shouldValidate: true });
     console.log("💰 Total cost calculation:", { unit: watchedUnit, quantity, costPerUnit: currentCost, calculatedTotal });
 
