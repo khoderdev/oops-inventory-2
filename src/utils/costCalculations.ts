@@ -70,7 +70,28 @@ export function getVolumePerUnit(material: Material, stockEntry: StockEntry | nu
 export function calculateCostBreakdown(material: Material, stockEntry: StockEntry | null, quantity: number, purchasedUnit: string): CostCalculationResult {
   const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
   const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
-  const baseCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
+  
+  // Always use the original material/stock entry cost, not the current form cost
+  let baseCost = materialCost;
+  let originalUnit = material.inputUnit || material.baseUnit || "g";
+  
+  if (stockEntry && stockEntryCost > 0) {
+    baseCost = stockEntryCost;
+    originalUnit = stockEntry.purchasedUnit || originalUnit;
+  }
+
+  console.log("🔍 calculateCostBreakdown:", {
+    material: material.name,
+    unitType: material.unitType,
+    baseUnit: material.baseUnit,
+    inputUnit: material.inputUnit,
+    stockEntryUnit: stockEntry?.purchasedUnit,
+    purchasedUnit,
+    stockEntryCost,
+    materialCost,
+    baseCost,
+    quantity
+  });
 
   let costPerUnit = baseCost;
   let costPerMl: number | undefined;
@@ -80,42 +101,85 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
 
   // Handle mass materials (kg, g, lb, oz)
   if (material.unitType === "mass") {
-    const baseUnit = material.baseUnit || "g";
-    const inputUnit = material.inputUnit || baseUnit;
+    console.log("🔍 Mass material conversion:", {
+      originalUnit,
+      purchasedUnit,
+      baseCost
+    });
     
-    // If the purchased unit is different from the input unit, convert the cost
-    if (purchasedUnit === "g" && inputUnit === "kg") {
-      costPerUnit = baseCost / 1000; // 1 kg = 1000 g
-    } else if (purchasedUnit === "kg" && inputUnit === "g") {
-      costPerUnit = baseCost * 1000; // 1000 g = 1 kg
-    } else if (purchasedUnit === "oz" && inputUnit === "lb") {
+    // Convert cost based on the relationship between original cost unit and desired unit
+    if (purchasedUnit === "g" && originalUnit === "kg") {
+      costPerUnit = baseCost / 1000; // 1 kg = 1000 g, so cost per g = cost per kg / 1000
+      console.log("🔄 Converting kg to g:", { baseCost, costPerUnit });
+    } else if (purchasedUnit === "kg" && originalUnit === "g") {
+      costPerUnit = baseCost * 1000; // 1000 g = 1 kg, so cost per kg = cost per g * 1000
+      console.log("🔄 Converting g to kg:", { baseCost, costPerUnit });
+    } else if (purchasedUnit === "oz" && originalUnit === "lb") {
       costPerUnit = baseCost / 16; // 1 lb = 16 oz
-    } else if (purchasedUnit === "lb" && inputUnit === "oz") {
+    } else if (purchasedUnit === "lb" && originalUnit === "oz") {
       costPerUnit = baseCost * 16; // 16 oz = 1 lb
-    } else if (purchasedUnit === inputUnit) {
+    } else if (purchasedUnit === originalUnit) {
       costPerUnit = baseCost; // Same unit, no conversion needed
+      console.log("🔄 Same unit, no conversion:", { purchasedUnit, originalUnit, costPerUnit });
+    } else {
+      // Handle cross-conversions (g <-> oz, kg <-> lb, etc.)
+      // Convert to grams first, then to target unit
+      let costPerGram = baseCost;
+      
+      // Convert original cost to cost per gram
+      if (originalUnit === "kg") {
+        costPerGram = baseCost / 1000;
+      } else if (originalUnit === "lb") {
+        costPerGram = baseCost / 453.592; // 1 lb = 453.592 g
+      } else if (originalUnit === "oz") {
+        costPerGram = baseCost / 28.3495; // 1 oz = 28.3495 g
+      }
+      
+      // Convert from cost per gram to target unit
+      if (purchasedUnit === "g") {
+        costPerUnit = costPerGram;
+      } else if (purchasedUnit === "kg") {
+        costPerUnit = costPerGram * 1000;
+      } else if (purchasedUnit === "lb") {
+        costPerUnit = costPerGram * 453.592;
+      } else if (purchasedUnit === "oz") {
+        costPerUnit = costPerGram * 28.3495;
+      }
+      
+      console.log("🔄 Cross-conversion:", { originalUnit, purchasedUnit, costPerGram, costPerUnit });
     }
   }
   // Handle volume materials (L, ml, cl)
   else if (material.unitType === "volume") {
-    const baseUnit = material.baseUnit || "ml";
-    const inputUnit = material.inputUnit || baseUnit;
-    
-    // If the purchased unit is different from the input unit, convert the cost
-    if (purchasedUnit === "ml" && inputUnit === "L") {
+    if (purchasedUnit === "ml" && originalUnit === "L") {
       costPerUnit = baseCost / 1000; // 1 L = 1000 ml
-    } else if (purchasedUnit === "L" && inputUnit === "ml") {
+    } else if (purchasedUnit === "L" && originalUnit === "ml") {
       costPerUnit = baseCost * 1000; // 1000 ml = 1 L
-    } else if (purchasedUnit === "cl" && inputUnit === "L") {
+    } else if (purchasedUnit === "cl" && originalUnit === "L") {
       costPerUnit = baseCost / 100; // 1 L = 100 cl
-    } else if (purchasedUnit === "L" && inputUnit === "cl") {
+    } else if (purchasedUnit === "L" && originalUnit === "cl") {
       costPerUnit = baseCost * 100; // 100 cl = 1 L
-    } else if (purchasedUnit === "ml" && inputUnit === "cl") {
+    } else if (purchasedUnit === "ml" && originalUnit === "cl") {
       costPerUnit = baseCost / 10; // 1 cl = 10 ml
-    } else if (purchasedUnit === "cl" && inputUnit === "ml") {
+    } else if (purchasedUnit === "cl" && originalUnit === "ml") {
       costPerUnit = baseCost * 10; // 10 ml = 1 cl
-    } else if (purchasedUnit === inputUnit) {
+    } else if (purchasedUnit === originalUnit) {
       costPerUnit = baseCost; // Same unit, no conversion needed
+    } else {
+      let costPerMl = baseCost;
+      if (originalUnit === "L") {
+        costPerMl = baseCost / 1000;
+      } else if (originalUnit === "cl") {
+        costPerMl = baseCost / 10;
+      }
+      
+      if (purchasedUnit === "ml") {
+        costPerUnit = costPerMl;
+      } else if (purchasedUnit === "L") {
+        costPerUnit = costPerMl * 1000;
+      } else if (purchasedUnit === "cl") {
+        costPerUnit = costPerMl * 10;
+      }
     }
   }
   // Handle package materials
@@ -170,7 +234,7 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
     }
   }
 
-  return {
+  const result = {
     costPerUnit,
     costPerMl,
     costPerCl,
@@ -178,6 +242,10 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
     totalCost,
     volumePerUnit
   };
+
+  console.log("🔍 calculateCostBreakdown result:", result);
+  
+  return result;
 }
 
 /**

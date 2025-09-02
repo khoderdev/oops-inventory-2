@@ -2,7 +2,7 @@ import { StockFormData, WasteFromEntryTabProps } from "@/types/inventory";
 import { Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { StockEntryForm } from "../form/StockEntryForm";
-import { calculateCostPerUnit, calculateCostBreakdown, formatQuantity,  } from "@/utils/costCalculations";
+import { calculateCostBreakdown } from "@/utils/costCalculations";
 import { OriginalEntryCostInfo } from "./OriginalEntryCostInfo";
 import { getCurrentStockDisplay } from "@/utils/getCurrentStockDisplay";
 
@@ -12,7 +12,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
 
   useEffect(() => {
     if (lastChangedField === "totalCost") return;
-
     const quantity = parseFloat(watchedWasteQuantity || "0");
     
     if (selectedMaterial && !isNaN(quantity) && quantity > 0 && watchedUnit) {

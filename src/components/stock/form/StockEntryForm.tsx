@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, LucideIcon, Minus, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { Path, PathValue, UseFormReturn } from "react-hook-form";
 import { convertMass, convertVolume, formatCurrencyUI, formatNumberUI, isMassUnit, isVolumeUnit, parseCurrency } from "@/utils/conversionLogic";
 import { calculateCostBreakdown } from "@/utils/costCalculations";
@@ -111,11 +111,12 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     }
   }, [form]);
 
-  // Update labels when unit changes
+  // Update labels when unit changes and track previous unit
   useEffect(() => {
-    // This will force a re-render when the unit changes
-    const currentUnit = form.getValues(unitFieldName);
-    // We don't need to do anything here, just watching the unit field
+    const currentUnit = form.getValues(unitFieldName) as string;
+    if (currentUnit && !previousUnitRef.current) {
+      previousUnitRef.current = currentUnit;
+    }
   }, [form.watch(unitFieldName), unitFieldName]);
 
   // Recompute functions for handling field changes without infinite loops
@@ -272,88 +273,119 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     }
   };
 
+  const [lastChangedField, setLastChangedField] = useState<string | null>(null);
+  const previousUnitRef = useRef<string>("");
+
   const handleUnitChange = (newUnit: string) => {
-    const currentUnit = form.getValues(unitFieldName as any) as string;
+    console.log(" handleUnitChange CALLED with:", { newUnit });
+    const currentUnit = previousUnitRef.current || form.getValues(unitFieldName as any) as string;
+    console.log(" handleUnitChange current unit:", { currentUnit, newUnit, fromRef: previousUnitRef.current });
     if (!newUnit) return;
+    
+    // Check if units are the same BEFORE updating the form
+    if (!currentUnit || newUnit === currentUnit) {
+      console.log(" handleUnitChange EARLY RETURN:", { currentUnit, newUnit, reason: "same unit or no current unit" });
+      form.setValue(unitFieldName as any, newUnit, { shouldValidate: true });
+      previousUnitRef.current = newUnit;
+      return;
+    }
+    
+    // Now update the form value after we've confirmed the units are different
     form.setValue(unitFieldName as any, newUnit, { shouldValidate: true });
-    if (!currentUnit || newUnit === currentUnit) return;
+    previousUnitRef.current = newUnit;
 
     const qty = toNumber(form.getValues(quantityFieldName as any) as string);
-    if (isNaN(qty) || qty <= 0) return;
-
-    let newQty = qty;
-    let conversionApplied = false;
-
-    // Handle mass unit conversions
-    if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
-      newQty = convertMass(qty, currentUnit, newUnit);
-      conversionApplied = true;
-    }
-    // Handle volume unit conversions
-    else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
-      newQty = convertVolume(qty, currentUnit, newUnit);
-      conversionApplied = true;
-    }
-    // Handle package to piece conversions if we have a selected material
-    else if (selectedMaterial?.unitType === "package" && stockEntry?.purchasedIndividualUnit && stockEntry?.purchasedIndividualQuantity) {
-      // Converting from package to individual units
-      if (UNIT_OPTIONS.package.includes(currentUnit) && (newUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(newUnit))) {
-        newQty = qty * (stockEntry.purchasedIndividualQuantity || 1);
-        conversionApplied = true;
+    if (isNaN(qty) || qty <= 0) {
+      // If no quantity, just update the unit and recalculate costs for new unit
+      if (selectedMaterial) {
+        const costResult = calculateCostBreakdown(selectedMaterial, stockEntry, 1, newUnit);
+        const formattedCPU = fmtCPU(costResult.costPerUnit, newUnit);
+        form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: true });
       }
-      // Converting from individual units to package
-      else if ((currentUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(currentUnit)) && UNIT_OPTIONS.package.includes(newUnit)) {
-        const individualQty = stockEntry.purchasedIndividualQuantity || 1;
-        if (individualQty > 0) {
-          newQty = qty / individualQty;
-          conversionApplied = true;
-        }
-      }
-    }
-
-    // If no conversion was applied, keep the same quantity
-    if (!conversionApplied) {
-      // Just update the unit without changing quantity
-      setValue(unitFieldName as any, newUnit);
       return;
     }
 
-    const total = toNumber(form.getValues("totalCost") as string);
-    const cpu = toNumber(form.getValues("costPerPurchasedUnit") as string);
-    setValue(quantityFieldName as any, formatNumberUI(newQty, newUnit));
+    // For unit changes, we keep the same quantity value but recalculate costs
+    // We don't convert the quantity - the user wants to keep the same amount
+    const newQty = qty;
 
-    // Update cost per unit based on total cost
-    if (!isNaN(total) && newQty > 0) {
-      setValue("costPerPurchasedUnit", fmtCPU(total / newQty, unitFieldName));
-    }
-    // Or update total cost based on cost per unit
-    else if (!isNaN(cpu)) {
-      let cpuNew = cpu;
+    // Use enhanced cost calculation system for the new unit
+    if (selectedMaterial) {
+      console.log("🔄 handleUnitChange: Recalculating costs for unit change", {
+        oldUnit: currentUnit,
+        newUnit,
+        quantity: newQty,
+        material: selectedMaterial.name
+      });
 
-      // Adjust cost per unit for mass conversions
-      if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
-        const oneNewInOld = convertMass(1, newUnit, currentUnit);
-        cpuNew = cpu * oneNewInOld;
+      const costResult = calculateCostBreakdown(selectedMaterial, stockEntry, newQty, newUnit);
+      
+      console.log("🔄 handleUnitChange: Cost calculation result", {
+        oldUnit: currentUnit,
+        newUnit,
+        quantity: newQty,
+        costResult
+      });
+      
+      // Update cost per unit
+      const formattedCPU = fmtCPU(costResult.costPerUnit, newUnit);
+      form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: true });
+
+      // Update total cost with smart formatting
+      let formattedTotalCost;
+      if (costResult.totalCost < 0.01 && costResult.totalCost > 0) {
+        formattedTotalCost = costResult.totalCost.toFixed(4);
+      } else if (costResult.totalCost < 0.1 && costResult.totalCost > 0) {
+        formattedTotalCost = costResult.totalCost.toFixed(3);
+      } else {
+        formattedTotalCost = fmtMoney(costResult.totalCost);
       }
-      // Adjust cost per unit for volume conversions
-      else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
-        const oneNewInOld = convertVolume(1, newUnit, currentUnit);
-        cpuNew = cpu * oneNewInOld;
+      
+      form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
+
+      console.log("🔄 handleUnitChange: Updated form values", {
+        costPerUnit: formattedCPU,
+        totalCost: formattedTotalCost,
+        rawTotalCost: costResult.totalCost
+      });
+    } else {
+      // Fallback to legacy calculation if no material selected
+      const total = toNumber(form.getValues("totalCost") as string);
+      const cpu = toNumber(form.getValues("costPerPurchasedUnit") as string);
+
+      // Update cost per unit based on total cost
+      if (!isNaN(total) && newQty > 0) {
+        setValue("costPerPurchasedUnit", fmtCPU(total / newQty, newUnit));
       }
-      // Adjust cost per unit for package/piece conversions
-      else if (selectedMaterial?.unitType === "package" && stockEntry?.purchasedIndividualQuantity) {
-        // Converting from package to individual units
-        if (UNIT_OPTIONS.package.includes(currentUnit) && (newUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(newUnit))) {
-          cpuNew = cpu / (stockEntry.purchasedIndividualQuantity || 1);
+      // Or update total cost based on cost per unit
+      else if (!isNaN(cpu)) {
+        let cpuNew = cpu;
+
+        // Adjust cost per unit for mass conversions
+        if (isMassUnit(currentUnit) && isMassUnit(newUnit)) {
+          const oneNewInOld = convertMass(1, newUnit, currentUnit);
+          cpuNew = cpu * oneNewInOld;
         }
-        // Converting from individual units to package
-        else if ((currentUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(currentUnit)) && UNIT_OPTIONS.package.includes(newUnit)) {
-          cpuNew = cpu * (stockEntry.purchasedIndividualQuantity || 1);
+        // Adjust cost per unit for volume conversions
+        else if (isVolumeUnit(currentUnit) && isVolumeUnit(newUnit)) {
+          const oneNewInOld = convertVolume(1, newUnit, currentUnit);
+          cpuNew = cpu * oneNewInOld;
         }
-      }
+        // Adjust cost per unit for package/piece conversions
+        else if (selectedMaterial?.unitType === "package" && stockEntry?.purchasedIndividualQuantity) {
+          // Converting from package to individual units
+          if (UNIT_OPTIONS.package.includes(currentUnit) && (newUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(newUnit))) {
+            cpuNew = cpu / (stockEntry.purchasedIndividualQuantity || 1);
+          }
+          // Converting from individual units to package
+          else if ((currentUnit === stockEntry.purchasedIndividualUnit || UNIT_OPTIONS.piece.includes(currentUnit)) && UNIT_OPTIONS.package.includes(newUnit)) {
+            cpuNew = cpu * (stockEntry.purchasedIndividualQuantity || 1);
+          }
+        }
 
-      setValue("costPerPurchasedUnit", fmtCPU(cpuNew, unitFieldName));
-      setValue("totalCost", fmtMoney(cpuNew * newQty));
+        setValue("costPerPurchasedUnit", fmtCPU(cpuNew, newUnit));
+        setValue("totalCost", fmtMoney(cpuNew * newQty));
+      }
     }
   };
 
