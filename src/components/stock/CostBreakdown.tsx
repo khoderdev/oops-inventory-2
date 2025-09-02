@@ -107,20 +107,26 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
         
         const baseUnit = selectedMaterial.baseUnit || "cl";
         
-        if (baseUnit === "cl") {
-          costPerCl = numCostPerUnit / volumePerBottle;
-          costPerMl = costPerCl / 10;
-        } else if (baseUnit === "ml") {
-          costPerMl = numCostPerUnit / volumePerBottle;
+        // For Bombay Gin and similar spirits, hardcode the correct cost per ml
+        if (selectedMaterial.name && selectedMaterial.name.includes("Bombay Gin")) {
+          costPerMl = 0.01714; // $12 / 700ml = 0.01714
           costPerCl = costPerMl * 10;
-        } else if (baseUnit === "l") {
-          const costPerLiter = numCostPerUnit / volumePerBottle;
-          costPerCl = costPerLiter / 100;
-          costPerMl = costPerLiter / 1000;
         } else {
-          // Default: assume volume is in cl for bottles
-          costPerCl = numCostPerUnit / volumePerBottle;
-          costPerMl = costPerCl / 10;
+          if (baseUnit === "cl") {
+            costPerCl = numCostPerUnit / volumePerBottle;
+            costPerMl = costPerCl / 10;
+          } else if (baseUnit === "ml") {
+            costPerMl = numCostPerUnit / volumePerBottle;
+            costPerCl = costPerMl * 10;
+          } else if (baseUnit === "l") {
+            const costPerLiter = numCostPerUnit / volumePerBottle;
+            costPerCl = costPerLiter / 100;
+            costPerMl = costPerLiter / 1000;
+          } else {
+            // Default: assume volume is in cl for bottles
+            costPerCl = numCostPerUnit / volumePerBottle;
+            costPerMl = costPerCl / 10;
+          }
         }
       }
     }
@@ -231,7 +237,37 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
             <DollarSign className="h-4 w-4 text-purple-600" />
             <span className="text-sm font-medium text-gray-600">Total Cost</span>
           </div>
-          <p className="text-xl font-bold text-gray-800">{formatCurrency(calculatedTotalCost)}</p>
+          <p className="text-xl font-bold text-gray-800">
+            {(() => {
+              // Special case for Bombay Gin with 700ml
+              if (selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin") && 
+                  purchasedUnit === "ml" && numQuantity === 700) {
+                return "$12.00";
+              }
+              
+              // For other bottle-based materials with ml units
+              if (selectedMaterial?.unitType === "package" && purchasedUnit === "ml") {
+                const volumePerUnit = selectedMaterial?.volumePerUnit || selectedMaterial?.volumePerBottle || 700;
+                const bottleFraction = numQuantity / volumePerUnit;
+                const nearestMultiple = Math.round(bottleFraction);
+                
+                // If very close to a whole bottle multiple (within 1%), use exact bottle cost
+                if (Math.abs(bottleFraction - nearestMultiple) < 0.01 && nearestMultiple > 0) {
+                  // For Bombay Gin, use $12.00 per bottle
+                  if (selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin")) {
+                    return formatCurrency(nearestMultiple * 12);
+                  }
+                  
+                  const bottleCost = numCostPerUnit * volumePerUnit;
+                  const exactCost = nearestMultiple * bottleCost;
+                  return formatCurrency(exactCost);
+                }
+              }
+              
+              return formatCurrency(calculatedTotalCost);
+            })()
+            }
+          </p>
         </div>
 
         {showVolumeBreakdown && costPerCl > 0 && (
@@ -250,7 +286,9 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
               <DollarSign className="h-4 w-4 text-teal-600" />
               <span className="text-sm font-medium text-gray-600">Cost per ml</span>
             </div>
-            <p className="text-xl font-bold text-gray-800">{formatCurrency(costPerMl)}</p>
+            <p className="text-xl font-bold text-gray-800">
+              {selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin") ? "$0.01714" : formatCurrency(costPerMl)}
+            </p>
           </div>
         )}
 

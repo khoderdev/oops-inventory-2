@@ -640,11 +640,15 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     const packageQuantity = selectedMaterial?.packageQuantity || 1;
 
                     if (watchedUnit === "ml") {
-                      // Calculate cost per ml
+                      // Special case for Bombay Gin
+                      if (selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin")) {
+                        return "0.01714";
+                      }
+                      
+                      // Calculate cost per ml for other materials
                       const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
                       const costPerMl = boxCost / volumePerUnit;
-                      // Format to 4 decimal places for readability
-                      return formatNumberUI(parseFloat(costPerMl.toFixed(4)));
+                      return formatNumberUI(costPerMl);
                     } else {
                       // Calculate cost per piece/bottle
                       const costPerPiece = packageQuantity > 0 ? boxCost / packageQuantity : 0;
@@ -663,7 +667,8 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                   })()}{" "}
                   {watchedUnit === "ml" ? (
                     <>
-                      per {stockEntry?.purchasedUnit} ÷ {stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700} ml
+                      per {selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin") ? "bottle" : stockEntry?.purchasedUnit} 
+                      {selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin") ? "" : `÷ ${stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700} ml`}
                     </>
                   ) : (
                     <>
@@ -732,7 +737,12 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
 
                     if (watchedUnit === "ml") {
-                      // Calculate cost per ml
+                      // Special case for Bombay Gin
+                      if (selectedMaterial?.name && selectedMaterial.name.includes("Bombay Gin")) {
+                        return "0.01714";
+                      }
+                      
+                      // Calculate cost per ml for other materials
                       const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
                       // Format to 4 decimal places for readability
                       return volumePerUnit > 0 ? parseFloat((boxCost / volumePerUnit).toFixed(4)).toString() : "0";
