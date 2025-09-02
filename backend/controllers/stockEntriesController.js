@@ -24,7 +24,37 @@ const stockEntriesController = {
         Op
       );
 
-      const selectedFields = parseFieldSelection(fields, ["id", "materialId", "supplier", "purchasedQuantity", "purchasedUnit", "purchasedIndividualQuantity", "purchasedIndividualUnit", "costPerPurchasedUnit", "costPerBaseUnit", "totalCost", "purchaseDate", "expiryDate", "isPOSItem", "printerId", "notes", "volumePerUnit", "volumeUnit", "totalVolume", "costPerVolumeUnit", "massPerUnit", "massUnit", "totalMass", "costPerMassUnit", "piecesPerPackage", "totalPieces", "costPerPiece", "unitDescription", "createdAt", "updatedAt"]);
+      const selectedFields = parseFieldSelection(fields, [
+        "id",
+        "materialId",
+        "supplier",
+        "purchasedQuantity",
+        "purchasedUnit",
+        "purchasedIndividualQuantity",
+        "purchasedIndividualUnit",
+        "costPerPurchasedUnit",
+        "costPerBaseUnit",
+        "totalCost",
+        "purchaseDate",
+        "expiryDate",
+        "isPOSItem",
+        "printerId",
+        "notes",
+        "volumePerUnit",
+        "volumeUnit",
+        "totalVolume",
+        "costPerVolumeUnit",
+        "massPerUnit",
+        "massUnit",
+        "totalMass",
+        "costPerMassUnit",
+        "piecesPerPackage",
+        "totalPieces",
+        "costPerPiece",
+        "unitDescription",
+        "createdAt",
+        "updatedAt"
+      ]);
       const queryOptions = {
         where: whereClause,
         order: [[paginationParams.sortBy, paginationParams.sortOrder]],
@@ -170,14 +200,14 @@ const stockEntriesController = {
         try {
           // Use the comprehensive volume conversion system
           const materialVolumeUnit = getMaterialVolumeUnit(material);
-          
+
           // Check if it's a valid beverage unit
           if (isValidBeverageUnit(purchasedUnit)) {
             // Convert to material's base volume unit
             const convertedVolume = convertVolume(numericPurchasedQuantity, purchasedUnit, materialVolumeUnit, material);
             purchasedIndividualQuantity = Math.round(convertedVolume * 1000) / 1000; // Round to 3 decimal places
             purchasedIndividualUnit = materialVolumeUnit;
-            
+
             console.log(`🔄 [createStockEntries] Volume conversion for ${material.name}: ${numericPurchasedQuantity} ${purchasedUnit} → ${purchasedIndividualQuantity} ${purchasedIndividualUnit}`);
           } else {
             // Fallback to legacy conversion for non-standard units
@@ -348,14 +378,14 @@ const stockEntriesController = {
         try {
           // Use the comprehensive volume conversion system
           const materialVolumeUnit = getMaterialVolumeUnit(material);
-          
+
           // Check if it's a valid beverage unit
           if (isValidBeverageUnit(finalPurchasedUnit)) {
             // Convert to material's base volume unit
             const convertedVolume = convertVolume(finalPurchasedQuantity, finalPurchasedUnit, materialVolumeUnit, material);
             updatedIndividualQuantity = Math.round(convertedVolume * 1000) / 1000; // Round to 3 decimal places
             updatedIndividualUnit = materialVolumeUnit;
-            
+
             console.log(`🔄 [updateStockEntries] Volume conversion for ${material.name}: ${finalPurchasedQuantity} ${finalPurchasedUnit} → ${updatedIndividualQuantity} ${updatedIndividualUnit}`);
           } else {
             // Fallback to legacy conversion for non-standard units
@@ -588,34 +618,35 @@ const stockEntriesController = {
       let newCostPerMassUnit = stockEntry.costPerMassUnit || 0;
       let newCostPerPiece = stockEntry.costPerPiece || 0;
 
-      if (material.unitType === 'volume') {
+      if (material.unitType === "volume") {
         // Add to total volume
-        const { convertToMl } = require('../utils/volumeConversionUtils');
-        const additionalVolumeInMl = convertToMl(numericAdditionalQuantity, unit);
+        const { convertToMl } = require("../utils/volumeConversionUtils");
+        // Pass material context to properly handle bottle units
+        const additionalVolumeInMl = convertToMl(numericAdditionalQuantity, unit, material);
         newTotalVolume += additionalVolumeInMl;
         
+        console.log(`📊 [addToSpecificEntry] Volume calculation: ${numericAdditionalQuantity} ${unit} = ${additionalVolumeInMl}ml, new total: ${newTotalVolume}ml`);
+
         // Recalculate cost per volume unit
-        const totalVolumeCost = (stockEntry.totalVolume * stockEntry.costPerVolumeUnit) + (additionalVolumeInMl * finalCostPerPurchasedUnit);
+        const totalVolumeCost = stockEntry.totalVolume * stockEntry.costPerVolumeUnit + additionalVolumeInMl * finalCostPerPurchasedUnit;
         newCostPerVolumeUnit = newTotalVolume > 0 ? totalVolumeCost / newTotalVolume : 0;
-      } else if (material.unitType === 'mass') {
+      } else if (material.unitType === "mass") {
         // Add to total mass
         const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
         const conversionFactor = massConversions[unit.toLowerCase()] || 1;
         const additionalMassInGrams = numericAdditionalQuantity * conversionFactor;
         newTotalMass += additionalMassInGrams;
-        
+
         // Recalculate cost per mass unit
-        const totalMassCost = (stockEntry.totalMass * stockEntry.costPerMassUnit) + (additionalMassInGrams * finalCostPerPurchasedUnit);
+        const totalMassCost = stockEntry.totalMass * stockEntry.costPerMassUnit + additionalMassInGrams * finalCostPerPurchasedUnit;
         newCostPerMassUnit = newTotalMass > 0 ? totalMassCost / newTotalMass : 0;
       } else {
         // Add to total pieces
-        const additionalPieces = material.unitType === 'package' && material.packageQuantity > 0 
-          ? (unit === material.baseUnit ? numericAdditionalQuantity : numericAdditionalQuantity * material.packageQuantity)
-          : numericAdditionalQuantity;
+        const additionalPieces = material.unitType === "package" && material.packageQuantity > 0 ? (unit === material.baseUnit ? numericAdditionalQuantity : numericAdditionalQuantity * material.packageQuantity) : numericAdditionalQuantity;
         newTotalPieces += additionalPieces;
-        
+
         // Recalculate cost per piece
-        const totalPieceCost = (stockEntry.totalPieces * stockEntry.costPerPiece) + (additionalPieces * finalCostPerPurchasedUnit);
+        const totalPieceCost = stockEntry.totalPieces * stockEntry.costPerPiece + additionalPieces * finalCostPerPurchasedUnit;
         newCostPerPiece = newTotalPieces > 0 ? totalPieceCost / newTotalPieces : 0;
       }
 
@@ -624,10 +655,10 @@ const stockEntriesController = {
         totalVolume: newTotalVolume,
         totalMass: newTotalMass,
         totalPieces: newTotalPieces,
-        costPerVolumeUnit: parseFloat(newCostPerVolumeUnit.toFixed(6)),
-        costPerMassUnit: parseFloat(newCostPerMassUnit.toFixed(6)),
-        costPerPiece: parseFloat(newCostPerPiece.toFixed(6)),
-        
+        costPerVolumeUnit: typeof newCostPerVolumeUnit === "number" ? parseFloat(newCostPerVolumeUnit.toFixed(6)) : 0,
+        costPerMassUnit: typeof newCostPerMassUnit === "number" ? parseFloat(newCostPerMassUnit.toFixed(6)) : 0,
+        costPerPiece: typeof newCostPerPiece === "number" ? parseFloat(newCostPerPiece.toFixed(6)) : 0,
+
         // Update legacy fields (for backward compatibility)
         purchasedQuantity: newPurchasedQuantity,
         purchasedIndividualQuantity: newIndividualQuantity,
@@ -711,24 +742,31 @@ const stockEntriesController = {
       const defaultCostPerUnit = numericCostPerPurchasedUnit ?? mostRecentEntry?.costPerPurchasedUnit ?? material.costPerBaseUnit ?? material.costPerUnit ?? 0;
       const totalAdditionCost = numericAdditionalQuantity * defaultCostPerUnit;
       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : additionalIndividualQuantity > 0 ? parseFloat((totalAdditionCost / additionalIndividualQuantity).toFixed(6)) : 0;
-      
-      // Calculate total fields for new stock entry (aligned with enhanced stock system)
-      let totalVolume = 0, totalMass = 0, totalPieces = 0;
-      let volumeUnit = 'ml', massUnit = 'g';
-      let costPerVolumeUnit = 0, costPerMassUnit = 0, costPerPiece = 0;
 
-      if (material.unitType === 'volume') {
+      // Calculate total fields for new stock entry (aligned with enhanced stock system)
+      let totalVolume = 0,
+        totalMass = 0,
+        totalPieces = 0;
+      let volumeUnit = "ml",
+        massUnit = "g";
+      let costPerVolumeUnit = 0,
+        costPerMassUnit = 0,
+        costPerPiece = 0;
+
+      if (material.unitType === "volume") {
         // Convert to ml for consistent volume storage
-        const { convertToMl } = require('../utils/volumeConversionUtils');
-        totalVolume = convertToMl(additionalIndividualQuantity, additionalIndividualUnit);
-        volumeUnit = 'ml';
+        const { convertToMl } = require("../utils/volumeConversionUtils");
+        // Pass material context to properly handle bottle units
+        totalVolume = convertToMl(additionalIndividualQuantity, additionalIndividualUnit, material);
+        volumeUnit = "ml";
+        console.log(`📊 [addToStock] Volume calculation: ${additionalIndividualQuantity} ${additionalIndividualUnit} = ${totalVolume}ml`);
         costPerVolumeUnit = totalVolume > 0 ? totalAdditionCost / totalVolume : 0;
-      } else if (material.unitType === 'mass') {
+      } else if (material.unitType === "mass") {
         // Convert to grams for consistent mass storage
         const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
         const conversionFactor = massConversions[additionalIndividualUnit.toLowerCase()] || 1;
         totalMass = additionalIndividualQuantity * conversionFactor;
-        massUnit = 'g';
+        massUnit = "g";
         costPerMassUnit = totalMass > 0 ? totalAdditionCost / totalMass : 0;
       } else {
         // Treat as pieces (including packages)
@@ -746,7 +784,7 @@ const stockEntriesController = {
         // CRITICAL FIX: Ensure converted quantities are properly synchronized
         purchasedConvertedQuantity: material.unitType === "mass" ? additionalIndividualQuantity : material.unitType === "package" ? numericAdditionalQuantity : additionalIndividualQuantity,
         purchasedConvertedUnit: material.unitType === "mass" ? material.baseUnit : material.unitType === "package" ? unit : additionalIndividualUnit,
-        
+
         // Add calculated total fields (aligned with enhanced stock system)
         totalVolume,
         totalMass,
@@ -756,7 +794,7 @@ const stockEntriesController = {
         costPerVolumeUnit: parseFloat(costPerVolumeUnit.toFixed(6)),
         costPerMassUnit: parseFloat(costPerMassUnit.toFixed(6)),
         costPerPiece: parseFloat(costPerPiece.toFixed(6)),
-        
+
         costPerPurchasedUnit: defaultCostPerUnit,
         costPerBaseUnit: finalCostPerBaseUnit,
         totalCost: totalAdditionCost,
@@ -850,39 +888,39 @@ const stockEntriesController = {
       }
       // Check availability using calculated total fields (aligned with stock deduction logic)
       let availableQuantity, availableUnit, fieldToCheck;
-      if (material.unitType === 'volume' && stockEntry.totalVolume > 0) {
+      if (material.unitType === "volume" && stockEntry.totalVolume > 0) {
         availableQuantity = stockEntry.totalVolume;
-        availableUnit = stockEntry.volumeUnit || 'ml';
-        fieldToCheck = 'totalVolume';
-      } else if (material.unitType === 'mass' && stockEntry.totalMass > 0) {
+        availableUnit = stockEntry.volumeUnit || "ml";
+        fieldToCheck = "totalVolume";
+      } else if (material.unitType === "mass" && stockEntry.totalMass > 0) {
         availableQuantity = stockEntry.totalMass;
-        availableUnit = stockEntry.massUnit || 'g';
-        fieldToCheck = 'totalMass';
+        availableUnit = stockEntry.massUnit || "g";
+        fieldToCheck = "totalMass";
       } else if (stockEntry.totalPieces > 0) {
         availableQuantity = stockEntry.totalPieces;
-        availableUnit = material.baseUnit || 'piece';
-        fieldToCheck = 'totalPieces';
+        availableUnit = material.baseUnit || "piece";
+        fieldToCheck = "totalPieces";
       } else {
         // Fallback to original logic for backward compatibility
         availableQuantity = stockEntry.purchasedQuantity;
         availableUnit = stockEntry.purchasedUnit;
-        fieldToCheck = 'purchasedQuantity';
+        fieldToCheck = "purchasedQuantity";
       }
 
       // Convert waste quantity to match the available quantity's unit for comparison
       let wasteInAvailableUnit = numericWasteQuantity;
       if (unit !== availableUnit) {
-        if (material.unitType === 'volume') {
-          const { convertVolume } = require('../utils/volumeConversionUtils');
+        if (material.unitType === "volume") {
+          const { convertVolume } = require("../utils/volumeConversionUtils");
           wasteInAvailableUnit = convertVolume(numericWasteQuantity, unit, availableUnit);
-        } else if (material.unitType === 'mass') {
+        } else if (material.unitType === "mass") {
           const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
           const wasteUnitFactor = massConversions[unit.toLowerCase()];
           const availableUnitFactor = massConversions[availableUnit.toLowerCase()];
           if (wasteUnitFactor && availableUnitFactor) {
             wasteInAvailableUnit = numericWasteQuantity * (wasteUnitFactor / availableUnitFactor);
           }
-        } else if (material.unitType === 'package' && material.packageQuantity > 0) {
+        } else if (material.unitType === "package" && material.packageQuantity > 0) {
           if (unit === material.baseUnit && availableUnit === stockEntry.purchasedUnit) {
             wasteInAvailableUnit = numericWasteQuantity / material.packageQuantity;
           } else if (unit === stockEntry.purchasedUnit && availableUnit === material.baseUnit) {
@@ -903,11 +941,11 @@ const stockEntriesController = {
       let newTotalPieces = stockEntry.totalPieces || 0;
 
       // Deduct from the appropriate calculated total field
-      if (fieldToCheck === 'totalVolume') {
+      if (fieldToCheck === "totalVolume") {
         newTotalVolume = Math.max(0, newTotalVolume - wasteInAvailableUnit);
-      } else if (fieldToCheck === 'totalMass') {
+      } else if (fieldToCheck === "totalMass") {
         newTotalMass = Math.max(0, newTotalMass - wasteInAvailableUnit);
-      } else if (fieldToCheck === 'totalPieces') {
+      } else if (fieldToCheck === "totalPieces") {
         newTotalPieces = Math.max(0, newTotalPieces - wasteInAvailableUnit);
       }
 
@@ -915,7 +953,7 @@ const stockEntriesController = {
       let newPurchasedQuantity = isWastingAll ? 0 : Math.max(0, parseFloat(stockEntry.purchasedQuantity) - wasteInOriginalUnit);
       let newIndividualQuantity = isWastingAll ? 0 : 0;
       let newIndividualUnit = isWastingAll ? material.baseUnit : stockEntry.purchasedIndividualUnit || material.baseUnit;
-      
+
       if (isWastingAll) {
         newIndividualQuantity = 0;
         newIndividualUnit = material.baseUnit;
@@ -936,13 +974,13 @@ const stockEntriesController = {
       let newCostPerMassUnit = stockEntry.costPerMassUnit || 0;
       let newCostPerPiece = stockEntry.costPerPiece || 0;
 
-      if (fieldToCheck === 'totalVolume' && stockEntry.totalVolume > 0) {
+      if (fieldToCheck === "totalVolume" && stockEntry.totalVolume > 0) {
         costReduction = wasteInAvailableUnit * (stockEntry.costPerVolumeUnit || 0);
         newCostPerVolumeUnit = newTotalVolume > 0 ? (stockEntry.totalVolume * stockEntry.costPerVolumeUnit - costReduction) / newTotalVolume : 0;
-      } else if (fieldToCheck === 'totalMass' && stockEntry.totalMass > 0) {
+      } else if (fieldToCheck === "totalMass" && stockEntry.totalMass > 0) {
         costReduction = wasteInAvailableUnit * (stockEntry.costPerMassUnit || 0);
         newCostPerMassUnit = newTotalMass > 0 ? (stockEntry.totalMass * stockEntry.costPerMassUnit - costReduction) / newTotalMass : 0;
-      } else if (fieldToCheck === 'totalPieces' && stockEntry.totalPieces > 0) {
+      } else if (fieldToCheck === "totalPieces" && stockEntry.totalPieces > 0) {
         costReduction = wasteInAvailableUnit * (stockEntry.costPerPiece || 0);
         newCostPerPiece = newTotalPieces > 0 ? (stockEntry.totalPieces * stockEntry.costPerPiece - costReduction) / newTotalPieces : 0;
       } else {
@@ -989,7 +1027,7 @@ const stockEntriesController = {
         costReduction,
         isWastingAll
       });
-      
+
       await stockEntry.update({
         // Update calculated total fields (primary)
         totalVolume: newTotalVolume,
@@ -998,7 +1036,7 @@ const stockEntriesController = {
         costPerVolumeUnit: newCostPerVolumeUnit,
         costPerMassUnit: newCostPerMassUnit,
         costPerPiece: newCostPerPiece,
-        
+
         // Update legacy fields (for backward compatibility)
         purchasedQuantity: newPurchasedQuantity,
         purchasedIndividualQuantity: newIndividualQuantity,
@@ -1320,13 +1358,7 @@ const stockEntriesController = {
 
       const stockEntries = await StockEntry.findAll({
         where: whereClause,
-        attributes: [
-          "id",
-          "materialId",
-          "purchasedIndividualQuantity",
-          "costPerBaseUnit",
-          "totalCost"
-        ]
+        attributes: ["id", "materialId", "purchasedIndividualQuantity", "costPerBaseUnit", "totalCost"]
       });
 
       let totalValue = 0;
