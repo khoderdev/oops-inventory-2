@@ -101,7 +101,6 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       
       // Set the first available unit as default
       if (materialUnits.length > 0) {
-        console.log("🔄 Setting default unit:", materialUnits[0]);
         form.setValue("purchasedUnit", materialUnits[0], { 
           shouldValidate: true,
           shouldDirty: true,
@@ -224,13 +223,8 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       // For larger values, show 2 decimal places
       formattedTotalCost = calculatedTotal.toFixed(2);
     }
-    
-    // Remove trailing zeros
     formattedTotalCost = parseFloat(formattedTotalCost).toString();
-    
     form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
-    
-    console.log("💰 Total cost calculation:", { unit: watchedUnit, quantity, costPerUnit: currentCost, calculatedTotal, formattedTotalCost });
 
     if (selectedMaterial && !isNaN(currentCost)) {
       // Validate cost reasonableness
