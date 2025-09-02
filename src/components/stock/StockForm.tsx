@@ -45,6 +45,9 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   }, [selectedMaterialId, watchedMaterialId, form, materials]);
 
   const handleWasteFromEntry = (data: StockFormData & { stockEntryId: string }) => {
+    console.log("Waste Button Clicked");
+    console.log("handleWasteFromEntry", data);
+    console.log("onWasteFromSpecificEntry", onWasteFromSpecificEntry);
     if (onWasteFromSpecificEntry) {
       onWasteFromSpecificEntry(data);
     } else {
@@ -254,9 +257,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
                 <span className="sm:hidden">Waste</span>
               </TabsTrigger>
             </>
-          ) : (
-            null
-          )}
+          ) : null}
         </TabsList>
 
         {/* Tab Content Area */}
@@ -265,12 +266,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
             <TabsContent value="new-stock" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
                 <NewStockTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onSubmit={onSubmit} onCancel={onCancel} />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="add-stock" className="mt-0 h-full">
-              <div className="px-4 sm:px-6 py-4">
-                <AddToEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onAddToSpecificEntry={onAddToSpecificEntry} onCancel={onCancel} />
               </div>
             </TabsContent>
 
@@ -287,12 +282,6 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
             </TabsContent>
 
             <TabsContent value="waste-from-entry" className="mt-0 h-full">
-              <div className="px-4 sm:px-6 py-4">
-                <WasteFromEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
-              </div>
-            </TabsContent>
-
-            <TabsContent value="record-waste" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
                 <WasteFromEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
               </div>
