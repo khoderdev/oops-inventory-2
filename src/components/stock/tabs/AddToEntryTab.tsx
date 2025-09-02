@@ -33,15 +33,15 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       // Use the same calculation method as WasteFromEntryTab
       const originalTotalCost = Number(stockEntry.totalCost) || 0;
       const originalQuantity = Number(stockEntry.purchasedQuantity) || 0;
-      
+
       if (originalTotalCost === 0 || originalQuantity === 0) {
         form.setValue("costPerPurchasedUnit", "0", { shouldValidate: true });
         return;
       }
-      
+
       const costPerOriginalUnit = originalTotalCost / originalQuantity;
       let defaultCost: number;
-      
+
       if (selectedMaterial.unitType === "package" && selectedMaterial.packageQuantity) {
         if (watchedUnit === selectedMaterial.baseUnit) {
           // For piece/bottle units, calculate from the original unit cost
@@ -58,7 +58,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       } else {
         defaultCost = costPerOriginalUnit;
       }
-      
+
       form.setValue("costPerPurchasedUnit", defaultCost.toString(), {
         shouldValidate: true,
         shouldDirty: true,
@@ -71,26 +71,11 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   useEffect(() => {
     const currentCost = parseFloat(watchedCostPerUnit) || 0;
     const quantity = parseFloat(watchedPurchasedQuantity) || 0;
-    const totalCost = parseFloat(watchedTotalCost) || 0;
-    
-    if (lastChangedField === "totalCost" && quantity > 0) {
-      // Calculate cost per unit from total cost
-      const calculatedCostPerUnit = totalCost / quantity;
-      form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString(), { shouldValidate: true });
-    } else if (lastChangedField === "purchasedQuantity" && currentCost > 0) {
-      // When quantity changes, update total cost
-      const calculatedTotal = currentCost * quantity;
-      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
-    } else if (lastChangedField === "costPerPurchasedUnit" && quantity > 0) {
-      // When cost per unit changes, update total cost
-      const calculatedTotal = currentCost * quantity;
-      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
-    } else if (!lastChangedField && quantity > 0 && currentCost > 0) {
-      // Initial calculation or when no specific field was changed
-      const calculatedTotal = currentCost * quantity;
-      form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
-    }
-    
+
+    // Always calculate total cost based on quantity and cost per unit
+    const calculatedTotal = currentCost * quantity;
+    form.setValue("totalCost", isNaN(calculatedTotal) ? "0" : calculatedTotal.toString(), { shouldValidate: true });
+
     // Validation for package costs
     if (selectedMaterial && !isNaN(currentCost)) {
       if (selectedMaterial.unitType === "package" && watchedUnit !== "piece" && watchedUnit !== "bottle" && selectedMaterial.inputUnit === watchedUnit) {
@@ -281,9 +266,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                         placeholder="0"
                         {...field}
                         onChange={e => {
-                          const value = watchedUnit === "piece" || watchedUnit === "bottle" && e.target.value !== "" ? 
-                            Math.round(parseFloat(e.target.value) || 0) : 
-                            e.target.value === "" ? "" : e.target.value;
+                          const value = watchedUnit === "piece" || (watchedUnit === "bottle" && e.target.value !== "") ? Math.round(parseFloat(e.target.value) || 0) : e.target.value === "" ? "" : e.target.value;
                           field.onChange(value);
                           setLastChangedField("purchasedQuantity");
                         }}
@@ -353,17 +336,17 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                       Cost per Unit
                     </FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.0001" 
-                        min="0" 
-                        placeholder="0" 
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        min="0"
+                        placeholder="0"
                         {...field}
                         onChange={e => {
                           field.onChange(e.target.value === "" ? "" : e.target.value);
                           setLastChangedField("costPerPurchasedUnit");
                         }}
-                        className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
+                        className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </FormControl>
                     <p className="text-xs text-green-600 mt-1">Cost per {watchedUnit || "unit"}</p>
@@ -411,20 +394,9 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
                     Total Cost
                   </FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      step="0.01" 
-                      min="0" 
-                      placeholder="" 
-                      value={field.value}
-                      onChange={e => {
-                        field.onChange(e.target.value);
-                        setLastChangedField("totalCost");
-                      }}
-                      className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
-                    />
+                    <Input type="number" step="0.01" min="0" placeholder="" value={field.value} readOnly className="h-11 border-gray-300 focus:border-green-500 focus:ring-green-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none bg-gray-50" />
                   </FormControl>
-                  <p className="text-xs text-green-600 mt-1">Total cost for all units</p>
+                  <p className="text-xs text-green-600 mt-1">Total cost for all units (auto-calculated)</p>
                   <FormMessage />
                 </FormItem>
               )}
@@ -458,7 +430,21 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
             />
           </div>
 
-          <CostBreakdown selectedMaterial={selectedMaterial} quantity={watchedPurchasedQuantity} purchasedUnit={watchedUnit} costPerPurchasedUnit={watchedCostPerUnit} totalCost={watchedTotalCost} />
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Cost Breakdown</h3>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="text-gray-600">Cost per {watchedUnit}</div>
+              <div className="text-gray-900 font-medium">${parseFloat(watchedCostPerUnit) ? formatNumberUI(parseFloat(watchedCostPerUnit)) : "0.00"}</div>
+
+              <div className="text-gray-600">Quantity</div>
+              <div className="text-gray-900 font-medium">
+                {parseFloat(watchedPurchasedQuantity) ? formatNumberUI(parseFloat(watchedPurchasedQuantity)) : "0"} {watchedUnit}
+              </div>
+
+              <div className="text-gray-600 font-semibold">Total Cost</div>
+              <div className="text-gray-900 font-semibold">${parseFloat(watchedTotalCost) ? formatNumberUI(parseFloat(watchedTotalCost)) : "0.00"}</div>
+            </div>
+          </div>
 
           <div className="flex gap-3 justify-end">
             <Button type="button" variant="outline" onClick={onCancel}>
