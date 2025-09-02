@@ -815,11 +815,22 @@ const stockEntriesController = {
       // Check availability using calculated total fields (aligned with stock deduction logic)
       let availableQuantity, availableUnit, fieldToCheck;
       
-      // For package materials (like bottles), always use totalVolume if available
-      if (material.unitType === "package" && stockEntry.totalVolume > 0) {
-        availableQuantity = stockEntry.totalVolume;
-        availableUnit = stockEntry.volumeUnit || "ml";
-        fieldToCheck = "totalVolume";
+      // For package materials, prioritize the most appropriate calculated field
+      if (material.unitType === "package") {
+        if (stockEntry.totalVolume > 0) {
+          availableQuantity = stockEntry.totalVolume;
+          availableUnit = stockEntry.volumeUnit || "ml";
+          fieldToCheck = "totalVolume";
+        } else if (stockEntry.totalPieces > 0) {
+          availableQuantity = stockEntry.totalPieces;
+          availableUnit = material.baseUnit || "piece";
+          fieldToCheck = "totalPieces";
+        } else {
+          // Fallback to purchased quantity for packages
+          availableQuantity = stockEntry.purchasedQuantity;
+          availableUnit = stockEntry.purchasedUnit;
+          fieldToCheck = "purchasedQuantity";
+        }
       } else if (material.unitType === "volume") {
         availableQuantity = stockEntry.totalVolume || 0;
         availableUnit = stockEntry.volumeUnit || "ml";
@@ -842,7 +853,7 @@ const stockEntriesController = {
       // Convert waste quantity to match the available quantity's unit for comparison
       let wasteInAvailableUnit = numericWasteQuantity;
       if (unit !== availableUnit) {
-        if (material.unitType === "volume" || material.unitType === "package") {
+        if (material.unitType === "volume" || (material.unitType === "package" && (unit === "ml" || availableUnit === "ml"))) {
           const { convertVolume } = await import("../utils/volumeConversionUtils.js");
           wasteInAvailableUnit = convertVolume(numericWasteQuantity, unit, availableUnit, material);
           console.log(`🔄 [wasteFromSpecificEntry] Converting ${numericWasteQuantity} ${unit} to ${wasteInAvailableUnit} ${availableUnit} for ${material.name}`);
@@ -853,12 +864,33 @@ const stockEntriesController = {
           if (wasteUnitFactor && availableUnitFactor) {
             wasteInAvailableUnit = numericWasteQuantity * (wasteUnitFactor / availableUnitFactor);
           }
+        } else if (material.unitType === "package") {
+          // Handle package unit conversions (bag to pieces, etc.)
+          const packageQuantity = material.packageQuantity || stockEntry.piecesPerPackage || 6; // Default to 6 if not specified
+          
+          if ((unit === "bag" || unit === "pack" || unit === "package") && (availableUnit === "piece" || availableUnit === material.baseUnit)) {
+            // Convert bags/packs to pieces: 1 bag = packageQuantity pieces
+            wasteInAvailableUnit = numericWasteQuantity * packageQuantity;
+            console.log(`🔄 [wasteFromSpecificEntry] Converting ${numericWasteQuantity} ${unit}(s) to ${wasteInAvailableUnit} ${availableUnit} for ${material.name} (${packageQuantity} per ${unit})`);
+          } else if ((unit === "piece" || unit === material.baseUnit) && (availableUnit === "bag" || availableUnit === "pack" || availableUnit === stockEntry.purchasedUnit)) {
+            // Convert pieces to bags/packs: pieces ÷ packageQuantity = bags
+            wasteInAvailableUnit = numericWasteQuantity / packageQuantity;
+            console.log(`🔄 [wasteFromSpecificEntry] Converting ${numericWasteQuantity} ${unit}(s) to ${wasteInAvailableUnit} ${availableUnit} for ${material.name} (${packageQuantity} per ${availableUnit})`);
+          }
         }
-      } else if (material.unitType === "package" && unit === "bottle" && availableUnit === "ml") {
-        // Special case: wasting bottles but checking against ml availability
-        const volumePerBottle = stockEntry.volumePerUnit || material.volumePerUnit || 700;
-        wasteInAvailableUnit = numericWasteQuantity * volumePerBottle;
-        console.log(`🔄 [wasteFromSpecificEntry] Converting ${numericWasteQuantity} bottle(s) to ${wasteInAvailableUnit} ml for ${material.name}`);
+      } else if (material.unitType === "package") {
+        // Handle same unit conversions for packages
+        if (unit === "bottle" && availableUnit === "ml") {
+          // Special case: wasting bottles but checking against ml availability
+          const volumePerBottle = stockEntry.volumePerUnit || material.volumePerUnit || 700;
+          wasteInAvailableUnit = numericWasteQuantity * volumePerBottle;
+          console.log(`🔄 [wasteFromSpecificEntry] Converting ${numericWasteQuantity} bottle(s) to ${wasteInAvailableUnit} ml for ${material.name}`);
+        } else if ((unit === "bag" || unit === "pack" || unit === "package") && availableUnit === "piece") {
+          // Convert bags to pieces when both are available in pieces
+          const packageQuantity = material.packageQuantity || stockEntry.piecesPerPackage || 6;
+          wasteInAvailableUnit = numericWasteQuantity * packageQuantity;
+          console.log(`🔄 [wasteFromSpecificEntry] Converting ${numericWasteQuantity} ${unit}(s) to ${wasteInAvailableUnit} pieces for ${material.name} (${packageQuantity} per ${unit})`);
+        }
       }
 
       if (wasteInAvailableUnit > availableQuantity) {

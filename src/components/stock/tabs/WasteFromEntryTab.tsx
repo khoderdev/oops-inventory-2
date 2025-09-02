@@ -233,36 +233,20 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
   }, [watchedCostPerUnit, watchedWasteQuantity, watchedTotalCost, watchedUnit, selectedMaterial, form, lastChangedField]);
 
   const onSubmit = async (data: any) => {
-    console.log("🔥 WasteFromEntryTab onSubmit called with data:", data);
-    console.log("🔥 Form current values:", form.getValues());
-    console.log("🔥 Form errors:", form.formState.errors);
-    console.log("🔥 isSubmitting:", isSubmitting);
-    console.log("🔥 stockEntry:", stockEntry);
-    console.log("🔥 selectedMaterial:", selectedMaterial);
-    console.log("🔥 onRecordWaste function:", typeof onRecordWaste);
-    
-    if (isSubmitting) {
-      console.log("🔥 Already submitting, returning early");
-      return;
-    }
+    if (isSubmitting) { return; }
     setIsSubmitting(true);
     try {
       if (typeof data.materialId === "number") {
         form.setValue("materialId", String(data.materialId));
       }
-      
+
       // Get current form values if data is incomplete
       const currentValues = form.getValues();
       const wasteQuantity = parseFloat(data.wasteQuantity || currentValues.wasteQuantity || "0");
       const costPerPurchasedUnit = parseFloat(data.costPerPurchasedUnit || currentValues.costPerPurchasedUnit || "0");
       const totalCost = parseFloat(data.totalCost || currentValues.totalCost || "0");
       const purchasedUnit = data.purchasedUnit || currentValues.purchasedUnit;
-      
-      console.log("🔥 Parsed values:", { wasteQuantity, costPerPurchasedUnit, totalCost, purchasedUnit });
-      console.log("🔥 Current form values:", currentValues);
-      
       if (isNaN(wasteQuantity) || wasteQuantity <= 0) {
-        console.log("🔥 Validation failed: wasteQuantity invalid", { wasteQuantity, raw: data.wasteQuantity });
         form.setError("wasteQuantity", {
           type: "manual",
           message: "Waste quantity must be a positive number"
@@ -272,7 +256,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       }
 
       if (!purchasedUnit) {
-        console.log("🔥 Validation failed: purchasedUnit missing", { dataPurchasedUnit: data.purchasedUnit, currentPurchasedUnit: currentValues.purchasedUnit });
         form.setError("purchasedUnit", {
           type: "manual",
           message: "Unit is required"
@@ -281,7 +264,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
         return;
       }
       if (!stockEntry?.id) {
-        console.log("🔥 Validation failed: stockEntry.id missing", stockEntry);
         form.setError("materialId", {
           type: "manual",
           message: "Stock entry is required"
@@ -289,8 +271,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
         setIsSubmitting(false);
         return;
       }
-      
-      console.log("🔥 All validations passed, creating wasteData...");
       const wasteData = {
         materialId: String(data.materialId || currentValues.materialId || selectedMaterial?.id),
         supplier: data.supplier || currentValues.supplier || stockEntry.supplier,
@@ -307,14 +287,10 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
         wasteReason: data.wasteReason || currentValues.wasteReason,
         stockEntryId: stockEntry.id
       };
-      
-      console.log("🔥 wasteData created:", wasteData);
-      console.log("🔥 Calling onRecordWaste...");
       await onRecordWaste(wasteData);
-      console.log("🔥 onRecordWaste completed successfully");
     } catch (error) {
       console.error("❌ Error recording waste:", error);
-      
+
       // Extract specific error message from API response
       let errorMessage = "Failed to record waste. Please try again.";
       if (error?.response?.data?.error) {
@@ -326,9 +302,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       } else if (error?.response?.status >= 500) {
         errorMessage = "Server error. Please try again later.";
       }
-      
-      // Set error in state to display it in the UI
-      console.log("🚨 Setting error message:", errorMessage);
       setErrorMessage(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -713,9 +686,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center gap-2">
                 <Trash2 className="h-4 w-4 text-red-600" />
-                <p className="text-sm text-red-800 font-medium">
-                  {errorMessage}
-                </p>
+                <p className="text-sm text-red-800 font-medium">{errorMessage}</p>
               </div>
             </div>
           )}
@@ -796,30 +767,30 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button 
-              type="button" 
-              className="bg-red-600 hover:bg-red-700 text-white" 
-              onClick={(e) => {
+            <Button
+              type="button"
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={e => {
                 console.log("🚨 RECORD WASTE BUTTON CLICKED!");
                 console.log("🚨 Form validation state:", form.formState);
                 console.log("🚨 Form errors:", form.formState.errors);
                 console.log("🚨 Form is valid:", form.formState.isValid);
                 console.log("🚨 Current form values:", form.getValues());
-                
+
                 // Check specific field values
                 const currentValues = form.getValues();
                 console.log("🚨 wasteQuantity:", currentValues.wasteQuantity);
                 console.log("🚨 purchasedUnit:", currentValues.purchasedUnit);
                 console.log("🚨 materialId:", currentValues.materialId);
                 console.log("🚨 stockEntry ID:", stockEntry?.id);
-                
+
                 try {
                   const result = form.handleSubmit(
-                    (data) => {
+                    data => {
                       console.log("✅ FORM VALIDATION PASSED - onSubmit called with:", data);
                       return onSubmit(data);
                     },
-                    (errors) => {
+                    errors => {
                       console.error("❌ FORM VALIDATION FAILED - errors:", errors);
                     }
                   );

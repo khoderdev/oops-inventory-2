@@ -58,48 +58,20 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
   const fetchStock = useCallback(async () => {
     setLoading(prev => ({ ...prev, stock: true }));
     try {
-      console.log("🔄 Fetching stock entries from API...");
       const response = await stockAPI.getStockEntries({
         limit: 10000,
         _t: Date.now(),
         sortBy: "purchaseDate",
         sortOrder: "DESC"
       });
-      
-      console.log("📦 Raw API response:", response);
-      
       if (response) {
         let stockData = [];
         if (Array.isArray(response)) {
           stockData = response;
-          console.log("📊 Response is array, using directly");
         } else if ((response as any).data && Array.isArray((response as any).data)) {
           stockData = (response as any).data;
-          console.log("📊 Response has data property, using response.data");
         }
-        
-        console.log("📋 Final stock data structure:");
-        console.log("  - Total entries:", stockData.length);
-        if (stockData.length > 0) {
-          console.log("  - First entry sample:", stockData[0]);
-          console.log("  - Available fields:", Object.keys(stockData[0]));
-          
-          // Check for calculated fields
-          const firstEntry = stockData[0];
-          console.log("🧮 Calculated fields verification:");
-          console.log("  - volumePerUnit:", firstEntry.volumePerUnit);
-          console.log("  - volumeUnit:", firstEntry.volumeUnit);
-          console.log("  - totalVolume:", firstEntry.totalVolume);
-          console.log("  - costPerVolumeUnit:", firstEntry.costPerVolumeUnit);
-          console.log("  - massPerUnit:", firstEntry.massPerUnit);
-          console.log("  - totalMass:", firstEntry.totalMass);
-          console.log("  - piecesPerPackage:", firstEntry.piecesPerPackage);
-          console.log("  - totalPieces:", firstEntry.totalPieces);
-          console.log("  - costPerPiece:", firstEntry.costPerPiece);
-        }
-        
         setStock(stockData);
-        console.log("✅ Stock entries loaded successfully");
       }
     } catch (error) {
       console.error("❌ Error fetching stock entries:", error);
@@ -200,13 +172,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
 
   const handleMaterialSubmit = useCallback(
     async (data: MaterialFormData) => {
-      console.log("🎯 InventoryManagementPanel handleMaterialSubmit called with data:", data);
-      console.log("🎯 selectedMaterial:", selectedMaterial);
-
       setOperationLoading(prev => ({ ...prev, material: true }));
       try {
         if (selectedMaterial) {
-          console.log("🎯 Updating existing material...");
           const updateData = {
             ...data,
             category: selectedMaterial.category,
@@ -214,8 +182,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
             volumePerBottle: data.volumePerBottle,
             volumeUnit: data.volumeUnit
           };
-          console.log("🎯 Update data:", updateData);
-
           await materialsAPI.updateMaterial(selectedMaterial.id, updateData);
           toast({
             title: "Updated",
@@ -223,7 +189,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
             duration: 1000
           });
         } else {
-          console.log("🎯 Creating new material...");
           // Ensure categoryId is a number if it exists
           const categoryId = data.categoryId ? Number(data.categoryId) : undefined;
 
@@ -235,8 +200,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
             volumePerBottle: data.volumePerBottle,
             volumeUnit: data.volumeUnit
           };
-          console.log("🎯 Create data:", createData);
-
           await materialsAPI.createMaterial(createData);
           toast({
             title: "Created",
@@ -244,12 +207,9 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
             duration: 1000
           });
         }
-
-        console.log("🎯 API call successful, refreshing materials...");
         await refresh("materials");
         setShowMaterialForm(false);
         setSelectedMaterial(null);
-        console.log("🎯 Material submission completed successfully");
       } catch (error) {
         console.error("❌ Error in handleMaterialSubmit:", error);
         toast({
@@ -616,8 +576,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
           wasteReason: data.wasteReason || "Unknown",
           notes: data.notes
         };
-        console.log("🚀 [InventoryManagementPanel] Sending wasteData to API:", wasteData);
-        console.log("🚀 [InventoryManagementPanel] stockEntryId:", data.stockEntryId);
         await stockAPI.wasteFromSpecificEntry(data.stockEntryId, wasteData);
         await refresh("stock");
         await refresh("materials");
