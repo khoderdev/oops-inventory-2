@@ -519,6 +519,24 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                     <FormLabel>Quantity</FormLabel>
                     <FormControl>
                       <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className={`h-11 w-11 border-${headerColor}-300 hover:border-${headerColor}-500 hover:bg-${headerColor}-50`}
+                          onClick={() => {
+                            const current = toNumber(field.value?.toString()) || 0;
+                            const next = current - 1;
+                            if (next <= 0) {
+                              recomputeFromQuantity("");
+                            } else {
+                              recomputeFromQuantity(next.toString());
+                            }
+                          }}
+                          disabled={disabledFields.includes("quantity")}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
                         <Input
                           type="number"
                           step="1"
@@ -531,6 +549,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                             const cleaned = e.target.value.replace(/[^0-9.]/g, "");
                             const parts = cleaned.split(".");
                             const normalized = parts.length > 2 ? parts[0] + "." + parts.slice(1).join("") : cleaned;
+                            
+                            // Prevent negative values
+                            const numValue = parseFloat(normalized);
+                            if (numValue < 0 || normalized.startsWith('-')) {
+                              return; // Don't update if negative
+                            }
+                            
                             recomputeFromQuantity(normalized);
                           }}
                           className={`h-11 border-${headerColor}-300 focus:border-${headerColor}-500 focus:ring-${headerColor}-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
