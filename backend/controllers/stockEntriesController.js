@@ -3,7 +3,7 @@ import { Material, StockEntry, Wasting, Printer, Category } from "../models/inde
 import { StockEntryAuditHelperSimple } from "../decorators/stockEntryAuditDecoratorSimple.js";
 import { parsePaginationParams, buildPaginationResponse, buildFilterConditions, parseFieldSelection } from "../utils/paginationHelpers.js";
 import { getMaterialCategories } from "../utils/categoryHelpers.js";
-import { convertVolume, convertToMl, isValidBeverageUnit, getMaterialVolumePerUnit, getMaterialVolumeUnit } from "../utils/volumeConversionUtils.js";
+import { convertVolume, convertToMl, isValidBeverageUnit, getMaterialVolumeUnit } from "../utils/volumeConversionUtils.js";
 
 const stockEntriesController = {
   getAllStockEntries: async (req, res, next) => {
