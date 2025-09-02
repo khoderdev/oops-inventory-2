@@ -36,7 +36,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     }
     return "";
   });
-  const [price, setPrice] = useState(menuItem?.price?.toString() || "");
+  const [price, setPrice] = useState("");
   const [isPOSItem, setIsPOSItem] = useState(menuItem?.isPOSItem ?? true);
   const [image, setImage] = useState<string | undefined>(menuItem?.image);
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
@@ -61,7 +61,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
             [variantName]: {
               volume: variantType.defaultVolume.toString(),
               unit: variantType.defaultUnit,
-              price: variantType.defaultPrice.toString()
+              price: "" // Empty price by default
             }
           }));
           setVariantIngredients(prev => ({
@@ -203,11 +203,7 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
     setCategoryId("");
   }, [menuItem?.category, categories]);
 
-  useEffect(() => {
-    if (selectedBeverageStock?.costPerBaseUnit && !menuItem) {
-      setPrice(parseFloat(selectedBeverageStock.costPerBaseUnit.toString()).toFixed(2));
-    }
-  }, [selectedBeverageStock, menuItem]);
+  // Removed auto-setting price from selectedBeverageStock
 
   const validateForm = useCallback(() => {
     const newErrors: typeof errors = {};
@@ -218,18 +214,16 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
         newErrors.price = "Price is required";
       }
     } else {
-      let hasInvalidVariantPrice = false;
-      let hasEmptyVariantPrice = false;
+      // Validate variant prices
       for (const variantName of selectedVariantTypes) {
         const variantPrice = variantInputs[variantName]?.price;
         if (!variantPrice || variantPrice.trim() === "") {
-          hasEmptyVariantPrice = true;
-          break;
-        }
-        const priceValue = parseFloat(variantPrice);
-        if (isNaN(priceValue) || priceValue <= 0) {
-          hasInvalidVariantPrice = true;
-          break;
+          newErrors[`variant_price_${variantName}`] = `Price for ${variantName} is required`;
+        } else {
+          const priceValue = parseFloat(variantPrice);
+          if (isNaN(priceValue) || priceValue <= 0) {
+            newErrors[`variant_price_${variantName}`] = `Price for ${variantName} must be greater than 0`;
+          }
         }
       }
     }
@@ -245,7 +239,10 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   useEffect(() => {
     if (menuItem) {
       setName(menuItem.name || "");
-      setPrice(menuItem.price?.toString() || "");
+      // Only set price if editing an existing menu item
+      if (menuItem.price) {
+        setPrice(menuItem.price.toString());
+      }
       setIsPOSItem(menuItem.isPOSItem ?? true);
       setImage(menuItem.image);
       if (menuItem.isBeverage) {
@@ -336,6 +333,35 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
   };
 
   const handleSubmit = useCallback(async () => {
+    // Check for empty required fields and scroll to the first one
+    if (!name.trim()) {
+      document.getElementById('name')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('name')?.focus();
+      return;
+    }
+    
+    if (!categoryId) {
+      document.getElementById('category')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('category')?.focus();
+      return;
+    }
+    
+    if (selectedVariantTypes.length === 0 && (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0)) {
+      document.getElementById('price')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('price')?.focus();
+      return;
+    }
+    
+    // Check variant prices if variants are selected
+    for (const variantName of selectedVariantTypes) {
+      const variantPrice = variantInputs[variantName]?.price;
+      if (!variantPrice || variantPrice.trim() === "" || isNaN(parseFloat(variantPrice)) || parseFloat(variantPrice) <= 0) {
+        document.getElementById(`variant_price_${variantName}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        document.getElementById(`variant_price_${variantName}`)?.focus();
+        return;
+      }
+    }
+    
     if (!validateForm()) {
       return;
     }
@@ -634,7 +660,23 @@ export const BeverageItemForm: React.FC<BeverageItemFormProps> = ({ menuItem, ca
                         </div>
                         <div>
                           <label className="block text-sm font-medium mb-1 text-gray-600">Price ($)</label>
-                          <Input type="number" value={input.price} onChange={e => handleVariantInputChange(variantName, "price", e.target.value)} placeholder="0.00" min="0" step="0.01" className="bg-gray-50 border-gray-200" />
+                          <Input 
+                            id={`variant_price_${variantName}`} 
+                            type="number" 
+                            value={input.price} 
+                            onChange={e => handleVariantInputChange(variantName, "price", e.target.value)} 
+                            placeholder="0.00" 
+                            min="0" 
+                            step="0.01" 
+                            className={`bg-gray-50 ${errors[`variant_price_${variantName}`] ? 'border-red-500' : 'border-gray-200'}`} 
+                            aria-invalid={!!errors[`variant_price_${variantName}`]}
+                            aria-describedby={errors[`variant_price_${variantName}`] ? `variant_price_${variantName}_error` : undefined}
+                          />
+                          {errors[`variant_price_${variantName}`] && (
+                            <p id={`variant_price_${variantName}_error`} className="text-sm text-red-500 mt-1">
+                              {errors[`variant_price_${variantName}`]}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
