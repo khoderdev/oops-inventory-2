@@ -574,7 +574,7 @@ const stockEntriesController = {
               console.warn(`⚠️ [addToSpecificEntry] Very large ml quantity (${numericAdditionalQuantity}ml) being added to ${material.name} - standard bottle is ${material.volumePerUnit}ml`);
             }
             
-            const { convertVolume } = require("../utils/volumeConversionUtils");
+            const { convertVolume } = await import("../utils/volumeConversionUtils.js");
             // Convert ml to bottles/packages using material context
             additionalInOriginalUnit = convertVolume(numericAdditionalQuantity, "ml", stockEntry.purchasedUnit, material);
             console.log(`🔄 [addToSpecificEntry] Conversion result: ${numericAdditionalQuantity} ml = ${additionalInOriginalUnit} ${stockEntry.purchasedUnit}`);
@@ -691,7 +691,7 @@ const stockEntriesController = {
         // Update calculated total fields (primary)
         totalVolume: newTotalVolume,
         totalMass: newTotalMass,
-        totalPieces: newTotalPieces,
+        totalPieces: Math.round(newTotalPieces),
         costPerVolumeUnit: typeof newCostPerVolumeUnit === "number" ? parseFloat(newCostPerVolumeUnit.toFixed(6)) : 0,
         costPerMassUnit: typeof newCostPerMassUnit === "number" ? parseFloat(newCostPerMassUnit.toFixed(6)) : 0,
         costPerPiece: typeof newCostPerPiece === "number" ? parseFloat(newCostPerPiece.toFixed(6)) : 0,
@@ -1069,7 +1069,7 @@ const stockEntriesController = {
         // Update calculated total fields (primary)
         totalVolume: newTotalVolume,
         totalMass: newTotalMass,
-        totalPieces: newTotalPieces,
+        totalPieces: Math.round(newTotalPieces),
         costPerVolumeUnit: newCostPerVolumeUnit,
         costPerMassUnit: newCostPerMassUnit,
         costPerPiece: newCostPerPiece,

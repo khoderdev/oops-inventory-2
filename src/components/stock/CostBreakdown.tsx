@@ -1,12 +1,8 @@
-import { PackageUnit, PackagedGood } from "@/types/conversion";
 import { Material } from "@/types/inventory";
 import { formatCurrencyUI, formatNumberUI } from "@/utils/conversionLogic";
-import { getConversionFactor } from "@/utils/getConversionFactor";
 import { Calculator, DollarSign, Package } from "lucide-react";
 import { Badge } from "../ui/badge";
-import { calculateCostBreakdown } from "@/utils/costCalculations";
 
-// Use the enhanced UI-friendly formatting utilities
 const formatCurrency = formatCurrencyUI;
 const formatNumber = formatNumberUI;
 
@@ -42,17 +38,35 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
     );
   }
 
-  // Use the dynamic cost calculation utility
-  const costBreakdown = calculateCostBreakdown(selectedMaterial, null, numQuantity, purchasedUnit);
+  // Calculate costs directly using the provided cost per unit
+  let costPerMl = 0;
+  let costPerCl = 0;
+  let costPerBaseUnit = 0;
+  let calculatedTotalCost = numQuantity * numCostPerUnit;
   
-  const {
-    costPerUnit,
-    costPerMl = 0,
-    costPerCl = 0,
-    costPerBaseUnit = 0,
-    totalCost: calculatedTotalCost,
-    volumePerUnit
-  } = costBreakdown;
+  // For volume-based materials, calculate cost per ml/cl
+  if (selectedMaterial.unitType === "package" && 
+      (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl" || selectedMaterial.baseUnit === "l")) {
+    
+    const volumePerUnit = selectedMaterial.volumePerUnit || selectedMaterial.volumePerBottle || 700;
+    
+    if (purchasedUnit === "ml" && volumePerUnit > 0) {
+      // For ml purchases, the numCostPerUnit is already cost per ml
+      costPerMl = numCostPerUnit;
+      costPerCl = costPerMl * 10;
+    } else if (purchasedUnit === "bottle" && volumePerUnit > 0) {
+      // For bottle purchases, calculate cost per ml from bottle cost
+      costPerMl = numCostPerUnit / volumePerUnit;
+      costPerCl = costPerMl * 10;
+    }
+    
+    // Calculate cost per base unit
+    if (selectedMaterial.baseUnit === "ml") {
+      costPerBaseUnit = costPerMl;
+    } else if (selectedMaterial.baseUnit === "cl") {
+      costPerBaseUnit = costPerCl;
+    }
+  }
   
   const showVolumeBreakdown = selectedMaterial.unitType === "package" && 
     (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl" || selectedMaterial.baseUnit === "l") ||
@@ -109,7 +123,7 @@ export const CostBreakdown = ({ selectedMaterial, quantity, purchasedUnit, costP
           </div>
         )}
 
-        {showVolumeBreakdown && costPerMl > 0 && (
+        {showVolumeBreakdown && costPerMl > 0 && purchasedUnit !== "ml" && (
           <div className="justify-between flex flex-col bg-white rounded-lg p-3 border border-blue-100">
             <div className="flex items-center gap-2 mb-1">
               <DollarSign className="h-4 w-4 text-teal-600" />

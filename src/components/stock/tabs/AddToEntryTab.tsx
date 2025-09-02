@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { CostBreakdown } from "../CostBreakdown";
 import { Calendar } from "@/components/ui/calendar";
 import { useWatch } from "react-hook-form";
-import { calculateCostBreakdown, calculateCostPerUnit, formatCostPerUnitDisplay } from "@/utils/costCalculations";
+import { calculateCostPerUnit, formatCostPerUnitDisplay } from "@/utils/costCalculations";
 
 export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
   
@@ -183,17 +183,51 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       }
     }
 
-    // Base calculation using cost per unit × quantity
-    let calculatedTotal = !isNaN(currentCost) && !isNaN(quantity) ? currentCost * quantity : 0;
+    // Use dynamic cost calculation for consistent formatting with CostBreakdown
+    let calculatedTotal = 0;
     
-    // Use dynamic cost calculation for all materials
     if (selectedMaterial && !isNaN(quantity)) {
-      const costBreakdown = calculateCostBreakdown(selectedMaterial, stockEntry, quantity, watchedUnit);
-      calculatedTotal = costBreakdown.totalCost;
+      // Calculate costs directly like in CostBreakdown component
+      if (selectedMaterial.unitType === "package" && 
+          (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl" || selectedMaterial.baseUnit === "l")) {
+        
+        const volumePerUnit = selectedMaterial.volumePerUnit || selectedMaterial.volumePerBottle || 700;
+        
+        if (watchedUnit === "ml" && volumePerUnit > 0) {
+          // For ml purchases, currentCost is already cost per ml
+          calculatedTotal = quantity * currentCost;
+        } else if (watchedUnit === "bottle" && volumePerUnit > 0) {
+          // For bottle purchases, use bottle cost directly
+          calculatedTotal = quantity * currentCost;
+        } else {
+          // Fallback to basic calculation
+          calculatedTotal = quantity * currentCost;
+        }
+      } else {
+        // For non-package materials, use basic calculation
+        calculatedTotal = quantity * currentCost;
+      }
+    } else {
+      // Fallback calculation
+      calculatedTotal = !isNaN(currentCost) && !isNaN(quantity) ? currentCost * quantity : 0;
     }
     
-    // Format the total cost to 2 decimal places for display
-    const formattedTotalCost = calculatedTotal.toFixed(2);
+    // Format the total cost with appropriate precision (show more decimals for small values)
+    let formattedTotalCost;
+    if (calculatedTotal < 0.01 && calculatedTotal > 0) {
+      // For very small values, show up to 4 decimal places
+      formattedTotalCost = calculatedTotal.toFixed(4);
+    } else if (calculatedTotal < 0.1 && calculatedTotal > 0) {
+      // For small values, show up to 3 decimal places
+      formattedTotalCost = calculatedTotal.toFixed(4);
+    } else {
+      // For larger values, show 2 decimal places
+      formattedTotalCost = calculatedTotal.toFixed(2);
+    }
+    
+    // Remove trailing zeros
+    formattedTotalCost = parseFloat(formattedTotalCost).toString();
+    
     form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
     
     console.log("💰 Total cost calculation:", { unit: watchedUnit, quantity, costPerUnit: currentCost, calculatedTotal, formattedTotalCost });
