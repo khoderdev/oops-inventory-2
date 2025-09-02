@@ -368,12 +368,12 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                   <FormItem>
                     <FormLabel>Unit</FormLabel>
                     <FormControl>
-                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={disabledFields.includes("unit")}>
+                      <Select onValueChange={field.onChange} value={field.value || ""} disabled={disabledFields.includes("unit")}>
                         <SelectTrigger className={readOnlyFields.includes("unit") ? "pointer-events-none" : ""}>
                           <SelectValue placeholder="Select unit" />
                         </SelectTrigger>
                         <SelectContent>
-                          {availableUnits.map(unit => (
+                          {[...new Set(availableUnits)].map(unit => (
                             <SelectItem key={unit} value={unit}>
                               {unit}
                             </SelectItem>

@@ -1,15 +1,9 @@
 import { StockFormData, AddToEntryTabProps } from "@/types/inventory";
 import { TrendingUp } from "lucide-react";
 import { StockEntryForm } from "../form/StockEntryForm";
+import { getCurrentStockDisplay } from "@/utils/getCurrentStockDisplay";
 
 export function AddToEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onAddToSpecificEntry, onCancel }: AddToEntryTabProps) {
-  const getCurrentStockDisplay = () => {
-    if (!stockEntry) return "";
-    const quantity = stockEntry.purchasedIndividualQuantity !== undefined ? stockEntry.purchasedIndividualQuantity : stockEntry.purchasedQuantity;
-    const unit = stockEntry.purchasedIndividualUnit || stockEntry.purchasedUnit;
-    return `${quantity} ${unit}`;
-  };
-
   const onSubmit = (data: StockFormData) => {
     if (!stockEntry?.id) {
       console.error("Stock entry ID is missing");
@@ -38,7 +32,7 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       headerColor="green"
       headerTitle="Add Quantity to This Entry"
       headerDescription="Current total stock: "
-      getCurrentStockDisplay={getCurrentStockDisplay}
+      getCurrentStockDisplay={() => getCurrentStockDisplay(stockEntry)}
       quantityFieldName="purchasedQuantity"
       unitFieldName="purchasedUnit"
       dateFieldName="purchaseDate"
