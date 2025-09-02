@@ -36,6 +36,8 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   const watchedQuantity = form.watch("purchasedQuantity");
   const watchedCostPerUnit = form.watch("costPerPurchasedUnit");
   const watchedTotalCost = form.watch("totalCost");
+  const watchedWasteQuantity = form.watch("wasteQuantity") || "";
+  const watchedUnit = form.watch("purchasedUnit") || "";
 
   useEffect(() => {
     if (selectedMaterialId && selectedMaterialId !== watchedMaterialId) {
@@ -166,7 +168,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   }, [selectedMaterial, form, stockEntry]);
 
   // Track which field was last changed to determine calculation direction
-  const [lastChangedField, setLastChangedField] = useState<"quantity" | "costPerUnit" | "totalCost" | null>(null);
+  const [lastChangedField, setLastChangedField] = useState<string | null>(null);
 
   // Set up field change listeners
   useEffect(() => {
@@ -283,7 +285,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
 
             <TabsContent value="waste-from-entry" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
-                <WasteFromEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
+                <WasteFromEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} watchedWasteQuantity={watchedWasteQuantity} watchedUnit={watchedUnit} lastChangedField={lastChangedField} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
               </div>
             </TabsContent>
           </div>
