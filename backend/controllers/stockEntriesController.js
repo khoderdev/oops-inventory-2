@@ -640,9 +640,6 @@ const stockEntriesController = {
       let newCostPerVolumeUnit = stockEntry.costPerVolumeUnit || 0;
       let newCostPerMassUnit = stockEntry.costPerMassUnit || 0;
       let newCostPerPiece = stockEntry.costPerPiece || 0;
-      
-      console.log(`🔍 [DEBUG] Initial values: totalVolume=${newTotalVolume}, totalMass=${newTotalMass}, totalPieces=${newTotalPieces}`);
-      console.log(`🔍 [DEBUG] Material unitType: ${material.unitType}, unit: ${unit}, additionalQuantity: ${numericAdditionalQuantity}`);
 
       if (material.unitType === "volume" || (material.unitType === "package" && unit === "ml")) {
         // Add to total volume
@@ -652,12 +649,10 @@ const stockEntriesController = {
         newTotalVolume += additionalVolumeInMl;
         
         console.log(`📊 [addToSpecificEntry] Volume calculation: ${numericAdditionalQuantity} ${unit} = ${additionalVolumeInMl}ml, new total: ${newTotalVolume}ml`);
-        console.log(`🔍 [DEBUG] Volume update: ${stockEntry.totalVolume} + ${additionalVolumeInMl} = ${newTotalVolume}`);
 
         // Recalculate cost per volume unit
         const totalVolumeCost = stockEntry.totalVolume * stockEntry.costPerVolumeUnit + additionalVolumeInMl * finalCostPerPurchasedUnit;
         newCostPerVolumeUnit = newTotalVolume > 0 ? totalVolumeCost / newTotalVolume : 0;
-        console.log(`🔍 [DEBUG] Cost calculation: totalVolumeCost=${totalVolumeCost}, newCostPerVolumeUnit=${newCostPerVolumeUnit}`);
       } else if (material.unitType === "mass") {
         // Add to total mass
         const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
@@ -692,11 +687,6 @@ const stockEntriesController = {
         newCostPerPiece = newTotalPieces > 0 ? totalPieceCost / newTotalPieces : 0;
       }
 
-      console.log(`🔍 [DEBUG] Before update - Values to save:`);
-      console.log(`🔍 [DEBUG] totalVolume: ${newTotalVolume} (type: ${typeof newTotalVolume})`);
-      console.log(`🔍 [DEBUG] totalMass: ${newTotalMass} (type: ${typeof newTotalMass})`);
-      console.log(`🔍 [DEBUG] totalPieces: ${Math.round(newTotalPieces)} (type: ${typeof Math.round(newTotalPieces)})`);
-      
       await stockEntry.update({
         // Update calculated total fields (primary)
         totalVolume: parseFloat(newTotalVolume.toFixed(3)),
@@ -719,16 +709,9 @@ const stockEntriesController = {
         notes: notes ? `${stockEntry.notes || ""}\n[${new Date().toLocaleDateString()}] Added ${numericAdditionalQuantity} ${unit}. ${notes}`.trim() : stockEntry.notes
       });
       
-      console.log(`🔍 [DEBUG] Database update completed. Fetching updated entry...`);
-      
       const updatedEntry = await StockEntry.findByPk(id, {
         include: { model: Material, as: "material" }
       });
-      
-      console.log(`🔍 [DEBUG] After update - Database values:`);
-      console.log(`🔍 [DEBUG] updatedEntry.totalVolume: ${updatedEntry.totalVolume}`);
-      console.log(`🔍 [DEBUG] updatedEntry.totalMass: ${updatedEntry.totalMass}`);
-      console.log(`🔍 [DEBUG] updatedEntry.totalPieces: ${updatedEntry.totalPieces}`);
       
       try {
         const user = req.user || { id: null, fullName: "System", username: "system" };
