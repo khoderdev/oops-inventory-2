@@ -163,7 +163,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
   }, [selectedMaterial, form, stockEntry]);
 
   // Track which field was last changed to determine calculation direction
-  const [lastChangedField, setLastChangedField] = useState<'quantity' | 'costPerUnit' | 'totalCost' | null>(null);
+  const [lastChangedField, setLastChangedField] = useState<"quantity" | "costPerUnit" | "totalCost" | null>(null);
 
   // Set up field change listeners
   useEffect(() => {
@@ -171,18 +171,18 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
     const costPerUnitField = document.querySelector('input[name="costPerPurchasedUnit"]');
     const totalCostField = document.querySelector('input[name="totalCost"]');
 
-    const handleQuantityChange = () => setLastChangedField('quantity');
-    const handleCostPerUnitChange = () => setLastChangedField('costPerUnit');
-    const handleTotalCostChange = () => setLastChangedField('totalCost');
+    const handleQuantityChange = () => setLastChangedField("quantity");
+    const handleCostPerUnitChange = () => setLastChangedField("costPerUnit");
+    const handleTotalCostChange = () => setLastChangedField("totalCost");
 
-    quantityField?.addEventListener('input', handleQuantityChange);
-    costPerUnitField?.addEventListener('input', handleCostPerUnitChange);
-    totalCostField?.addEventListener('input', handleTotalCostChange);
+    quantityField?.addEventListener("input", handleQuantityChange);
+    costPerUnitField?.addEventListener("input", handleCostPerUnitChange);
+    totalCostField?.addEventListener("input", handleTotalCostChange);
 
     return () => {
-      quantityField?.removeEventListener('input', handleQuantityChange);
-      costPerUnitField?.removeEventListener('input', handleCostPerUnitChange);
-      totalCostField?.removeEventListener('input', handleTotalCostChange);
+      quantityField?.removeEventListener("input", handleQuantityChange);
+      costPerUnitField?.removeEventListener("input", handleCostPerUnitChange);
+      totalCostField?.removeEventListener("input", handleTotalCostChange);
     };
   }, []);
 
@@ -198,13 +198,13 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
     }
 
     // Calculate based on which field was last changed
-    if (lastChangedField === 'totalCost' && !isNaN(numTotalCost)) {
+    if (lastChangedField === "totalCost" && !isNaN(numTotalCost)) {
       // Calculate Cost per Unit from Total Cost and Quantity
       const calculatedCostPerUnit = numTotalCost / numQuantity;
       if (!isNaN(calculatedCostPerUnit) && isFinite(calculatedCostPerUnit)) {
         form.setValue("costPerPurchasedUnit", calculatedCostPerUnit.toString());
       }
-    } else if ((lastChangedField === 'costPerUnit' || lastChangedField === 'quantity') && !isNaN(numCostPerUnit)) {
+    } else if ((lastChangedField === "costPerUnit" || lastChangedField === "quantity") && !isNaN(numCostPerUnit)) {
       // Calculate Total Cost from Cost per Unit and Quantity
       const calculatedTotalCost = numQuantity * numCostPerUnit;
       if (!isNaN(calculatedTotalCost)) {
@@ -255,23 +255,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
               </TabsTrigger>
             </>
           ) : (
-            <>
-              <TabsTrigger value="new-stock" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-muted">
-                <Plus className="h-4 w-4 flex-shrink-0" />
-                <span className="hidden sm:inline">New Stock</span>
-                <span className="sm:hidden">New</span>
-              </TabsTrigger>
-              <TabsTrigger value="add-stock" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium data-[state=active]:bg-green-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-muted">
-                <TrendingUp className="h-4 w-4 flex-shrink-0" />
-                <span className="hidden sm:inline">Add Stock</span>
-                <span className="sm:hidden">Add</span>
-              </TabsTrigger>
-              <TabsTrigger value="record-waste" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 sm:py-3 px-2 text-xs sm:text-sm font-medium data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200 hover:bg-muted">
-                <Trash2 className="h-4 w-4 flex-shrink-0" />
-                <span className="hidden sm:inline">Record Waste</span>
-                <span className="sm:hidden">Waste</span>
-              </TabsTrigger>
-            </>
+            null
           )}
         </TabsList>
 

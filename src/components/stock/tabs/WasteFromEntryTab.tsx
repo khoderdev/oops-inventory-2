@@ -232,7 +232,12 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
   }, [watchedCostPerUnit, watchedWasteQuantity, watchedTotalCost, watchedUnit, selectedMaterial, form, lastChangedField]);
 
   const onSubmit = async (data: any) => {
+    console.log("🔥 WasteFromEntryTab onSubmit called with data:", data);
+    console.log("🔥 isSubmitting:", isSubmitting);
+    console.log("🔥 stockEntry:", stockEntry);
+    
     if (isSubmitting) {
+      console.log("🔥 Already submitting, returning early");
       return;
     }
     setIsSubmitting(true);
@@ -243,7 +248,11 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       const wasteQuantity = parseFloat(data.wasteQuantity);
       const costPerPurchasedUnit = parseFloat(data.costPerPurchasedUnit);
       const totalCost = parseFloat(data.totalCost);
+      
+      console.log("🔥 Parsed values:", { wasteQuantity, costPerPurchasedUnit, totalCost });
+      
       if (isNaN(wasteQuantity) || wasteQuantity <= 0) {
+        console.log("🔥 Validation failed: wasteQuantity invalid");
         form.setError("wasteQuantity", {
           type: "manual",
           message: "Waste quantity must be a positive number"
@@ -252,6 +261,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       }
 
       if (!data.purchasedUnit) {
+        console.log("🔥 Validation failed: purchasedUnit missing");
         form.setError("purchasedUnit", {
           type: "manual",
           message: "Unit is required"
@@ -259,12 +269,15 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
         return;
       }
       if (!stockEntry?.id) {
+        console.log("🔥 Validation failed: stockEntry.id missing");
         form.setError("materialId", {
           type: "manual",
           message: "Stock entry is required"
         });
         return;
       }
+      
+      console.log("🔥 All validations passed, creating wasteData...");
       const wasteData = {
         materialId: String(data.materialId),
         supplier: data.supplier || stockEntry.supplier,
@@ -281,7 +294,11 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
         wasteReason: data.wasteReason,
         stockEntryId: stockEntry.id
       };
+      
+      console.log("🔥 wasteData created:", wasteData);
+      console.log("🔥 Calling onRecordWaste...");
       await onRecordWaste(wasteData);
+      console.log("🔥 onRecordWaste completed successfully");
     } catch (error) {
       console.error("❌ Error recording waste:", error);
     } finally {
