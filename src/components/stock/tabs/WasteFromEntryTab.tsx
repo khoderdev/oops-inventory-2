@@ -222,6 +222,8 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       reasonFieldName="wasteReason"
       submitButtonText="Record Waste"
       hiddenFields={["supplier"]}
+      disabledFields={["material"]}
+      readOnlyFields={["totalCost", "costPerUnit"]}
     >
       {/* Error Messages */}
       {errorMessage && (

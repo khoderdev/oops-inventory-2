@@ -11,7 +11,15 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
   };
 
   const onSubmit = (data: StockFormData) => {
-    onAddToSpecificEntry(data);
+    if (!stockEntry?.id) {
+      console.error("Stock entry ID is missing");
+      return;
+    }
+
+    onAddToSpecificEntry({
+      ...data,
+      stockEntryId: stockEntry.id
+    });
   };
 
   return (
@@ -36,6 +44,8 @@ export function AddToEntryTab({ form, materials, availableUnits, selectedMateria
       dateFieldName="purchaseDate"
       dateFieldLabel="Purchase Date"
       submitButtonText="Add to Entry"
+      disabledFields={["material"]}
+      readOnlyFields={["costPerUnit", "totalCost"]}
     />
   );
 }

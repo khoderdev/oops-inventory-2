@@ -44,8 +44,10 @@ export interface StockEntryFormProps {
   showReasonField?: boolean;
   reasonFieldName?: Path<StockFormInputs>;
 
-  // Field visibility control
+  // Field visibility and interaction control
   hiddenFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason" | "costBreakdown">;
+  disabledFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason">;
+  readOnlyFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason">;
 
   // Button customization
   submitButtonText: string;
@@ -54,7 +56,7 @@ export interface StockEntryFormProps {
   children?: React.ReactNode;
 }
 
-export function StockEntryForm({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel, headerIcon: HeaderIcon, headerColor, headerTitle, headerDescription, getCurrentStockDisplay, quantityFieldName, unitFieldName, dateFieldName, dateFieldLabel, showReasonField = false, reasonFieldName, hiddenFields = [], submitButtonText, children }: StockEntryFormProps) {
+export function StockEntryForm({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel, headerIcon: HeaderIcon, headerColor, headerTitle, headerDescription, getCurrentStockDisplay, quantityFieldName, unitFieldName, dateFieldName, dateFieldLabel, showReasonField = false, reasonFieldName, hiddenFields = [], disabledFields = [], readOnlyFields = [], submitButtonText, children }: StockEntryFormProps) {
   // Utility functions for number handling and formatting
   const toNumber = (v: string | undefined | null): number => {
     if (!v || v === "") return NaN;
@@ -251,8 +253,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                     <FormControl>
                       <div className="w-full">
                         <VirtualSelect
-                          //   inputHeight="45px"
-                          disabled
+                          disabled={disabledFields.includes("material")}
                           items={materials.map(material => {
                             const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
                             return {
@@ -288,7 +289,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                   <FormItem>
                     <FormLabel>Supplier</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., ABC Food Distributors" {...field} />
+                      <Input placeholder="e.g., ABC Food Distributors" {...field} disabled={disabledFields.includes("supplier")} readOnly={readOnlyFields.includes("supplier")} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -316,7 +317,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                             const next = Math.max(0, current - 1).toString();
                             recomputeFromQuantity(next);
                           }}
-                          disabled={parseFloat(field.value?.toString() || "0") <= 0}
+                          disabled={parseFloat(field.value?.toString() || "0") <= 0 || disabledFields.includes("quantity")}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -326,6 +327,8 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           min="0"
                           placeholder="0"
                           {...field}
+                          disabled={disabledFields.includes("quantity")}
+                          readOnly={readOnlyFields.includes("quantity")}
                           onChange={e => {
                             const cleaned = e.target.value.replace(/[^0-9.]/g, "");
                             const parts = cleaned.split(".");
@@ -344,6 +347,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                             const next = (current + 1).toString();
                             recomputeFromQuantity(next);
                           }}
+                          disabled={disabledFields.includes("quantity")}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -363,20 +367,20 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Unit</FormLabel>
-                    <Select onValueChange={handleUnitChange} value={field.value?.toString() || ""}>
-                      <FormControl>
-                        <SelectTrigger>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={disabledFields.includes("unit")}>
+                        <SelectTrigger className={readOnlyFields.includes("unit") ? "pointer-events-none" : ""}>
                           <SelectValue placeholder="Select unit" />
                         </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableUnits.map(unit => (
-                          <SelectItem key={unit} value={unit}>
-                            {unit}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                        <SelectContent>
+                          {availableUnits.map(unit => (
+                            <SelectItem key={unit} value={unit}>
+                              {unit}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -391,9 +395,9 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Reason</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value?.toString() || ""}>
+                    <Select onValueChange={field.onChange} value={field.value?.toString() || ""} disabled={disabledFields.includes("reason")}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className={readOnlyFields.includes("reason") ? "pointer-events-none" : ""}>
                           <SelectValue placeholder="Select reason" />
                         </SelectTrigger>
                       </FormControl>
@@ -431,7 +435,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                             const next = Math.max(0, current - 0.01).toFixed(2);
                             recomputeFromCPU(next);
                           }}
-                          disabled={parseFloat(field.value as string) <= 0}
+                          disabled={parseFloat(field.value as string) <= 0 || disabledFields.includes("costPerUnit") || readOnlyFields.includes("costPerUnit")}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -441,11 +445,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           min="0"
                           placeholder="0.000000"
                           value={field.value}
+                          disabled={disabledFields.includes("costPerUnit")}
+                          readOnly={readOnlyFields.includes("costPerUnit")}
                           onChange={e => {
                             const cleaned = e.target.value.replace(/[^0-9.]/g, "");
                             recomputeFromCPU(cleaned);
                           }}
-                          className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className={`h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${readOnlyFields.includes("costPerUnit") ? "bg-gray-100" : ""}`}
                         />
                         <Button
                           type="button"
@@ -457,6 +463,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                             const next = (current + 0.01).toFixed(2);
                             recomputeFromCPU(next);
                           }}
+                          disabled={disabledFields.includes("costPerUnit") || readOnlyFields.includes("costPerUnit")}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -489,7 +496,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                             const next = newValue === 0 ? "" : newValue.toFixed(2);
                             recomputeFromTotal(next);
                           }}
-                          disabled={parseFloat(field.value as string) <= 0}
+                          disabled={parseFloat(field.value as string) <= 0 || disabledFields.includes("totalCost") || readOnlyFields.includes("totalCost")}
                         >
                           <Minus className="h-4 w-4" />
                         </Button>
@@ -499,11 +506,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           min="0"
                           placeholder="0.00"
                           value={field.value}
+                          disabled={disabledFields.includes("totalCost")}
+                          readOnly={readOnlyFields.includes("totalCost")}
                           onChange={e => {
                             const cleaned = e.target.value.replace(/[^0-9.]/g, "");
                             recomputeFromTotal(cleaned);
                           }}
-                          className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className={`h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${readOnlyFields.includes("totalCost") ? "bg-gray-100" : ""}`}
                         />
                         <Button
                           type="button"
@@ -516,6 +525,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                             const next = newValue.toFixed(2);
                             recomputeFromTotal(next);
                           }}
+                          disabled={disabledFields.includes("totalCost") || readOnlyFields.includes("totalCost")}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -536,16 +546,16 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                   <FormItem className="flex flex-col mt-3">
                     <FormLabel>{dateFieldLabel}</FormLabel>
                     <Popover>
-                      <PopoverTrigger asChild>
+                      <PopoverTrigger asChild disabled={disabledFields.includes("date")}>
                         <FormControl>
-                          <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                          <Button variant="outline" className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground", (disabledFields.includes("date") || readOnlyFields.includes("date")) && "opacity-70 pointer-events-none")}>
                             {field.value ? format(field.value as Date, "PPP") : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value as Date} onSelect={field.onChange} disabled={(date: Date) => date > new Date()} initialFocus className="p-3 pointer-events-auto" />
+                        <Calendar mode="single" selected={field.value as Date} onSelect={field.onChange} disabled={(date: Date) => date > new Date() || disabledFields.includes("date") || readOnlyFields.includes("date")} initialFocus className="p-3 pointer-events-auto" />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />
