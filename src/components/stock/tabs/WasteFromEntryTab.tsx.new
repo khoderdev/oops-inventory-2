@@ -50,11 +50,11 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
 
       // Get current form values if data is incomplete
       const currentValues = form.getValues();
-      const wasteQuantity = parseFloat(String(data.wasteQuantity || currentValues.wasteQuantity || "0"));
-      const costPerPurchasedUnit = parseFloat(String(data.costPerPurchasedUnit || currentValues.costPerPurchasedUnit || "0"));
-      const totalCost = parseFloat(String(data.totalCost || currentValues.totalCost || "0"));
+      const wasteQuantity = parseFloat(data.wasteQuantity || currentValues.wasteQuantity || "0");
+      const costPerPurchasedUnit = parseFloat(data.costPerPurchasedUnit || currentValues.costPerPurchasedUnit || "0");
+      const totalCost = parseFloat(data.totalCost || currentValues.totalCost || "0");
       const purchasedUnit = data.purchasedUnit || currentValues.purchasedUnit;
-
+      
       if (isNaN(wasteQuantity) || wasteQuantity <= 0) {
         form.setError("wasteQuantity", {
           type: "manual",
@@ -72,7 +72,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
         setIsSubmitting(false);
         return;
       }
-
+      
       if (!stockEntry?.id) {
         form.setError("materialId", {
           type: "manual",
@@ -81,7 +81,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
         setIsSubmitting(false);
         return;
       }
-
+      
       const wasteData = {
         materialId: String(data.materialId || currentValues.materialId || selectedMaterial?.id),
         supplier: data.supplier || currentValues.supplier || stockEntry.supplier,
@@ -98,7 +98,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
         wasteReason: data.wasteReason || currentValues.wasteReason,
         stockEntryId: stockEntry.id
       };
-
+      
       await onRecordWaste(wasteData);
     } catch (error) {
       console.error("❌ Error recording waste:", error);
@@ -212,7 +212,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       headerIcon={Trash2}
       headerColor="red"
       headerTitle="Record Waste from This Entry"
-      headerDescription={`Current stock: `}
+      headerDescription="Current stock:"
       getCurrentStockDisplay={getCurrentStockDisplay}
       quantityFieldName="wasteQuantity"
       unitFieldName="purchasedUnit"
@@ -231,7 +231,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
           </div>
         </div>
       )}
-
+      
       {/* Original Entry Cost Context */}
       <OriginalEntryCostContext />
     </StockEntryForm>
