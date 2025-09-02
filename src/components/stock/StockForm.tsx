@@ -9,7 +9,7 @@ import { stockSchema } from "./stockSchema";
 import { AddToEntryTab } from "./tabs/AddToEntryTab";
 import { NewStockTab } from "./tabs/NewStockTab";
 import { UpdateEntryTab } from "./tabs/UpdateEntryTab";
-import { WasteFromEntryTab2 } from "./tabs/WasteFromEntryTab";
+import { WasteFromEntryTab } from "./tabs/WasteFromEntryTab";
 
 export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit, onCancel, onAddToSpecificEntry, onWasteFromSpecificEntry }: StockFormProps) {
   const [activeTab, setActiveTab] = useState<string>(stockEntry ? "update-entry" : "new-stock");
@@ -304,13 +304,13 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
 
             <TabsContent value="waste-from-entry" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
-                <WasteFromEntryTab2 form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
+                <WasteFromEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
               </div>
             </TabsContent>
 
             <TabsContent value="record-waste" className="mt-0 h-full">
               <div className="px-4 sm:px-6 py-4">
-                <WasteFromEntryTab2 form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
+                <WasteFromEntryTab form={form} materials={materials} availableUnits={availableUnits} selectedMaterial={selectedMaterial} watchedQuantity={watchedQuantity} watchedCostPerUnit={watchedCostPerUnit} watchedTotalCost={watchedTotalCost} stockEntry={stockEntry} onRecordWaste={handleWasteFromEntry} onCancel={onCancel} />
               </div>
             </TabsContent>
           </div>

@@ -16,7 +16,6 @@ export const renderQuantityDisplay = (entry: StockEntryWithMaterial) => {
         {isNegative && <AlertTriangle className="h-3 w-3 flex-shrink-0" />}
         <div className="text-center">
           <div>{formatNumber(entry.totalVolume)} {entry.volumeUnit}</div>
-          {/* <div className="text-[0.55rem] opacity-75">(from {entry.purchasedIndividualQuantity || entry.purchasedQuantity} {entry.purchasedIndividualUnit || entry.purchasedUnit}{(entry.purchasedIndividualQuantity || entry.purchasedQuantity) !== 1 ? 's' : ''})</div> */}
         </div>
       </div>
     );

@@ -16,7 +16,7 @@ import { useWatch } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
 import { stockAPI } from "@/api/stock.api.ts";
 
-export function WasteFromEntryTab2({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry: initialStockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
+export function WasteFromEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry: initialStockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
   const [stockEntries, setStockEntries] = useState<StockEntry[]>([]);
   const [selectedStockEntry, setSelectedStockEntry] = useState<StockEntry | null>(initialStockEntry || null);
   const [isLoading, setIsLoading] = useState(false);
