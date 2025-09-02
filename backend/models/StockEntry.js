@@ -301,6 +301,13 @@ async function calculateEnhancedValues(stockEntry, options) {
     const isManualVolumeUpdate = stockEntry.changed("totalVolume") && stockEntry.totalVolume !== null;
     const isManualMassUpdate = stockEntry.changed("totalMass") && stockEntry.totalMass !== null;
     const isManualPiecesUpdate = stockEntry.changed("totalPieces") && stockEntry.totalPieces !== null;
+    
+    console.log(`🔍 [calculateEnhancedValues] Manual update flags:`, {
+      isManualVolumeUpdate,
+      isManualMassUpdate, 
+      isManualPiecesUpdate,
+      changedFields: stockEntry.changed()
+    });
 
     // Clear all enhanced fields first (but preserve manually set values)
     const preservedTotalVolume = isManualVolumeUpdate ? stockEntry.totalVolume : null;
@@ -364,14 +371,19 @@ async function calculateEnhancedValues(stockEntry, options) {
       stockEntry.piecesPerPackage = piecesPerPkg;
       stockEntry.unitDescription = material.unitDescription;
 
-      const totalPieces = parseFloat(stockEntry.purchasedQuantity) * piecesPerPkg;
-      stockEntry.totalPieces = Math.round(totalPieces);
-
-      if (totalCost > 0 && totalPieces > 0) {
-        stockEntry.costPerPiece = Math.round((totalCost / totalPieces) * 1000000) / 1000000;
+      // Only recalculate totalPieces if it wasn't manually set
+      if (!isManualPiecesUpdate) {
+        const totalPieces = parseFloat(stockEntry.purchasedQuantity) * piecesPerPkg;
+        stockEntry.totalPieces = Math.round(totalPieces);
+        console.log(`📦 [Package] ${material.name}: ${stockEntry.purchasedQuantity} × ${piecesPerPkg} = ${stockEntry.totalPieces} ${material.unitDescription || "pieces"}`);
+      } else {
+        console.log(`🔒 [Package] ${material.name}: Manual totalPieces preserved: ${stockEntry.totalPieces} ${material.unitDescription || "pieces"}`);
       }
 
-      console.log(`📦 [Package] ${material.name}: ${stockEntry.purchasedQuantity} × ${piecesPerPkg} = ${stockEntry.totalPieces} ${material.unitDescription || "pieces"}`);
+      // Always recalculate cost per piece based on current totalPieces
+      if (totalCost > 0 && stockEntry.totalPieces > 0) {
+        stockEntry.costPerPiece = Math.round((totalCost / stockEntry.totalPieces) * 1000000) / 1000000;
+      }
     }
 
     // Individual piece calculations for piece materials

@@ -912,6 +912,7 @@ const stockEntriesController = {
         newTotalMass = Math.max(0, newTotalMass - wasteInAvailableUnit);
       } else if (fieldToCheck === "totalPieces") {
         newTotalPieces = Math.max(0, newTotalPieces - wasteInAvailableUnit);
+        console.log(`📊 [wasteFromSpecificEntry] Pieces deduction: ${wasteInAvailableUnit} ${availableUnit} from ${stockEntry.totalPieces}, new total: ${newTotalPieces}`);
       }
 
       // Update legacy fields for backward compatibility - only clear if actually wasting all
@@ -922,8 +923,15 @@ const stockEntriesController = {
         newIndividualQuantity = 0;
         newIndividualUnit = material.baseUnit;
       } else {
-        // Preserve existing values - don't modify during partial waste
-        newPurchasedQuantity = stockEntry.purchasedQuantity;
+        // For package materials, deduct from purchasedQuantity when wasting by package units
+        if (material.unitType === "package" && (unit === "bag" || unit === "pack" || unit === "package")) {
+          newPurchasedQuantity = Math.max(0, parseFloat(stockEntry.purchasedQuantity) - wasteInOriginalUnit);
+          console.log(`📦 [Package Deduction] ${material.name}: ${stockEntry.purchasedQuantity} - ${wasteInOriginalUnit} = ${newPurchasedQuantity} ${stockEntry.purchasedUnit}`);
+        } else {
+          // Preserve existing values for other cases
+          newPurchasedQuantity = stockEntry.purchasedQuantity;
+        }
+        
         newIndividualQuantity = stockEntry.purchasedIndividualQuantity;
         newIndividualUnit = stockEntry.purchasedIndividualUnit || material.baseUnit;
       }
@@ -991,6 +999,14 @@ const stockEntriesController = {
         isWastingAll
       });
 
+      console.log(`🔄 [wasteFromSpecificEntry] About to update stock entry with:`, {
+        totalVolume: parseFloat(newTotalVolume.toFixed(3)),
+        totalMass: newTotalMass,
+        totalPieces: Math.round(newTotalPieces),
+        purchasedQuantity: newPurchasedQuantity,
+        purchasedIndividualQuantity: newIndividualQuantity
+      });
+
       await stockEntry.update({
         // Update calculated total fields (primary)
         totalVolume: parseFloat(newTotalVolume.toFixed(3)),
@@ -1019,6 +1035,19 @@ const stockEntriesController = {
         notes: notes ? `${stockEntry.notes || ""}\n[${new Date().toLocaleDateString()}] Waste: ${numericWasteQuantity} ${unit} (${wasteReason}). ${notes}`.trim() : stockEntry.notes,
         wasteReason: wasteReason
       });
+
+      console.log(`✅ [wasteFromSpecificEntry] Stock entry updated successfully. Verifying final state...`);
+      
+      // Reload the stock entry to verify the update
+      await stockEntry.reload();
+      console.log(`🔍 [wasteFromSpecificEntry] Post-update verification:`, {
+        totalVolume: stockEntry.totalVolume,
+        totalMass: stockEntry.totalMass,
+        totalPieces: stockEntry.totalPieces,
+        purchasedQuantity: stockEntry.purchasedQuantity,
+        purchasedIndividualQuantity: stockEntry.purchasedIndividualQuantity
+      });
+
       const wasteRecord = await Wasting.create({
         stockEntryId: stockEntry.id,
         materialName: material.name,
