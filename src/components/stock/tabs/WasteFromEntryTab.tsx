@@ -5,14 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { WasteFromEntryTabProps, StockFormData } from "@/types/inventory";
+import { WasteFromEntryTabProps } from "@/types/inventory";
 import { formatNumberUI, formatCurrencyUI } from "@/utils/conversionLogic";
-import { calculateCostPerUnit, formatCostPerUnitDisplay } from "@/utils/costCalculations";
 import { format } from "date-fns";
 import { CalendarIcon, FileText, Minus, Package, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useWatch } from "react-hook-form";
 import { CostBreakdown } from "../CostBreakdown";
+import { calculateCostPerUnit } from "@/utils/costCalculations";
 
 export function WasteFromEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -171,19 +171,93 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
   }, [watchedUnit, selectedMaterial, stockEntry, form]);
 
   useEffect(() => {
-    const quantity = parseFloat(watchedWasteQuantity) || 0;
-    const costPerUnit = parseFloat(watchedCostPerUnit) || 0;
-    const totalCost = parseFloat(watchedTotalCost) || 0;
-    if (lastChangedField === "totalCost" && quantity > 0) {
-      // Calculate cost per unit from total cost
-      const calculatedCostPerUnit = totalCost / quantity;
-      form.setValue("costPerPurchasedUnit", isNaN(calculatedCostPerUnit) ? "0" : calculatedCostPerUnit.toString());
-    } else if (lastChangedField === "wasteQuantity" || lastChangedField === "costPerPurchasedUnit" || !lastChangedField) {
-      // Calculate total cost from quantity and cost per unit
-      const calculatedTotalCost = quantity * costPerUnit;
-      form.setValue("totalCost", isNaN(calculatedTotalCost) ? "0" : calculatedTotalCost.toString());
+    if (lastChangedField === "totalCost") return;
+
+    let currentCost = parseFloat(watchedCostPerUnit || "0");
+    let quantity = parseFloat(watchedWasteQuantity || "0");
+    
+    if (selectedMaterial?.unitType === "package") {
+      const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+      const materialCost = typeof selectedMaterial?.costPerUnit === "string" ? parseFloat(selectedMaterial.costPerUnit) || 0 : selectedMaterial?.costPerUnit || 0;
+      const boxCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
+      
+      if (watchedUnit === "ml") {
+        // Calculate cost per ml for bottle-based materials
+        const volumePerUnit = stockEntry?.volumePerUnit || selectedMaterial?.volumePerUnit || 700;
+        if (volumePerUnit > 0) {
+          // Format to 4 decimal places for readability
+          currentCost = parseFloat((boxCost / volumePerUnit).toFixed(4));
+        }
+      } else if (watchedUnit === "piece" || watchedUnit === "bottle") {
+        // Calculate cost per piece/bottle
+        const packageQuantity = selectedMaterial?.packageQuantity || 1;
+        if (packageQuantity > 0) {
+          currentCost = boxCost / packageQuantity;
+        }
+      }
     }
-  }, [watchedWasteQuantity, watchedCostPerUnit, watchedTotalCost, watchedUnit, form, stockEntry, selectedMaterial, lastChangedField]);
+
+    // Use dynamic cost calculation for consistent formatting with CostBreakdown
+    let calculatedTotal = 0;
+    
+    if (selectedMaterial && !isNaN(quantity)) {
+      // Calculate costs directly like in CostBreakdown component
+      if (selectedMaterial.unitType === "package" && 
+          (selectedMaterial.baseUnit === "ml" || selectedMaterial.baseUnit === "cl" || selectedMaterial.baseUnit === "l")) {
+        
+        const volumePerUnit = selectedMaterial.volumePerUnit || selectedMaterial.volumePerBottle || 700;
+        
+        if (watchedUnit === "ml" && volumePerUnit > 0) {
+          // For ml purchases, currentCost is already cost per ml
+          calculatedTotal = quantity * currentCost;
+        } else if (watchedUnit === "bottle" && volumePerUnit > 0) {
+          // For bottle purchases, use bottle cost directly
+          calculatedTotal = quantity * currentCost;
+        } else {
+          // Fallback to basic calculation
+          calculatedTotal = quantity * currentCost;
+        }
+      } else {
+        // For non-package materials, use basic calculation
+        calculatedTotal = quantity * currentCost;
+      }
+    } else {
+      // Fallback calculation
+      calculatedTotal = !isNaN(currentCost) && !isNaN(quantity) ? currentCost * quantity : 0;
+    }
+    
+    // Format the total cost with appropriate precision (show more decimals for small values)
+    let formattedTotalCost;
+    if (calculatedTotal < 0.01 && calculatedTotal > 0) {
+      // For very small values, show up to 4 decimal places
+      formattedTotalCost = calculatedTotal.toFixed(4);
+    } else if (calculatedTotal < 0.1 && calculatedTotal > 0) {
+      // For small values, show up to 3 decimal places
+      formattedTotalCost = calculatedTotal.toFixed(4);
+    } else {
+      // For larger values, show 2 decimal places
+      formattedTotalCost = calculatedTotal.toFixed(2);
+    }
+    formattedTotalCost = parseFloat(formattedTotalCost).toString();
+    form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
+
+    if (selectedMaterial && !isNaN(currentCost)) {
+      // Validate cost reasonableness
+      if (selectedMaterial && selectedMaterial.unitType === "package" && selectedMaterial.inputUnit === watchedUnit) {
+        const expectedCost = calculateCostPerUnit(selectedMaterial, null, watchedUnit);
+        if (expectedCost > 0 && Math.abs(currentCost - expectedCost) / expectedCost > 0.5) {
+          form.setError("costPerPurchasedUnit", {
+            type: "manual",
+            message: `Cost per ${watchedUnit} ($${formatNumberUI(currentCost)}) deviates significantly from expected ($${formatNumberUI(expectedCost)})`
+          });
+        }
+      } else {
+        form.clearErrors("costPerPurchasedUnit");
+      }
+    } else {
+      form.clearErrors("costPerPurchasedUnit");
+    }
+  }, [watchedCostPerUnit, watchedWasteQuantity, watchedTotalCost, watchedUnit, selectedMaterial, form, lastChangedField]);
 
   const onSubmit = async (data: any) => {
     if (isSubmitting) {
@@ -371,23 +445,59 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
                         className="h-11 w-11 border-gray-300 hover:border-red-500 hover:bg-red-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = Math.max(0, currentValue - 1);
-                          field.onChange(newValue.toString());
+                          let decrement = 1;
+
+                          // For ml units on bottle materials, decrement by 50ml
+                          if (selectedMaterial?.unitType === "package" && watchedUnit === "ml") {
+                            decrement = 50; // Use 50ml as a reasonable decrement for bottles
+                          } else if (selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle")) {
+                            decrement = 1;
+                          }
+
+                          const newValue = Math.max(0, currentValue - decrement);
+                          field.onChange(watchedUnit === "piece" || watchedUnit === "bottle" ? Math.round(newValue) : newValue);
                         }}
-                        disabled={parseInt(field.value) <= 0}
+                        disabled={parseFloat(field.value) <= 0}
                       >
                         <Minus className="h-4 w-4" />
                       </Button>
                       <Input
                         type="number"
-                        step="1"
+                        step={selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle") ? 1 : selectedMaterial?.unitType === "package" && watchedUnit === "ml" ? 50 : 1}
                         min="0"
                         placeholder="0"
                         {...field}
-                        value={field.value || ""}
                         onChange={e => {
-                          field.onChange(e.target.value);
+                          // Handle integer units (piece, bottle) vs decimal units (ml, g, etc.)
+                          let value;
+                          if (watchedUnit === "piece" || watchedUnit === "bottle") {
+                            // For piece/bottle, always round to whole numbers
+                            value = e.target.value === "" ? "" : Math.round(parseFloat(e.target.value) || 0);
+                          } else if (e.target.value === "") {
+                            value = "";
+                          } else {
+                            // For other units, keep the raw value during typing
+                            value = e.target.value;
+                          }
+                          field.onChange(value);
                           setLastChangedField("wasteQuantity");
+                        }}
+                        onBlur={e => {
+                          // Format the value when the field loses focus
+                          if (e.target.value === "") return;
+                          
+                          if (watchedUnit === "piece" || watchedUnit === "bottle") {
+                            // For piece/bottle, ensure it's a whole number
+                            const value = Math.round(parseFloat(e.target.value) || 0);
+                            field.onChange(value.toString());
+                          } else {
+                            // For decimal units like ml, format to reasonable precision
+                            const parsedValue = parseFloat(e.target.value);
+                            if (!isNaN(parsedValue)) {
+                              const formattedValue = formatQuantity(parsedValue);
+                              field.onChange(formattedValue);
+                            }
+                          }
                         }}
                         className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
@@ -398,8 +508,17 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
                         className="h-11 w-11 border-gray-300 hover:border-red-500 hover:bg-red-50"
                         onClick={() => {
                           const currentValue = parseFloat(field.value) || 0;
-                          const newValue = currentValue + 1;
-                          field.onChange(newValue.toString());
+                          let increment = 1;
+
+                          // For ml units on bottle materials, increment by 50ml
+                          if (selectedMaterial?.unitType === "package" && watchedUnit === "ml") {
+                            increment = 50; // Use 50ml as a reasonable increment for bottles
+                          } else if (selectedMaterial?.unitType === "package" && (watchedUnit === "piece" || watchedUnit === "bottle")) {
+                            increment = 1;
+                          }
+
+                          const newValue = currentValue + increment;
+                          field.onChange(watchedUnit === "piece" || watchedUnit === "bottle" ? Math.round(newValue) : newValue);
                         }}
                       >
                         <Plus className="h-4 w-4" />
@@ -552,20 +671,9 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
                     Total Cost
                   </FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0"
-                      {...field}
-                      onChange={e => {
-                        field.onChange(e.target.value);
-                        setLastChangedField("totalCost");
-                      }}
-                      className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
+                    <Input type="number" step="0.01" min="0" placeholder="" value={field.value} readOnly className="h-11 border-gray-300 focus:border-red-500 focus:ring-red-500 text-center font-medium overflow-hidden flex-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none bg-gray-50" />
                   </FormControl>
-                  <p className="text-xs text-red-600 mt-1">Total cost for all wasted units</p>
+                  <p className="text-xs text-red-600 mt-1">Total cost for all wasted units (auto-calculated)</p>
                   <FormMessage />
                 </FormItem>
               )}

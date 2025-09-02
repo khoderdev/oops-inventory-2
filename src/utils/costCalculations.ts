@@ -13,24 +13,16 @@ export interface CostCalculationResult {
 /**
  * Calculate cost per unit based on material properties and purchased unit
  */
-export function calculateCostPerUnit(
-  material: Material,
-  stockEntry: StockEntry | null,
-  purchasedUnit: string
-): number {
-  const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" 
-    ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 
-    : stockEntry?.costPerPurchasedUnit || 0;
-  
-  const materialCost = typeof material?.costPerUnit === "string" 
-    ? parseFloat(material.costPerUnit) || 0 
-    : material?.costPerUnit || 0;
-  
+export function calculateCostPerUnit(material: Material, stockEntry: StockEntry | null, purchasedUnit: string): number {
+  const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+
+  const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
+
   const baseCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-  
+
   if (material.unitType === "package") {
     const packageQuantity = material.packageQuantity || 1;
-    
+
     if (purchasedUnit === "ml") {
       const volumePerUnit = getVolumePerUnit(material, stockEntry);
       return volumePerUnit > 0 ? baseCost / volumePerUnit : 0;
@@ -38,7 +30,7 @@ export function calculateCostPerUnit(
       return packageQuantity > 0 ? baseCost / packageQuantity : 0;
     }
   }
-  
+
   return baseCost;
 }
 
@@ -50,67 +42,54 @@ export function getVolumePerUnit(material: Material, stockEntry: StockEntry | nu
   if (stockEntry?.volumePerUnit && stockEntry.volumePerUnit > 0) {
     return stockEntry.volumePerUnit;
   }
-  
+
   // Then try material configuration
   if (material.volumePerBottle && material.volumePerBottle > 0) {
     return material.volumePerBottle;
   }
-  
+
   if (material.volumePerUnit && material.volumePerUnit > 0) {
     return material.volumePerUnit;
   }
-  
-  if (material.packageQuantity && material.packageQuantity > 0 && 
-      (material.baseUnit === "ml" || material.baseUnit === "cl")) {
+
+  if (material.packageQuantity && material.packageQuantity > 0 && (material.baseUnit === "ml" || material.baseUnit === "cl")) {
     return material.packageQuantity;
   }
-  
+
   // Default fallback for spirits (700ml is standard)
-  if (material.unitType === "package" && 
-      (material.baseUnit === "ml" || material.baseUnit === "cl")) {
+  if (material.unitType === "package" && (material.baseUnit === "ml" || material.baseUnit === "cl")) {
     return 700;
   }
-  
+
   return 0;
 }
 
 /**
  * Calculate comprehensive cost breakdown for a material
  */
-export function calculateCostBreakdown(
-  material: Material,
-  stockEntry: StockEntry | null,
-  quantity: number,
-  purchasedUnit: string
-): CostCalculationResult {
+export function calculateCostBreakdown(material: Material, stockEntry: StockEntry | null, quantity: number, purchasedUnit: string): CostCalculationResult {
   const costPerUnit = calculateCostPerUnit(material, stockEntry, purchasedUnit);
-  
+
   let costPerMl: number | undefined;
   let costPerCl: number | undefined;
   let costPerBaseUnit: number | undefined;
   let volumePerUnit: number | undefined;
-  
+
   // Calculate volume-based costs for package materials
-  if (material.unitType === "package" && 
-      (material.baseUnit === "ml" || material.baseUnit === "cl" || material.baseUnit === "l")) {
-    
+  if (material.unitType === "package" && (material.baseUnit === "ml" || material.baseUnit === "cl" || material.baseUnit === "l")) {
     volumePerUnit = getVolumePerUnit(material, stockEntry);
-    
+
     if (volumePerUnit > 0) {
-      const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" 
-        ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 
-        : stockEntry?.costPerPurchasedUnit || 0;
-      
-      const materialCost = typeof material?.costPerUnit === "string" 
-        ? parseFloat(material.costPerUnit) || 0 
-        : material?.costPerUnit || 0;
-      
+      const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+
+      const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
+
       const bottleCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-      
+
       // Calculate cost per ml and cl based on bottle cost
       costPerMl = bottleCost / volumePerUnit;
       costPerCl = costPerMl * 10;
-      
+
       // Calculate cost per base unit
       if (material.baseUnit === "cl") {
         costPerBaseUnit = costPerCl;
@@ -121,33 +100,29 @@ export function calculateCostBreakdown(
       }
     }
   }
-  
+
   // Calculate total cost with smart rounding for whole bottles
   let totalCost = quantity * costPerUnit;
-  
+
   // For ml quantities in bottle-based materials, use proportional calculation
   if (material.unitType === "package" && purchasedUnit === "ml" && volumePerUnit && volumePerUnit > 0) {
-    const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" 
-      ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 
-      : stockEntry?.costPerPurchasedUnit || 0;
-    
-    const materialCost = typeof material?.costPerUnit === "string" 
-      ? parseFloat(material.costPerUnit) || 0 
-      : material?.costPerUnit || 0;
-    
+    const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+
+    const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
+
     const bottleCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
     const bottleFraction = quantity / volumePerUnit;
-    
+
     // Calculate proportional cost
     totalCost = bottleFraction * bottleCost;
-    
+
     // Smart rounding: if very close to whole bottles (within 1%), use exact bottle cost
     const nearestWholeBottle = Math.round(bottleFraction);
     if (Math.abs(bottleFraction - nearestWholeBottle) < 0.01 && nearestWholeBottle > 0) {
       totalCost = nearestWholeBottle * bottleCost;
     }
   }
-  
+
   return {
     costPerUnit,
     costPerMl,
@@ -161,21 +136,13 @@ export function calculateCostBreakdown(
 /**
  * Format cost per unit display text
  */
-export function formatCostPerUnitDisplay(
-  material: Material,
-  stockEntry: StockEntry | null,
-  purchasedUnit: string
-): string {
-  const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" 
-    ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 
-    : stockEntry?.costPerPurchasedUnit || 0;
-  
-  const materialCost = typeof material?.costPerUnit === "string" 
-    ? parseFloat(material.costPerUnit) || 0 
-    : material?.costPerUnit || 0;
-  
+export function formatCostPerUnitDisplay(material: Material, stockEntry: StockEntry | null, purchasedUnit: string): string {
+  const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+
+  const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
+
   const baseCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-  
+
   if (purchasedUnit === "ml") {
     const volumePerUnit = getVolumePerUnit(material, stockEntry);
     return `$${baseCost.toFixed(2)} per ${stockEntry?.purchasedUnit || "bottle"} ÷ ${volumePerUnit} ml`;
@@ -184,3 +151,24 @@ export function formatCostPerUnitDisplay(
     return `$${baseCost.toFixed(2)} per ${stockEntry?.purchasedUnit || "package"} ÷ ${packageQuantity} ${material.baseUnit || "units"}`;
   }
 }
+
+export const formatQuantity = (value: string | number): string => {
+  if (!value && value !== 0) return "";
+
+  const numValue = typeof value === "string" ? parseFloat(value) : value;
+
+  if (isNaN(numValue)) return "";
+
+  // For whole numbers, return as is
+  if (Number.isInteger(numValue)) return numValue.toString();
+
+  // For values with many decimal places, format appropriately
+  // Use 2 decimal places for most values, but handle special cases
+  const decimalPlaces = Math.abs(numValue) < 0.01 ? 4 : 2;
+
+  // Format the number with the appropriate decimal places
+  const formatted = numValue.toFixed(decimalPlaces);
+
+  // Remove trailing zeros after the decimal point
+  return formatted.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+};
