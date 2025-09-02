@@ -68,58 +68,105 @@ export function getVolumePerUnit(material: Material, stockEntry: StockEntry | nu
  * Calculate comprehensive cost breakdown for a material
  */
 export function calculateCostBreakdown(material: Material, stockEntry: StockEntry | null, quantity: number, purchasedUnit: string): CostCalculationResult {
-  const costPerUnit = calculateCostPerUnit(material, stockEntry, purchasedUnit);
+  const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+  const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
+  const baseCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
 
+  let costPerUnit = baseCost;
   let costPerMl: number | undefined;
   let costPerCl: number | undefined;
   let costPerBaseUnit: number | undefined;
   let volumePerUnit: number | undefined;
 
-  // Calculate volume-based costs for package materials
-  if (material.unitType === "package" && (material.baseUnit === "ml" || material.baseUnit === "cl" || material.baseUnit === "l")) {
-    volumePerUnit = getVolumePerUnit(material, stockEntry);
+  // Handle mass materials (kg, g, lb, oz)
+  if (material.unitType === "mass") {
+    const baseUnit = material.baseUnit || "g";
+    const inputUnit = material.inputUnit || baseUnit;
+    
+    // If the purchased unit is different from the input unit, convert the cost
+    if (purchasedUnit === "g" && inputUnit === "kg") {
+      costPerUnit = baseCost / 1000; // 1 kg = 1000 g
+    } else if (purchasedUnit === "kg" && inputUnit === "g") {
+      costPerUnit = baseCost * 1000; // 1000 g = 1 kg
+    } else if (purchasedUnit === "oz" && inputUnit === "lb") {
+      costPerUnit = baseCost / 16; // 1 lb = 16 oz
+    } else if (purchasedUnit === "lb" && inputUnit === "oz") {
+      costPerUnit = baseCost * 16; // 16 oz = 1 lb
+    } else if (purchasedUnit === inputUnit) {
+      costPerUnit = baseCost; // Same unit, no conversion needed
+    }
+  }
+  // Handle volume materials (L, ml, cl)
+  else if (material.unitType === "volume") {
+    const baseUnit = material.baseUnit || "ml";
+    const inputUnit = material.inputUnit || baseUnit;
+    
+    // If the purchased unit is different from the input unit, convert the cost
+    if (purchasedUnit === "ml" && inputUnit === "L") {
+      costPerUnit = baseCost / 1000; // 1 L = 1000 ml
+    } else if (purchasedUnit === "L" && inputUnit === "ml") {
+      costPerUnit = baseCost * 1000; // 1000 ml = 1 L
+    } else if (purchasedUnit === "cl" && inputUnit === "L") {
+      costPerUnit = baseCost / 100; // 1 L = 100 cl
+    } else if (purchasedUnit === "L" && inputUnit === "cl") {
+      costPerUnit = baseCost * 100; // 100 cl = 1 L
+    } else if (purchasedUnit === "ml" && inputUnit === "cl") {
+      costPerUnit = baseCost / 10; // 1 cl = 10 ml
+    } else if (purchasedUnit === "cl" && inputUnit === "ml") {
+      costPerUnit = baseCost * 10; // 10 ml = 1 cl
+    } else if (purchasedUnit === inputUnit) {
+      costPerUnit = baseCost; // Same unit, no conversion needed
+    }
+  }
+  // Handle package materials
+  else if (material.unitType === "package") {
+    const packageQuantity = material.packageQuantity || 1;
 
-    if (volumePerUnit > 0) {
-      const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
+    if (purchasedUnit === "ml" && (material.baseUnit === "ml" || material.baseUnit === "cl" || material.baseUnit === "l")) {
+      volumePerUnit = getVolumePerUnit(material, stockEntry);
+      if (volumePerUnit > 0) {
+        costPerUnit = baseCost / volumePerUnit;
+        costPerMl = costPerUnit;
+        costPerCl = costPerMl * 10;
+      }
+    } else if (purchasedUnit === "piece" || purchasedUnit === "bottle") {
+      costPerUnit = packageQuantity > 0 ? baseCost / packageQuantity : baseCost;
+    } else {
+      costPerUnit = baseCost;
+    }
 
-      const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
+    // Calculate volume-based costs for package materials
+    if (material.baseUnit === "ml" || material.baseUnit === "cl" || material.baseUnit === "l") {
+      volumePerUnit = getVolumePerUnit(material, stockEntry);
 
-      const bottleCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
+      if (volumePerUnit > 0) {
+        costPerMl = baseCost / volumePerUnit;
+        costPerCl = costPerMl * 10;
 
-      // Calculate cost per ml and cl based on bottle cost
-      costPerMl = bottleCost / volumePerUnit;
-      costPerCl = costPerMl * 10;
-
-      // Calculate cost per base unit
-      if (material.baseUnit === "cl") {
-        costPerBaseUnit = costPerCl;
-      } else if (material.baseUnit === "ml") {
-        costPerBaseUnit = costPerMl;
-      } else if (material.baseUnit === "l") {
-        costPerBaseUnit = (bottleCost / volumePerUnit) * 1000; // ml to l conversion
+        // Calculate cost per base unit
+        if (material.baseUnit === "cl") {
+          costPerBaseUnit = costPerCl;
+        } else if (material.baseUnit === "ml") {
+          costPerBaseUnit = costPerMl;
+        } else if (material.baseUnit === "l") {
+          costPerBaseUnit = (baseCost / volumePerUnit) * 1000; // ml to l conversion
+        }
       }
     }
   }
 
-  // Calculate total cost with smart rounding for whole bottles
+  // Calculate total cost
   let totalCost = quantity * costPerUnit;
 
-  // For ml quantities in bottle-based materials, use proportional calculation
+  // For ml quantities in bottle-based materials, use proportional calculation with smart rounding
   if (material.unitType === "package" && purchasedUnit === "ml" && volumePerUnit && volumePerUnit > 0) {
-    const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
-
-    const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
-
-    const bottleCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
     const bottleFraction = quantity / volumePerUnit;
-
-    // Calculate proportional cost
-    totalCost = bottleFraction * bottleCost;
+    totalCost = bottleFraction * baseCost;
 
     // Smart rounding: if very close to whole bottles (within 1%), use exact bottle cost
     const nearestWholeBottle = Math.round(bottleFraction);
     if (Math.abs(bottleFraction - nearestWholeBottle) < 0.01 && nearestWholeBottle > 0) {
-      totalCost = nearestWholeBottle * bottleCost;
+      totalCost = nearestWholeBottle * baseCost;
     }
   }
 

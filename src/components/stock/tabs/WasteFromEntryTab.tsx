@@ -1,13 +1,61 @@
 import { StockFormData, WasteFromEntryTabProps } from "@/types/inventory";
 import { Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StockEntryForm } from "../form/StockEntryForm";
-import { getCurrentStockDisplay } from "@/utils/getCurrentStockDisplay";
+import { calculateCostPerUnit, calculateCostBreakdown, formatQuantity,  } from "@/utils/costCalculations";
 import { OriginalEntryCostInfo } from "./OriginalEntryCostInfo";
+import { getCurrentStockDisplay } from "@/utils/getCurrentStockDisplay";
 
-export function WasteFromEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onRecordWaste, onCancel }: WasteFromEntryTabProps) {
+export function WasteFromEntryTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onRecordWaste, onCancel, watchedWasteQuantity, watchedUnit, lastChangedField }: WasteFromEntryTabProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (lastChangedField === "totalCost") return;
+
+    const quantity = parseFloat(watchedWasteQuantity || "0");
+    
+    if (selectedMaterial && !isNaN(quantity) && quantity > 0 && watchedUnit) {
+      // Use the enhanced cost calculation system
+      const costResult = calculateCostBreakdown(selectedMaterial, stockEntry, quantity, watchedUnit);
+      
+      console.log(" WasteFromEntryTab cost calculation:", {
+        material: selectedMaterial.name,
+        quantity,
+        unit: watchedUnit,
+        costResult
+      });
+
+      // Update cost per unit field
+      const formattedCostPerUnit = costResult.costPerUnit.toFixed(6);
+      form.setValue("costPerPurchasedUnit", formattedCostPerUnit, { shouldValidate: true });
+
+      // Update total cost with smart formatting
+      let formattedTotalCost;
+      if (costResult.totalCost < 0.01 && costResult.totalCost > 0) {
+        // For very small values, show up to 4 decimal places
+        formattedTotalCost = costResult.totalCost.toFixed(4);
+      } else if (costResult.totalCost < 0.1 && costResult.totalCost > 0) {
+        // For small values, show up to 3 decimal places
+        formattedTotalCost = costResult.totalCost.toFixed(3);
+      } else {
+        // For larger values, show 2 decimal places
+        formattedTotalCost = costResult.totalCost.toFixed(2);
+      }
+      
+      // Remove trailing zeros and convert to string
+      formattedTotalCost = parseFloat(formattedTotalCost).toString();
+      form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
+
+      // Clear any previous errors
+      form.clearErrors("costPerPurchasedUnit");
+      form.clearErrors("totalCost");
+    } else {
+      // Clear fields if invalid inputs
+      form.setValue("costPerPurchasedUnit", "0", { shouldValidate: true });
+      form.setValue("totalCost", "0", { shouldValidate: true });
+    }
+  }, [watchedWasteQuantity, watchedUnit, selectedMaterial, stockEntry, form, lastChangedField]);
 
   const onSubmit = async (data: StockFormData) => {
     if (isSubmitting) {
@@ -72,7 +120,7 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
 
       await onRecordWaste(wasteData);
     } catch (error) {
-      console.error("❌ Error recording waste:", error);
+      console.error(" Error recording waste:", error);
 
       // Extract specific error message from API response
       let errorMessage = "Failed to record waste. Please try again.";

@@ -1134,6 +1134,9 @@ export interface WasteFromEntryTabProps {
   watchedQuantity: string;
   watchedCostPerUnit: string;
   watchedTotalCost: string;
+  watchedWasteQuantity: string;
+  watchedUnit: string;
+  lastChangedField: string | null;
   stockEntry: StockEntry;
   onRecordWaste: (data: StockFormData & { stockEntryId: string }) => void;
   onCancel: () => void;

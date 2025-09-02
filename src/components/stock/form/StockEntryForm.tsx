@@ -12,6 +12,7 @@ import { CostBreakdown } from "../CostBreakdown";
 import { useEffect } from "react";
 import type { Path, PathValue, UseFormReturn } from "react-hook-form";
 import { convertMass, convertVolume, formatCurrencyUI, formatNumberUI, isMassUnit, isVolumeUnit, parseCurrency } from "@/utils/conversionLogic";
+import { calculateCostBreakdown } from "@/utils/costCalculations";
 import { VirtualSelect } from "@/components/ui/VirtualSelect";
 import { Material } from "@/types/inventory";
 import { fmtCPU, fmtTotalCost, getFormattedTotalCostLabel } from "@/utils/getCurrentStockDisplay";
@@ -122,58 +123,52 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     console.log("🔍 recomputeFromQuantity CALLED with:", qtyStr);
     form.setValue(quantityFieldName as any, qtyStr, { shouldValidate: true });
     const qty = toNumber(qtyStr);
-    const total = toNumber(form.getValues("totalCost") as string);
-    const cpu = toNumber(form.getValues("costPerPurchasedUnit") as string);
     const currentUnit = form.getValues(unitFieldName as any) as string;
 
-    console.log("🔍 INPUTS:", { qty, total, cpu, currentUnit });
+    console.log("🔍 INPUTS:", { qty, currentUnit, selectedMaterial: selectedMaterial?.name });
 
     if (isNaN(qty) || qty <= 0) {
-      console.log("🔍 Invalid quantity, setting totalCost to empty");
+      console.log("🔍 Invalid quantity, clearing fields");
       form.setValue("totalCost", "", { shouldValidate: true });
+      form.setValue("costPerPurchasedUnit", "", { shouldValidate: true });
       return;
     }
 
-    if (!isNaN(cpu) && cpu > 0) {
-      // Calculate the total cost
-      const calculatedTotal = qty * cpu;
-      console.log("🔍 Calculated total cost:", calculatedTotal, "from qty:", qty, "and cpu:", cpu);
+    if (selectedMaterial && currentUnit) {
+      // Use enhanced cost calculation system
+      const costResult = calculateCostBreakdown(selectedMaterial, stockEntry, qty, currentUnit);
+      
+      console.log("🔍 Enhanced cost calculation result:", costResult);
 
-      // Format with proper precision based on unit
-      if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
-        console.log("🔍 Using mass unit precision for:", currentUnit);
-        // For small mass units, use appropriate precision
-        if (calculatedTotal < 0.01 && calculatedTotal > 0) {
-          console.log("🔍 Very small value, using 4 decimal places");
-          const formattedValue = calculatedTotal.toFixed(4);
-          console.log("🔍 Setting totalCost to:", formattedValue);
-          form.setValue("totalCost", formattedValue, { shouldValidate: true });
-        } else if (calculatedTotal < 0.1 && calculatedTotal > 0) {
-          console.log("🔍 Small value, using 3 decimal places");
-          const formattedValue = calculatedTotal.toFixed(3);
-          console.log("🔍 Setting totalCost to:", formattedValue);
-          form.setValue("totalCost", formattedValue, { shouldValidate: true });
-        } else {
-          console.log("🔍 Normal value, using fmtMoney");
-          const formattedValue = fmtMoney(calculatedTotal);
-          console.log("🔍 Setting totalCost to:", formattedValue);
-          form.setValue("totalCost", formattedValue, { shouldValidate: true });
-        }
-      } else {
-        console.log("🔍 Using standard formatting with fmtMoney");
-        const formattedValue = fmtMoney(calculatedTotal);
-        console.log("🔍 Setting totalCost to:", formattedValue);
-        form.setValue("totalCost", formattedValue, { shouldValidate: true });
-      }
-    } else if (!isNaN(total)) {
-      console.log("🔍 Computing CPU from total:", total, "and qty:", qty);
-      const formattedCPU = fmtCPU(total / qty, currentUnit);
-      console.log("🔍 Setting costPerPurchasedUnit to:", formattedCPU);
+      // Update cost per unit
+      const formattedCPU = fmtCPU(costResult.costPerUnit, currentUnit);
       form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: true });
+
+      // Update total cost with smart formatting
+      let formattedTotalCost;
+      if (costResult.totalCost < 0.01 && costResult.totalCost > 0) {
+        formattedTotalCost = costResult.totalCost.toFixed(4);
+      } else if (costResult.totalCost < 0.1 && costResult.totalCost > 0) {
+        formattedTotalCost = costResult.totalCost.toFixed(3);
+      } else {
+        formattedTotalCost = fmtMoney(costResult.totalCost);
+      }
+      
+      console.log("🔍 Setting totalCost to:", formattedTotalCost);
+      form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
     } else {
-      console.log("🔍 No valid inputs, clearing fields");
-      form.setValue("totalCost", "", { shouldValidate: true });
-      form.setValue("costPerPurchasedUnit", "", { shouldValidate: true });
+      // Fallback to basic calculation if no material selected
+      const cpu = toNumber(form.getValues("costPerPurchasedUnit") as string);
+      const total = toNumber(form.getValues("totalCost") as string);
+      
+      if (!isNaN(cpu) && cpu > 0) {
+        const calculatedTotal = qty * cpu;
+        const formattedValue = fmtMoney(calculatedTotal);
+        form.setValue("totalCost", formattedValue, { shouldValidate: true });
+      } else if (!isNaN(total)) {
+        const formattedCPU = fmtCPU(total / qty, currentUnit);
+        form.setValue("costPerPurchasedUnit", formattedCPU, { shouldValidate: true });
+      }
     }
 
     console.log("🔍 AFTER recomputeFromQuantity, form values:", {
@@ -243,7 +238,6 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     form.setValue("costPerPurchasedUnit", cpuStr, { shouldValidate: true });
     const cpu = toNumber(cpuStr);
     const qty = toNumber(form.getValues(quantityFieldName as any) as string);
-    const total = toNumber(form.getValues("totalCost") as string);
     const currentUnit = form.getValues(unitFieldName as any) as string;
 
     if (isNaN(cpu) || cpu <= 0) {
@@ -252,26 +246,28 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     }
 
     if (!isNaN(qty) && qty > 0) {
-      // Calculate the total cost
+      // Calculate the total cost with enhanced precision
       const calculatedTotal = qty * cpu;
 
-      // Format with proper precision based on unit
-      if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
-        // For small mass units, use appropriate precision
-        if (calculatedTotal < 0.01 && calculatedTotal > 0) {
-          form.setValue("totalCost", calculatedTotal.toFixed(4), { shouldValidate: true });
-        } else if (calculatedTotal < 0.1 && calculatedTotal > 0) {
-          form.setValue("totalCost", calculatedTotal.toFixed(3), { shouldValidate: true });
-        } else {
-          form.setValue("totalCost", fmtMoney(calculatedTotal), { shouldValidate: true });
-        }
+      // Format with smart precision based on value size and unit type
+      let formattedTotalCost;
+      if (calculatedTotal < 0.01 && calculatedTotal > 0) {
+        formattedTotalCost = calculatedTotal.toFixed(4);
+      } else if (calculatedTotal < 0.1 && calculatedTotal > 0) {
+        formattedTotalCost = calculatedTotal.toFixed(3);
       } else {
-        form.setValue("totalCost", fmtMoney(calculatedTotal), { shouldValidate: true });
+        formattedTotalCost = fmtMoney(calculatedTotal);
       }
-    } else if (!isNaN(total) && total > 0) {
-      const calcQty = total / cpu;
-      if (isFinite(calcQty) && !isNaN(calcQty) && calcQty > 0) {
-        form.setValue(quantityFieldName as any, formatNumberUI(calcQty, currentUnit), { shouldValidate: true });
+      
+      form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
+    } else {
+      // Calculate quantity from total cost if available
+      const total = toNumber(form.getValues("totalCost") as string);
+      if (!isNaN(total) && total > 0) {
+        const calcQty = total / cpu;
+        if (isFinite(calcQty) && !isNaN(calcQty) && calcQty > 0) {
+          form.setValue(quantityFieldName as any, formatNumberUI(calcQty, currentUnit), { shouldValidate: true });
+        }
       }
     }
   };
