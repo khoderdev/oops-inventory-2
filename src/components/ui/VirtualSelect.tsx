@@ -12,10 +12,12 @@ type VirtualSelectProps = {
   onChange: (item: Item | null) => void;
   placeholder?: string;
   height?: number;
+  inputHeight?: string;
   rowHeight?: number;
+  disabled?: boolean;
 };
 
-export const VirtualSelect: React.FC<VirtualSelectProps> = ({ items, value, onChange, placeholder = "Select...", height = 200, rowHeight = 40 }) => {
+export const VirtualSelect: React.FC<VirtualSelectProps> = ({ items, value, onChange, placeholder = "Select...", height = 200, inputHeight, rowHeight = 40, disabled = false }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +73,7 @@ export const VirtualSelect: React.FC<VirtualSelectProps> = ({ items, value, onCh
   };
 
   const toggleDropdown = () => {
+    if (disabled) return;
     setOpen(!open);
     setSearch("");
     if (!open && inputRef.current) {
@@ -87,16 +90,22 @@ export const VirtualSelect: React.FC<VirtualSelectProps> = ({ items, value, onCh
           type="text"
           value={open ? search : value?.label || ""}
           onChange={e => {
+            if (disabled) return;
             setSearch(e.target.value);
             if (!open) setOpen(true);
           }}
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            if (disabled) return;
+            setOpen(true);
+          }}
           placeholder={placeholder}
-          className="w-full border rounded-md px-3 py-2 bg-white cursor-pointer outline-none pr-10"
+          disabled={disabled}
+          className={`w-full border rounded-md px-3 py-2 ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white cursor-pointer'} outline-none pr-10`}
+          style={{ height: inputHeight }}
         />
 
         {/* Clear button (X icon) */}
-        {value && value.id && !open && (
+        {value && value.id && !open && !disabled && (
           <button type="button" onClick={handleClear} className="absolute inset-y-0 right-6 flex items-center pr-1 text-gray-400 hover:text-gray-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
@@ -105,7 +114,7 @@ export const VirtualSelect: React.FC<VirtualSelectProps> = ({ items, value, onCh
         )}
 
         {/* Dropdown toggle button (arrow) */}
-        <button type="button" onClick={toggleDropdown} className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600">
+        <button type="button" onClick={toggleDropdown} disabled={disabled} className={`absolute inset-y-0 right-0 flex items-center pr-2 ${disabled ? 'text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
           {open ? (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />

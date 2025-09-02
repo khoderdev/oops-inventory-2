@@ -363,12 +363,14 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
               name="materialId"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel className="flex items-center gap-1">
+                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     Material <span className="text-red-500">*</span>
                   </FormLabel>
                   <FormControl>
                     <div className="w-full">
                       <VirtualSelect
+                        inputHeight="45px"
+                        disabled
                         items={materials.map(material => {
                           const displayUnit = material.unitType === "package" && material.inputUnit ? material.inputUnit : material.baseUnit;
                           return {
