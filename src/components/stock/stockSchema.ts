@@ -4,9 +4,13 @@ import { z } from "zod";
 const baseStockSchema = {
   materialId: z.string().min(1, "Please select a material"),
   supplier: z.string().optional(),
-  purchasedQuantity: z.union([z.number(), z.string()])
-    .pipe(z.coerce.number().refine(val => val > 0, "Quantity must be greater than 0"))
-    .optional(),
+  purchasedQuantity: z.union([z.number(), z.string(), z.undefined()])
+    .optional()
+    .refine((val) => {
+      if (val === undefined || val === "" || val === null) return true;
+      const num = typeof val === "string" ? parseFloat(val) : val;
+      return !isNaN(num) && num > 0;
+    }, "Quantity must be greater than 0"),
   costPerPurchasedUnit: z.union([z.number(), z.string()])
     .pipe(z.coerce.number().refine(val => val >= 0, "Cost must be positive")),
   totalCost: z.union([z.number(), z.string()])

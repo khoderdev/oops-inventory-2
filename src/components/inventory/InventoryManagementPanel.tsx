@@ -616,6 +616,8 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
           wasteReason: data.wasteReason || "Unknown",
           notes: data.notes
         };
+        console.log("🚀 [InventoryManagementPanel] Sending wasteData to API:", wasteData);
+        console.log("🚀 [InventoryManagementPanel] stockEntryId:", data.stockEntryId);
         await stockAPI.wasteFromSpecificEntry(data.stockEntryId, wasteData);
         await refresh("stock");
         await refresh("materials");

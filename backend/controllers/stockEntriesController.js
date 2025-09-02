@@ -814,7 +814,13 @@ const stockEntriesController = {
       }
       // Check availability using calculated total fields (aligned with stock deduction logic)
       let availableQuantity, availableUnit, fieldToCheck;
-      if (material.unitType === "volume" || (material.unitType === "package" && unit === "ml")) {
+      
+      // For package materials (like bottles), always use totalVolume if available
+      if (material.unitType === "package" && stockEntry.totalVolume > 0) {
+        availableQuantity = stockEntry.totalVolume;
+        availableUnit = stockEntry.volumeUnit || "ml";
+        fieldToCheck = "totalVolume";
+      } else if (material.unitType === "volume") {
         availableQuantity = stockEntry.totalVolume || 0;
         availableUnit = stockEntry.volumeUnit || "ml";
         fieldToCheck = "totalVolume";
@@ -836,9 +842,10 @@ const stockEntriesController = {
       // Convert waste quantity to match the available quantity's unit for comparison
       let wasteInAvailableUnit = numericWasteQuantity;
       if (unit !== availableUnit) {
-        if (material.unitType === "volume" || (material.unitType === "package" && unit === "ml")) {
+        if (material.unitType === "volume" || material.unitType === "package") {
           const { convertVolume } = await import("../utils/volumeConversionUtils.js");
           wasteInAvailableUnit = convertVolume(numericWasteQuantity, unit, availableUnit, material);
+          console.log(`🔄 [wasteFromSpecificEntry] Converting ${numericWasteQuantity} ${unit} to ${wasteInAvailableUnit} ${availableUnit} for ${material.name}`);
         } else if (material.unitType === "mass") {
           const massConversions = { kg: 1000, g: 1, lb: 453.592, oz: 28.3495 };
           const wasteUnitFactor = massConversions[unit.toLowerCase()];
@@ -846,13 +853,12 @@ const stockEntriesController = {
           if (wasteUnitFactor && availableUnitFactor) {
             wasteInAvailableUnit = numericWasteQuantity * (wasteUnitFactor / availableUnitFactor);
           }
-        } else if (material.unitType === "package" && material.packageQuantity > 0) {
-          if (unit === material.baseUnit && availableUnit === stockEntry.purchasedUnit) {
-            wasteInAvailableUnit = numericWasteQuantity / material.packageQuantity;
-          } else if (unit === stockEntry.purchasedUnit && availableUnit === material.baseUnit) {
-            wasteInAvailableUnit = numericWasteQuantity * material.packageQuantity;
-          }
         }
+      } else if (material.unitType === "package" && unit === "bottle" && availableUnit === "ml") {
+        // Special case: wasting bottles but checking against ml availability
+        const volumePerBottle = stockEntry.volumePerUnit || material.volumePerUnit || 700;
+        wasteInAvailableUnit = numericWasteQuantity * volumePerBottle;
+        console.log(`🔄 [wasteFromSpecificEntry] Converting ${numericWasteQuantity} bottle(s) to ${wasteInAvailableUnit} ml for ${material.name}`);
       }
 
       if (wasteInAvailableUnit > availableQuantity) {
@@ -876,25 +882,21 @@ const stockEntriesController = {
         newTotalPieces = Math.max(0, newTotalPieces - wasteInAvailableUnit);
       }
 
-      // Update legacy fields for backward compatibility
-      let newPurchasedQuantity = isWastingAll ? 0 : Math.max(0, parseFloat(stockEntry.purchasedQuantity) - wasteInOriginalUnit);
-      let newIndividualQuantity = isWastingAll ? 0 : 0;
-      let newIndividualUnit = isWastingAll ? material.baseUnit : stockEntry.purchasedIndividualUnit || material.baseUnit;
-
+      // Update legacy fields for backward compatibility - only clear if actually wasting all
+      let newPurchasedQuantity, newIndividualQuantity, newIndividualUnit;
+      
       if (isWastingAll) {
+        newPurchasedQuantity = 0;
         newIndividualQuantity = 0;
         newIndividualUnit = material.baseUnit;
-        newPurchasedQuantity = 0;
-      } else if (material.unitType === "package" && material.packageQuantity && material.packageQuantity > 0) {
-        newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - wasteInSmallerUnit);
-        newIndividualUnit = material.baseUnit;
-      } else if (material.unitType === "mass") {
-        newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - wasteInSmallerUnit);
-        newIndividualUnit = material.baseUnit;
       } else {
-        newIndividualQuantity = Math.max(0, (stockEntry.purchasedIndividualQuantity || 0) - numericWasteQuantity);
-        newIndividualUnit = stockEntry.purchasedIndividualUnit || stockEntry.purchasedUnit;
+        // Preserve existing values - don't modify during partial waste
+        newPurchasedQuantity = stockEntry.purchasedQuantity;
+        newIndividualQuantity = stockEntry.purchasedIndividualQuantity;
+        newIndividualUnit = stockEntry.purchasedIndividualUnit || material.baseUnit;
       }
+
+      // Don't modify individual quantities during partial waste - preserve them
       // Calculate cost reductions based on calculated total fields
       let costReduction = 0;
       let newCostPerVolumeUnit = stockEntry.costPerVolumeUnit || 0;
@@ -903,7 +905,8 @@ const stockEntriesController = {
 
       if (fieldToCheck === "totalVolume" && stockEntry.totalVolume > 0) {
         costReduction = wasteInAvailableUnit * (stockEntry.costPerVolumeUnit || 0);
-        newCostPerVolumeUnit = newTotalVolume > 0 ? (stockEntry.totalVolume * stockEntry.costPerVolumeUnit - costReduction) / newTotalVolume : 0;
+        // Preserve costPerVolumeUnit - don't recalculate unless wasting all
+        newCostPerVolumeUnit = isWastingAll ? 0 : (stockEntry.costPerVolumeUnit || 0);
       } else if (fieldToCheck === "totalMass" && stockEntry.totalMass > 0) {
         costReduction = wasteInAvailableUnit * (stockEntry.costPerMassUnit || 0);
         newCostPerMassUnit = newTotalMass > 0 ? (stockEntry.totalMass * stockEntry.costPerMassUnit - costReduction) / newTotalMass : 0;
@@ -917,7 +920,8 @@ const stockEntriesController = {
       }
 
       const newTotalCost = Math.max(0, parseFloat((parseFloat(stockEntry.totalCost) - costReduction).toFixed(6)));
-      const newCostPerBaseUnit = newIndividualQuantity > 0 ? parseFloat((newTotalCost / newIndividualQuantity).toFixed(6)) : 0;
+      // Preserve costPerBaseUnit - don't recalculate unless wasting all
+      const newCostPerBaseUnit = isWastingAll ? 0 : (stockEntry.costPerBaseUnit || 0);
       let newPurchasedConvertedQuantity;
       let newPurchasedConvertedUnit;
       if (material.unitType === "mass") {
@@ -963,6 +967,13 @@ const stockEntriesController = {
         costPerVolumeUnit: newCostPerVolumeUnit,
         costPerMassUnit: newCostPerMassUnit,
         costPerPiece: newCostPerPiece,
+
+        // Preserve all metadata fields - don't clear them during partial waste
+        volumePerUnit: stockEntry.volumePerUnit,
+        volumeUnit: stockEntry.volumeUnit,
+        massPerUnit: stockEntry.massPerUnit,
+        massUnit: stockEntry.massUnit,
+        piecesPerPackage: stockEntry.piecesPerPackage,
 
         // Update legacy fields (for backward compatibility)
         purchasedQuantity: newPurchasedQuantity,
