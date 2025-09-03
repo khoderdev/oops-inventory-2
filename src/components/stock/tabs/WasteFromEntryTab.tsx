@@ -13,37 +13,23 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
   useEffect(() => {
     if (lastChangedField === "totalCost") return;
     const quantity = parseFloat(watchedWasteQuantity || "0");
-    
     if (selectedMaterial && !isNaN(quantity) && quantity > 0 && watchedUnit) {
-      // Use the enhanced cost calculation system
       const costResult = calculateCostBreakdown(selectedMaterial, stockEntry, quantity, watchedUnit);
-      
-      // Update cost per unit field
       const formattedCostPerUnit = costResult.costPerUnit.toFixed(6);
       form.setValue("costPerPurchasedUnit", formattedCostPerUnit, { shouldValidate: true });
-
-      // Update total cost with smart formatting
       let formattedTotalCost;
       if (costResult.totalCost < 0.01 && costResult.totalCost > 0) {
-        // For very small values, show up to 4 decimal places
         formattedTotalCost = costResult.totalCost.toFixed(4);
       } else if (costResult.totalCost < 0.1 && costResult.totalCost > 0) {
-        // For small values, show up to 3 decimal places
         formattedTotalCost = costResult.totalCost.toFixed(3);
       } else {
-        // For larger values, show 2 decimal places
         formattedTotalCost = costResult.totalCost.toFixed(2);
       }
-      
-      // Remove trailing zeros and convert to string
       formattedTotalCost = parseFloat(formattedTotalCost).toString();
       form.setValue("totalCost", formattedTotalCost, { shouldValidate: true });
-
-      // Clear any previous errors
       form.clearErrors("costPerPurchasedUnit");
       form.clearErrors("totalCost");
     } else {
-      // Clear fields if invalid inputs
       form.setValue("costPerPurchasedUnit", "0", { shouldValidate: true });
       form.setValue("totalCost", "0", { shouldValidate: true });
     }
@@ -58,8 +44,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
       if (typeof data.materialId === "number") {
         form.setValue("materialId", String(data.materialId));
       }
-
-      // Get current form values if data is incomplete
       const currentValues = form.getValues();
       const wasteQuantity = parseFloat(String(data.wasteQuantity || currentValues.wasteQuantity || "0"));
       const costPerPurchasedUnit = parseFloat(String(data.costPerPurchasedUnit || currentValues.costPerPurchasedUnit || "0"));
@@ -114,7 +98,6 @@ export function WasteFromEntryTab({ form, materials, availableUnits, selectedMat
     } catch (error) {
       console.error(" Error recording waste:", error);
 
-      // Extract specific error message from API response
       let errorMessage = "Failed to record waste. Please try again.";
       if (error?.response?.data?.error) {
         errorMessage = error.response.data.error;

@@ -504,9 +504,15 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
         let additionalQuantity: number;
         if (typeof data.purchasedQuantity === 'string') {
           console.log("📊 HANDLER: Parsing string quantity:", data.purchasedQuantity);
-          // Remove any non-numeric characters except decimal point
-          const cleanedQuantity = data.purchasedQuantity.replace(/[^0-9.]/g, '');
-          additionalQuantity = parseFloat(cleanedQuantity);
+          // Handle both formatted strings (e.g., "500 g") and numeric strings (e.g., "500")
+          // First try direct parsing which works for numeric strings
+          additionalQuantity = parseFloat(data.purchasedQuantity);
+          
+          // If that fails or gives NaN, try cleaning the string
+          if (isNaN(additionalQuantity)) {
+            const cleanedQuantity = data.purchasedQuantity.replace(/[^0-9.]/g, '');
+            additionalQuantity = parseFloat(cleanedQuantity);
+          }
         } else if (typeof data.purchasedQuantity === 'number') {
           console.log("📊 HANDLER: Using number quantity:", data.purchasedQuantity);
           additionalQuantity = data.purchasedQuantity;
@@ -531,7 +537,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
         const addData = {
           additionalQuantity: additionalQuantity, // Must be a number
           unit: unit,                            // Must be a string
-          additionDate: new Date(),              // Current date
+          additionDate: data.purchaseDate || new Date(), // Use provided date or current date
           notes: data.notes || ""                // Optional notes
         };
         
@@ -547,7 +553,7 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
         setShowStockForm(false);
         toast({
           title: "Added",
-          description: "Stock added",
+          description: "Stock added successfully",
           duration: 1000
         });
       } catch (error) {

@@ -79,7 +79,7 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
 
   const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
   const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
-  
+
   // Validate that we have valid costs
   if (isNaN(stockEntryCost) || isNaN(materialCost)) {
     console.warn("🚨 Invalid costs in calculateCostBreakdown:", { stockEntryCost, materialCost });
@@ -88,28 +88,15 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
       totalCost: 0
     };
   }
-  
+
   // Always use the original material/stock entry cost, not the current form cost
   let baseCost = materialCost;
   let originalUnit = material.inputUnit || material.baseUnit || "g";
-  
+
   if (stockEntry && stockEntryCost > 0) {
     baseCost = stockEntryCost;
     originalUnit = stockEntry.purchasedUnit || originalUnit;
   }
-
-  console.log("🔍 calculateCostBreakdown:", {
-    material: material.name,
-    unitType: material.unitType,
-    baseUnit: material.baseUnit,
-    inputUnit: material.inputUnit,
-    stockEntryUnit: stockEntry?.purchasedUnit,
-    purchasedUnit,
-    stockEntryCost,
-    materialCost,
-    baseCost,
-    quantity
-  });
 
   let costPerUnit = baseCost;
   let costPerMl: number | undefined;
@@ -117,34 +104,19 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
   let costPerBaseUnit: number | undefined;
   let volumePerUnit: number | undefined;
 
-  // Handle mass materials (kg, g, lb, oz)
   if (material.unitType === "mass") {
-    console.log("🔍 Mass material conversion:", {
-      originalUnit,
-      purchasedUnit,
-      baseCost
-    });
-    
-    // Convert cost based on the relationship between original cost unit and desired unit
     if (purchasedUnit === "g" && originalUnit === "kg") {
       costPerUnit = baseCost / 1000; // 1 kg = 1000 g, so cost per g = cost per kg / 1000
-      console.log("🔄 Converting kg to g:", { baseCost, costPerUnit });
     } else if (purchasedUnit === "kg" && originalUnit === "g") {
       costPerUnit = baseCost * 1000; // 1000 g = 1 kg, so cost per kg = cost per g * 1000
-      console.log("🔄 Converting g to kg:", { baseCost, costPerUnit });
     } else if (purchasedUnit === "oz" && originalUnit === "lb") {
       costPerUnit = baseCost / 16; // 1 lb = 16 oz
     } else if (purchasedUnit === "lb" && originalUnit === "oz") {
       costPerUnit = baseCost * 16; // 16 oz = 1 lb
     } else if (purchasedUnit === originalUnit) {
       costPerUnit = baseCost; // Same unit, no conversion needed
-      console.log("🔄 Same unit, no conversion:", { purchasedUnit, originalUnit, costPerUnit });
     } else {
-      // Handle cross-conversions (g <-> oz, kg <-> lb, etc.)
-      // Convert to grams first, then to target unit
       let costPerGram = baseCost;
-      
-      // Convert original cost to cost per gram
       if (originalUnit === "kg") {
         costPerGram = baseCost / 1000;
       } else if (originalUnit === "lb") {
@@ -152,8 +124,7 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
       } else if (originalUnit === "oz") {
         costPerGram = baseCost / 28.3495; // 1 oz = 28.3495 g
       }
-      
-      // Convert from cost per gram to target unit
+
       if (purchasedUnit === "g") {
         costPerUnit = costPerGram;
       } else if (purchasedUnit === "kg") {
@@ -163,12 +134,8 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
       } else if (purchasedUnit === "oz") {
         costPerUnit = costPerGram * 28.3495;
       }
-      
-      console.log("🔄 Cross-conversion:", { originalUnit, purchasedUnit, costPerGram, costPerUnit });
     }
-  }
-  // Handle volume materials (L, ml, cl)
-  else if (material.unitType === "volume") {
+  } else if (material.unitType === "volume") {
     if (purchasedUnit === "ml" && originalUnit === "L") {
       costPerUnit = baseCost / 1000; // 1 L = 1000 ml
     } else if (purchasedUnit === "L" && originalUnit === "ml") {
@@ -190,7 +157,7 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
       } else if (originalUnit === "cl") {
         costPerMl = baseCost / 10;
       }
-      
+
       if (purchasedUnit === "ml") {
         costPerUnit = costPerMl;
       } else if (purchasedUnit === "L") {
@@ -215,7 +182,7 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
         costPerUnit = baseCost;
       }
     } else if (purchasedUnit === "piece" || purchasedUnit === "bottle") {
-      costPerUnit = (packageQuantity > 0 && !isNaN(packageQuantity)) ? baseCost / packageQuantity : baseCost;
+      costPerUnit = packageQuantity > 0 && !isNaN(packageQuantity) ? baseCost / packageQuantity : baseCost;
     } else {
       costPerUnit = baseCost;
     }
@@ -242,13 +209,9 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
 
   // Calculate total cost
   let totalCost = quantity * costPerUnit;
-
-  // For ml quantities in bottle-based materials, use proportional calculation with smart rounding
   if (material.unitType === "package" && purchasedUnit === "ml" && volumePerUnit && volumePerUnit > 0) {
     const bottleFraction = quantity / volumePerUnit;
     totalCost = bottleFraction * baseCost;
-
-    // Smart rounding: if very close to whole bottles (within 1%), use exact bottle cost
     const nearestWholeBottle = Math.round(bottleFraction);
     if (Math.abs(bottleFraction - nearestWholeBottle) < 0.01 && nearestWholeBottle > 0) {
       totalCost = nearestWholeBottle * baseCost;
@@ -264,9 +227,6 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
     totalCost: isNaN(totalCost) ? 0 : totalCost,
     volumePerUnit: volumePerUnit !== undefined && isNaN(volumePerUnit) ? undefined : volumePerUnit
   };
-
-  console.log("🔍 calculateCostBreakdown result:", result);
-  
   // Double-check for any remaining NaN values
   if (isNaN(result.costPerUnit) || isNaN(result.totalCost)) {
     console.error("🚨 NaN detected in final result, returning safe defaults:", result);
@@ -275,7 +235,7 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
       totalCost: 0
     };
   }
-  
+
   return result;
 }
 
@@ -284,11 +244,8 @@ export function calculateCostBreakdown(material: Material, stockEntry: StockEntr
  */
 export function formatCostPerUnitDisplay(material: Material, stockEntry: StockEntry | null, purchasedUnit: string): string {
   const stockEntryCost = typeof stockEntry?.costPerPurchasedUnit === "string" ? parseFloat(stockEntry.costPerPurchasedUnit) || 0 : stockEntry?.costPerPurchasedUnit || 0;
-
   const materialCost = typeof material?.costPerUnit === "string" ? parseFloat(material.costPerUnit) || 0 : material?.costPerUnit || 0;
-
   const baseCost = stockEntryCost > 0 ? stockEntryCost : materialCost;
-
   if (purchasedUnit === "ml") {
     const volumePerUnit = getVolumePerUnit(material, stockEntry);
     return `$${baseCost.toFixed(2)} per ${stockEntry?.purchasedUnit || "bottle"} ÷ ${volumePerUnit} ml`;
@@ -300,21 +257,10 @@ export function formatCostPerUnitDisplay(material: Material, stockEntry: StockEn
 
 export const formatQuantity = (value: string | number): string => {
   if (!value && value !== 0) return "";
-
   const numValue = typeof value === "string" ? parseFloat(value) : value;
-
   if (isNaN(numValue)) return "";
-
-  // For whole numbers, return as is
   if (Number.isInteger(numValue)) return numValue.toString();
-
-  // For values with many decimal places, format appropriately
-  // Use 2 decimal places for most values, but handle special cases
   const decimalPlaces = Math.abs(numValue) < 0.01 ? 4 : 2;
-
-  // Format the number with the appropriate decimal places
   const formatted = numValue.toFixed(decimalPlaces);
-
-  // Remove trailing zeros after the decimal point
   return formatted.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
 };
