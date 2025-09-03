@@ -195,6 +195,19 @@ const StockEntry = sequelize.define(
   {
     tableName: "stockEntries",
     timestamps: true,
+    // Performance optimizations
+    indexes: [
+      { fields: ['materialId'] },
+      { fields: ['supplier'] },
+      { fields: ['isPOSItem'] },
+      { fields: ['purchaseDate'] },
+      { fields: ['expiryDate'] },
+      { fields: ['totalCost'] },
+      { fields: ['createdAt'] },
+      { fields: ['materialId', 'isPOSItem'] },
+      { fields: ['materialId', 'purchaseDate'] },
+      { fields: ['isPOSItem', 'purchaseDate'] }
+    ],
     hooks: {
       beforeCreate: async (stockEntry, options) => {
         await calculateStockValues(stockEntry, options);
@@ -206,8 +219,12 @@ const StockEntry = sequelize.define(
   }
 );
 
+// Performance: Material cache to avoid repeated DB queries
+const materialCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Simplified stock calculation hook using the unified service
+ * Optimized stock calculation hook with caching
  */
 async function calculateStockValues(stockEntry, options) {
   try {
@@ -220,14 +237,25 @@ async function calculateStockValues(stockEntry, options) {
                            stockEntry.changed("costPerMassUnit");
 
     if (hasManualValues) {
-      console.log(`🔒 [calculateStockValues] Manual values detected, preserving user input`);
-      return;
+      return; // Skip verbose logging for performance
     }
 
-    const material = await Material.findByPk(stockEntry.materialId, { transaction: options?.transaction });
-    if (!material) {
-      console.warn(`Material not found for stockEntry with materialId: ${stockEntry.materialId}`);
-      return;
+    // Performance: Use cached material or fetch if not cached
+    let material = materialCache.get(stockEntry.materialId);
+    if (!material || (Date.now() - material._cacheTime) > CACHE_TTL) {
+      material = await Material.findByPk(stockEntry.materialId, { 
+        transaction: options?.transaction,
+        attributes: ['id', 'name', 'unitType', 'baseUnit', 'inputUnit', 'packageQuantity', 'volumePerUnit', 'volumeUnit', 'massPerUnit', 'massUnit', 'piecesPerPackage', 'unitDescription']
+      });
+      
+      if (!material) {
+        console.warn(`Material not found for stockEntry with materialId: ${stockEntry.materialId}`);
+        return;
+      }
+      
+      // Cache with timestamp
+      material._cacheTime = Date.now();
+      materialCache.set(stockEntry.materialId, material);
     }
 
     // Use the unified calculation service
@@ -240,14 +268,6 @@ async function calculateStockValues(stockEntry, options) {
     // Apply calculated values to stock entry
     Object.assign(stockEntry, calculatedValues);
 
-    console.log(`✅ [calculateStockValues] Calculated values for ${material.name}:`, {
-      individualQuantity: calculatedValues.purchasedIndividualQuantity,
-      convertedQuantity: calculatedValues.purchasedConvertedQuantity,
-      totalVolume: calculatedValues.totalVolume,
-      totalMass: calculatedValues.totalMass,
-      totalPieces: calculatedValues.totalPieces
-    });
-
   } catch (error) {
     console.error("Error calculating stock values:", error);
     // Fallback to basic values
@@ -257,5 +277,15 @@ async function calculateStockValues(stockEntry, options) {
     stockEntry.purchasedIndividualUnit = stockEntry.purchasedUnit;
   }
 }
+
+// Performance: Clear cache periodically to prevent memory leaks
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, material] of materialCache.entries()) {
+    if ((now - material._cacheTime) > CACHE_TTL) {
+      materialCache.delete(key);
+    }
+  }
+}, CACHE_TTL);
 
 export default StockEntry;

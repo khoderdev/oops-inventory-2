@@ -12,8 +12,8 @@ const stockEntriesController = {
     try {
       const { includeMaterial = "true", fields = "" } = req.query;
       const paginationParams = parsePaginationParams(req.query, {
-        defaultLimit: 10000,
-        maxLimit: 50000,
+        defaultLimit: 1000,  // Reduced for better performance
+        maxLimit: 5000,     // Reduced from 50000
         allowedSortFields: ["id", "supplier", "purchaseDate", "expiryDate", "totalCost", "createdAt", "updatedAt"]
       });
       const whereClause = buildFilterConditions(
@@ -63,7 +63,11 @@ const stockEntriesController = {
         limit: paginationParams.limit,
         offset: paginationParams.offset,
         distinct: true,
-        attributes: selectedFields
+        attributes: selectedFields,
+        // Performance: Use raw queries when possible
+        raw: includeMaterial !== "true",
+        // Performance: Disable eager loading validation
+        validate: false
       };
       if (includeMaterial === "true") {
         queryOptions.include = [
@@ -71,11 +75,15 @@ const stockEntriesController = {
             model: Material,
             as: "material",
             attributes: ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "categoryId", "volumePerUnit", "volumeUnit", "massPerUnit", "massUnit", "piecesPerPackage", "unitDescription"],
+            // Performance: Use separate query to avoid LEFT JOIN overhead
+            separate: paginationParams.limit > 100,
             include: [
               {
                 model: Category,
                 as: "category",
-                attributes: ["id", "name", "value", "categoryTypeIds"]
+                attributes: ["id", "name", "value", "categoryTypeIds"],
+                // Performance: Only load category if needed
+                required: false
               }
             ]
           }
@@ -1400,10 +1408,14 @@ const stockEntriesController = {
           return res.status(404).json({ error: "Printer not found" });
         }
       }
-      const [updatedRowsCount] = await StockEntry.update({ printerId: printerId || null }, { where: { id } });
-      if (updatedRowsCount === 0) {
+      const { count, rows: updatedStockEntries } = await StockEntry.findAndCountAll({
+        where: { id },
+        subQuery: false
+      });
+      if (count === 0) {
         return res.status(404).json({ error: "Stock entry not found" });
       }
+      const [updatedRowsCount] = await StockEntry.update({ printerId: printerId || null }, { where: { id } });
       const updatedStockEntry = await StockEntry.findByPk(id, {
         include: [
           {
