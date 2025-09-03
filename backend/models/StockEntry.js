@@ -2,6 +2,7 @@ import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 import Material from "./materials.js";
 import Printer from "./Printer.js";
+import StockCalculationService from "../services/stockCalculationService.js";
 
 const StockEntry = sequelize.define(
   "StockEntry",
@@ -43,7 +44,7 @@ const StockEntry = sequelize.define(
     // QUANTITY & UNITS (Raw Purchase Data)
     // ==========================================
     purchasedQuantity: {
-      type: DataTypes.DECIMAL(10, 0),
+      type: DataTypes.DECIMAL(10, 3),
       allowNull: true
     },
     purchasedUnit: {
@@ -63,7 +64,7 @@ const StockEntry = sequelize.define(
     // CONVERTED VALUES (Normalized)
     // ==========================================
     purchasedConvertedQuantity: {
-      type: DataTypes.DECIMAL(10, 0),
+      type: DataTypes.DECIMAL(10, 3),
       allowNull: true
     },
     purchasedConvertedUnit: {
@@ -196,257 +197,65 @@ const StockEntry = sequelize.define(
     timestamps: true,
     hooks: {
       beforeCreate: async (stockEntry, options) => {
-        await calculateConvertedValues(stockEntry, options);
-        await calculateEnhancedValues(stockEntry, options);
+        await calculateStockValues(stockEntry, options);
       },
       beforeUpdate: async (stockEntry, options) => {
-        await calculateConvertedValues(stockEntry, options);
-        await calculateEnhancedValues(stockEntry, options);
+        await calculateStockValues(stockEntry, options);
       }
     }
   }
 );
 
-// Helper function to check if a unit is a mass unit
-function isMassUnit(unit) {
-  return ["kg", "g", "lb", "oz"].includes(unit.toLowerCase());
-}
-
-// Helper function to check if a unit is a volume unit
-function isVolumeUnit(unit) {
-  return ["l", "ml", "gallon", "qt", "pt"].includes(unit.toLowerCase());
-}
-
-// Helper function to convert any mass unit to grams
-function convertMassToGrams(value, fromUnit) {
-  const unitsToGrams = {
-    kg: 1000,
-    g: 1,
-    lb: 453.592,
-    oz: 28.3495
-  };
-
-  const conversionFactor = unitsToGrams[fromUnit.toLowerCase()];
-  if (!conversionFactor) {
-    console.warn(`Unknown mass unit: ${fromUnit}, returning original value`);
-    return value;
-  }
-
-  return value * conversionFactor;
-}
-
-// Helper function to convert any volume unit to milliliters
-function convertVolumeToMilliliters(value, fromUnit) {
-  const unitsToMilliliters = {
-    l: 1000,
-    ml: 1,
-    gallon: 3785.41,
-    qt: 946.353,
-    pt: 473.176
-  };
-
-  const conversionFactor = unitsToMilliliters[fromUnit.toLowerCase()];
-  if (!conversionFactor) {
-    console.warn(`Unknown volume unit: ${fromUnit}, returning original value`);
-    return value;
-  }
-
-  return value * conversionFactor;
-}
-
-// Helper function to calculate converted values
-async function calculateConvertedValues(stockEntry, options) {
+/**
+ * Simplified stock calculation hook using the unified service
+ */
+async function calculateStockValues(stockEntry, options) {
   try {
+    // Skip calculation if this is a manual update with explicit values
+    const hasManualValues = stockEntry.changed("totalVolume") || 
+                           stockEntry.changed("totalMass") || 
+                           stockEntry.changed("totalPieces") ||
+                           stockEntry.changed("massUnit") ||
+                           stockEntry.changed("massPerUnit") ||
+                           stockEntry.changed("costPerMassUnit");
+
+    if (hasManualValues) {
+      console.log(`🔒 [calculateStockValues] Manual values detected, preserving user input`);
+      return;
+    }
+
     const material = await Material.findByPk(stockEntry.materialId, { transaction: options?.transaction });
     if (!material) {
       console.warn(`Material not found for stockEntry with materialId: ${stockEntry.materialId}`);
-      stockEntry.purchasedConvertedQuantity = stockEntry.purchasedQuantity;
-      stockEntry.purchasedConvertedUnit = stockEntry.purchasedUnit;
       return;
     }
 
-    const isMassMaterial = material.unitType === "mass" && isMassUnit(stockEntry.purchasedUnit);
-    const isVolumeMaterial = material.unitType === "volume" && isVolumeUnit(stockEntry.purchasedUnit);
+    // Use the unified calculation service
+    const calculatedValues = StockCalculationService.calculateAllValues({
+      purchasedQuantity: stockEntry.purchasedQuantity,
+      purchasedUnit: stockEntry.purchasedUnit,
+      totalCost: stockEntry.totalCost
+    }, material);
 
-    if (isMassMaterial) {
-      const convertedQuantity = convertMassToGrams(stockEntry.purchasedQuantity, stockEntry.purchasedUnit);
-      stockEntry.purchasedConvertedQuantity = Math.round(convertedQuantity);
-      stockEntry.purchasedConvertedUnit = "g";
-    } else if (isVolumeMaterial) {
-      const convertedQuantity = convertVolumeToMilliliters(stockEntry.purchasedQuantity, stockEntry.purchasedUnit);
-      stockEntry.purchasedConvertedQuantity = Math.round(convertedQuantity);
-      stockEntry.purchasedConvertedUnit = "ml";
-    } else {
-      // For non-mass and non-volume materials, keep original values
-      stockEntry.purchasedConvertedQuantity = stockEntry.purchasedQuantity;
-      stockEntry.purchasedConvertedUnit = stockEntry.purchasedUnit;
-    }
-  } catch (error) {
-    console.error("Error calculating converted values:", error);
-    stockEntry.purchasedConvertedQuantity = stockEntry.purchasedQuantity;
-    stockEntry.purchasedConvertedUnit = stockEntry.purchasedUnit;
-  }
-}
+    // Apply calculated values to stock entry
+    Object.assign(stockEntry, calculatedValues);
 
-// Helper function to calculate enhanced values for all material types
-async function calculateEnhancedValues(stockEntry, options) {
-  try {
-    const material = await Material.findByPk(stockEntry.materialId, { transaction: options?.transaction });
-    if (!material) {
-      console.warn(`Material not found for enhanced calculations with materialId: ${stockEntry.materialId}`);
-      return;
-    }
-
-    // Check if this is a manual update (fields being explicitly set)
-    const isManualVolumeUpdate = stockEntry.changed("totalVolume") && stockEntry.totalVolume !== null;
-    const isManualMassUpdate = stockEntry.changed("totalMass") && stockEntry.totalMass !== null;
-    const isManualPiecesUpdate = stockEntry.changed("totalPieces") && stockEntry.totalPieces !== null;
-    const isManualMassUnitUpdate = stockEntry.changed("massUnit") && stockEntry.massUnit !== null;
-    const isManualMassPerUnitUpdate = stockEntry.changed("massPerUnit") && stockEntry.massPerUnit !== null;
-    const isManualCostPerMassUnitUpdate = stockEntry.changed("costPerMassUnit") && stockEntry.costPerMassUnit !== null;
-    
-    console.log(`🔍 [calculateEnhancedValues] Manual update flags:`, {
-      isManualVolumeUpdate,
-      isManualMassUpdate, 
-      isManualPiecesUpdate,
-      isManualMassUnitUpdate,
-      isManualMassPerUnitUpdate,
-      isManualCostPerMassUnitUpdate,
-      changedFields: stockEntry.changed()
+    console.log(`✅ [calculateStockValues] Calculated values for ${material.name}:`, {
+      individualQuantity: calculatedValues.purchasedIndividualQuantity,
+      convertedQuantity: calculatedValues.purchasedConvertedQuantity,
+      totalVolume: calculatedValues.totalVolume,
+      totalMass: calculatedValues.totalMass,
+      totalPieces: calculatedValues.totalPieces
     });
 
-    // Clear all enhanced fields first (but preserve manually set values)
-    const preservedTotalVolume = isManualVolumeUpdate ? stockEntry.totalVolume : null;
-    const preservedTotalMass = isManualMassUpdate ? stockEntry.totalMass : null;
-    const preservedTotalPieces = isManualPiecesUpdate ? stockEntry.totalPieces : null;
-    
-    // Preserve manually set mass-related fields
-    const preservedMassUnit = isManualMassUnitUpdate ? stockEntry.massUnit : null;
-    const preservedMassPerUnit = isManualMassPerUnitUpdate ? stockEntry.massPerUnit : null;
-    const preservedCostPerMassUnit = isManualCostPerMassUnitUpdate ? stockEntry.costPerMassUnit : null;
-
-    clearEnhancedFields(stockEntry);
-
-    // Restore manually set values
-    if (preservedTotalVolume !== null) stockEntry.totalVolume = preservedTotalVolume;
-    if (preservedTotalMass !== null) stockEntry.totalMass = preservedTotalMass;
-    if (preservedTotalPieces !== null) stockEntry.totalPieces = preservedTotalPieces;
-    
-    // Restore manually set mass-related fields
-    if (preservedMassUnit !== null) stockEntry.massUnit = preservedMassUnit;
-    if (preservedMassPerUnit !== null) stockEntry.massPerUnit = preservedMassPerUnit;
-    if (preservedCostPerMassUnit !== null) stockEntry.costPerMassUnit = preservedCostPerMassUnit;
-
-    const individualQuantity = parseFloat(stockEntry.purchasedIndividualQuantity || 0);
-    const totalCost = parseFloat(stockEntry.totalCost || 0);
-
-    // Volume calculations for beverage materials (both volume and package types with volume data)
-    if ((material.unitType === "volume" || material.unitType === "package") && material.volumePerUnit && material.volumeUnit && individualQuantity > 0) {
-      stockEntry.volumePerUnit = material.volumePerUnit;
-      stockEntry.volumeUnit = material.volumeUnit;
-
-      // Only recalculate totalVolume if it wasn't manually set
-      if (!isManualVolumeUpdate) {
-        const totalVolume = individualQuantity * parseFloat(material.volumePerUnit);
-        stockEntry.totalVolume = Math.round(totalVolume * 1000) / 1000;
-        console.log(`🍺 [Volume] ${material.name}: ${individualQuantity} × ${material.volumePerUnit}${material.volumeUnit} = ${stockEntry.totalVolume}${material.volumeUnit}`);
-      } else {
-        console.log(`🔒 [Volume] ${material.name}: Manual totalVolume preserved: ${stockEntry.totalVolume}${material.volumeUnit}`);
-      }
-
-      // Always recalculate cost per unit based on current totalVolume
-      if (totalCost > 0 && stockEntry.totalVolume > 0) {
-        stockEntry.costPerVolumeUnit = Math.round((totalCost / stockEntry.totalVolume) * 1000000) / 1000000;
-      }
-    }
-
-    // Mass calculations for mass materials
-    else if (material.unitType === "mass" && material.massPerUnit && material.massUnit && individualQuantity > 0) {
-      stockEntry.massPerUnit = material.massPerUnit;
-      stockEntry.massUnit = material.massUnit;
-      stockEntry.unitDescription = material.unitDescription;
-
-      const totalMass = individualQuantity * parseFloat(material.massPerUnit);
-      stockEntry.totalMass = Math.round(totalMass * 1000) / 1000;
-
-      if (totalCost > 0 && totalMass > 0) {
-        stockEntry.costPerMassUnit = Math.round((totalCost / totalMass) * 1000000) / 1000000;
-      }
-
-      console.log(`⚖️ [Mass] ${material.name}: ${individualQuantity} × ${material.massPerUnit}${material.massUnit} = ${stockEntry.totalMass}${material.massUnit}`);
-    }
-
-    // Package calculations for package materials (only if no volume data)
-    else if (
-      material.unitType === "package" &&
-      !material.volumePerUnit && // Only if no volume data
-      (material.piecesPerPackage || material.packageQuantity) &&
-      stockEntry.purchasedQuantity > 0
-    ) {
-      const piecesPerPkg = material.piecesPerPackage || material.packageQuantity;
-      stockEntry.piecesPerPackage = piecesPerPkg;
-      stockEntry.unitDescription = material.unitDescription;
-
-      // Only recalculate totalPieces if it wasn't manually set
-      if (!isManualPiecesUpdate) {
-        const totalPieces = parseFloat(stockEntry.purchasedQuantity) * piecesPerPkg;
-        stockEntry.totalPieces = Math.round(totalPieces);
-        console.log(`📦 [Package] ${material.name}: ${stockEntry.purchasedQuantity} × ${piecesPerPkg} = ${stockEntry.totalPieces} ${material.unitDescription || "pieces"}`);
-      } else {
-        console.log(`🔒 [Package] ${material.name}: Manual totalPieces preserved: ${stockEntry.totalPieces} ${material.unitDescription || "pieces"}`);
-      }
-
-      // Always recalculate cost per piece based on current totalPieces
-      if (totalCost > 0 && stockEntry.totalPieces > 0) {
-        stockEntry.costPerPiece = Math.round((totalCost / stockEntry.totalPieces) * 1000000) / 1000000;
-      }
-    }
-
-    // Individual piece calculations for piece materials
-    else if (material.unitType === "piece" && individualQuantity > 0) {
-      stockEntry.unitDescription = material.unitDescription;
-      stockEntry.totalPieces = Math.round(individualQuantity);
-
-      if (totalCost > 0 && individualQuantity > 0) {
-        stockEntry.costPerPiece = Math.round((totalCost / individualQuantity) * 1000000) / 1000000;
-      }
-
-      console.log(`🔧 [Piece] ${material.name}: ${individualQuantity} ${material.unitDescription || "pieces"}`);
-    }
-    // Final verification log to confirm mass fields are preserved
-    if (stockEntry.massUnit || stockEntry.massPerUnit || stockEntry.costPerMassUnit) {
-      console.log(`✅ [calculateEnhancedValues] Final mass values preserved:`, {
-        massUnit: stockEntry.massUnit,
-        massPerUnit: stockEntry.massPerUnit,
-        totalMass: stockEntry.totalMass,
-        costPerMassUnit: stockEntry.costPerMassUnit
-      });
-    }
   } catch (error) {
-    console.error("Error calculating enhanced values:", error);
-    clearEnhancedFields(stockEntry);
+    console.error("Error calculating stock values:", error);
+    // Fallback to basic values
+    stockEntry.purchasedConvertedQuantity = stockEntry.purchasedQuantity;
+    stockEntry.purchasedConvertedUnit = stockEntry.purchasedUnit;
+    stockEntry.purchasedIndividualQuantity = stockEntry.purchasedQuantity;
+    stockEntry.purchasedIndividualUnit = stockEntry.purchasedUnit;
   }
-}
-
-// Helper function to clear all enhanced calculation fields
-function clearEnhancedFields(stockEntry) {
-  // Volume fields
-  stockEntry.volumePerUnit = null;
-  stockEntry.volumeUnit = null;
-  stockEntry.totalVolume = null;
-  stockEntry.costPerVolumeUnit = null;
-
-  // Mass fields
-  stockEntry.massPerUnit = null;
-  stockEntry.massUnit = null;
-  stockEntry.totalMass = null;
-  stockEntry.costPerMassUnit = null;
-
-  // Package/piece fields
-  stockEntry.piecesPerPackage = null;
-  stockEntry.totalPieces = null;
-  stockEntry.costPerPiece = null;
-  stockEntry.unitDescription = null;
 }
 
 export default StockEntry;
