@@ -433,7 +433,7 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
     }
 
     // Fix validation: check if quantity field is empty or invalid
-    if (!qtyValue || qtyValue.trim() === "" || isNaN(qty) || qty <= 0) {
+    if (!qtyValue || (typeof qtyValue === 'string' && qtyValue.trim() === "") || isNaN(qty) || qty <= 0) {
       form.setError(quantityFieldName as any, { type: "manual", message: "Quantity must be greater than 0" });
       console.log("❌ Quantity validation failed:", { qtyValue, qty });
       return; // Exit the function if quantity validation fails
@@ -1061,9 +1061,10 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
               type="button" 
               onClick={form.handleSubmit(handleSubmit)}
               disabled={(() => {
-                const qtyValue = watchedQuantity;
+                // Use form.watch with the dynamic quantityFieldName instead of watchedQuantity
+                const qtyValue = form.watch(quantityFieldName as any);
                 const qty = toNumber(qtyValue);
-                return !qtyValue || qtyValue.trim() === "" || isNaN(qty) || qty <= 0;
+                return !qtyValue || (typeof qtyValue === 'string' && qtyValue.trim() === "") || isNaN(qty) || qty <= 0;
               })()}
             >
               {submitButtonText}
