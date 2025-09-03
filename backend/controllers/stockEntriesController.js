@@ -831,6 +831,30 @@ const stockEntriesController = {
         newCostPerPiece = newTotalPieces > 0 ? totalPieceCost / newTotalPieces : 0;
       }
 
+      // Define converted quantity and unit based on material type
+      let finalConvertedQuantity;
+      let finalConvertedUnit;
+      
+      if (material.unitType === "mass") {
+        // For mass materials, use individual quantity and base unit
+        finalConvertedQuantity = newIndividualQuantity;
+        finalConvertedUnit = material.baseUnit || "g";
+      } else if (material.unitType === "package") {
+        // For package materials, use purchased quantity and unit
+        finalConvertedQuantity = newPurchasedQuantity;
+        finalConvertedUnit = stockEntry.purchasedUnit;
+      } else {
+        // For other materials, use individual quantity and unit
+        finalConvertedQuantity = newIndividualQuantity;
+        finalConvertedUnit = newIndividualUnit;
+      }
+      
+      console.log(`🔄 [addToSpecificEntry] Setting converted values:`, {
+        finalConvertedQuantity,
+        finalConvertedUnit,
+        materialType: material.unitType
+      });
+      
       await stockEntry.update({
         // Update calculated total fields (primary)
         totalVolume: parseFloat(newTotalVolume.toFixed(3)),

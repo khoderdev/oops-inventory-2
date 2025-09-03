@@ -391,9 +391,26 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
   };
 
   const handleSubmit = async (data: StockFormInputs) => {
+    console.log("🔍 FORM: handleSubmit called with raw data:", data);
+    console.log("🔍 FORM: Form values before processing:", form.getValues());
+    
     await form.trigger();
-    const qty = toNumber(data[quantityFieldName as keyof StockFormInputs] as string);
-    const total = toNumber(data.totalCost as string);
+    const qtyValue = data[quantityFieldName as keyof StockFormInputs] as string;
+    const qty = toNumber(qtyValue);
+    const totalCostValue = data.totalCost as string;
+    const total = parseCurrency(totalCostValue); // Use parseCurrency instead of toNumber for better handling
+    const currentUnit = data[unitFieldName as keyof StockFormInputs] as string;
+    
+    console.log("🔍 FORM: Parsed values:", { 
+      qtyValue, 
+      qty, 
+      totalCostValue, 
+      total, 
+      currentUnit, 
+      quantityFieldName,
+      isQtyNaN: isNaN(qty),
+      isTotalNaN: isNaN(total)
+    });
     
     // Calculate CPU safely, never allowing NaN
     let cpu: number;
@@ -401,18 +418,25 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
       // Calculate from total/qty, but ensure we never get NaN
       if (!isNaN(qty) && qty > 0 && !isNaN(total) && total >= 0) {
         cpu = total / qty;
+        console.log("🔍 FORM: Calculated CPU from total/qty:", cpu);
       } else {
         cpu = 0; // Safe fallback instead of NaN
+        console.log("🔍 FORM: Using fallback CPU value:", cpu);
       }
     } else {
-      cpu = toNumber(data.costPerPurchasedUnit as string);
+      cpu = parseCurrency(data.costPerPurchasedUnit as string);
+      console.log("🔍 FORM: Parsed CPU from input:", cpu);
       if (isNaN(cpu)) {
         cpu = 0; // Safe fallback instead of NaN
+        console.log("🔍 FORM: CPU was NaN, using fallback:", cpu);
       }
     }
 
-    if (isNaN(qty) || qty <= 0) {
+    // Fix validation: check if quantity field is empty or invalid
+    if (!qtyValue || qtyValue.trim() === "" || isNaN(qty) || qty <= 0) {
       form.setError(quantityFieldName as any, { type: "manual", message: "Quantity must be greater than 0" });
+      console.log("❌ Quantity validation failed:", { qtyValue, qty });
+      return; // Exit the function if quantity validation fails
     }
     if (cpu < 0) {
       form.setError("costPerPurchasedUnit", { type: "manual", message: "Cost per unit must be ≥ 0" });
@@ -420,16 +444,41 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
 
     const hasErrors = Object.keys(form.formState.errors).length > 0;
     if (hasErrors) {
+      console.log("❌ Form has errors:", form.formState.errors);
       const firstError = Object.keys(form.formState.errors)[0] as keyof StockFormInputs | undefined;
       if (firstError) form.setFocus(firstError as any);
       return;
     }
 
+    console.log("✅ Form validation passed, calling onSubmit");
+
+    // Ensure we have proper numeric values for submission
+    console.log("🔍 FORM: Creating formData with:", {
+      quantityFieldName,
+      qty: qty.toString(),
+      cpu: fmtMoney(cpu),
+      total: fmtMoney(total)
+    });
+    
     const formData: StockFormData = {
       ...(data as any),
-      costPerPurchasedUnit: fmtMoney(cpu)
+      [quantityFieldName]: qty.toString(), // Ensure quantity is a clean number
+      costPerPurchasedUnit: fmtMoney(cpu),
+      totalCost: fmtMoney(total), // Ensure total cost is properly formatted
+      purchasedUnit: currentUnit // Explicitly include the unit
     } as unknown as StockFormData;
-    onSubmit(formData);
+    
+    console.log("✅ FORM: Final formData object:", JSON.stringify(formData, null, 2));
+    console.log("✅ FORM: purchasedQuantity type:", typeof formData.purchasedQuantity);
+    console.log("✅ FORM: purchasedUnit type:", typeof formData.purchasedUnit);
+    console.log("✅ FORM: Calling onSubmit function");
+    
+    try {
+      onSubmit(formData);
+      console.log("✅ FORM: onSubmit called successfully");
+    } catch (error) {
+      console.error("❌ FORM: Error in onSubmit:", error);
+    }
   };
 
   return (
@@ -1008,7 +1057,15 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
-            <Button type="button" onClick={form.handleSubmit(handleSubmit)}>
+            <Button 
+              type="button" 
+              onClick={form.handleSubmit(handleSubmit)}
+              disabled={(() => {
+                const qtyValue = watchedQuantity;
+                const qty = toNumber(qtyValue);
+                return !qtyValue || qtyValue.trim() === "" || isNaN(qty) || qty <= 0;
+              })()}
+            >
               {submitButtonText}
             </Button>
           </div>
