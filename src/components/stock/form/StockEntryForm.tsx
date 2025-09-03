@@ -4,52 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { StockFormData, StockFormInputs, UNIT_OPTIONS } from "@/types/inventory";
+import { StockEntryFormProps, StockFormData, StockFormInputs, UNIT_OPTIONS } from "@/types/inventory";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, LucideIcon, Minus, Plus } from "lucide-react";
+import { CalendarIcon, Minus, Plus } from "lucide-react";
 import { CostBreakdown } from "../CostBreakdown";
 import { useEffect, useRef } from "react";
-import type { Path, PathValue, UseFormReturn } from "react-hook-form";
+import type { Path, PathValue } from "react-hook-form";
 import { convertMass, convertVolume, formatNumberUI, isMassUnit, isVolumeUnit, parseCurrency } from "@/utils/conversionLogic";
 import { calculateCostBreakdown } from "@/utils/costCalculations";
 import { VirtualSelect } from "@/components/ui/VirtualSelect";
-import { Material } from "@/types/inventory";
 import { fmtCPU, fmtTotalCost, getFormattedTotalCostLabel, getFormattedCostPerUnitLabel } from "@/utils/getCurrentStockDisplay";
-
-export interface StockEntryFormProps {
-  form: UseFormReturn<StockFormInputs>;
-  materials: Material[];
-  availableUnits: string[];
-  selectedMaterial: Material | undefined;
-  watchedQuantity: string;
-  watchedCostPerUnit: string;
-  watchedTotalCost: string;
-  stockEntry?: any;
-  onSubmit: (data: StockFormData) => void;
-  onCancel: () => void;
-
-  headerIcon: LucideIcon;
-  headerColor: "green" | "blue" | "red";
-  headerTitle: string;
-  headerDescription: string;
-  getCurrentStockDisplay: () => string;
-
-  quantityFieldName: Path<StockFormInputs>;
-  unitFieldName: Path<StockFormInputs>;
-  dateFieldName: Path<StockFormInputs>;
-  dateFieldLabel: string;
-  showReasonField?: boolean;
-  reasonFieldName?: Path<StockFormInputs>;
-
-  hiddenFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason" | "costBreakdown">;
-  disabledFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason">;
-  readOnlyFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason">;
-
-  submitButtonText: string;
-
-  children?: React.ReactNode;
-}
 
 export function StockEntryForm({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel, headerIcon: HeaderIcon, headerColor, headerTitle, headerDescription, getCurrentStockDisplay, quantityFieldName, unitFieldName, dateFieldName, dateFieldLabel, showReasonField = false, reasonFieldName, hiddenFields = [], disabledFields = [], readOnlyFields = [], submitButtonText, children }: StockEntryFormProps) {
   const toNumber = (v: string | undefined | null): number => {
@@ -246,27 +211,18 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
   };
 
   const handleSubmit = async (data: StockFormInputs) => {
-    console.log("🔍 StockEntryForm: handleSubmit called with data:", data);
-    
-    // Pre-process data to ensure numeric values are properly parsed
     let totalCostValue = data.totalCost as string;
-    if (typeof totalCostValue === 'string' && totalCostValue.startsWith('$')) {
+    if (typeof totalCostValue === "string" && totalCostValue.startsWith("$")) {
       totalCostValue = totalCostValue.substring(1);
     }
-    
     let costPerUnitValue = data.costPerPurchasedUnit as string;
-    if (typeof costPerUnitValue === 'string' && costPerUnitValue.startsWith('$')) {
+    if (typeof costPerUnitValue === "string" && costPerUnitValue.startsWith("$")) {
       costPerUnitValue = costPerUnitValue.substring(1);
     }
-    
-    // Parse values to numbers for validation
     const qtyValue = data[quantityFieldName as keyof StockFormInputs] as string;
     const qty = toNumber(qtyValue);
     const total = parseCurrency(totalCostValue);
     const currentUnit = data[unitFieldName as keyof StockFormInputs] as string;
-    console.log("🔍 StockEntryForm: Parsed values:", { qty, total, currentUnit });
-    
-    // Calculate CPU if needed
     let cpu: number = 0;
     if (!costPerUnitValue || costPerUnitValue === "") {
       if (!isNaN(qty) && qty > 0 && !isNaN(total) && total >= 0) {
@@ -278,34 +234,19 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
         cpu = 0;
       }
     }
-    
-    console.log("🔍 StockEntryForm: Calculated CPU:", cpu);
-    
-    // Validate quantity
     if (!qtyValue || (typeof qtyValue === "string" && qtyValue.trim() === "") || isNaN(qty) || qty <= 0) {
-      console.error("❌ StockEntryForm: Invalid quantity", qtyValue);
       form.setError(quantityFieldName as any, { type: "manual", message: "Quantity must be greater than 0" });
       return;
     }
-    
-    // Validate cost per unit
     if (cpu < 0) {
-      console.error("❌ StockEntryForm: Invalid cost per unit", cpu);
       form.setError("costPerPurchasedUnit", { type: "manual", message: "Cost per unit must be ≥ 0" });
     }
-    
-    // Check for validation errors
     await form.trigger();
     const hasErrors = Object.keys(form.formState.errors).length > 0;
     if (hasErrors) {
-      console.error("❌ StockEntryForm: Form has errors:", form.formState.errors);
-      
-      // Clear any totalCost validation errors since we'll handle it ourselves
       if (form.formState.errors.totalCost) {
         form.clearErrors("totalCost");
       }
-      
-      // Check remaining errors
       const remainingErrors = Object.keys(form.formState.errors);
       if (remainingErrors.length > 0) {
         const firstError = remainingErrors[0] as keyof StockFormInputs | undefined;
@@ -313,18 +254,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
         return;
       }
     }
-    
-    // Create the final form data with properly formatted values
     const formData: StockFormData = {
       ...(data as any),
       [quantityFieldName]: qty.toString(),
-      costPerPurchasedUnit: cpu.toString(), // Send as plain string without $ formatting
-      totalCost: total.toString(), // Send as plain string without $ formatting
+      costPerPurchasedUnit: cpu.toString(),
+      totalCost: total.toString(),
       purchasedUnit: currentUnit
     } as unknown as StockFormData;
-    
-    console.log("✅ StockEntryForm: Submitting form data:", formData);
-    
     try {
       onSubmit(formData);
     } catch (error) {
@@ -787,18 +723,13 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                           onClick={() => {
                             const currentValue = field.value === "" ? 0 : toNumber(field.value as string);
                             const currentUnit = form.watch(unitFieldName) as string;
-
-                            // Determine step size based on unit
-                            let stepSize = 0.01; // Default step
+                            let stepSize = 0.01;
                             if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
                               if (currentValue < 0.1) {
-                                stepSize = 0.001; // Smaller step for small values in small mass units
+                                stepSize = 0.001;
                               }
                             }
-
                             const newValue = currentValue + stepSize;
-
-                            // Format with appropriate precision
                             let next;
                             if (isMassUnit(currentUnit) && (currentUnit === "g" || currentUnit === "oz")) {
                               if (newValue < 0.01) {
@@ -863,65 +794,40 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
             <Button
               type="button"
               onClick={() => {
-                console.log("🔘 Submit button clicked");
-                // Get current form values directly
                 const currentValues = form.getValues();
-                console.log("🔘 Current form values:", currentValues);
-                
-                // Ensure cost fields are properly formatted and converted to numbers
-                if (typeof currentValues.costPerPurchasedUnit === 'string') {
-                  // Remove dollar sign if present
-                  if (currentValues.costPerPurchasedUnit.startsWith('$')) {
+                if (typeof currentValues.costPerPurchasedUnit === "string") {
+                  if (currentValues.costPerPurchasedUnit.startsWith("$")) {
                     currentValues.costPerPurchasedUnit = currentValues.costPerPurchasedUnit.substring(1);
                   }
-                  // Parse to number for validation but keep as string for form data
                   const numericValue = parseFloat(currentValues.costPerPurchasedUnit);
                   if (!isNaN(numericValue)) {
-                    // Store as string for the form data
                     currentValues.costPerPurchasedUnit = numericValue.toString();
                   } else {
                     console.warn("Warning: costPerPurchasedUnit could not be parsed to a number:", currentValues.costPerPurchasedUnit);
                   }
                 }
-                
-                if (typeof currentValues.totalCost === 'string') {
-                  // Remove dollar sign if present
-                  if (currentValues.totalCost.startsWith('$')) {
+                if (typeof currentValues.totalCost === "string") {
+                  if (currentValues.totalCost.startsWith("$")) {
                     currentValues.totalCost = currentValues.totalCost.substring(1);
                   }
-                  // Parse to number for validation but keep as string for form data
                   const numericValue = parseFloat(currentValues.totalCost);
                   if (!isNaN(numericValue)) {
-                    // Store as string for the form data
                     currentValues.totalCost = numericValue.toString();
                   } else {
                     console.warn("Warning: totalCost could not be parsed to a number:", currentValues.totalCost);
                   }
                 }
-                
-                // Add any missing values from watched fields
-                if (readOnlyFields && readOnlyFields.includes("costPerUnit" as any) && (!currentValues.costPerPurchasedUnit || currentValues.costPerPurchasedUnit === '')) {
+                if (readOnlyFields && readOnlyFields.includes("costPerUnit" as any) && (!currentValues.costPerPurchasedUnit || currentValues.costPerPurchasedUnit === "")) {
                   currentValues.costPerPurchasedUnit = watchedCostPerUnit;
-                  console.log("🔘 Added costPerPurchasedUnit from watchedCostPerUnit:", watchedCostPerUnit);
                 }
-                
-                if (readOnlyFields && readOnlyFields.includes("totalCost" as any) && (!currentValues.totalCost || currentValues.totalCost === '')) {
+                if (readOnlyFields && readOnlyFields.includes("totalCost" as any) && (!currentValues.totalCost || currentValues.totalCost === "")) {
                   currentValues.totalCost = watchedTotalCost;
-                  console.log("🔘 Added totalCost from watchedTotalCost:", watchedTotalCost);
                 }
-                
-                // Force form validation
                 form.trigger().then(isValid => {
-                  console.log("🔘 Form validation result:", isValid);
-                  console.log("🔘 Detailed form errors:", JSON.stringify(form.formState.errors));
-                  
-                  // Proceed with submission even if validation fails
-                  // This is necessary because some fields might be read-only but required
                   handleSubmit(currentValues as StockFormInputs);
                 });
               }}
               disabled={(() => {
-                // Use form.watch with the dynamic quantityFieldName instead of watchedQuantity
                 const qtyValue = form.watch(quantityFieldName as any);
                 const qty = toNumber(qtyValue);
                 return !qtyValue || (typeof qtyValue === "string" && qtyValue.trim() === "") || isNaN(qty) || qty <= 0;

@@ -1,12 +1,13 @@
 import { ReportType } from "@/components/analytics/configs";
 import { assignmentSchema } from "@/components/sections/assignmentSchema";
 import { stockSchema } from "@/components/stock/stockSchema";
-import { UseFormReturn } from "react-hook-form";
+import { Path, UseFormReturn } from "react-hook-form";
 import { z } from "zod";
 import { Employee } from "./employee";
 import { Order, OrderStatus, OrderSummary, OrderType } from "./orders";
 import { Category } from "./categories";
 import { MenuItemSauce } from "./menuItems";
+import { LucideIcon } from "lucide-react";
 
 // Interface for pagination metadata
 export interface PaginationInfo {
@@ -215,6 +216,7 @@ export interface CachedStockEntryData {
 //-----------------------------------------------------------------------------
 
 export interface StockEntry {
+  unit?: string;
   // Core identification
   id: string;
   materialId: string;
@@ -338,6 +340,40 @@ export type StockEntriesTableProps = {
   onAssign?: (id: string | number, printerId: number | null) => Promise<StockEntry | void>;
   onBulkAssign?: (ids: (string | number)[], printerId: number | null) => Promise<StockEntry[] | void>;
 };
+
+export interface StockEntryFormProps {
+  form: UseFormReturn<StockFormInputs>;
+  materials: Material[];
+  availableUnits: string[];
+  selectedMaterial: Material | undefined;
+  watchedQuantity: string;
+  watchedCostPerUnit: string;
+  watchedTotalCost: string;
+  stockEntry?: any;
+  onSubmit: (data: StockFormData) => void;
+  onCancel: () => void;
+
+  headerIcon: LucideIcon;
+  headerColor: "green" | "blue" | "red";
+  headerTitle: string;
+  headerDescription: string;
+  getCurrentStockDisplay: () => string;
+
+  quantityFieldName: Path<StockFormInputs>;
+  unitFieldName: Path<StockFormInputs>;
+  dateFieldName: Path<StockFormInputs>;
+  dateFieldLabel: string;
+  showReasonField?: boolean;
+  reasonFieldName?: Path<StockFormInputs>;
+
+  hiddenFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason" | "costBreakdown">;
+  disabledFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason">;
+  readOnlyFields?: Array<"material" | "supplier" | "quantity" | "unit" | "costPerUnit" | "totalCost" | "date" | "reason">;
+
+  submitButtonText: string;
+
+  children?: React.ReactNode;
+}
 
 //-----------------------------------------------------------------------------
 

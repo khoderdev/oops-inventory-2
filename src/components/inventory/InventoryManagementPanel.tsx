@@ -491,19 +491,8 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
       } & { stockEntryId: string }
     ) => {
       try {
-        console.log("📊 HANDLER: Adding to specific entry with data:", data);
-        console.log("📊 HANDLER: Data types:", {
-          purchasedQuantity: typeof data.purchasedQuantity,
-          purchasedUnit: typeof data.purchasedUnit,
-          costPerPurchasedUnit: typeof data.costPerPurchasedUnit,
-          totalCost: typeof data.totalCost,
-          stockEntryId: typeof data.stockEntryId
-        });
-        
-        // Parse the quantity value properly - MUST be a number for the API
         let additionalQuantity: number;
         if (typeof data.purchasedQuantity === 'string') {
-          console.log("📊 HANDLER: Parsing string quantity:", data.purchasedQuantity);
           // Handle both formatted strings (e.g., "500 g") and numeric strings (e.g., "500")
           // First try direct parsing which works for numeric strings
           additionalQuantity = parseFloat(data.purchasedQuantity);
@@ -514,40 +503,22 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
             additionalQuantity = parseFloat(cleanedQuantity);
           }
         } else if (typeof data.purchasedQuantity === 'number') {
-          console.log("📊 HANDLER: Using number quantity:", data.purchasedQuantity);
           additionalQuantity = data.purchasedQuantity;
         } else {
-          console.error("❌ HANDLER: Missing quantity value");
           throw new Error("Missing quantity value");
         }
         
-        console.log("📊 HANDLER: Parsed additionalQuantity:", additionalQuantity);
-        console.log("📊 HANDLER: Is additionalQuantity NaN?", isNaN(additionalQuantity));
-        
         if (isNaN(additionalQuantity) || additionalQuantity <= 0) {
-          console.error("❌ HANDLER: Invalid quantity value:", data.purchasedQuantity);
           throw new Error(`Invalid quantity value: ${data.purchasedQuantity}`);
         }
-        
-        // Ensure we have a valid unit
         const unit = data.purchasedUnit || "g";
-        console.log("📊 HANDLER: Using unit:", unit);
-        
-        // Create the exact structure expected by the API
         const addData = {
-          additionalQuantity: additionalQuantity, // Must be a number
-          unit: unit,                            // Must be a string
-          additionDate: data.purchaseDate || new Date(), // Use provided date or current date
-          notes: data.notes || ""                // Optional notes
+          additionalQuantity: additionalQuantity,
+          unit: unit,
+          additionDate: data.purchaseDate || new Date(),
+          notes: data.notes || ""
         };
-        
-        console.log("📊 HANDLER: Sending to API:", JSON.stringify(addData, null, 2));
-        console.log("📊 HANDLER: Stock entry ID:", data.stockEntryId);
-        
-        // Make the API call with the exact parameter structure expected
         await stockAPI.addToSpecificEntry(data.stockEntryId, addData);
-        console.log("✅ HANDLER: API call successful");
-        
         await refresh("stock");
         await refresh("materials");
         setShowStockForm(false);
@@ -557,7 +528,6 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
           duration: 1000
         });
       } catch (error) {
-        console.error("❌ Error adding to specific entry:", error);
         toast({
           title: "Error",
           description: "Failed to add stock",
