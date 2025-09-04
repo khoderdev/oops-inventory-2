@@ -250,7 +250,7 @@ async function initializeCashier() {
   }
 }
 
-const connectToDatabase = async (retries = 5, delay = 5000) => {
+const connectToDatabase = async (retries = 2, delay = 5000) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`🔄 Database connection attempt ${attempt}/${retries}...`);
