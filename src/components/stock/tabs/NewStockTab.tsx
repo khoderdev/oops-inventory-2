@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -12,6 +11,7 @@ import { CostBreakdown } from "../CostBreakdown";
 import type { Path, PathValue } from "react-hook-form";
 import { convertMass, convertVolume, isMassUnit, isVolumeUnit, formatNumber, formatCurrencyUI } from "@/utils/conversionLogic";
 import { VirtualSelect } from "@/components/ui/VirtualSelect";
+import { SupplierSelector } from "@/components/suppliers/SupplierSelector";
 
 export function NewStockTab({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel }: NewStockTabProps) {
   const toNumber = (v: string | undefined | null): number => {
@@ -200,7 +200,13 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                 <FormItem className="flex flex-col">
                   <FormLabel className="flex items-center gap-1">Supplier</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="e.g., ABC Food Distributors" className="h-10 w-full border-gray-200" />
+                    <SupplierSelector 
+                      value={field.value} 
+                      onChange={(value) => {
+                        console.log("Supplier selected in NewStockTab:", value);
+                        field.onChange(value);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -3,7 +3,7 @@ import { z } from "zod";
 // Base schema with all possible fields
 const baseStockSchema = {
   materialId: z.string().min(1, "Please select a material"),
-  supplier: z.string().optional(),
+  supplier: z.string().optional(), // Now represents supplier ID instead of name
   purchasedQuantity: z.union([z.number(), z.string(), z.undefined()])
     .optional()
     .refine((val) => {

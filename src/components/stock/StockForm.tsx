@@ -10,9 +10,15 @@ import { AddToEntryTab } from "./tabs/AddToEntryTab";
 import { NewStockTab } from "./tabs/NewStockTab";
 import { UpdateEntryTab } from "./tabs/UpdateEntryTab";
 import { WasteFromEntryTab } from "./tabs/WasteFromEntryTab";
+import { useSuppliersContext } from "@/context/SuppliersContext";
 
 export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit, onCancel, onAddToSpecificEntry, onWasteFromSpecificEntry }: StockFormProps) {
   const [activeTab, setActiveTab] = useState<string>(stockEntry ? "update-entry" : "new-stock");
+  const { fetchSuppliers } = useSuppliersContext();
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, [fetchSuppliers]);
 
   const form = useForm<StockFormInputs>({
     resolver: zodResolver(stockSchema),
@@ -26,9 +32,10 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       purchaseDate: stockEntry?.purchaseDate ? new Date(stockEntry.purchaseDate) : new Date(),
       expiryDate: stockEntry?.expiryDate ? new Date(stockEntry.expiryDate) : undefined,
       batchNumber: stockEntry?.batchNumber || "",
-      wasteQuantity: undefined,
-      wasteReason: undefined,
-      wasteDate: undefined
+      wasteQuantity: "",
+      wasteReason: "",
+      notes: stockEntry?.notes || "",
+      stockEntryId: stockEntry?.id
     }
   });
 

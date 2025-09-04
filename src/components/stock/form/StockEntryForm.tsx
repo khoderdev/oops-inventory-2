@@ -8,6 +8,8 @@ import { StockEntryFormProps, StockFormData, StockFormInputs, UNIT_OPTIONS } fro
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Minus, Plus } from "lucide-react";
+import { SupplierSelector } from "@/components/suppliers/SupplierSelector";
+import { useSuppliersContext } from "@/context/SuppliersContext";
 import { CostBreakdown } from "../CostBreakdown";
 import { useEffect, useRef } from "react";
 import type { Path, PathValue } from "react-hook-form";
@@ -17,6 +19,11 @@ import { VirtualSelect } from "@/components/ui/VirtualSelect";
 import { fmtCPU, fmtTotalCost, getFormattedTotalCostLabel, getFormattedCostPerUnitLabel } from "@/utils/getCurrentStockDisplay";
 
 export function StockEntryForm({ form, materials, availableUnits, selectedMaterial, watchedQuantity, watchedCostPerUnit, watchedTotalCost, stockEntry, onSubmit, onCancel, headerIcon: HeaderIcon, headerColor, headerTitle, headerDescription, getCurrentStockDisplay, quantityFieldName, unitFieldName, dateFieldName, dateFieldLabel, showReasonField = false, reasonFieldName, hiddenFields = [], disabledFields = [], readOnlyFields = [], submitButtonText, children }: StockEntryFormProps) {
+  const { fetchSuppliers } = useSuppliersContext();
+  
+  useEffect(() => {
+    fetchSuppliers();
+  }, [fetchSuppliers]);
   const toNumber = (v: string | undefined | null): number => {
     if (!v || v === "") return NaN;
     const n = parseFloat(v);
@@ -337,7 +344,14 @@ export function StockEntryForm({ form, materials, availableUnits, selectedMateri
                   <FormItem>
                     <FormLabel>Supplier</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., ABC Food Distributors" {...field} disabled={disabledFields.includes("supplier")} readOnly={readOnlyFields.includes("supplier")} />
+                      {disabledFields.includes("supplier") || readOnlyFields.includes("supplier") ? (
+                        <Input placeholder="e.g., ABC Food Distributors" {...field} disabled readOnly />
+                      ) : (
+                        <SupplierSelector 
+                          value={field.value || ""} 
+                          onChange={field.onChange}
+                        />
+                      )}
                     </FormControl>
                     <FormMessage />
                   </FormItem>

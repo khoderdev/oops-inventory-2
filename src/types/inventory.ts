@@ -220,7 +220,14 @@ export interface StockEntry {
   // Core identification
   id: string;
   materialId: string;
-  supplier: string;
+  supplier: string; // Now represents supplier ID instead of name
+  supplierId?: string; // Optional explicit supplier ID field for clarity
+  supplierName?: string; // Optional field to store the display name
+  supplierObject?: {
+    id: string;
+    name: string;
+    isActive?: boolean;
+  };
 
   // Purchase information
   purchaseDate: Date;
@@ -284,7 +291,9 @@ export interface StockEntryWithMaterial extends StockEntry {
 
 export interface CreateStockEntryData {
   materialId: string;
-  supplier: string;
+  supplier: string; // Now represents supplier ID instead of name
+  supplierId?: string; // Optional explicit supplier ID field for clarity
+  supplierName?: string; // Optional field to store the display name
   purchasedQuantity: number;
   purchasedUnit: string;
   purchasedIndividualQuantity?: number;
@@ -300,7 +309,9 @@ export interface CreateStockEntryData {
 
 export interface UpdateStockEntryData {
   materialId?: string;
-  supplier?: string;
+  supplier?: string; // Now represents supplier ID instead of name
+  supplierId?: string; // Optional explicit supplier ID field for clarity
+  supplierName?: string; // Optional field to store the display name
   purchasedQuantity?: number;
   purchasedUnit?: string;
   purchasedIndividualQuantity?: number;
@@ -1041,6 +1052,9 @@ export interface AddStockData {
   unit: string;
   additionDate?: Date;
   notes?: string;
+  supplier?: string; // Supplier ID
+  supplierId?: string; // Optional explicit supplier ID field for clarity
+  supplierName?: string; // Optional field to store the display name
 }
 
 export interface RecordWasteData {
@@ -1051,11 +1065,18 @@ export interface RecordWasteData {
   wasteReason: string;
   wasteDate?: Date;
   notes?: string;
+  supplier?: string; // Supplier ID
+  supplierId?: string; // Optional explicit supplier ID field for clarity
+  supplierName?: string; // Optional field to store the display name
 }
 
 export interface AddStockResponse {
   message: string;
   stockEntry: StockEntry;
+  supplier?: {
+    id: string;
+    name: string;
+  };
 }
 
 export interface RecordWasteResponse {
@@ -1068,6 +1089,10 @@ export interface RecordWasteResponse {
     newQuantity: number;
   }>;
   reason: string;
+  supplier?: {
+    id: string;
+    name: string;
+  };
 }
 export interface WasteRecord {
   materialId: string;
@@ -1089,11 +1114,11 @@ export interface RecordWasteTabProps {
   onCancel: () => void;
 }
 
-// export type StockFormData = z.infer<typeof stockSchema>;
-
 export interface StockFormData extends z.infer<typeof stockSchema> {
   materialId: string;
-  supplier: string;
+  supplier: string; // Now represents supplier ID instead of name
+  supplierId?: string; // Optional explicit supplier ID field for clarity
+  supplierName?: string; // Optional field to store the display name
   purchasedQuantity: number;
   purchasedUnit: string;
   purchasedIndividualQuantity?: number;
@@ -1109,7 +1134,9 @@ export interface StockFormData extends z.infer<typeof stockSchema> {
 // Form interface with string types for inputs
 export interface StockFormInputs {
   materialId: string;
-  supplier?: string;
+  supplier?: string; // Now represents supplier ID instead of name
+  supplierId?: string; // Optional explicit supplier ID field for clarity
+  supplierName?: string; // Optional field to store the display name
   purchasedQuantity: string;
   purchasedUnit: string;
   costPerPurchasedUnit: string;
