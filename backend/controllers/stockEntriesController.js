@@ -75,14 +75,13 @@ const stockEntriesController = {
             model: Material,
             as: "material",
             attributes: ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "categoryId", "volumePerUnit", "volumeUnit", "massPerUnit", "massUnit", "piecesPerPackage", "unitDescription"],
-            // Performance: Use separate query to avoid LEFT JOIN overhead
-            separate: paginationParams.limit > 100,
+            // Performance: Only load category if needed
+            required: false,
             include: [
               {
                 model: Category,
                 as: "category",
                 attributes: ["id", "name", "value", "categoryTypeIds"],
-                // Performance: Only load category if needed
                 required: false
               }
             ]
@@ -491,11 +490,11 @@ const stockEntriesController = {
 
       // CRITICAL FIX: Ensure converted quantities are synchronized with individual quantities
       let newTotalVolume = parseFloat(stockEntry.totalVolume) || 0;
-      let newTotalMass = stockEntry.totalMass || 0;
-      let newTotalPieces = stockEntry.totalPieces || 0;
-      let newCostPerVolumeUnit = stockEntry.costPerVolumeUnit || 0;
-      let newCostPerMassUnit = stockEntry.costPerMassUnit || 0;
-      let newCostPerPiece = stockEntry.costPerPiece || 0;
+      let newTotalMass = parseFloat(stockEntry.totalMass) || 0;
+      let newTotalPieces = parseFloat(stockEntry.totalPieces) || 0;
+      let newCostPerVolumeUnit = parseFloat(stockEntry.costPerVolumeUnit) || 0;
+      let newCostPerMassUnit = parseFloat(stockEntry.costPerMassUnit) || 0;
+      let newCostPerPiece = parseFloat(stockEntry.costPerPiece) || 0;
       
       // Initialize mass-related variables to prevent ReferenceError
       let newMassUnit = stockEntry.massUnit || "g";
@@ -644,7 +643,8 @@ const stockEntriesController = {
         message: `Successfully added ${numericAdditionalQuantity} ${unit} to existing stock entry`,
         stockEntry: updatedEntry
       });
-    } catch (error) {
+    }
+    catch (error) {
       console.error("Error adding to specific stock entry:", error);
       next(error);
     }
