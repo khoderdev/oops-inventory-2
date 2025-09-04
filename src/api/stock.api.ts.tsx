@@ -105,7 +105,16 @@ export const stockAPI = {
   },
 
   getStockEntry: (id: string) => api.get<StockEntry>(`/stock-entries/${id}`),
-  createStockEntry: (stockEntryData: CreateStockEntryData) => api.post<StockEntry, CreateStockEntryData>("/stock-entries", stockEntryData),
+  createStockEntry: (stockEntryData: CreateStockEntryData) => {
+    // Transform data to ensure supplier ID is correctly passed as supplierId
+    const transformedData = {
+      ...stockEntryData,
+      // If supplier exists but supplierId doesn't, copy supplier to supplierId
+      supplierId: stockEntryData.supplierId || stockEntryData.supplier
+    };
+    console.log('📤 Transformed stock entry data before API call:', transformedData);
+    return api.post<StockEntry, CreateStockEntryData>("/stock-entries", transformedData);
+  },
   addToStock: (addStockData: AddStockData) => api.post<AddStockResponse, AddStockData>("/stock-entries/add-stock", addStockData),
   recordWaste: (wasteData: RecordWasteData) => api.post<RecordWasteResponse, RecordWasteData>("/stock-entries/record-waste", wasteData),
   addToSpecificEntry: (id: string, data: { additionalQuantity: number; unit: string; additionDate?: Date; notes?: string }) => api.post<{ message: string; stockEntry: StockEntry }, { additionalQuantity: number; unit: string; additionDate?: Date; notes?: string }>(`/stock-entries/${id}/add-to-entry`, data),
@@ -134,7 +143,16 @@ export const stockAPI = {
 
   updateStockEntry: (id: string, stockEntryData: UpdateStockEntryData) => {
     console.log("📡 stockAPI.updateStockEntry called with:", { id, stockEntryData });
-    return api.put<StockEntry, UpdateStockEntryData>(`/stock-entries/${id}`, stockEntryData);
+    
+    // Transform data to ensure supplier ID is correctly passed as supplierId
+    const transformedData = {
+      ...stockEntryData,
+      // If supplier exists but supplierId doesn't, copy supplier to supplierId
+      supplierId: stockEntryData.supplierId || stockEntryData.supplier
+    };
+    console.log('📤 Transformed stock entry update data before API call:', transformedData);
+    
+    return api.put<StockEntry, UpdateStockEntryData>(`/stock-entries/${id}`, transformedData);
   },
   updateStockEntryPOS: (id: string, posData: { isPOSItem: boolean }) => api.patch<StockEntry, { isPOSItem: boolean }>(`/stock-entries/${id}/pos`, posData),
   deleteStockEntry: (id: string) => api.delete<null>(`/stock-entries/${id}`),

@@ -143,10 +143,20 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
       if (firstError) form.setFocus(firstError as any);
       return;
     }
+    
+    // Map supplier field to supplierId for backend compatibility
     const formData: StockFormData = {
       ...(data as any),
-      costPerPurchasedUnit: fmtMoney(cpu)
+      costPerPurchasedUnit: fmtMoney(cpu),
+      // If supplier field exists, map it to supplierId
+      ...(data.supplier ? { supplierId: data.supplier } : {})
     } as unknown as StockFormData;
+    
+    console.log("Submitting stock entry with supplier data:", { 
+      supplier: data.supplier,
+      supplierId: formData.supplierId 
+    });
+    
     onSubmit(formData);
   };
 
