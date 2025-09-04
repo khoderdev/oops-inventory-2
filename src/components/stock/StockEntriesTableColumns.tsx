@@ -4,6 +4,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Material, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
 import { formatCleanCurrency } from "@/utils/numberFormatting";
 import { highlightText } from "@/utils/highlightText";
+import { calculateCurrentTotalCost } from "./StockEntriesCalculationHelpers";
 import { AlertTriangle, Edit, Eye, EyeOff, Printer, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { createColumnHelper, ColumnDef } from "@tanstack/react-table";
@@ -24,21 +25,7 @@ type StockEntriesTableColumnsProps = {
   renderUnitDisplay: (entry: StockEntryWithMaterial) => JSX.Element;
 };
 
-export function useStockEntriesTableColumns({
-  searchTerm,
-  bulkSelectionMode,
-  sortBy,
-  sortOrder,
-  handleSortChange,
-  handleTogglePOSVisibility,
-  handleOpenPrinterDialog,
-  handleEditStockEntry,
-  handleDeleteStockEntry,
-  isAllowedPOSCategory,
-  hasNegativeStock,
-  renderQuantityDisplay,
-  renderUnitDisplay,
-}: StockEntriesTableColumnsProps) {
+export function useStockEntriesTableColumns({ searchTerm, bulkSelectionMode, sortBy, sortOrder, handleSortChange, handleTogglePOSVisibility, handleOpenPrinterDialog, handleEditStockEntry, handleDeleteStockEntry, isAllowedPOSCategory, hasNegativeStock, renderQuantityDisplay, renderUnitDisplay }: StockEntriesTableColumnsProps) {
   const columnHelper = createColumnHelper<StockEntryWithMaterial>();
 
   const columns = useMemo<ColumnDef<StockEntryWithMaterial>[]>(
@@ -118,7 +105,7 @@ export function useStockEntriesTableColumns({
           const entry = row.original;
           const cost = entry.costPerBaseUnit || entry.costPerPurchasedUnit;
           const unit = entry.material?.baseUnit || entry.purchasedUnit;
-          
+
           return (
             <div className="flex flex-col justify-center w-[110px] h-8 px-2">
               <div className="font-medium">{formatCleanCurrency(cost)}</div>
@@ -129,7 +116,7 @@ export function useStockEntriesTableColumns({
         enableSorting: false
       }),
 
-      columnHelper.accessor("totalCost", {
+      columnHelper.display({
         id: "totalCost",
         size: 90,
         header: ({ column }) => (
@@ -145,11 +132,15 @@ export function useStockEntriesTableColumns({
             <span className="text-xs ml-1">{sortBy === "totalCost" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
           </Button>
         ),
-        cell: ({ getValue }) => (
-          <div className="text-left w-[90px] h-8 px-2 flex items-center">
-            <span className="font-medium">{formatCleanCurrency(getValue())}</span>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const entry = row.original;
+          const currentTotalCost = calculateCurrentTotalCost(entry);
+          return (
+            <div className="text-left w-[90px] h-8 px-2 flex items-center">
+              <span className="font-medium">{formatCleanCurrency(currentTotalCost)}</span>
+            </div>
+          );
+        },
         enableSorting: false
       }),
 
@@ -282,21 +273,7 @@ export function useStockEntriesTableColumns({
         }
       })
     ],
-    [
-      searchTerm,
-      bulkSelectionMode,
-      handleTogglePOSVisibility,
-      handleOpenPrinterDialog,
-      handleEditStockEntry,
-      handleDeleteStockEntry,
-      isAllowedPOSCategory,
-      sortBy,
-      sortOrder,
-      handleSortChange,
-      hasNegativeStock,
-      renderQuantityDisplay,
-      renderUnitDisplay,
-    ]
+    [searchTerm, bulkSelectionMode, handleTogglePOSVisibility, handleOpenPrinterDialog, handleEditStockEntry, handleDeleteStockEntry, isAllowedPOSCategory, sortBy, sortOrder, handleSortChange, hasNegativeStock, renderQuantityDisplay, renderUnitDisplay]
   );
 
   return columns;

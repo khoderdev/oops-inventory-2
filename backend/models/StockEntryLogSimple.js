@@ -1,12 +1,6 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 
-/**
- * Simplified Stock Entry Logs Model
- *
- * Basic version to test table creation without complex features
- */
-
 const SystemLogs = sequelize.define(
   "SystemLogs",
   {
@@ -100,12 +94,12 @@ const SystemLogs = sequelize.define(
 );
 
 // Static method for logging
-SystemLogs.logAction = async function (actionData) {
+SystemLogs.logAction = async function (actionData, transaction = null) {
   try {
     const logEntry = await this.create({
       ...actionData,
       actionTimestamp: actionData.actionTimestamp || new Date()
-    });
+    }, transaction ? { transaction } : undefined);
     return logEntry;
   } catch (error) {
     console.error("Failed to create stock entry log:", error);

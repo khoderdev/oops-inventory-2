@@ -16,6 +16,7 @@ import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from 
 import { getCoreRowModel, useReactTable, SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import { useStockEntriesTableColumns } from "./StockEntriesTableColumns";
 import { hasNegativeStock, renderQuantityDisplay, renderUnitDisplay } from "./StockEntriesDisplayHelpers";
+import { calculateCurrentTotalCost } from "./StockEntriesCalculationHelpers";
 import { Pagination } from "./Pagination";
 import { NegativeStock } from "./NegativeStock";
 import { stockAPI } from "@/api/stock.api.ts";
@@ -81,7 +82,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     }
   }, [prefetchedStockEntries]);
 
-  // Listen for new stock entries being created
   useEffect(() => {
     const handleStockEntryCreated = (event: CustomEvent) => {
       const newEntry = event.detail;
@@ -303,11 +303,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     setCurrentPage(1);
   }, []);
 
-  const refreshData = useCallback(async () => {
-    if (onRefresh) {
-      await onRefresh();
-    }
-  }, [onRefresh]);
 
   const isAllowedPOSCategory = (material: Material | undefined) => {
     if (!material || !material.category) return false;
@@ -335,7 +330,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     }
     const newPOSStatus = !entry.isPOSItem;
 
-    // Update local state immediately
     setStockEntries(prev => prev.map(stockEntry => (stockEntry.id === entry.id ? { ...stockEntry, isPOSItem: newPOSStatus } : stockEntry)));
 
     try {
@@ -369,28 +363,21 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
   const handleEditStockEntry = async (stockEntry: StockEntry) => {
     setSelectedStockEntry(stockEntry);
 
-    // First try to find the material in the current materials list
     let material = (materials as (MaterialWithStock | Material)[]).find(m => String(m.id) === String(stockEntry.materialId)) as MaterialWithStock | undefined;
-
-    // If material is not found in current state, fetch fresh materials data
     if (!material) {
       try {
         const freshMaterials = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
         setMaterials(freshMaterials);
-
-        // Try to find the material in the fresh data
         material = freshMaterials.find(m => String(m.id) === String(stockEntry.materialId)) as MaterialWithStock | undefined;
       } catch (err) {
         console.error("❌ Failed to fetch fresh materials data:", err);
       }
     }
-
     if (material) {
       setSelectedMaterial(material);
     } else {
       console.warn("⚠️ Could not find material with ID:", stockEntry.materialId);
     }
-
     setShowStockForm(true);
   };
 
@@ -409,8 +396,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
         variant: "default",
         duration: 1000
       });
-
-      // Clear selections after deletion
       setSelectedStockEntries(new Set());
       if (bulkSelectionMode) {
         table.toggleAllRowsSelected(false);
@@ -498,8 +483,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
   const handlePrinterAssignmentChange = async (updatedEntry?: StockEntry) => {
     if (updatedEntry) {
       setStockEntries(prev => prev.map(stockEntry => (stockEntry.id === updatedEntry.id ? { ...stockEntry, assignedPrinter: updatedEntry.assignedPrinter } : stockEntry)));
-
-      // Clear selections after printer assignment
       setSelectedStockEntries(new Set());
       if (bulkSelectionMode) {
         table.toggleAllRowsSelected(false);
@@ -709,7 +692,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                       </div>
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Cost</span>
-                        <p className="text-sm font-semibold text-gray-900">{formatCurrency(entry.totalCost)}</p>
+                        <p className="text-sm font-semibold text-gray-900">{formatCurrency(calculateCurrentTotalCost(entry))}</p>
                       </div>
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Purchase Date</span>
