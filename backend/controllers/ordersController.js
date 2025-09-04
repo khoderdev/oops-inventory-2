@@ -1,12 +1,88 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { auditOrderOperation } from "../middleware/auditMiddleware.js";
-import { Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, Table, PrintJob, PrinterChannel } from "../models/index.js";
+import { Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, Table, PrintJob, PrinterChannel, Category } from "../models/index.js";
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 import { convertVolumeWithMaterial } from "../utils/volumeConversionUtils.js";
 
 // Helper function to deduct stock for variant ingredients
+// const deductVariantIngredientStock = async (menuItem, selectedVariant, orderQuantity, fullItemName, transaction) => {
+//   const deductionId = Math.random().toString(36).substring(2, 8);
+//   console.log(`🍹 [${deductionId}] Starting variant ingredient stock deduction for: ${menuItem.name}`);
+
+//   // Try to detect variant from item name if selectedVariant is null
+//   let detectedVariant = selectedVariant;
+//   if (!selectedVariant) {
+//     const itemNameToCheck = fullItemName || menuItem.name;
+//     console.log(`🔍 [${deductionId}] Checking for variant in item name: "${itemNameToCheck}"`);
+//     detectedVariant = await detectVariantFromItemName(menuItem.id, itemNameToCheck, deductionId, transaction);
+//   }
+
+//   if (!detectedVariant) {
+//     console.log(`⚠️ [${deductionId}] No variant detected for beverage: ${menuItem.name}`);
+//     return false;
+//   }
+
+//   console.log(`🥃 [${deductionId}] Processing beverage variant: ${detectedVariant.name}`);
+
+//   // Get variant ingredients
+//   const variantIngredients = await VariantIngredient.findAll({
+//     where: { variantId: detectedVariant.id, isActive: true },
+//     include: [
+//       { model: Material, as: "material" },
+//       { model: Sauce, as: "sauce" }
+//     ],
+//     transaction
+//   });
+
+//   if (variantIngredients.length === 0) {
+//     console.log(`⚠️ [${deductionId}] No ingredients found for variant: ${detectedVariant.name}`);
+//     return false;
+//   }
+
+//   console.log(`🧪 [${deductionId}] Found ${variantIngredients.length} variant ingredients for ${detectedVariant.name}`);
+
+//   // Process each variant ingredient
+//   for (const variantIngredient of variantIngredients) {
+//     const ingredient = variantIngredient.material || variantIngredient.sauce;
+//     const ingredientType = variantIngredient.material ? "material" : "sauce";
+
+//     console.log(`🔄 [${deductionId}] Processing variant ingredient: ${ingredient.name}, quantity: ${variantIngredient.quantity} ${variantIngredient.unit}`);
+
+//     if (ingredientType === "material") {
+//       // Calculate total quantity needed
+//       const totalQuantityNeeded = parseFloat(variantIngredient.quantity) * orderQuantity;
+//       console.log(`📊 [${deductionId}] Total quantity needed: ${totalQuantityNeeded} ${variantIngredient.unit}`);
+
+//       // Convert to material's base unit if needed
+//       let quantityToDeduct = totalQuantityNeeded;
+//       console.log(`🔄 [${deductionId}] Original unit: ${variantIngredient.unit}, Material base unit: ${ingredient.baseUnit}`);
+
+//       if (variantIngredient.unit !== ingredient.baseUnit) {
+//         console.log(`🔄 [${deductionId}] Unit conversion needed from ${variantIngredient.unit} to ${ingredient.baseUnit}`);
+//         try {
+//           quantityToDeduct = convertVolumeWithMaterial(totalQuantityNeeded, variantIngredient.unit, ingredient.baseUnit, ingredient);
+//           console.log(`🔄 [${deductionId}] Converted ${totalQuantityNeeded} ${variantIngredient.unit} to ${quantityToDeduct} ${ingredient.baseUnit}`);
+//         } catch (conversionError) {
+//           console.warn(`⚠️ [${deductionId}] Volume conversion failed:`, conversionError);
+//           console.warn(`⚠️ [${deductionId}] Using original quantity: ${quantityToDeduct}`);
+//         }
+//       } else {
+//         console.log(`✅ [${deductionId}] Units match, no conversion needed`);
+//       }
+
+//       console.log(`➡️ [${deductionId}] Final quantity to deduct: ${quantityToDeduct} ${ingredient.baseUnit || variantIngredient.unit}`);
+
+//       await deductStockFromMaterial(ingredient.id, quantityToDeduct, `${menuItem.name} (${detectedVariant.name} variant)`, transaction);
+//       console.log(`✅ [${deductionId}] Deducted ${quantityToDeduct} ${ingredient.baseUnit} of ${ingredient.name} for variant ${detectedVariant.name}`);
+//     }
+//     // TODO: Add sauce handling if needed
+//   }
+
+//   console.log(`🎯 [${deductionId}] Completed variant ingredient deduction for: ${menuItem.name} (${detectedVariant.name})`);
+//   return true;
+// };
 const deductVariantIngredientStock = async (menuItem, selectedVariant, orderQuantity, fullItemName, transaction) => {
   const deductionId = Math.random().toString(36).substring(2, 8);
   console.log(`🍹 [${deductionId}] Starting variant ingredient stock deduction for: ${menuItem.name}`);
@@ -30,8 +106,8 @@ const deductVariantIngredientStock = async (menuItem, selectedVariant, orderQuan
   const variantIngredients = await VariantIngredient.findAll({
     where: { variantId: detectedVariant.id, isActive: true },
     include: [
-      { model: Material, as: "material" },
-      { model: Sauce, as: "sauce" }
+      { model: Material, as: "material", attributes: ["id", "name", "unitType", "baseUnit", "packageQuantity", "volumePerUnit", "volumeUnit"] },
+      { model: Sauce, as: "sauce", attributes: ["id", "name", "yieldQuantity", "unit"] }
     ],
     transaction
   });
@@ -76,14 +152,35 @@ const deductVariantIngredientStock = async (menuItem, selectedVariant, orderQuan
 
       await deductStockFromMaterial(ingredient.id, quantityToDeduct, `${menuItem.name} (${detectedVariant.name} variant)`, transaction);
       console.log(`✅ [${deductionId}] Deducted ${quantityToDeduct} ${ingredient.baseUnit} of ${ingredient.name} for variant ${detectedVariant.name}`);
+    } else if (ingredientType === "sauce") {
+      // Handle sauce deduction for variants
+      const requiredQuantity = parseFloat(variantIngredient.quantity) * orderQuantity;
+      const sauce = await Sauce.findByPk(ingredient.id, { transaction });
+
+      if (!sauce) {
+        console.warn(`⚠️ [${deductionId}] Sauce with ID ${ingredient.id} not found`);
+        continue;
+      }
+
+      const currentYield = parseFloat(sauce.yieldQuantity);
+      const minYield = 0.001;
+      const newYield = Math.max(minYield, currentYield - requiredQuantity);
+
+      console.log(`🥫 [${deductionId}] Deducting ${requiredQuantity} ${variantIngredient.unit} from sauce: ${ingredient.name} (Current yield: ${currentYield} ${sauce.unit})`);
+
+      if (currentYield < requiredQuantity) {
+        throw new Error(`Not enough ${ingredient.name} available. Required: ${requiredQuantity} ${variantIngredient.unit}, Available: ${currentYield} ${sauce.unit}`);
+      }
+
+      await Sauce.update({ yieldQuantity: newYield, updatedAt: new Date() }, { where: { id: ingredient.id }, transaction, validate: true });
+
+      console.log(`✅ [${deductionId}] Deducted ${requiredQuantity} ${sauce.unit} from ${ingredient.name}. New yield: ${newYield} ${sauce.unit}`);
     }
-    // TODO: Add sauce handling if needed
   }
 
   console.log(`🎯 [${deductionId}] Completed variant ingredient deduction for: ${menuItem.name} (${detectedVariant.name})`);
   return true;
 };
-
 // Function to deduct stock from a material
 const deductStockFromMaterial = async (materialId, quantityToDeduct, deductionReason, transaction) => {
   try {
@@ -270,34 +367,105 @@ const deductStockFromMaterial = async (materialId, quantityToDeduct, deductionRe
 };
 
 // Helper function to detect variant from item name when selectedVariant is null
+// const detectVariantFromItemName = async (menuItemId, itemName, deductionId, transaction) => {
+//   try {
+//     // Extract variant name from item name like "Long Island (glass - 200ml)"
+//     const variantMatch = itemName.match(/\(([^-]+)\s*-\s*([^)]+)\)/);
+//     if (!variantMatch) {
+//       console.log(`🔍 [${deductionId}] No variant pattern found in item name: ${itemName}`);
+//       return null;
+//     }
+
+//     const variantName = variantMatch[1].trim();
+//     console.log(`🔍 [${deductionId}] Detected variant name from item: ${variantName}`);
+
+//     // Find the variant in the database
+//     const variant = await Variants.findOne({
+//       where: {
+//         menuItemId: menuItemId,
+//         name: { [Op.iLike]: variantName }
+//       },
+//       transaction
+//     });
+
+//     if (variant) {
+//       console.log(`✅ [${deductionId}] Found variant: ${variant.name} (ID: ${variant.id})`);
+//       return variant;
+//     } else {
+//       console.log(`❌ [${deductionId}] Variant not found: ${variantName} for menu item ${menuItemId}`);
+//       return null;
+//     }
+//   } catch (error) {
+//     console.error(`❌ [${deductionId}] Error detecting variant:`, error);
+//     return null;
+//   }
+// };
+
 const detectVariantFromItemName = async (menuItemId, itemName, deductionId, transaction) => {
   try {
+    console.log(`🔍 [${deductionId}] Detecting variant from item name: "${itemName}"`);
+
     // Extract variant name from item name like "Long Island (glass - 200ml)"
     const variantMatch = itemName.match(/\(([^-]+)\s*-\s*([^)]+)\)/);
-    if (!variantMatch) {
-      console.log(`🔍 [${deductionId}] No variant pattern found in item name: ${itemName}`);
-      return null;
+
+    if (variantMatch) {
+      const variantName = variantMatch[1].trim();
+      console.log(`🔍 [${deductionId}] Detected variant name from pattern: ${variantName}`);
+
+      // Find the variant in the database
+      const variant = await Variants.findOne({
+        where: {
+          menuItemId: menuItemId,
+          name: { [Op.iLike]: variantName }
+        },
+        transaction
+      });
+
+      if (variant) {
+        console.log(`✅ [${deductionId}] Found variant: ${variant.name} (ID: ${variant.id})`);
+        return variant;
+      } else {
+        console.log(`❌ [${deductionId}] Variant not found: ${variantName} for menu item ${menuItemId}`);
+      }
     }
 
-    const variantName = variantMatch[1].trim();
-    console.log(`🔍 [${deductionId}] Detected variant name from item: ${variantName}`);
+    // For beverages without explicit variant names, try default variants
+    console.log(`🔍 [${deductionId}] No variant pattern found, trying default variants`);
 
-    // Find the variant in the database
-    const variant = await Variants.findOne({
-      where: {
-        menuItemId: menuItemId,
-        name: { [Op.iLike]: variantName }
-      },
+    const menuItem = await MenuItem.findByPk(menuItemId, { transaction });
+    if (!menuItem) return null;
+
+    // Try common beverage variant names
+    const commonVariantNames = ["bottle", "can", "glass", "pint", "jug", "330ml", "500ml", "1l"];
+
+    for (const variantName of commonVariantNames) {
+      const variant = await Variants.findOne({
+        where: {
+          menuItemId: menuItemId,
+          name: { [Op.iLike]: `%${variantName}%` }
+        },
+        transaction
+      });
+
+      if (variant) {
+        console.log(`✅ [${deductionId}] Found default variant: ${variant.name} (ID: ${variant.id})`);
+        return variant;
+      }
+    }
+
+    // If no specific variant found, try any variant for this menu item
+    const anyVariant = await Variants.findOne({
+      where: { menuItemId: menuItemId },
       transaction
     });
 
-    if (variant) {
-      console.log(`✅ [${deductionId}] Found variant: ${variant.name} (ID: ${variant.id})`);
-      return variant;
-    } else {
-      console.log(`❌ [${deductionId}] Variant not found: ${variantName} for menu item ${menuItemId}`);
-      return null;
+    if (anyVariant) {
+      console.log(`✅ [${deductionId}] Using first available variant: ${anyVariant.name} (ID: ${anyVariant.id})`);
+      return anyVariant;
     }
+
+    console.log(`❌ [${deductionId}] No variants found for menu item: ${menuItem.name}`);
+    return null;
   } catch (error) {
     console.error(`❌ [${deductionId}] Error detecting variant:`, error);
     return null;
@@ -309,16 +477,16 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
   try {
     console.log(`🔍 [${deductionId}] Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
 
-    // Log variant information if provided
-    if (selectedVariant) {
-      console.log(`🥃 [${deductionId}] Selected variant: ${selectedVariant.name}, volume: ${selectedVariant.volume}${selectedVariant.unit}`);
-    }
-
-    // Fetch menu item with both ingredients and sauces
-    console.log(`🔍 [${deductionId}] Fetching menu item with ID: ${menuItemId}`);
-    // First, get the menu item with basic info
+    // FIRST: Check if this is a beverage that should use variant deduction
     const menuItem = await MenuItem.findByPk(menuItemId, {
-      attributes: ["id", "name", "description", "price", "unit"],
+      attributes: ["id", "name", "description", "price", "unit", "categoryId"],
+      include: [
+        {
+          model: Category,
+          as: "category",
+          attributes: ["id", "name"]
+        }
+      ],
       transaction
     });
 
@@ -327,9 +495,30 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
       return;
     }
 
-    console.log(`✅ [${deductionId}] Found menu item: ${menuItem.name} (ID: ${menuItem.id})`);
+    const categoryName = menuItem.category?.name?.toLowerCase() || "";
+    console.log(`✅ [${deductionId}] Found menu item: ${menuItem.name} (Category: ${categoryName})`);
 
-    // Then get ingredients, sauces, and variants separately to avoid complex joins that might fail
+    // Check if this is a beverage that should use variant processing
+    const isBeverage =
+      (categoryName.includes("drink") || categoryName.includes("beverage") || categoryName.includes("soda") || categoryName.includes("soft drink")) || menuItem.name.toLowerCase().includes("7up") || menuItem.name.toLowerCase().includes("coke") || menuItem.name.toLowerCase().includes("pepsi") || menuItem.name.toLowerCase().includes("soda") || menuItem.name.toLowerCase().includes("drink");
+
+    if (isBeverage) {
+      console.log(`🥤 [${deductionId}] Detected beverage item: ${menuItem.name}`);
+      const variantSuccess = await deductVariantIngredientStock(menuItem, selectedVariant, orderQuantity, fullItemName, transaction);
+
+      if (variantSuccess) {
+        console.log(`✅ [${deductionId}] Beverage variant processing completed for: ${menuItem.name}`);
+        return; // Exit early since we processed as variant
+      } else {
+        console.log(`⚠️ [${deductionId}] Beverage variant processing failed, falling back to regular deduction`);
+        // Continue with regular ingredient processing
+      }
+    }
+
+    // Fetch menu item with both ingredients and sauces
+    console.log(`🔍 [${deductionId}] Fetching menu item details with ID: ${menuItemId}`);
+
+    // Get ingredients, sauces, and variants separately
     const [menuItemIngredients, menuItemSauces, variants] = await Promise.all([
       MenuItemIngredient.findAll({
         where: { menuItemId },
@@ -337,7 +526,7 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           {
             model: Material,
             as: "material",
-            attributes: ["id", "name"] // Only include existing columns
+            attributes: ["id", "name", "unitType", "baseUnit", "packageQuantity", "volumePerUnit", "volumeUnit"]
           }
         ],
         transaction
@@ -348,7 +537,7 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           {
             model: Sauce,
             as: "sauce",
-            attributes: ["id", "name"] // Removed availableQuantity as it doesn't exist
+            attributes: ["id", "name", "yieldQuantity", "unit"]
           }
         ],
         transaction
@@ -360,8 +549,8 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
             model: VariantIngredient,
             as: "ingredients",
             include: [
-              { model: Material, as: "material" },
-              { model: Sauce, as: "sauce" }
+              { model: Material, as: "material", attributes: ["id", "name", "unitType", "baseUnit"] },
+              { model: Sauce, as: "sauce", attributes: ["id", "name", "yieldQuantity", "unit"] }
             ]
           }
         ],
@@ -369,17 +558,10 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
       })
     ]);
 
-    // Attach to menuItem for consistency with existing code
+    // Attach to menuItem for consistency
     menuItem.menuItemIngredients = menuItemIngredients;
     menuItem.menuItemSauces = menuItemSauces;
     menuItem.variants = variants;
-
-    if (!menuItem) {
-      console.error(`❌ [${deductionId}] Menu item not found: ${menuItemId}`);
-      return;
-    }
-
-    console.log(`✅ [${deductionId}] Found menu item: ${menuItem.name} (ID: ${menuItem.id})`);
 
     // Log all ingredients and sauces
     console.log(`📋 [${deductionId}] Menu item details:`, {
@@ -387,7 +569,8 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
       hasIngredients: menuItem.menuItemIngredients?.length > 0,
       ingredientCount: menuItem.menuItemIngredients?.length || 0,
       hasSauces: menuItem.menuItemSauces?.length > 0,
-      sauceCount: menuItem.menuItemSauces?.length || 0
+      sauceCount: menuItem.menuItemSauces?.length || 0,
+      hasVariants: menuItem.variants?.length > 0
     });
 
     // Log variants and their ingredients
@@ -398,7 +581,8 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         if (variant.ingredients?.length > 0) {
           console.log(`      Ingredients:`);
           variant.ingredients.forEach((ing, ingIdx) => {
-            console.log(`         ${ingIdx + 1}. ${ing.quantity} ${ing.unit} of ${ing.material?.name || "Unknown"} (Material ID: ${ing.materialId})`);
+            const ingredientName = ing.material?.name || ing.sauce?.name || "Unknown";
+            console.log(`         ${ingIdx + 1}. ${ing.quantity} ${ing.unit} of ${ingredientName}`);
           });
         } else {
           console.log(`      No ingredients found for variant ${variant.name}`);
@@ -416,9 +600,9 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         console.log(`      - Material details:`, {
           id: ing.material?.id,
           name: ing.material?.name,
-          unit: ing.material?.unit,
-          purchaseUnit: ing.material?.purchaseUnit,
-          conversionFactor: ing.material?.conversionFactor
+          unitType: ing.material?.unitType,
+          baseUnit: ing.material?.baseUnit,
+          packageQuantity: ing.material?.packageQuantity
         });
       });
     }
@@ -431,7 +615,8 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         console.log(`      - Sauce details:`, {
           id: sauce.sauce?.id,
           name: sauce.sauce?.name,
-          availableQuantity: sauce.sauce?.availableQuantity
+          yieldQuantity: sauce.sauce?.yieldQuantity,
+          unit: sauce.sauce?.unit
         });
       });
     }
@@ -442,15 +627,15 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
     if (allIngredients.length === 0) {
       console.log(`🍾 [${deductionId}] No ingredients or sauces found for menu item "${menuItem.name}"`);
 
-      // Try variant ingredient deduction first
+      // Try variant ingredient deduction
       const variantDeductionSuccess = await deductVariantIngredientStock(menuItem, selectedVariant, orderQuantity, fullItemName, transaction);
 
       if (variantDeductionSuccess) {
         console.log(`🎯 [${deductionId}] Successfully processed variant ingredients for: ${menuItem.name}`);
-        return; // Exit early since we processed variant ingredients
+        return;
       }
 
-      // Fallback: Try to find matching material by name for simple deduction
+      // Fallback: Try to find matching material by name
       console.log(`🔍 [${deductionId}] Attempting fallback material matching for: ${menuItem.name}`);
       const matchingMaterial = await Material.findOne({
         where: { name: { [Op.iLike]: `%${menuItem.name}%` } },
@@ -489,28 +674,16 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           }
 
           const currentYield = parseFloat(sauce.yieldQuantity);
-          const minYield = 0.001; // Minimum allowed yield quantity
+          const minYield = 0.001;
           const newYield = Math.max(minYield, currentYield - requiredQuantity);
 
           console.log(`🥫 [${deductionId}] Deducting ${requiredQuantity} ${ingredient.unit} from sauce: ${ingredient.sauce.name} (Current yield: ${currentYield} ${sauce.unit})`);
 
-          // Check if there's enough sauce available
           if (currentYield < requiredQuantity) {
             throw new Error(`Not enough ${ingredient.sauce.name} available. Required: ${requiredQuantity} ${ingredient.unit}, Available: ${currentYield} ${sauce.unit}`);
           }
 
-          // Update the sauce's yield quantity
-          await Sauce.update(
-            {
-              yieldQuantity: newYield,
-              updatedAt: new Date()
-            },
-            {
-              where: { id: ingredient.sauceId },
-              transaction,
-              validate: true
-            }
-          );
+          await Sauce.update({ yieldQuantity: newYield, updatedAt: new Date() }, { where: { id: ingredient.sauceId }, transaction, validate: true });
 
           console.log(`✅ [${deductionId}] Deducted ${requiredQuantity} ${sauce.unit} from ${ingredient.sauce.name}. New yield: ${newYield} ${sauce.unit}`);
         }
@@ -526,7 +699,6 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 
       const materialId = material.id;
       const requiredQuantity = ingredient.quantity * orderQuantity;
-      // Use the unit from the ingredient if available, otherwise default to 'unit' or 'piece'
       const unit = ingredient.unit || "unit";
 
       console.log(`📦 [${deductionId}] Looking for stock entries for material: ${material.name} (ID: ${materialId})`);
@@ -544,7 +716,6 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 
       console.log(`📊 [${deductionId}] Found ${stockEntries.length} stock entries for ${material.name}`);
 
-      // Log each stock entry details
       stockEntries.forEach((entry, idx) => {
         console.log(`   📦 Entry #${idx + 1} (ID: ${entry.id}):`);
         console.log(`      - totalVolume: ${entry.totalVolume}`);
@@ -565,18 +736,17 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
       for (const [idx, stockEntry] of stockEntries.entries()) {
         if (remainingToDeduct <= 0) break;
 
-        // Determine which calculated field to use based on material type and available data
+        // Enhanced field detection logic
         let availableQuantity = 0;
         let fieldToUpdate = null;
         let unitType = "unknown";
 
-        // Better detection logic
+        // Smart field detection based on material type and available data
         if (stockEntry.totalVolume > 0 && (material.unitType === "volume" || material.unitType === "package" || material.name.toLowerCase().includes("sauce"))) {
           availableQuantity = stockEntry.totalVolume;
           fieldToUpdate = "totalVolume";
           unitType = "volume";
         } else if (stockEntry.totalMass > 0 && (material.unitType === "mass" || material.unitType === undefined || material.unitType === null)) {
-          // Handle undefined unitType by assuming mass for food items
           availableQuantity = stockEntry.totalMass;
           fieldToUpdate = "totalMass";
           unitType = "mass";
@@ -590,10 +760,14 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
             availableQuantity = stockEntry.totalVolume || 0;
             fieldToUpdate = "totalVolume";
             unitType = "volume";
-          } else if ((material.name.toLowerCase().includes("chicken") || material.name.toLowerCase().includes("onion") || material.name.toLowerCase().includes("pepper")) && stockEntry.totalMass !== null) {
+          } else if ((material.name.toLowerCase().includes("chicken") || material.name.toLowerCase().includes("onion") || material.name.toLowerCase().includes("pepper") || material.name.toLowerCase().includes("beef")) && stockEntry.totalMass !== null) {
             availableQuantity = stockEntry.totalMass || 0;
             fieldToUpdate = "totalMass";
             unitType = "mass";
+          } else if (material.name.toLowerCase().includes("bottle") || material.name.toLowerCase().includes("can") || (material.name.toLowerCase().includes("package") && stockEntry.totalPieces !== null)) {
+            availableQuantity = stockEntry.totalPieces || 0;
+            fieldToUpdate = "totalPieces";
+            unitType = "pieces";
           } else if (stockEntry.purchasedIndividualQuantity !== null) {
             availableQuantity = stockEntry.purchasedIndividualQuantity;
             fieldToUpdate = "purchasedIndividualQuantity";
@@ -605,13 +779,13 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           }
         }
 
+        console.log(`   🔍 [${deductionId}] Material analysis: ${material.name}`);
+        console.log(`   🔍 [${deductionId}] Unit type: ${material.unitType}`);
+        console.log(`   🔍 [${deductionId}] Available stock fields: volume=${stockEntry.totalVolume}, mass=${stockEntry.totalMass}, pieces=${stockEntry.totalPieces}`);
+        console.log(`   🔍 [${deductionId}] Selected field: ${fieldToUpdate} with value: ${availableQuantity}`);
+
         const deductAmount = Math.min(remainingToDeduct, availableQuantity);
         const newQuantity = Math.max(0, availableQuantity - deductAmount);
-
-        console.log(`🔍 [${deductionId}] Material analysis: ${material.name}`);
-        console.log(`🔍 [${deductionId}] Unit type: ${material.unitType}`);
-        console.log(`🔍 [${deductionId}] Available stock fields: volume=${stockEntry.totalVolume}, mass=${stockEntry.totalMass}, pieces=${stockEntry.totalPieces}`);
-        console.log(`🔍 [${deductionId}] Selected field: ${fieldToUpdate} with value: ${availableQuantity}`);
 
         console.log(`   📦 Stock Entry #${idx + 1}:`);
         console.log(`      - Current Quantity: ${availableQuantity} (${unitType})`);
@@ -650,6 +824,353 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
     throw error;
   }
 };
+
+// export const deductIngredientStock = async (menuItemId, orderQuantity, transaction, selectedVariant = null, fullItemName = null) => {
+//   const deductionId = Math.random().toString(36).substr(2, 9);
+//   try {
+//     console.log(`🔍 [${deductionId}] Deducting stock for menu item ID: ${menuItemId}, quantity: ${orderQuantity}`);
+
+//     // Log variant information if provided
+//     if (selectedVariant) {
+//       console.log(`🥃 [${deductionId}] Selected variant: ${selectedVariant.name}, volume: ${selectedVariant.volume}${selectedVariant.unit}`);
+//     }
+
+//     // Fetch menu item with both ingredients and sauces
+//     console.log(`🔍 [${deductionId}] Fetching menu item with ID: ${menuItemId}`);
+//     // First, get the menu item with basic info
+//     const menuItem = await MenuItem.findByPk(menuItemId, {
+//       attributes: ["id", "name", "description", "price", "unit"],
+//       transaction
+//     });
+
+//     if (!menuItem) {
+//       console.error(`❌ [${deductionId}] Menu item not found: ${menuItemId}`);
+//       return;
+//     }
+
+//     console.log(`✅ [${deductionId}] Found menu item: ${menuItem.name} (ID: ${menuItem.id})`);
+
+//     // Then get ingredients, sauces, and variants separately to avoid complex joins that might fail
+//     const [menuItemIngredients, menuItemSauces, variants] = await Promise.all([
+//       MenuItemIngredient.findAll({
+//         where: { menuItemId },
+//         include: [
+//           {
+//             model: Material,
+//             as: "material",
+//             attributes: ["id", "name"] // Only include existing columns
+//           }
+//         ],
+//         transaction
+//       }),
+//       MenuItemSauce.findAll({
+//         where: { menuItemId },
+//         include: [
+//           {
+//             model: Sauce,
+//             as: "sauce",
+//             attributes: ["id", "name"] // Removed availableQuantity as it doesn't exist
+//           }
+//         ],
+//         transaction
+//       }),
+//       Variants.findAll({
+//         where: { menuItemId },
+//         include: [
+//           {
+//             model: VariantIngredient,
+//             as: "ingredients",
+//             include: [
+//               { model: Material, as: "material" },
+//               { model: Sauce, as: "sauce" }
+//             ]
+//           }
+//         ],
+//         transaction
+//       })
+//     ]);
+
+//     // Attach to menuItem for consistency with existing code
+//     menuItem.menuItemIngredients = menuItemIngredients;
+//     menuItem.menuItemSauces = menuItemSauces;
+//     menuItem.variants = variants;
+
+//     if (!menuItem) {
+//       console.error(`❌ [${deductionId}] Menu item not found: ${menuItemId}`);
+//       return;
+//     }
+
+//     console.log(`✅ [${deductionId}] Found menu item: ${menuItem.name} (ID: ${menuItem.id})`);
+
+//     // Log all ingredients and sauces
+//     console.log(`📋 [${deductionId}] Menu item details:`, {
+//       name: menuItem.name,
+//       hasIngredients: menuItem.menuItemIngredients?.length > 0,
+//       ingredientCount: menuItem.menuItemIngredients?.length || 0,
+//       hasSauces: menuItem.menuItemSauces?.length > 0,
+//       sauceCount: menuItem.menuItemSauces?.length || 0
+//     });
+
+//     // Log variants and their ingredients
+//     if (menuItem.variants?.length > 0) {
+//       console.log(`🍾 [${deductionId}] Variants for ${menuItem.name}:`);
+//       menuItem.variants.forEach((variant, idx) => {
+//         console.log(`   ${idx + 1}. ${variant.name} - ${variant.volume}${variant.unit} ($${variant.price})`);
+//         if (variant.ingredients?.length > 0) {
+//           console.log(`      Ingredients:`);
+//           variant.ingredients.forEach((ing, ingIdx) => {
+//             console.log(`         ${ingIdx + 1}. ${ing.quantity} ${ing.unit} of ${ing.material?.name || "Unknown"} (Material ID: ${ing.materialId})`);
+//           });
+//         } else {
+//           console.log(`      No ingredients found for variant ${variant.name}`);
+//         }
+//       });
+//     } else {
+//       console.log(`📋 [${deductionId}] No variants found for menu item "${menuItem.name}"`);
+//     }
+
+//     // Log each ingredient with details
+//     if (menuItem.menuItemIngredients?.length > 0) {
+//       console.log(`📦 [${deductionId}] Ingredients for ${menuItem.name}:`);
+//       menuItem.menuItemIngredients.forEach((ing, idx) => {
+//         console.log(`   ${idx + 1}. ${ing.quantity} ${ing.unit} of ${ing.material?.name || "Unknown"} (Material ID: ${ing.materialId})`);
+//         console.log(`      - Material details:`, {
+//           id: ing.material?.id,
+//           name: ing.material?.name,
+//           unit: ing.material?.unit,
+//           purchaseUnit: ing.material?.purchaseUnit,
+//           conversionFactor: ing.material?.conversionFactor
+//         });
+//       });
+//     }
+
+//     // Log each sauce with details
+//     if (menuItem.menuItemSauces?.length > 0) {
+//       console.log(`🥫 [${deductionId}] Sauces for ${menuItem.name}:`);
+//       menuItem.menuItemSauces.forEach((sauce, idx) => {
+//         console.log(`   ${idx + 1}. ${sauce.quantity} ${sauce.unit} of ${sauce.sauce?.name || "Unknown"} (Sauce ID: ${sauce.sauceId})`);
+//         console.log(`      - Sauce details:`, {
+//           id: sauce.sauce?.id,
+//           name: sauce.sauce?.name,
+//           availableQuantity: sauce.sauce?.availableQuantity
+//         });
+//       });
+//     }
+
+//     // Combine ingredients + sauces for deduction
+//     const allIngredients = [...(menuItem.menuItemIngredients || []).map(i => ({ ...i.toJSON(), type: "ingredient" })), ...(menuItem.menuItemSauces || []).map(s => ({ ...s.toJSON(), type: "sauce" }))];
+
+//     if (allIngredients.length === 0) {
+//       console.log(`🍾 [${deductionId}] No ingredients or sauces found for menu item "${menuItem.name}"`);
+
+//       // Try variant ingredient deduction first
+//       const variantDeductionSuccess = await deductVariantIngredientStock(menuItem, selectedVariant, orderQuantity, fullItemName, transaction);
+
+//       if (variantDeductionSuccess) {
+//         console.log(`🎯 [${deductionId}] Successfully processed variant ingredients for: ${menuItem.name}`);
+//         return; // Exit early since we processed variant ingredients
+//       }
+
+//       // Fallback: Try to find matching material by name for simple deduction
+//       console.log(`🔍 [${deductionId}] Attempting fallback material matching for: ${menuItem.name}`);
+//       const matchingMaterial = await Material.findOne({
+//         where: { name: { [Op.iLike]: `%${menuItem.name}%` } },
+//         transaction
+//       });
+
+//       if (matchingMaterial) {
+//         console.log(`🔄 [${deductionId}] Found matching material by name: ${matchingMaterial.name} (ID: ${matchingMaterial.id})`);
+//         await deductStockFromMaterial(matchingMaterial.id, orderQuantity, menuItem.name, transaction);
+//       } else {
+//         console.log(`ℹ️ [${deductionId}] No matching material found for: ${menuItem.name}`);
+//       }
+//       return;
+//     }
+
+//     console.log(`📋 [${deductionId}] Processing ${allIngredients.length} ingredients/sauces for "${menuItem.name}"`);
+
+//     for (const [index, ingredient] of allIngredients.entries()) {
+//       console.log(`
+// 🔍 [${deductionId}] Processing ${ingredient.type} ${index + 1}/${allIngredients.length}:`);
+//       console.log(`   - Type: ${ingredient.type}`);
+//       console.log(`   - Name: ${ingredient.material?.name || ingredient.sauce?.name || "Unknown"}`);
+//       console.log(`   - ID: ${ingredient.materialId || ingredient.sauceId}`);
+//       console.log(`   - Required: ${ingredient.quantity} ${ingredient.unit} × ${orderQuantity} = ${ingredient.quantity * orderQuantity} ${ingredient.unit}`);
+
+//       if (ingredient.type === "sauce") {
+//         // Handle sauce deduction
+//         if (ingredient.sauce) {
+//           const requiredQuantity = Number((ingredient.quantity * orderQuantity).toFixed(6));
+
+//           // Fetch the current sauce to get the current yield quantity
+//           const sauce = await Sauce.findByPk(ingredient.sauceId, { transaction });
+//           if (!sauce) {
+//             console.warn(`⚠️ [${deductionId}] Sauce with ID ${ingredient.sauceId} not found`);
+//             continue;
+//           }
+
+//           const currentYield = parseFloat(sauce.yieldQuantity);
+//           const minYield = 0.001; // Minimum allowed yield quantity
+//           const newYield = Math.max(minYield, currentYield - requiredQuantity);
+
+//           console.log(`🥫 [${deductionId}] Deducting ${requiredQuantity} ${ingredient.unit} from sauce: ${ingredient.sauce.name} (Current yield: ${currentYield} ${sauce.unit})`);
+
+//           // Check if there's enough sauce available
+//           if (currentYield < requiredQuantity) {
+//             throw new Error(`Not enough ${ingredient.sauce.name} available. Required: ${requiredQuantity} ${ingredient.unit}, Available: ${currentYield} ${sauce.unit}`);
+//           }
+
+//           // Update the sauce's yield quantity
+//           await Sauce.update(
+//             {
+//               yieldQuantity: newYield,
+//               updatedAt: new Date()
+//             },
+//             {
+//               where: { id: ingredient.sauceId },
+//               transaction,
+//               validate: true
+//             }
+//           );
+
+//           console.log(`✅ [${deductionId}] Deducted ${requiredQuantity} ${sauce.unit} from ${ingredient.sauce.name}. New yield: ${newYield} ${sauce.unit}`);
+//         }
+//         continue;
+//       }
+
+//       // Handle regular material/ingredient deduction
+//       const material = ingredient.material;
+//       if (!material) {
+//         console.warn(`⚠️ [${deductionId}] No material found for ${ingredient.type} ID ${ingredient.id}`);
+//         continue;
+//       }
+
+//       const materialId = material.id;
+//       const requiredQuantity = ingredient.quantity * orderQuantity;
+//       // Use the unit from the ingredient if available, otherwise default to 'unit' or 'piece'
+//       const unit = ingredient.unit || "unit";
+
+//       console.log(`📦 [${deductionId}] Looking for stock entries for material: ${material.name} (ID: ${materialId})`);
+//       console.log(`📋 [${deductionId}] Material details: unitType=${material.unitType}, baseUnit=${material.baseUnit}`);
+//       console.log(`📏 [${deductionId}] Required: ${requiredQuantity} ${unit}`);
+
+//       const stockEntries = await StockEntry.findAll({
+//         where: {
+//           materialId,
+//           [Op.or]: [{ totalVolume: { [Op.gt]: 0 } }, { totalMass: { [Op.gt]: 0 } }, { totalPieces: { [Op.gt]: 0 } }, { purchasedIndividualQuantity: { [Op.gt]: 0 } }, { purchasedIndividualQuantity: null, purchasedQuantity: { [Op.gt]: 0 } }]
+//         },
+//         order: [["purchaseDate", "ASC"]],
+//         transaction
+//       });
+
+//       console.log(`📊 [${deductionId}] Found ${stockEntries.length} stock entries for ${material.name}`);
+
+//       // Log each stock entry details
+//       stockEntries.forEach((entry, idx) => {
+//         console.log(`   📦 Entry #${idx + 1} (ID: ${entry.id}):`);
+//         console.log(`      - totalVolume: ${entry.totalVolume}`);
+//         console.log(`      - totalMass: ${entry.totalMass}`);
+//         console.log(`      - totalPieces: ${entry.totalPieces}`);
+//         console.log(`      - purchasedQuantity: ${entry.purchasedQuantity}`);
+//         console.log(`      - purchasedIndividualQuantity: ${entry.purchasedIndividualQuantity}`);
+//       });
+
+//       if (stockEntries.length === 0) {
+//         console.warn(`⚠️ [${deductionId}] No available stock entries found for material: ${material.name}`);
+//         continue;
+//       }
+
+//       let remainingToDeduct = requiredQuantity;
+//       console.log(`➖ [${deductionId}] Need to deduct ${remainingToDeduct} ${unit} of ${material.name}`);
+
+//       for (const [idx, stockEntry] of stockEntries.entries()) {
+//         if (remainingToDeduct <= 0) break;
+
+//         // Determine which calculated field to use based on material type and available data
+//         let availableQuantity = 0;
+//         let fieldToUpdate = null;
+//         let unitType = "unknown";
+
+//         // Better detection logic
+//         if (stockEntry.totalVolume > 0 && (material.unitType === "volume" || material.unitType === "package" || material.name.toLowerCase().includes("sauce"))) {
+//           availableQuantity = stockEntry.totalVolume;
+//           fieldToUpdate = "totalVolume";
+//           unitType = "volume";
+//         } else if (stockEntry.totalMass > 0 && (material.unitType === "mass" || material.unitType === undefined || material.unitType === null)) {
+//           // Handle undefined unitType by assuming mass for food items
+//           availableQuantity = stockEntry.totalMass;
+//           fieldToUpdate = "totalMass";
+//           unitType = "mass";
+//         } else if (stockEntry.totalPieces > 0 && (material.unitType === "piece" || material.unitType === "package")) {
+//           availableQuantity = stockEntry.totalPieces;
+//           fieldToUpdate = "totalPieces";
+//           unitType = "pieces";
+//         } else {
+//           // Smart fallback based on material name and available data
+//           if (material.name.toLowerCase().includes("sauce") && stockEntry.totalVolume !== null) {
+//             availableQuantity = stockEntry.totalVolume || 0;
+//             fieldToUpdate = "totalVolume";
+//             unitType = "volume";
+//           } else if ((material.name.toLowerCase().includes("chicken") || material.name.toLowerCase().includes("onion") || material.name.toLowerCase().includes("pepper")) && stockEntry.totalMass !== null) {
+//             availableQuantity = stockEntry.totalMass || 0;
+//             fieldToUpdate = "totalMass";
+//             unitType = "mass";
+//           } else if (stockEntry.purchasedIndividualQuantity !== null) {
+//             availableQuantity = stockEntry.purchasedIndividualQuantity;
+//             fieldToUpdate = "purchasedIndividualQuantity";
+//             unitType = "fallback";
+//           } else {
+//             availableQuantity = stockEntry.purchasedQuantity || 0;
+//             fieldToUpdate = "purchasedQuantity";
+//             unitType = "fallback";
+//           }
+//         }
+
+//         const deductAmount = Math.min(remainingToDeduct, availableQuantity);
+//         const newQuantity = Math.max(0, availableQuantity - deductAmount);
+
+//         console.log(`🔍 [${deductionId}] Material analysis: ${material.name}`);
+//         console.log(`🔍 [${deductionId}] Unit type: ${material.unitType}`);
+//         console.log(`🔍 [${deductionId}] Available stock fields: volume=${stockEntry.totalVolume}, mass=${stockEntry.totalMass}, pieces=${stockEntry.totalPieces}`);
+//         console.log(`🔍 [${deductionId}] Selected field: ${fieldToUpdate} with value: ${availableQuantity}`);
+
+//         console.log(`   📦 Stock Entry #${idx + 1}:`);
+//         console.log(`      - Current Quantity: ${availableQuantity} (${unitType})`);
+//         console.log(`      - Will deduct: ${deductAmount} ${unit}`);
+//         console.log(`      - New Quantity: ${newQuantity}`);
+
+//         // Update the appropriate field
+//         const updateData = { [fieldToUpdate]: newQuantity };
+
+//         // Also update cost per unit if we're updating calculated fields
+//         if (unitType === "volume" && newQuantity > 0 && stockEntry.totalCost > 0) {
+//           updateData.costPerVolumeUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+//         } else if (unitType === "mass" && newQuantity > 0 && stockEntry.totalCost > 0) {
+//           updateData.costPerMassUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+//         } else if (unitType === "pieces" && newQuantity > 0 && stockEntry.totalCost > 0) {
+//           updateData.costPerPiece = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
+//         }
+
+//         console.log(`      - Updating ${fieldToUpdate} from ${availableQuantity} to ${newQuantity}`);
+//         await stockEntry.update(updateData, { transaction });
+
+//         remainingToDeduct -= deductAmount;
+//         console.log(`      ✅ Deducted ${deductAmount} ${unit}. Remaining to deduct: ${remainingToDeduct} ${unit}`);
+//       }
+
+//       if (remainingToDeduct > 0) {
+//         console.warn(`⚠️ [${deductionId}] Insufficient stock for ${material.name}. Short by: ${remainingToDeduct} ${unit}`);
+//       } else {
+//         console.log(`✅ [${deductionId}] Successfully deducted all required stock for ${material.name}`);
+//       }
+//     }
+
+//     console.log(`🎉 Stock deduction completed for menu item: ${menuItem.name}`);
+//   } catch (error) {
+//     console.error(`❌ Error deducting ingredient stock for menu item ID ${menuItemId}:`, error);
+//     throw error;
+//   }
+// };
 
 export const ordersController = {
   createOrder: async (req, res) => {

@@ -63,18 +63,12 @@ export const SuppliersProvider: React.FC<{ children: ReactNode }> = ({ children 
         const data = await suppliersAPI.getSuppliers({ _t: now });
         setSuppliers(data);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to fetch suppliers";
-        setError(message);
-        toast({
-          title: "Error",
-          description: message,
-          variant: "destructive"
-        });
+        setError("Failed to fetch suppliers");
       } finally {
         setLoading(false);
       }
     },
-    [lastFetchTime, toast]
+    [lastFetchTime]
   );
 
   // Initial fetch
@@ -90,18 +84,12 @@ export const SuppliersProvider: React.FC<{ children: ReactNode }> = ({ children 
         const response = await suppliersAPI.getSupplier(id);
         return response.data;
       } catch (err) {
-        const message = err instanceof Error ? err.message : `Failed to fetch supplier #${id}`;
-        toast({
-          title: "Error",
-          description: message,
-          variant: "destructive"
-        });
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [toast]
+    []
   );
 
   // Create a supplier
@@ -114,25 +102,14 @@ export const SuppliersProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Update local state immediately for better UX
         setSuppliers(prev => [...prev, response.data]);
 
-        toast({
-          title: "Success",
-          description: `Supplier ${response.data.name} created successfully`
-        });
-
         return response.data;
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to create supplier";
-        toast({
-          title: "Error",
-          description: message,
-          variant: "destructive"
-        });
         return null;
       } finally {
         setLoading(false);
       }
     },
-    [toast]
+    []
   );
 
   // Update a supplier
