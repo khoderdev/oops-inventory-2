@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PaymentFormProps, paymentFormSchema, PaymentFormValues } from "@/types/suppliers";
@@ -6,18 +6,22 @@ import { useSuppliersContext } from "@/context/SuppliersContext";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Loader2, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
-
-export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, onSuccess, onCancel }) => {
+export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, stockEntries, onSuccess, onCancel }) => {
   const { createSupplierPayment, updateSupplierPayment, loading } = useSuppliersContext();
+  const { toast } = useToast();
   const isEditing = !!payment;
+
+  // State for selected stock entries
+  const [selectedStockEntries, setSelectedStockEntries] = useState<number[]>(payment?.stockEntryIds || []);
 
   // Initialize form with default values or existing payment data
   const form = useForm<PaymentFormValues>({
@@ -25,11 +29,18 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, o
     defaultValues: {
       amount: payment?.amount || 0,
       paymentDate: payment?.paymentDate ? new Date(payment.paymentDate) : new Date(),
-      status: (payment?.status as "paid" | "pending" | "partial" | "overdue") || "paid",
+      paymentMethod: (payment?.paymentMethod as "Cash" | "Bank Transfer" | "Check" | "Credit Card" | "Other") || "Cash",
+      status: (payment?.status as "Completed" | "Pending" | "Failed" | "Refunded") || "Completed",
       referenceNumber: payment?.referenceNumber || "",
-      notes: payment?.description || ""
+      description: payment?.description || "",
+      attachmentUrl: payment?.attachmentUrl || ""
     }
   });
+
+  // Toggle stock entry selection
+  const toggleStockEntry = (stockEntryId: number) => {
+    setSelectedStockEntries(prev => (prev.includes(stockEntryId) ? prev.filter(id => id !== stockEntryId) : [...prev, stockEntryId]));
+  };
 
   // Handle form submission
   const onSubmit = async (values: PaymentFormValues) => {
@@ -37,20 +48,19 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, o
       // Convert Date object to ISO string for API compatibility
       const formattedValues = {
         ...values,
-        amount: values.amount, // Ensure amount is always defined
-        paymentDate: values.paymentDate ? values.paymentDate.toISOString().split('T')[0] : undefined
+        amount: Number(values.amount), // Ensure amount is a number
+        paymentDate: values.paymentDate ? values.paymentDate.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+        stockEntryIds: selectedStockEntries
       };
-      
+
       let result;
 
       if (isEditing && payment) {
-        // Update existing payment
         result = await updateSupplierPayment(payment.id, {
           ...formattedValues,
           supplierId: Number(supplierId)
         });
       } else {
-        // Create new payment
         result = await createSupplierPayment({
           ...formattedValues,
           supplierId: Number(supplierId)
@@ -58,10 +68,15 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, o
       }
 
       if (result && onSuccess) {
-        onSuccess(result.data);
+        onSuccess(result);
       }
     } catch (error) {
       console.error("Error saving payment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save payment. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -75,7 +90,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, o
             <FormItem>
               <FormLabel>Amount*</FormLabel>
               <FormControl>
-                <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                <Input type="number" step="0.01" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
               </FormControl>
               <FormDescription>Enter the payment amount</FormDescription>
               <FormMessage />
@@ -109,6 +124,31 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, o
 
         <FormField
           control={form.control}
+          name="paymentMethod"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Payment Method*</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select payment method" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="Check">Check</SelectItem>
+                  <SelectItem value="Credit Card">Credit Card</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="status"
           render={({ field }) => (
             <FormItem>
@@ -120,10 +160,11 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, o
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
+                  {/* Use backend-compatible status values */}
+                  <SelectItem value="Completed">Completed</SelectItem>
+                  <SelectItem value="Pending">Pending</SelectItem>
+                  <SelectItem value="Failed">Failed</SelectItem>
+                  <SelectItem value="Refunded">Refunded</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -146,19 +187,40 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, o
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Notes</FormLabel>
-              <FormControl>
-                <Textarea placeholder="Additional notes about this payment" className="resize-none" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Stock Entries Selection */}
+        {stockEntries && stockEntries.length > 0 && (
+          <div className="space-y-3">
+            <FormLabel>Associated Stock Entries (Optional)</FormLabel>
+            <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
+              {stockEntries.map(entry => (
+                <div key={entry.id} className={cn("flex items-center justify-between p-2 rounded-md border cursor-pointer", selectedStockEntries.includes(Number(entry.id)) ? "bg-primary/10 border-primary" : "hover:bg-muted/50")} onClick={() => toggleStockEntry(Number(entry.id))}>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      #{entry.id} - {entry.productName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Quantity: {entry.quantity} | Total: ${entry.totalAmount}
+                    </p>
+                  </div>
+                  {selectedStockEntries.includes(Number(entry.id)) ? <X className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4 text-muted-foreground" />}
+                </div>
+              ))}
+            </div>
+            {selectedStockEntries.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedStockEntries.map(id => {
+                  const entry = stockEntries.find(e => e.id === String(id));
+                  return entry ? (
+                    <Badge key={id} variant="secondary" className="px-2 py-1">
+                      #{entry.id} - {entry.productName}
+                    </Badge>
+                  ) : null;
+                })}
+              </div>
+            )}
+            <FormDescription>Select stock entries that this payment applies to (optional)</FormDescription>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
           {onCancel && (

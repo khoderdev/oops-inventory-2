@@ -8,12 +8,15 @@ import { ChevronDown, MoreHorizontal, Edit, Trash2, Plus, RefreshCw, FileText, R
 import { formatDate } from "@/utils/formatDate";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { PaymentsTableProps } from "@/types/suppliers";
+import PaymentForm from "./PaymentForm";
 
-export const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments = [], loading = false, onEdit, onDelete, onAdd, onRefresh }) => {
+export const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments = [], supplierId, loading = false, onEdit, onDelete, onAdd, onRefresh }) => {
   const [sortConfig, setSortConfig] = useState<{
     key: keyof SupplierPayment;
     direction: "asc" | "desc";
   }>({ key: "paymentDate", direction: "desc" });
+
+  const [showForm, setShowForm] = useState(false);
 
   // Handle sort
   const handleSort = (key: keyof SupplierPayment) => {
@@ -39,17 +42,16 @@ export const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments = [], loa
     });
   }, [payments, sortConfig]);
 
-  // Get payment status badge
   const getStatusBadge = (payment: SupplierPayment) => {
     switch (payment.status) {
-      case "paid":
-        return <Badge variant="default">Paid</Badge>;
-      case "pending":
+      case "Completed":
+        return <Badge variant="default">Completed</Badge>;
+      case "Pending":
         return <Badge variant="outline">Pending</Badge>;
-      case "partial":
-        return <Badge variant="secondary">Partial</Badge>;
-      case "overdue":
-        return <Badge variant="destructive">Overdue</Badge>;
+      case "Failed":
+        return <Badge variant="destructive">Failed</Badge>;
+      case "Refunded":
+        return <Badge variant="secondary">Refunded</Badge>;
       default:
         return <Badge variant="outline">{payment.status}</Badge>;
     }
@@ -65,13 +67,24 @@ export const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments = [], loa
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
           )}
-          {onAdd && (
-            <Button size="sm" onClick={onAdd}>
-              <Plus className="h-4 w-4 mr-1" /> Add Payment
-            </Button>
-          )}
+          <Button size="sm" onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-1" /> New Payment
+          </Button>
         </div>
       </div>
+
+      {showForm && (
+        <div className="border p-4 rounded-md bg-muted/30">
+          <PaymentForm
+            supplierId={supplierId}
+            onSuccess={() => {
+              setShowForm(false);
+              onAdd?.();
+            }}
+            onCancel={() => setShowForm(false)}
+          />
+        </div>
+      )}
 
       <div className="rounded-md border">
         <Table>

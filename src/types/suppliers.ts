@@ -1,4 +1,5 @@
 import z from "zod";
+import { StockEntry } from "./inventory";
 
 // Types for supplier data
 export interface Supplier {
@@ -34,6 +35,7 @@ export interface UpdateSupplierData extends Partial<CreateSupplierData> {}
 
 // Types for supplier payment data
 export interface SupplierPayment {
+  notes: string;
   id: number;
   supplierId: number;
   amount: number;
@@ -175,21 +177,20 @@ export interface SuppliersTableProps {
 }
 
 export const paymentFormSchema = z.object({
-  amount: z.coerce.number().positive("Amount must be greater than 0"),
-  paymentDate: z.date({
-    required_error: "Payment date is required"
-  }),
-  status: z.enum(["paid", "pending", "partial", "overdue"], {
-    required_error: "Status is required"
-  }),
+  amount: z.number().min(0.01, "Amount must be greater than 0"),
+  paymentDate: z.date(),
+  paymentMethod: z.enum(["Cash", "Bank Transfer", "Check", "Credit Card", "Other"]),
+  status: z.enum(["Completed", "Pending", "Failed", "Refunded"]),
   referenceNumber: z.string().optional(),
-  notes: z.string().optional()
+  description: z.string().optional(),
+  attachmentUrl: z.string().optional(),
 });
 
 export type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
 export interface PaymentFormProps {
   supplierId: number | string;
+  stockEntries?: StockEntry[];
   payment?: SupplierPayment;
   onSuccess?: (payment: SupplierPayment) => void;
   onCancel?: () => void;
