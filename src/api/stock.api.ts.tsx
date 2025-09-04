@@ -82,6 +82,29 @@ export interface TotalStockValueResponse {
   computedAt: string; // ISO timestamp
 }
 
+function normalizeSupplier(supplier: any) {
+  if (!supplier) return { supplierId: "", supplierName: "" };
+
+  // Case: supplier is already correct
+  if (typeof supplier.supplierId === "string" || typeof supplier.supplierId === "number") {
+    return {
+      supplierId: String(supplier.supplierId),
+      supplierName: supplier.supplierName ?? ""
+    };
+  }
+
+  // Case: legacy flat shape { supplierId, supplierName }
+  if ("supplierId" in supplier || "supplierName" in supplier) {
+    return {
+      supplierId: String((supplier as any).supplierId ?? ""),
+      supplierName: (supplier as any).supplierName ?? ""
+    };
+  }
+
+  // Case: fallback
+  return { supplierId: "", supplierName: "" };
+}
+
 export const stockAPI = {
   // Get stock entries with pagination support
   getStockEntries: async (params?: StockEntriesQueryParams): Promise<StockEntryWithMaterial[]> => {
@@ -106,25 +129,33 @@ export const stockAPI = {
 
   getStockEntry: (id: string) => api.get<StockEntry>(`/stock-entries/${id}`),
   createStockEntry: (stockEntryData: CreateStockEntryData) => {
-    // Transform data to use the new nested supplier structure
-    const supplierId = stockEntryData.supplierId || stockEntryData.supplier;
-    const supplierName = stockEntryData.supplierName || '';
-    
     const transformedData = {
       ...stockEntryData,
-      // Create nested supplier object
-      supplier: {
-        supplierId,
-        supplierName
-      },
-      // Keep legacy fields for backward compatibility
-      // supplierId,
-      // supplierName
+      supplier: normalizeSupplier(stockEntryData.supplier ?? {
+        supplierId: stockEntryData.supplier.supplierId,
+        supplierName: stockEntryData.supplier.supplierName,
+      }),
     };
-    
-    console.log('📤 Transformed stock entry data before API call:', transformedData);
+  
+    console.log("📤 Transformed stock entry data before API call:", transformedData);
     return api.post<StockEntry, any>("/stock-entries", transformedData);
   },
+  
+  updateStockEntry: (id: string, stockEntryData: UpdateStockEntryData) => {
+    console.log("📡 stockAPI.updateStockEntry called with:", { id, stockEntryData });
+  
+    const transformedData = {
+      ...stockEntryData,
+      supplier: normalizeSupplier(stockEntryData.supplier ?? {
+        supplierId: stockEntryData.supplier.supplierId,
+        supplierName: stockEntryData.supplier.supplierName,
+      }),
+    };
+  
+    console.log("📤 Transformed stock entry update data before API call:", transformedData);
+    return api.put<StockEntry, any>(`/stock-entries/${id}`, transformedData);
+  },
+  
   addToStock: (addStockData: AddStockData) => api.post<AddStockResponse, AddStockData>("/stock-entries/add-stock", addStockData),
   recordWaste: (wasteData: RecordWasteData) => api.post<RecordWasteResponse, RecordWasteData>("/stock-entries/record-waste", wasteData),
   addToSpecificEntry: (id: string, data: { additionalQuantity: number; unit: string; additionDate?: Date; notes?: string }) => api.post<{ message: string; stockEntry: StockEntry }, { additionalQuantity: number; unit: string; additionDate?: Date; notes?: string }>(`/stock-entries/${id}/add-to-entry`, data),
@@ -151,29 +182,7 @@ export const stockAPI = {
       }
     >(`/stock-entries/${id}/waste-from-entry`, data),
 
-  updateStockEntry: (id: string, stockEntryData: UpdateStockEntryData) => {
-    console.log("📡 stockAPI.updateStockEntry called with:", { id, stockEntryData });
-    
-    // Transform data to use the new nested supplier structure
-    const supplierId = stockEntryData.supplierId || stockEntryData.supplier;
-    const supplierName = stockEntryData.supplierName || '';
-    
-    const transformedData = {
-      ...stockEntryData,
-      // Create nested supplier object
-      supplier: {
-        supplierId,
-        supplierName
-      },
-      // Keep legacy fields for backward compatibility
-      // supplierId,
-      // supplierName
-    };
-    
-    console.log('📤 Transformed stock entry update data before API call:', transformedData);
-    
-    return api.put<StockEntry, any>(`/stock-entries/${id}`, transformedData);
-  },
+
   updateStockEntryPOS: (id: string, posData: { isPOSItem: boolean }) => api.patch<StockEntry, { isPOSItem: boolean }>(`/stock-entries/${id}/pos`, posData),
   deleteStockEntry: (id: string) => api.delete<null>(`/stock-entries/${id}`),
 

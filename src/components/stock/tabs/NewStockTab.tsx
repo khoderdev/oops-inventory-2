@@ -128,9 +128,11 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
 
   const handleSubmit = async (data: StockFormInputs) => {
     await form.trigger();
+
     const qty = toNumber(data.purchasedQuantity);
     const total = toNumber(data.totalCost);
-    const cpu = !data.costPerPurchasedUnit || data.costPerPurchasedUnit === "" ? (!isNaN(qty) && qty > 0 && !isNaN(total) ? total / qty : NaN) : toNumber(data.costPerPurchasedUnit);
+    const cpu = data.costPerPurchasedUnit === "" || data.costPerPurchasedUnit == null ? (!isNaN(qty) && qty > 0 && !isNaN(total) ? total / qty : NaN) : toNumber(data.costPerPurchasedUnit);
+
     if (isNaN(qty) || qty <= 0) {
       form.setError("purchasedQuantity", { type: "manual", message: "Quantity must be greater than 0" });
     }
@@ -143,19 +145,25 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
       if (firstError) form.setFocus(firstError as any);
       return;
     }
-    
-    // Prepare form data with nested supplier structure
     const formData: StockFormData = {
-      ...(data as any),
-      costPerPurchasedUnit: fmtMoney(cpu),
-      // Use the nested supplier object directly
+      materialId: data.materialId,
+      purchasedQuantity: qty,
+      purchasedUnit: data.purchasedUnit,
+      purchasedIndividualQuantity: data.purchasedIndividualQuantity ? toNumber(data.purchasedIndividualQuantity) : undefined,
+      purchasedIndividualUnit: data.purchasedIndividualUnit,
+      costPerPurchasedUnit: Number(cpu.toFixed(2)),
+      totalCost: Number(total.toFixed(2)),
+      purchaseDate: data.purchaseDate!,
+      expiryDate: data.expiryDate,
+      batchNumber: data.batchNumber ?? "",
+      notes: data.notes,
+      wasteQuantity: data.wasteQuantity ? toNumber(data.wasteQuantity) : undefined,
+      wasteReason: data.wasteReason,
+      wasteDate: data.wasteDate,
       supplier: data.supplier
-    } as unknown as StockFormData;
-    
-    console.log("Submitting stock entry with supplier data:", { 
-      supplier: data.supplier
-    });
-    
+    };
+
+    console.log("Submitting stock entry with supplier data:", formData.supplier);
     onSubmit(formData);
   };
 
@@ -209,9 +217,9 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                 <FormItem className="flex flex-col">
                   <FormLabel className="flex items-center gap-1">Supplier</FormLabel>
                   <FormControl>
-                    <SupplierSelector 
-                      value={field.value} 
-                      onChange={(supplierObject) => {
+                    <SupplierSelector
+                      value={field.value}
+                      onChange={supplierObject => {
                         console.log("Supplier selected in NewStockTab:", supplierObject);
                         field.onChange(supplierObject);
                       }}

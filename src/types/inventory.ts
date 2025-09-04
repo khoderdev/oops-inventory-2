@@ -1047,9 +1047,11 @@ export interface AddStockData {
   unit: string;
   additionDate?: Date;
   notes?: string;
-  supplier?: string; // Supplier ID
-  supplierId?: string; // Optional explicit supplier ID field for clarity
-  supplierName?: string; // Optional field to store the display name
+  supplier?: {
+    supplierId: string | number;
+    supplierName: string;
+  };
+
 }
 
 export interface RecordWasteData {
@@ -1060,17 +1062,18 @@ export interface RecordWasteData {
   wasteReason: string;
   wasteDate?: Date;
   notes?: string;
-  supplier?: string; // Supplier ID
-  supplierId?: string; // Optional explicit supplier ID field for clarity
-  supplierName?: string; // Optional field to store the display name
+  supplier?: {
+    supplierId: string | number;
+    supplierName: string;
+  };
 }
 
 export interface AddStockResponse {
   message: string;
   stockEntry: StockEntry;
   supplier?: {
-    id: string;
-    name: string;
+    supplierId: string | number;
+    supplierName: string;
   };
 }
 
@@ -1084,10 +1087,7 @@ export interface RecordWasteResponse {
     newQuantity: number;
   }>;
   reason: string;
-  supplier?: {
-    id: string;
-    name: string;
-  };
+
 }
 export interface WasteRecord {
   materialId: string;

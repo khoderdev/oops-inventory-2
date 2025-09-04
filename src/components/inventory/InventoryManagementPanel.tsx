@@ -477,7 +477,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
     async (
       data: {
         materialId?: string;
-        supplier?: string;
+        supplier?: {
+          supplierId: string | number;
+          supplierName: string;
+        };
         purchasedQuantity?: string | number;
         costPerPurchasedUnit?: string | number;
         totalCost?: string | number;
@@ -574,7 +577,10 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
     async (
       data: {
         materialId?: string;
-        supplier?: string;
+        supplier?: {
+          supplierId: string | number;
+          supplierName: string;
+        };
         purchasedQuantity?: number;
         costPerPurchasedUnit?: number;
         totalCost?: number;
