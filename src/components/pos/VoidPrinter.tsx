@@ -39,7 +39,7 @@ export const useVoidPrinter = ({ showSuccess, showError }: VoidPrinterProps) => 
         console.log("🗑️🖨️ Void items grouped by printer:", { printerCount: itemsByPrinter.size });
         const printPromises = Array.from(itemsByPrinter.entries()).map(async ([printerId, items]) => {
           try {
-            // Format void receipt content
+            // Format void receipt content with cut command at the end
             const voidContent = `
             ========== VOID RECEIPT ==========
             DATE: ${new Date().toLocaleString()}
@@ -51,7 +51,8 @@ export const useVoidPrinter = ({ showSuccess, showError }: VoidPrinterProps) => 
 
             *** ITEM(S) CANCELLED ***
             *** DO NOT PREPARE ***
-            ================================\n\n`;
+            ================================
+            \x1B@\x1Bm`; // ESC @ initialization + ESC m partial cut command
 
             const printJobData = {
               printerId: printerId,
