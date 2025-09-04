@@ -28,6 +28,8 @@ import Section from "./sections.js";
 import Session from "./Session.js";
 import StockEntry from "./StockEntry.js";
 import SystemLogs from "./StockEntryLogSimple.js";
+import Supplier from "./Supplier.js";
+import SupplierPayment from "./SupplierPayment.js";
 import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";
@@ -685,6 +687,20 @@ Printer.hasMany(StockEntry, {
   onUpdate: "CASCADE"
 });
 
+// StockEntry ↔ Supplier
+StockEntry.belongsTo(Supplier, {
+  foreignKey: "supplierId",
+  as: "supplier",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+Supplier.hasMany(StockEntry, {
+  foreignKey: "supplierId",
+  as: "stockEntries",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
 // MenuItem ↔ Printer (for individual menu item printer assignment)
 MenuItem.belongsTo(Printer, {
   foreignKey: "printerId",
@@ -930,4 +946,4 @@ Sauce.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, SystemLogs, Table, User, VariantIngredient, Variants, Wasting };
+export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, Supplier, SupplierPayment, SystemLogs, Table, User, VariantIngredient, Variants, Wasting };

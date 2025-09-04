@@ -1,5 +1,5 @@
 import { Op } from "sequelize";
-import { Material, StockEntry, Wasting, Printer, Category } from "../models/index.js";
+import { Material, StockEntry, Wasting, Printer, Category, Supplier } from "../models/index.js";
 import { StockEntryAuditHelperSimple } from "../decorators/stockEntryAuditDecoratorSimple.js";
 import { parsePaginationParams, buildPaginationResponse, buildFilterConditions, parseFieldSelection } from "../utils/paginationHelpers.js";
 import { getMaterialCategories } from "../utils/categoryHelpers.js";
@@ -19,8 +19,8 @@ const stockEntriesController = {
       const whereClause = buildFilterConditions(
         req.query,
         {
-          searchFields: ["supplier"],
-          exactFilters: ["materialId", "isPOSItem"],
+          searchFields: ["supplierName"],
+          exactFilters: ["materialId", "supplierId", "isPOSItem"],
           rangeFilters: ["purchaseDate", "expiryDate", "totalCost", "createdAt"]
         },
         Op
@@ -29,7 +29,8 @@ const stockEntriesController = {
       const selectedFields = parseFieldSelection(fields, [
         "id",
         "materialId",
-        "supplier",
+        "supplierId",
+        "supplierName",
         "purchasedQuantity",
         "purchasedUnit",
         "purchasedIndividualQuantity",
@@ -82,6 +83,12 @@ const stockEntriesController = {
                 required: false
               }
             ]
+          },
+          {
+            model: Supplier,
+            as: "supplier",
+            attributes: ["id", "name", "contactPerson", "email", "phone", "address", "isActive"],
+            required: false
           }
         ];
       }
@@ -102,6 +109,7 @@ const stockEntriesController = {
         filters: {
           search: req.query.search || "",
           materialId: req.query.materialId || "",
+          supplierId: req.query.supplierId || "",
           isPOSItem: req.query.isPOSItem || "",
           purchaseDate_from: req.query.purchaseDate_from || "",
           purchaseDate_to: req.query.purchaseDate_to || "",
@@ -134,7 +142,10 @@ const stockEntriesController = {
         return res.status(400).json({ error: "Invalid stock entry ID" });
       }
       const stockEntry = await StockEntry.findByPk(id, {
-        include: { model: Material, as: "material" }
+        include: [
+          { model: Material, as: "material" },
+          { model: Supplier, as: "supplier" }
+        ]
       });
 
       if (!stockEntry) {
@@ -150,7 +161,7 @@ const stockEntriesController = {
   // Create new stock entry
   createStockEntries: async (req, res, next) => {
     try {
-      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
+      const { materialId, supplierId, supplierName, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
       const numericPurchasedQuantity = parseFloat(purchasedQuantity);
       const numericCostPerPurchasedUnit = parseFloat(costPerPurchasedUnit);
       const numericTotalCost = parseFloat(totalCost);
@@ -182,9 +193,27 @@ const stockEntriesController = {
       const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit || 0;
       const finalCostPerBaseUnit = numericCostPerBaseUnit !== undefined ? numericCostPerBaseUnit : calculatedValues.purchasedIndividualQuantity > 0 ? parseFloat((numericTotalCost / calculatedValues.purchasedIndividualQuantity).toFixed(6)) : 0;
       const user = req.user || { id: null, fullName: "System", username: "system" };
+      // Check if supplier exists if supplierId is provided
+      let supplierData = {};
+      if (supplierId) {
+        const supplier = await Supplier.findByPk(supplierId);
+        if (!supplier) {
+          return res.status(404).json({ error: "Supplier not found" });
+        }
+        supplierData = {
+          supplierId,
+          supplierName: supplier.name
+        };
+      } else if (supplierName) {
+        // If only supplier name is provided without ID
+        supplierData = {
+          supplierName
+        };
+      }
+
       const stockEntryCreateData = {
         materialId,
-        supplier,
+        ...supplierData,
         purchasedQuantity: numericPurchasedQuantity,
         purchasedUnit,
         costPerPurchasedUnit: finalCostPerPurchasedUnit,
@@ -213,7 +242,7 @@ const stockEntriesController = {
   updateStockEntries: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { materialId, supplier, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
+      const { materialId, supplierId, supplierName, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
       const numericPurchasedQuantity = purchasedQuantity ? parseFloat(purchasedQuantity) : undefined;
       const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
       const numericTotalCost = totalCost ? parseFloat(totalCost) : undefined;
@@ -248,9 +277,36 @@ const stockEntriesController = {
       );
       const finalCostPerPurchasedUnit = numericCostPerPurchasedUnit ?? calculatedValues.costPerPurchasedUnit ?? 0;
       const finalCostPerBaseUnit = numericCostPerBaseUnit ?? (calculatedValues.purchasedIndividualQuantity > 0 ? parseFloat((updateData.totalCost / calculatedValues.purchasedIndividualQuantity).toFixed(6)) : 0);
+      // Handle supplier data
+      let supplierData = {};
+      if (supplierId !== undefined) {
+        // If supplierId is provided, verify it exists
+        if (supplierId !== null) {
+          const supplier = await Supplier.findByPk(supplierId);
+          if (!supplier) {
+            return res.status(404).json({ error: "Supplier not found" });
+          }
+          supplierData = {
+            supplierId,
+            supplierName: supplier.name
+          };
+        } else {
+          // If supplierId is explicitly set to null
+          supplierData = {
+            supplierId: null,
+            supplierName: supplierName || null
+          };
+        }
+      } else if (supplierName !== undefined && stockEntry.supplierId === null) {
+        // If only supplier name is being updated and there's no supplier ID
+        supplierData = {
+          supplierName
+        };
+      }
+
       const stockUpdateData = {
         materialId: materialId ?? stockEntry.materialId,
-        supplier: supplier ?? stockEntry.supplier,
+        ...supplierData,
         purchasedQuantity: updateData.purchasedQuantity,
         purchasedUnit: updateData.purchasedUnit,
         costPerPurchasedUnit: finalCostPerPurchasedUnit,
@@ -303,7 +359,10 @@ const stockEntriesController = {
         return res.status(400).json({ error: "Cost per unit cannot be negative" });
       }
       const stockEntry = await StockEntry.findByPk(id, {
-        include: { model: Material, as: "material" }
+        include: [
+          { model: Material, as: "material" },
+          { model: Supplier, as: "supplier" }
+        ]
       });
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
@@ -468,7 +527,10 @@ const stockEntriesController = {
         notes: notes ? `${stockEntry.notes || ""}\n[${new Date().toLocaleDateString()}] Added ${numericAdditionalQuantity} ${unit}. ${notes}`.trim() : stockEntry.notes
       });
       const updatedEntry = await StockEntry.findByPk(id, {
-        include: { model: Material, as: "material" }
+        include: [
+          { model: Material, as: "material" },
+          { model: Supplier, as: "supplier" }
+        ]
       });
       try {
         const user = req.user || { id: null, fullName: "System", username: "system" };
@@ -503,7 +565,10 @@ const stockEntriesController = {
         return res.status(400).json({ error: "Waste quantity must be a positive number" });
       }
       const stockEntry = await StockEntry.findByPk(id, {
-        include: { model: Material, as: "material" }
+        include: [
+          { model: Material, as: "material" },
+          { model: Supplier, as: "supplier" }
+        ]
       });
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
@@ -761,7 +826,10 @@ const stockEntriesController = {
         notes: notes || `Waste recorded: ${wasteReason} - ${wasteInSmallerUnit} ${wasteUnitForRecord}`
       });
       const updatedEntry = await StockEntry.findByPk(id, {
-        include: { model: Material, as: "material" }
+        include: [
+          { model: Material, as: "material" },
+          { model: Supplier, as: "supplier" }
+        ]
       });
       try {
         const user = req.user || { id: null, fullName: "System", username: "system" };
@@ -923,7 +991,10 @@ const stockEntriesController = {
         return res.status(400).json({ error: "isPOSItem field is required" });
       }
       const stockEntry = await StockEntry.findByPk(id, {
-        include: { model: Material, as: "material" }
+        include: [
+          { model: Material, as: "material" },
+          { model: Supplier, as: "supplier" }
+        ]
       });
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
@@ -931,7 +1002,10 @@ const stockEntriesController = {
       const originalStockEntry = stockEntry.toJSON();
       await stockEntry.update({ isPOSItem });
       const updatedStockEntry = await StockEntry.findByPk(id, {
-        include: { model: Material, as: "material" }
+        include: [
+          { model: Material, as: "material" },
+          { model: Supplier, as: "supplier" }
+        ]
       });
       try {
         const user = req.user || { id: null, fullName: "System", username: "system" };

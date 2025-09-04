@@ -3,6 +3,7 @@ import { materialsAPI } from "./materials.api.ts";
 import { menuAPI } from "./menu.api.ts";
 import { sectionAPI } from "./sections.api.ts.tsx";
 import { stockAPI } from "./stock.api.ts.tsx";
+import { suppliersAPI } from "./suppliers.api.ts";
 import {
   prefetchMaterialsAction,
   prefetchStockAction,
@@ -133,6 +134,7 @@ export const inventoryAPIWithPrefetch = {
   },
   sections: sectionAPI,
   assignments: assignmentsAPI,
+  suppliers: suppliersAPI,
   
   // Global prefetch methods
   prefetch: {
@@ -159,7 +161,8 @@ export const inventoryAPI = {
   stock: stockAPI,
   menu: menuAPI,
   sections: sectionAPI,
-  assignments: assignmentsAPI
+  assignments: assignmentsAPI,
+  suppliers: suppliersAPI
 };
 
-export { assignmentsAPI, materialsAPI, menuAPI, sectionAPI, stockAPI };
+export { assignmentsAPI, materialsAPI, menuAPI, sectionAPI, stockAPI, suppliersAPI };

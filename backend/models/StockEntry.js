@@ -2,6 +2,7 @@ import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
 import Material from "./materials.js";
 import Printer from "./Printer.js";
+import Supplier from "./Supplier.js";
 import StockCalculationService from "../services/stockCalculationService.js";
 
 const StockEntry = sequelize.define(
@@ -23,9 +24,19 @@ const StockEntry = sequelize.define(
         key: "id"
       }
     },
-    supplier: {
+    supplierId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: Supplier,
+        key: "id"
+      },
+      comment: "Foreign key to Supplier model"
+    },
+    supplierName: {
       type: DataTypes.STRING,
-      allowNull: true
+      allowNull: true,
+      comment: "Cached supplier name for backward compatibility and performance"
     },
 
     // ==========================================
@@ -196,18 +207,7 @@ const StockEntry = sequelize.define(
     tableName: "stockEntries",
     timestamps: true,
     // Performance optimizations
-    indexes: [
-      { fields: ['materialId'] },
-      { fields: ['supplier'] },
-      { fields: ['isPOSItem'] },
-      { fields: ['purchaseDate'] },
-      { fields: ['expiryDate'] },
-      { fields: ['totalCost'] },
-      { fields: ['createdAt'] },
-      { fields: ['materialId', 'isPOSItem'] },
-      { fields: ['materialId', 'purchaseDate'] },
-      { fields: ['isPOSItem', 'purchaseDate'] }
-    ],
+    indexes: [{ fields: ["materialId"] }, { fields: ["supplierId"] }, { fields: ["supplierName"] }, { fields: ["isPOSItem"] }, { fields: ["purchaseDate"] }, { fields: ["expiryDate"] }, { fields: ["totalCost"] }, { fields: ["createdAt"] }, { fields: ["materialId", "isPOSItem"] }, { fields: ["materialId", "purchaseDate"] }, { fields: ["supplierId", "purchaseDate"] }, { fields: ["isPOSItem", "purchaseDate"] }],
     hooks: {
       beforeCreate: async (stockEntry, options) => {
         await calculateStockValues(stockEntry, options);
@@ -229,12 +229,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 async function calculateStockValues(stockEntry, options) {
   try {
     // Skip calculation if this is a manual update with explicit values
-    const hasManualValues = stockEntry.changed("totalVolume") || 
-                           stockEntry.changed("totalMass") || 
-                           stockEntry.changed("totalPieces") ||
-                           stockEntry.changed("massUnit") ||
-                           stockEntry.changed("massPerUnit") ||
-                           stockEntry.changed("costPerMassUnit");
+    const hasManualValues = stockEntry.changed("totalVolume") || stockEntry.changed("totalMass") || stockEntry.changed("totalPieces") || stockEntry.changed("massUnit") || stockEntry.changed("massPerUnit") || stockEntry.changed("costPerMassUnit");
 
     if (hasManualValues) {
       return; // Skip verbose logging for performance
@@ -242,32 +237,34 @@ async function calculateStockValues(stockEntry, options) {
 
     // Performance: Use cached material or fetch if not cached
     let material = materialCache.get(stockEntry.materialId);
-    if (!material || (Date.now() - material._cacheTime) > CACHE_TTL) {
-      material = await Material.findByPk(stockEntry.materialId, { 
+    if (!material || Date.now() - material._cacheTime > CACHE_TTL) {
+      material = await Material.findByPk(stockEntry.materialId, {
         transaction: options?.transaction,
-        attributes: ['id', 'name', 'unitType', 'baseUnit', 'inputUnit', 'packageQuantity', 'volumePerUnit', 'volumeUnit', 'massPerUnit', 'massUnit', 'piecesPerPackage', 'unitDescription']
+        attributes: ["id", "name", "unitType", "baseUnit", "inputUnit", "packageQuantity", "volumePerUnit", "volumeUnit", "massPerUnit", "massUnit", "piecesPerPackage", "unitDescription"]
       });
-      
+
       if (!material) {
         console.warn(`Material not found for stockEntry with materialId: ${stockEntry.materialId}`);
         return;
       }
-      
+
       // Cache with timestamp
       material._cacheTime = Date.now();
       materialCache.set(stockEntry.materialId, material);
     }
 
     // Use the unified calculation service
-    const calculatedValues = StockCalculationService.calculateAllValues({
-      purchasedQuantity: stockEntry.purchasedQuantity,
-      purchasedUnit: stockEntry.purchasedUnit,
-      totalCost: stockEntry.totalCost
-    }, material);
+    const calculatedValues = StockCalculationService.calculateAllValues(
+      {
+        purchasedQuantity: stockEntry.purchasedQuantity,
+        purchasedUnit: stockEntry.purchasedUnit,
+        totalCost: stockEntry.totalCost
+      },
+      material
+    );
 
     // Apply calculated values to stock entry
     Object.assign(stockEntry, calculatedValues);
-
   } catch (error) {
     console.error("Error calculating stock values:", error);
     // Fallback to basic values
@@ -282,7 +279,7 @@ async function calculateStockValues(stockEntry, options) {
 setInterval(() => {
   const now = Date.now();
   for (const [key, material] of materialCache.entries()) {
-    if ((now - material._cacheTime) > CACHE_TTL) {
+    if (now - material._cacheTime > CACHE_TTL) {
       materialCache.delete(key);
     }
   }

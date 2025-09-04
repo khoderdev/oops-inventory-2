@@ -11,10 +11,13 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import System from "./components/system";
 import { AuthProvider } from "./contexts/AuthContext";
 import { DayOperationsProvider } from "./contexts/DayOperationsContext";
+import { SuppliersProvider } from "./context/SuppliersContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
 import { Employee } from "./components/employees";
 import UnitConverterDemo from "./components/common/UnitConverterDemo";
+import PaymentsTable from "./components/suppliers/PaymentsTable";
+import SuppliersPage from '@/pages/SuppliersPage';
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -85,6 +88,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
         >
           <AuthProvider>
             <DayOperationsProvider autoRefreshInterval={30000} enableAutoRefresh={true}>
+              <SuppliersProvider>
               <Suspense
                 fallback={
                   <div className="min-h-screen flex items-center justify-center">
@@ -243,6 +247,28 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                     }
                   />
 
+                  <Route
+                    path="/suppliers"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
+                        <AuthenticatedLayout pageTitle="Suppliers" showSearch={true} showNotifications={true}>
+                          <SuppliersPage />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/suppliers/payments"
+                    element={
+                      <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
+                        <AuthenticatedLayout pageTitle="Suppliers Payments" showSearch={true} showNotifications={true}>
+                          <PaymentsTable />
+                        </AuthenticatedLayout>
+                      </ProtectedRoute>
+                    }
+                  />
+
                   {/* Profile Management */}
                   <Route
                     path="/profile"
@@ -312,6 +338,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              </SuppliersProvider>
             </DayOperationsProvider>
           </AuthProvider>
         </BrowserRouter>

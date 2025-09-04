@@ -1,6 +1,6 @@
 import { PERMISSIONS } from "@/types/auth";
 import { NavigationItem } from "@/types/inventory";
-import { Activity, BarChart3, Calendar, Database, FileText, Home, Package, Receipt, Settings, Shield, ShoppingCart, UserCheck, Users, Utensils, Building } from "lucide-react";
+import { Activity, BarChart3, Calendar, Database, FileText, Home, Package, Receipt, Settings, Shield, ShoppingCart, UserCheck, Users, Utensils, Building, BanknoteArrowUp, Car } from "lucide-react";
 
 export const navigationItems: NavigationItem[] = [
   {
@@ -72,6 +72,24 @@ export const navigationItems: NavigationItem[] = [
         href: "/employees/settlements",
         icon: Calendar,
         permission: PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW
+      }
+    ]
+  },
+  {
+    label: "Suppliers",
+    icon: Car,
+    children: [
+      {
+        label: "Suppliers",
+        href: "/suppliers",
+        icon: Car,
+        permission: PERMISSIONS.DEPARTMENT_READ
+      },
+      {
+        label: "Payments",
+        href: "/suppliers/payments",
+        icon: BanknoteArrowUp,
+        permission: PERMISSIONS.EMPLOYEE_READ
       }
     ]
   },
