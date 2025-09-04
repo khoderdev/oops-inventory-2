@@ -570,34 +570,48 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         let fieldToUpdate = null;
         let unitType = "unknown";
 
-        console.log(`   🔍 [${deductionId}] Analyzing stock entry ${stockEntry.id} for material type: ${material.unitType}`);
-        console.log(`   📊 [${deductionId}] Available fields: totalVolume=${stockEntry.totalVolume}, totalMass=${stockEntry.totalMass}, totalPieces=${stockEntry.totalPieces}`);
-
-        if (stockEntry.totalVolume > 0 && (material.unitType === "volume" || material.unitType === "package")) {
+        // Better detection logic
+        if (stockEntry.totalVolume > 0 && (material.unitType === "volume" || material.unitType === "package" || material.name.toLowerCase().includes("sauce"))) {
           availableQuantity = stockEntry.totalVolume;
           fieldToUpdate = "totalVolume";
           unitType = "volume";
-          console.log(`   ✅ [${deductionId}] Using totalVolume: ${availableQuantity}`);
-        } else if (stockEntry.totalMass > 0 && material.unitType === "mass") {
+        } else if (stockEntry.totalMass > 0 && (material.unitType === "mass" || material.unitType === undefined || material.unitType === null)) {
+          // Handle undefined unitType by assuming mass for food items
           availableQuantity = stockEntry.totalMass;
           fieldToUpdate = "totalMass";
           unitType = "mass";
-          console.log(`   ✅ [${deductionId}] Using totalMass: ${availableQuantity}`);
         } else if (stockEntry.totalPieces > 0 && (material.unitType === "piece" || material.unitType === "package")) {
           availableQuantity = stockEntry.totalPieces;
           fieldToUpdate = "totalPieces";
           unitType = "pieces";
-          console.log(`   ✅ [${deductionId}] Using totalPieces: ${availableQuantity}`);
         } else {
-          // Fallback to raw purchase data
-          availableQuantity = stockEntry.purchasedIndividualQuantity ?? stockEntry.purchasedQuantity ?? 0;
-          fieldToUpdate = stockEntry.purchasedIndividualQuantity !== null ? "purchasedIndividualQuantity" : "purchasedQuantity";
-          unitType = "fallback";
-          console.log(`   ⚠️ [${deductionId}] Using fallback field ${fieldToUpdate}: ${availableQuantity}`);
+          // Smart fallback based on material name and available data
+          if (material.name.toLowerCase().includes("sauce") && stockEntry.totalVolume !== null) {
+            availableQuantity = stockEntry.totalVolume || 0;
+            fieldToUpdate = "totalVolume";
+            unitType = "volume";
+          } else if ((material.name.toLowerCase().includes("chicken") || material.name.toLowerCase().includes("onion") || material.name.toLowerCase().includes("pepper")) && stockEntry.totalMass !== null) {
+            availableQuantity = stockEntry.totalMass || 0;
+            fieldToUpdate = "totalMass";
+            unitType = "mass";
+          } else if (stockEntry.purchasedIndividualQuantity !== null) {
+            availableQuantity = stockEntry.purchasedIndividualQuantity;
+            fieldToUpdate = "purchasedIndividualQuantity";
+            unitType = "fallback";
+          } else {
+            availableQuantity = stockEntry.purchasedQuantity || 0;
+            fieldToUpdate = "purchasedQuantity";
+            unitType = "fallback";
+          }
         }
 
         const deductAmount = Math.min(remainingToDeduct, availableQuantity);
         const newQuantity = Math.max(0, availableQuantity - deductAmount);
+
+        console.log(`🔍 [${deductionId}] Material analysis: ${material.name}`);
+        console.log(`🔍 [${deductionId}] Unit type: ${material.unitType}`);
+        console.log(`🔍 [${deductionId}] Available stock fields: volume=${stockEntry.totalVolume}, mass=${stockEntry.totalMass}, pieces=${stockEntry.totalPieces}`);
+        console.log(`🔍 [${deductionId}] Selected field: ${fieldToUpdate} with value: ${availableQuantity}`);
 
         console.log(`   📦 Stock Entry #${idx + 1}:`);
         console.log(`      - Current Quantity: ${availableQuantity} (${unitType})`);
