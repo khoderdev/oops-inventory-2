@@ -24,7 +24,11 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
     resolver: zodResolver(stockSchema),
     defaultValues: {
       materialId: stockEntry?.materialId || selectedMaterialId || "",
-      supplier: stockEntry?.supplier || "",
+      // Handle nested supplier structure
+      supplier: stockEntry?.supplier || {
+        supplierId: "",
+        supplierName: ""
+      } as StockFormInputs['supplier'],
       purchasedQuantity: stockEntry?.purchasedQuantity?.toString() || "",
       purchasedUnit: stockEntry?.purchasedUnit || "",
       costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "",
@@ -104,7 +108,11 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
 
     form.reset({
       materialId: stockEntry?.materialId || selectedMaterialId || "",
-      supplier: stockEntry?.supplier || "",
+      // Handle nested supplier structure
+      supplier: stockEntry?.supplier || {
+        supplierId: "",
+        supplierName: ""
+      } as StockFormInputs['supplier'],
       purchasedQuantity: shouldClearQuantityFields ? "" : stockEntry?.purchasedQuantity?.toString() || "",
       purchasedUnit: isWasteFromEntry ? stockEntry?.purchasedUnit || "" : shouldClearQuantityFields ? "" : stockEntry?.purchasedUnit || "",
       costPerPurchasedUnit: stockEntry?.costPerPurchasedUnit?.toString() || "",
@@ -117,6 +125,7 @@ export function StockForm({ materials, stockEntry, selectedMaterialId, onSubmit,
       wasteDate: undefined
     });
   }, [stockEntry, selectedMaterialId, form, activeTab]);
+
 
   React.useEffect(() => {
     const isAddToEntry = activeTab === "add-to-entry";

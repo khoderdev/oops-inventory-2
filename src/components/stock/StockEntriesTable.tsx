@@ -668,7 +668,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                         )}
                         <div className="flex-1">
                           <h3 className="font-semibold text-base text-gray-900">{material?.name || "Unknown Material"}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{isVirtual ? "VIRTUAL" : (entry.supplier?.supplierName || entry.supplierName || "Unknown Supplier")}</p>
+                          <p className="text-sm text-gray-600 mt-1">{isVirtual ? "VIRTUAL" : (entry.supplier?.supplierName || "Unknown Supplier")}</p>
                         </div>
                       </div>
                     </div>

@@ -3,7 +3,10 @@ import { z } from "zod";
 // Base schema with all possible fields
 const baseStockSchema = {
   materialId: z.string().min(1, "Please select a material"),
-  supplier: z.string().optional(), // Now represents supplier ID instead of name
+  supplier: z.object({
+    supplierId: z.union([z.string(), z.number()]),
+    supplierName: z.string()
+  }).optional(), // Nested supplier object
   purchasedQuantity: z.union([z.number(), z.string(), z.undefined()])
     .optional()
     .refine((val) => {
@@ -48,7 +51,10 @@ export const addStockSchema = z.object({
 // Schema for adding to specific entry - requires quantity, excludes waste validation
 export const addToEntrySchema = z.object({
   materialId: z.string().min(1, "Please select a material"),
-  supplier: z.string().optional(),
+  supplier: z.object({
+    supplierId: z.union([z.string(), z.number()]),
+    supplierName: z.string()
+  }).optional(),
   purchasedQuantity: z.union([z.number(), z.string()])
     .pipe(z.coerce.number().refine(val => val > 0, "Please enter a quantity to add")),
   costPerPurchasedUnit: z.union([z.number(), z.string()])

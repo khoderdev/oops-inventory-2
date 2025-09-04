@@ -8,8 +8,8 @@ import SupplierForm from "./SupplierForm";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SupplierSelectorProps {
-  value: string;
-  onChange: (value: string) => void;
+  value: string | { supplierId: string | number; supplierName: string };
+  onChange: (value: { supplierId: string | number; supplierName: string }) => void;
   onSupplierCreate?: (supplier: Supplier) => void;
 }
 
@@ -21,12 +21,31 @@ export function SupplierSelector({ value, onChange, onSupplierCreate }: Supplier
     fetchSuppliers(true);
   }, []);
 
+  // Get the current supplier ID from either string or object format
+  const getCurrentSupplierId = (): string => {
+    if (typeof value === 'string') {
+      return value; // Handle legacy format
+    } else if (value && typeof value === 'object' && 'supplierId' in value) {
+      return value.supplierId.toString();
+    }
+    return '';
+  };
+
   const handleSelectSupplier = (supplierId: string) => {
-    onChange(supplierId);
+    const selectedSupplier = suppliers.find(s => s.id.toString() === supplierId);
+    if (selectedSupplier) {
+      onChange({
+        supplierId: supplierId,
+        supplierName: selectedSupplier.name
+      });
+    }
   };
 
   const handleSupplierCreate = (supplier: Supplier) => {
-    onChange(supplier.id.toString());
+    onChange({
+      supplierId: supplier.id.toString(),
+      supplierName: supplier.name
+    });
     setIsNewSupplierDialogOpen(false);
     if (onSupplierCreate) {
       onSupplierCreate(supplier);
@@ -37,7 +56,7 @@ export function SupplierSelector({ value, onChange, onSupplierCreate }: Supplier
     <div className="flex gap-2">
       {/* Simple select dropdown */}
       <div className="relative w-full">
-        <Select value={value} onValueChange={handleSelectSupplier}>
+        <Select value={getCurrentSupplierId()} onValueChange={handleSelectSupplier}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select supplier" />
           </SelectTrigger>

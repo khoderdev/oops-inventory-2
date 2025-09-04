@@ -91,7 +91,15 @@ const stockEntriesController = {
         ];
       }
 
-      const { count, rows: stockEntries } = await StockEntry.findAndCountAll(queryOptions);
+      const { count, rows: rawStockEntries } = await StockEntry.findAndCountAll(queryOptions);
+      
+      // Remove legacy supplier fields from the response
+      const stockEntries = rawStockEntries.map(entry => {
+        const entryData = entry.toJSON ? entry.toJSON() : entry;
+        const { supplierId, supplierName, ...cleanedEntry } = entryData;
+        return cleanedEntry;
+      });
+      
       if (stockEntries.length > 0) {
         const negativeStockEntries = stockEntries.filter(entry => entry.purchasedIndividualQuantity < 0 || entry.purchasedQuantity < 0);
         if (negativeStockEntries.length > 0) {
@@ -148,7 +156,12 @@ const stockEntriesController = {
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
       }
-      res.status(200).json(stockEntry);
+      
+      // Remove legacy supplier fields from the response
+      const stockEntryData = stockEntry.toJSON();
+      const { supplierId, supplierName, ...cleanedStockEntry } = stockEntryData;
+      
+      res.status(200).json(cleanedStockEntry);
     } catch (error) {
       console.error("Error fetching stock entry by ID:", error);
       next(error);

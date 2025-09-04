@@ -144,17 +144,16 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
       return;
     }
     
-    // Map supplier field to supplierId for backend compatibility
+    // Prepare form data with nested supplier structure
     const formData: StockFormData = {
       ...(data as any),
       costPerPurchasedUnit: fmtMoney(cpu),
-      // If supplier field exists, map it to supplierId
-      ...(data.supplier ? { supplierId: data.supplier } : {})
+      // Use the nested supplier object directly
+      supplier: data.supplier
     } as unknown as StockFormData;
     
     console.log("Submitting stock entry with supplier data:", { 
-      supplier: data.supplier,
-      supplierId: formData.supplierId 
+      supplier: data.supplier
     });
     
     onSubmit(formData);
@@ -212,9 +211,9 @@ export function NewStockTab({ form, materials, availableUnits, selectedMaterial,
                   <FormControl>
                     <SupplierSelector 
                       value={field.value} 
-                      onChange={(value) => {
-                        console.log("Supplier selected in NewStockTab:", value);
-                        field.onChange(value);
+                      onChange={(supplierObject) => {
+                        console.log("Supplier selected in NewStockTab:", supplierObject);
+                        field.onChange(supplierObject);
                       }}
                     />
                   </FormControl>

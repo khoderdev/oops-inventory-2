@@ -223,16 +223,7 @@ export interface StockEntry {
   supplier: {
     supplierId: string | number;
     supplierName: string;
-    // contactPerson?: string;
-    // email?: string;
-    // phone?: string;
-    // address?: string;
-    // isActive?: boolean;
   };
-  // Legacy fields for backward compatibility during transition
-  // supplierId?: string | number; 
-  // supplierName?: string;
-
   // Purchase information
   purchaseDate: Date;
   expiryDate?: Date;
@@ -295,9 +286,10 @@ export interface StockEntryWithMaterial extends StockEntry {
 
 export interface CreateStockEntryData {
   materialId: string;
-  supplier: string; // Now represents supplier ID instead of name
-  supplierId?: string; // Optional explicit supplier ID field for clarity
-  supplierName?: string; // Optional field to store the display name
+  supplier: {
+    supplierId: string | number;
+    supplierName: string;
+  };
   purchasedQuantity: number;
   purchasedUnit: string;
   purchasedIndividualQuantity?: number;
@@ -308,14 +300,14 @@ export interface CreateStockEntryData {
   expiryDate?: Date;
   batchNumber?: string;
   notes?: string;
-  // Note: Converted values and calculations are handled by backend
 }
 
 export interface UpdateStockEntryData {
   materialId?: string;
-  supplier?: string; // Now represents supplier ID instead of name
-  supplierId?: string; // Optional explicit supplier ID field for clarity
-  supplierName?: string; // Optional field to store the display name
+  supplier?: {
+    supplierId: string | number;
+    supplierName: string;
+  }; 
   purchasedQuantity?: number;
   purchasedUnit?: string;
   purchasedIndividualQuantity?: number;
@@ -326,7 +318,6 @@ export interface UpdateStockEntryData {
   expiryDate?: Date;
   batchNumber?: string;
   notes?: string;
-  // Note: Converted values and calculations are handled by backend
 }
 
 export interface MaterialWithStock extends Material {
@@ -1120,9 +1111,10 @@ export interface RecordWasteTabProps {
 
 export interface StockFormData extends z.infer<typeof stockSchema> {
   materialId: string;
-  supplier: string; // Now represents supplier ID instead of name
-  supplierId?: string; // Optional explicit supplier ID field for clarity
-  supplierName?: string; // Optional field to store the display name
+  supplier: {
+    supplierId: string | number;
+    supplierName: string;
+  };
   purchasedQuantity: number;
   purchasedUnit: string;
   purchasedIndividualQuantity?: number;
@@ -1133,25 +1125,31 @@ export interface StockFormData extends z.infer<typeof stockSchema> {
   expiryDate?: Date;
   batchNumber?: string;
   notes?: string;
+  wasteQuantity?: number;
+  wasteReason?: string;
+  wasteDate?: Date;
 }
 
 // Form interface with string types for inputs
 export interface StockFormInputs {
   materialId: string;
-  supplier?: string; // Now represents supplier ID instead of name
-  supplierId?: string; // Optional explicit supplier ID field for clarity
-  supplierName?: string; // Optional field to store the display name
+  supplier: {
+    supplierId: string | number;
+    supplierName: string;
+  };
   purchasedQuantity: string;
   purchasedUnit: string;
+  purchasedIndividualQuantity?: string;
+  purchasedIndividualUnit?: string;
   costPerPurchasedUnit: string;
   totalCost: string;
   purchaseDate: Date;
   expiryDate?: Date;
   batchNumber?: string;
+  notes?: string;
   wasteQuantity: string;
   wasteReason: string;
   wasteDate?: Date;
-  notes?: string;
   stockEntryId?: string;
 }
 

@@ -37,7 +37,6 @@ export function UpdateEntryTab({ form, materials, availableUnits, selectedMateri
       dateFieldLabel="Purchase Date"
       submitButtonText="Update Entry"
       disabledFields={["material"]}
-      readOnlyFields={["costPerUnit", "totalCost"]}
     />
   );
 }
