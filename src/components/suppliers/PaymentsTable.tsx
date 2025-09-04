@@ -9,7 +9,7 @@ import { formatDate } from "@/utils/formatDate";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { PaymentsTableProps } from "@/types/suppliers";
 
-export const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments, loading = false, onEdit, onDelete, onAdd, onRefresh }) => {
+export const PaymentsTable: React.FC<PaymentsTableProps> = ({ payments = [], loading = false, onEdit, onDelete, onAdd, onRefresh }) => {
   const [sortConfig, setSortConfig] = useState<{
     key: keyof SupplierPayment;
     direction: "asc" | "desc";

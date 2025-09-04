@@ -82,27 +82,12 @@ export interface TotalStockValueResponse {
   computedAt: string; // ISO timestamp
 }
 
-function normalizeSupplier(supplier: any) {
+function normalizeSupplierFromAPI(supplier: any) {
   if (!supplier) return { supplierId: "", supplierName: "" };
-
-  // Case: supplier is already correct
-  if (typeof supplier.supplierId === "string" || typeof supplier.supplierId === "number") {
-    return {
-      supplierId: String(supplier.supplierId),
-      supplierName: supplier.supplierName ?? ""
-    };
-  }
-
-  // Case: legacy flat shape { supplierId, supplierName }
-  if ("supplierId" in supplier || "supplierName" in supplier) {
-    return {
-      supplierId: String((supplier as any).supplierId ?? ""),
-      supplierName: (supplier as any).supplierName ?? ""
-    };
-  }
-
-  // Case: fallback
-  return { supplierId: "", supplierName: "" };
+  return {
+    supplierId: String(supplier.supplierId ?? supplier.id ?? ""),
+    supplierName: String(supplier.supplierName ?? supplier.name ?? "")
+  };
 }
 
 export const stockAPI = {
@@ -110,52 +95,73 @@ export const stockAPI = {
   getStockEntries: async (params?: StockEntriesQueryParams): Promise<StockEntryWithMaterial[]> => {
     const config = params ? ({ params } as any) : undefined;
     const response = await api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries", config);
-    return response.data.data;
+
+    // 🔥 Normalize suppliers before returning
+    return response.data.data.map(entry => ({
+      ...entry,
+      supplier: normalizeSupplierFromAPI(entry.supplier)
+    }));
   },
 
   // Get paginated stock entries (returns full response with pagination info)
   getStockEntriesPaginated: async (params?: StockEntriesQueryParams) => {
     const config = params ? ({ params } as any) : undefined;
-    return api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries", config);
+    const response = await api.get<PaginatedResponse<StockEntryWithMaterial>>("/stock-entries", config);
+
+    return {
+      ...response.data,
+      data: response.data.data.map(entry => ({
+        ...entry,
+        supplier: normalizeSupplierFromAPI(entry.supplier)
+      }))
+    };
   },
 
   // Legacy method for backward compatibility - gets all stock entries without pagination
   getAllStockEntries: async (): Promise<StockEntry[]> => {
     const response = await api.get<PaginatedResponse<StockEntry>>("/stock-entries", {
-      params: { limit: 1000, includeMaterial: "false" } as any // Get a large number to simulate "all"
+      params: { limit: 1000, includeMaterial: "false" } as any
     } as any);
-    return response.data.data;
+
+    return response.data.data.map(entry => ({
+      ...entry,
+      supplier: normalizeSupplierFromAPI(entry.supplier)
+    }));
   },
 
   getStockEntry: (id: string) => api.get<StockEntry>(`/stock-entries/${id}`),
   createStockEntry: (stockEntryData: CreateStockEntryData) => {
     const transformedData = {
       ...stockEntryData,
-      supplier: normalizeSupplier(stockEntryData.supplier ?? {
-        supplierId: stockEntryData.supplier.supplierId,
-        supplierName: stockEntryData.supplier.supplierName,
-      }),
+      supplier: normalizeSupplierFromAPI(
+        stockEntryData.supplier ?? {
+          supplierId: stockEntryData.supplier.supplierId,
+          supplierName: stockEntryData.supplier.supplierName
+        }
+      )
     };
-  
+
     console.log("📤 Transformed stock entry data before API call:", transformedData);
     return api.post<StockEntry, any>("/stock-entries", transformedData);
   },
-  
+
   updateStockEntry: (id: string, stockEntryData: UpdateStockEntryData) => {
     console.log("📡 stockAPI.updateStockEntry called with:", { id, stockEntryData });
-  
+
     const transformedData = {
       ...stockEntryData,
-      supplier: normalizeSupplier(stockEntryData.supplier ?? {
-        supplierId: stockEntryData.supplier.supplierId,
-        supplierName: stockEntryData.supplier.supplierName,
-      }),
+      supplier: normalizeSupplierFromAPI(
+        stockEntryData.supplier ?? {
+          supplierId: stockEntryData.supplier.supplierId,
+          supplierName: stockEntryData.supplier.supplierName
+        }
+      )
     };
-  
+
     console.log("📤 Transformed stock entry update data before API call:", transformedData);
     return api.put<StockEntry, any>(`/stock-entries/${id}`, transformedData);
   },
-  
+
   addToStock: (addStockData: AddStockData) => api.post<AddStockResponse, AddStockData>("/stock-entries/add-stock", addStockData),
   recordWaste: (wasteData: RecordWasteData) => api.post<RecordWasteResponse, RecordWasteData>("/stock-entries/record-waste", wasteData),
   addToSpecificEntry: (id: string, data: { additionalQuantity: number; unit: string; additionDate?: Date; notes?: string }) => api.post<{ message: string; stockEntry: StockEntry }, { additionalQuantity: number; unit: string; additionDate?: Date; notes?: string }>(`/stock-entries/${id}/add-to-entry`, data),
@@ -181,7 +187,6 @@ export const stockAPI = {
         notes?: string;
       }
     >(`/stock-entries/${id}/waste-from-entry`, data),
-
 
   updateStockEntryPOS: (id: string, posData: { isPOSItem: boolean }) => api.patch<StockEntry, { isPOSItem: boolean }>(`/stock-entries/${id}/pos`, posData),
   deleteStockEntry: (id: string) => api.delete<null>(`/stock-entries/${id}`),

@@ -134,7 +134,7 @@ export function useStockEntriesTableColumns({ searchTerm, bulkSelectionMode, sor
         ),
         cell: ({ row }) => {
           const entry = row.original;
-          const currentTotalCost = calculateCurrentTotalCost(entry);
+          const currentTotalCost = entry.totalCost;
           return (
             <div className="text-left w-[90px] h-8 px-2 flex items-center">
               <span className="font-medium">{formatCleanCurrency(currentTotalCost)}</span>

@@ -16,14 +16,12 @@ import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from 
 import { getCoreRowModel, useReactTable, SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import { useStockEntriesTableColumns } from "./StockEntriesTableColumns";
 import { hasNegativeStock, renderQuantityDisplay, renderUnitDisplay } from "./StockEntriesDisplayHelpers";
-import { calculateCurrentTotalCost } from "./StockEntriesCalculationHelpers";
 import { Pagination } from "./Pagination";
 import { NegativeStock } from "./NegativeStock";
 import { stockAPI } from "@/api/stock.api.ts";
 import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 
 const isVirtualEntry = (entry: StockEntryWithMaterial) => {
-  // Check if supplier is marked as virtual
   return entry.supplier?.supplierName === "-" || entry.supplier?.supplierName === "-";
 };
 
@@ -177,13 +175,10 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
       const searchLower = searchTerm.toLowerCase();
       const materialName = entry.material?.name?.toLowerCase() || "";
       const matchesMaterialName = materialName.includes(searchLower);
-      // Handle supplier using the new nested structure
       let matchesSupplier = false;
       if (entry.supplier?.supplierName) {
-        // If we have the new nested supplier structure
         matchesSupplier = entry.supplier.supplierName.toLowerCase().includes(searchLower);
       } else if (entry.supplier?.supplierName) {
-        // Fallback to legacy field for backward compatibility
         matchesSupplier = entry.supplier.supplierName.toLowerCase().includes(searchLower);
       }
       const batchNumber = entry.batchNumber?.toLowerCase() || "";
@@ -310,7 +305,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     setSortOrder(newSortOrder);
     setCurrentPage(1);
   }, []);
-
 
   const isAllowedPOSCategory = (material: Material | undefined) => {
     if (!material || !material.category) return false;
@@ -547,6 +541,9 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     setShowBulkPrinterDialog(false);
   };
 
+
+
+
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
       <div className="h-full flex flex-col">
@@ -668,7 +665,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                         )}
                         <div className="flex-1">
                           <h3 className="font-semibold text-base text-gray-900">{material?.name || "Unknown Material"}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{isVirtual ? "VIRTUAL" : (entry.supplier?.supplierName || "Unknown Supplier")}</p>
+                          <p className="text-sm text-gray-600 mt-1">{isVirtual ? "VIRTUAL" : entry.supplier?.supplierName || "Unknown Supplier"}</p>
                         </div>
                       </div>
                     </div>
@@ -700,7 +697,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                       </div>
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Cost</span>
-                        <p className="text-sm font-semibold text-gray-900">{formatCurrency(calculateCurrentTotalCost(entry))}</p>
+                        <p className="text-sm font-semibold text-gray-900">{entry.totalCost}</p>
                       </div>
                       <div className="space-y-1">
                         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Purchase Date</span>
