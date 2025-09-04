@@ -1,4 +1,3 @@
-import chalk from "chalk";
 import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
 
@@ -29,7 +28,7 @@ const sequelize = isProduction
   : new Sequelize({
       dialect: "postgres",
       host: "localhost",
-      database: "inventory_db1",
+      database: "inventory_db2",
       username: "postgres",
       password: "postgres",
       port: 5432,

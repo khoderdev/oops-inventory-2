@@ -9,13 +9,15 @@ import { fileURLToPath } from "url";
 import os from "os";
 import sequelize from "../config/database.js";
 import { findPostgreSQLPath } from "../scripts/pgPathFinder.js";
+import { promisify } from "node:util";
+import { exec as execCallback, execSync } from "node:child_process";
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Define backup directory path
-const BACKUP_DIR = path.join(__dirname, '..', 'backups');
+const BACKUP_DIR = path.join(__dirname, "..", "backups");
 
 // Ensure backup directory exists
 if (!fs.existsSync(BACKUP_DIR)) {
@@ -23,8 +25,8 @@ if (!fs.existsSync(BACKUP_DIR)) {
 }
 
 // Initialize PostgreSQL bin path and executable extension
-let PG_BIN_PATH = '';
-let PG_EXECUTABLE_EXT = os.platform() === 'win32' ? '.exe' : '';
+let PG_BIN_PATH = "";
+let PG_EXECUTABLE_EXT = os.platform() === "win32" ? ".exe" : "";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -38,19 +40,19 @@ const upload = multer({
 async function findPostgreSQLBinPath() {
   try {
     // Check if we have a saved configuration
-    const configPath = path.join(__dirname, '..', 'config', 'pgPath.json');
+    const configPath = path.join(__dirname, "..", "config", "pgPath.json");
     let pgInfo;
-    
+
     if (fs.existsSync(configPath)) {
       try {
-        const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        console.log('📋 Using saved PostgreSQL configuration');
-        
+        const configData = JSON.parse(fs.readFileSync(configPath, "utf8"));
+        console.log("📋 Using saved PostgreSQL configuration");
+
         // Verify the saved path still works
         if (configData.inPath || (configData.binPath && fs.existsSync(configData.binPath))) {
           pgInfo = configData;
         } else {
-          console.log('⚠️ Saved PostgreSQL path is no longer valid, detecting again...');
+          console.log("⚠️ Saved PostgreSQL path is no longer valid, detecting again...");
           pgInfo = await findPostgreSQLPath();
         }
       } catch (error) {
@@ -59,32 +61,38 @@ async function findPostgreSQLBinPath() {
       }
     } else {
       // No saved configuration, detect PostgreSQL
-      console.log('🔍 Detecting PostgreSQL installation...');
+      console.log("🔍 Detecting PostgreSQL installation...");
       pgInfo = await findPostgreSQLPath();
     }
-    
+
     const platform = os.platform();
-    const executableExtension = platform === 'win32' ? '.exe' : '';
-    
-    return { 
-      pgDumpPath: pgInfo.binPath, 
-      executableExtension: executableExtension 
+    const executableExtension = platform === "win32" ? ".exe" : "";
+
+    return {
+      pgDumpPath: pgInfo.binPath,
+      executableExtension: executableExtension
     };
   } catch (error) {
     console.error(`❌ Error finding PostgreSQL: ${error.message}`);
     // Fallback to default behavior
     const platform = os.platform();
-    return { 
-      pgDumpPath: '', 
-      executableExtension: platform === 'win32' ? '.exe' : '' 
+    return {
+      pgDumpPath: "",
+      executableExtension: platform === "win32" ? ".exe" : ""
     };
   }
 }
 
-// Helper function to execute shell commands
+// Helper function to execute shell commands with larger buffer
 const execAsync = (command, options = {}) => {
   return new Promise((resolve, reject) => {
-    exec(command, options, (error, stdout, stderr) => {
+    // Increase max buffer size to handle large outputs
+    const execOptions = {
+      maxBuffer: 1024 * 1024 * 50, // 50MB buffer
+      ...options
+    };
+
+    exec(command, execOptions, (error, stdout, stderr) => {
       if (error) {
         reject(error);
       } else {
@@ -193,11 +201,11 @@ const getBackupMetadata = async (backupPath, type) => {
 };
 
 // Helper function to run backup script
-const runBackupScript = async (format = 'custom') => {
+const runBackupScript = async (format = "custom") => {
   try {
     // Map 'sql' to 'plain' for pg_dump compatibility
-    const pgDumpFormat = format === 'sql' ? 'sql' : format;
-    
+    const pgDumpFormat = format === "sql" ? "sql" : format;
+
     const scriptPath = path.join(__dirname, "..", "scripts", "pgDumpFixed.js");
     console.log(`Running backup with format: ${pgDumpFormat}`);
     const result = await execAsync(`node "${scriptPath}" --format=${pgDumpFormat}`, {
@@ -253,7 +261,7 @@ async function initPostgreSQLPaths() {
     const { pgDumpPath, executableExtension } = await findPostgreSQLBinPath();
     PG_BIN_PATH = pgDumpPath;
     PG_EXECUTABLE_EXT = executableExtension;
-    console.log(`🔍 PostgreSQL bin path initialized: ${PG_BIN_PATH || 'Using PATH'}`);
+    console.log(`🔍 PostgreSQL bin path initialized: ${PG_BIN_PATH || "Using PATH"}`);
     return true;
   } catch (error) {
     console.error(`❌ Error initializing PostgreSQL paths: ${error.message}`);
@@ -270,9 +278,8 @@ router.post("/create", async (req, res) => {
     // Extract format from the formats array if provided, otherwise default to custom
     const { name, formats, includeData = true, includeSchema = true } = req.body;
     const type = formats && formats.length > 0 ? formats[0] : "custom";
-    
+
     console.log(`Creating backup with name: ${name}, format: ${type}`);
-    
 
     // Generate backup name if not provided
     const backupName = name || `backup_${new Date().toISOString().replace(/[:.]/g, "-")}`;
@@ -319,7 +326,7 @@ router.post("/create", async (req, res) => {
 
     // Create a backup ID that includes the format
     const backupId = `${latestBackup}_${type}`;
-    
+
     const backupInfo = {
       id: backupId,
       name: backupName,
@@ -528,37 +535,37 @@ router.delete("/:backupId", async (req, res) => {
 router.get("/validate/:backupId", async (req, res) => {
   try {
     const { backupId } = req.params;
-    
+
     console.log(`🔍 Validating backup: ${backupId}`);
-    
+
     // Parse backup ID to get directory and type
     const parts = backupId.split("_");
     const type = parts[parts.length - 1];
-    
+
     // The directory name is the full backup ID without the type suffix
     const dirName = backupId.substring(0, backupId.length - type.length - 1);
-    
+
     const backupDir = path.join(BACKUP_DIR, dirName);
-    
+
     // Check if backup directory exists
     try {
       await fsPromises.access(backupDir);
     } catch (error) {
       console.error(`❌ Backup directory not found: ${backupDir}`);
-      return res.status(404).json({ 
-        success: false, 
-        message: "Backup not found", 
-        error: "Directory not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Backup not found",
+        error: "Directory not found"
       });
     }
-    
+
     // Check for backup files
     const files = await fsPromises.readdir(backupDir);
     console.log(`📄 Found files in backup directory:`, files);
-    
+
     let mainFile;
     let issues = [];
-    
+
     switch (type) {
       case "custom":
         mainFile = files.find(f => f.endsWith(".custom"));
@@ -575,29 +582,29 @@ router.get("/validate/:backupId", async (req, res) => {
       default:
         issues.push(`Unknown backup type: ${type}`);
     }
-    
+
     if (issues.length > 0) {
       console.error(`❌ Validation failed:`, issues);
-      return res.status(400).json({ 
-        success: false, 
-        data: { valid: false, issues, metadata: {} } 
+      return res.status(400).json({
+        success: false,
+        data: { valid: false, issues, metadata: {} }
       });
     }
-    
+
     const backupPath = path.join(backupDir, mainFile);
     const metadata = await getBackupMetadata(backupPath, type);
-    
+
     console.log(`✅ Backup validated successfully`);
-    res.json({ 
-      success: true, 
-      data: { valid: true, issues: [], metadata: metadata.metadata } 
+    res.json({
+      success: true,
+      data: { valid: true, issues: [], metadata: metadata.metadata }
     });
   } catch (error) {
     console.error(`❌ Error validating backup:`, error);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to validate backup", 
-      error: error.message 
+    res.status(500).json({
+      success: false,
+      message: "Failed to validate backup",
+      error: error.message
     });
   }
 });
@@ -610,11 +617,11 @@ router.get("/download/:backupId", async (req, res) => {
     // Parse backup ID to get directory and type
     const parts = backupId.split("_");
     const type = parts[parts.length - 1];
-    
+
     // The directory name is the full backup ID without the type suffix
     // For example: pgdump_2025-08-20_5-41-51-AM
     const dirName = backupId.substring(0, backupId.length - type.length - 1);
-    
+
     console.log(`📥 Downloading backup: ${backupId}, type: ${type}, dirName: ${dirName}`);
 
     const backupDir = path.join(BACKUP_DIR, dirName);
@@ -630,7 +637,7 @@ router.get("/download/:backupId", async (req, res) => {
     } catch (dirError) {
       console.error(`❌ Error reading backup directory: ${dirError.message}`);
     }
-    
+
     switch (type) {
       case "custom":
         console.log(`🔍 Looking for custom format backup file`);
@@ -730,7 +737,7 @@ router.post("/restore/:backupId", async (req, res) => {
 
     let restoreCommand;
     let filePath;
-    let tempFilePath = null; // Track temp file for cleanup
+    let tempFilePath = null;
 
     const pgRestorePath = PG_BIN_PATH ? path.join(PG_BIN_PATH, `pg_restore${PG_EXECUTABLE_EXT}`) : `pg_restore${PG_EXECUTABLE_EXT}`;
     const psqlPath = PG_BIN_PATH ? path.join(PG_BIN_PATH, `psql${PG_EXECUTABLE_EXT}`) : `psql${PG_EXECUTABLE_EXT}`;
@@ -742,9 +749,9 @@ router.post("/restore/:backupId", async (req, res) => {
       password: sequelize.config.password,
       database: targetDatabase || sequelize.config.database
     };
-    
+
     console.log(`🔄 Restoring to database: ${dbConfig.database}`);
-    console.log(`🛠️  Using PostgreSQL tools from: ${PG_BIN_PATH || 'PATH'}`);
+    console.log(`🛠️  Using PostgreSQL tools from: ${PG_BIN_PATH || "PATH"}`);
     console.log(`📋 Request body:`, { targetDatabase, dropExisting, restoreData, restoreSchema });
 
     switch (type) {
@@ -762,131 +769,310 @@ router.post("/restore/:backupId", async (req, res) => {
         break;
 
       case "sql":
+        // Log directory scanning and file selection
         const sqlFiles = await fsPromises.readdir(backupDir);
+        console.log(`📂 Found ${sqlFiles.length} files in backup directory: ${backupDir}`);
+        console.log(`📜 Files: ${sqlFiles.join(", ")}`);
+
         const sqlFile = sqlFiles.find(f => f.endsWith(".sql"));
-        if (!sqlFile) throw new Error("SQL backup file not found");
+        if (!sqlFile) {
+          console.error(`❌ Error: No SQL backup file found in ${backupDir}`);
+          throw new Error("SQL backup file not found");
+        }
+        console.log(`✅ Selected SQL file: ${sqlFile}`);
         filePath = path.join(backupDir, sqlFile);
 
-        // Read the SQL file to check for database-level commands
-        const sqlContent = await fsPromises.readFile(filePath, 'utf8');
-        const hasDbCommands = sqlContent.includes('DROP DATABASE') || sqlContent.includes('CREATE DATABASE');
-        
-        if (hasDbCommands) {
-          // For SQL backups with database commands, we need to modify the file
-          // to use the target database name
-          tempFilePath = path.join(backupDir, `temp_${sqlFile}`);
-          
-          // Extract original database name from the backup
-          const dbNameMatch = sqlContent.match(/(?:DROP DATABASE IF EXISTS|CREATE DATABASE)\s+(\w+)/i);
-          const originalDbName = dbNameMatch ? dbNameMatch[1] : null;
-          
-          let modifiedContent = sqlContent;
-          
-          if (originalDbName && originalDbName !== dbConfig.database) {
-            console.log(`📝 Replacing database name from '${originalDbName}' to '${dbConfig.database}'`);
-            
-            // Replace database name in the SQL content
-            modifiedContent = sqlContent
-              .replace(new RegExp(`DROP DATABASE IF EXISTS ${originalDbName}`, 'gi'), `DROP DATABASE IF EXISTS ${dbConfig.database}`)
-              .replace(new RegExp(`CREATE DATABASE ${originalDbName}`, 'gi'), `CREATE DATABASE ${dbConfig.database}`)
-              .replace(new RegExp(`\\\\connect ${originalDbName}`, 'gi'), `\\connect ${dbConfig.database}`);
-              
-            console.log(`🔍 Debug: Original database name: ${originalDbName}`);
-            console.log(`🔍 Debug: Target database name: ${dbConfig.database}`);
-            console.log(`🔍 Debug: Connect command before replacement: ${sqlContent.includes(`\\connect ${originalDbName}`) ? 'Found' : 'Not found'}`);
-            console.log(`🔍 Debug: Connect command after replacement: ${modifiedContent.includes(`\\connect ${dbConfig.database}`) ? 'Found' : 'Not found'}`);
-            
-            // Add connection termination before DROP DATABASE
-            const dropDbPattern = new RegExp(`(DROP DATABASE IF EXISTS ${dbConfig.database})`, 'gi');
-            modifiedContent = modifiedContent.replace(dropDbPattern, 
-              `-- Terminate existing connections to the database\n` +
-              `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${dbConfig.database}' AND pid <> pg_backend_pid();\n` +
-              `$1`);
+        // Read and log SQL file content
+        let sqlContent = await fsPromises.readFile(filePath, "utf8");
+        console.log(`📄 Read SQL file: ${filePath}, size: ${sqlContent.length} bytes`);
+        let hasDbCommands = sqlContent.includes("DROP DATABASE") || sqlContent.includes("CREATE DATABASE");
+        console.log(`🔍 Database commands detected: ${hasDbCommands ? "Yes (DROP/CREATE DATABASE)" : "No"}`);
+
+        // Log content around line 28 in original file
+        let lines = sqlContent.split("\n");
+        let contextStart = Math.max(0, 25); // Show lines 26-35
+        let contextEnd = Math.min(lines.length, 35);
+        console.log(`🔍 Content around line 28 in ${sqlFile} (lines ${contextStart + 1}-${contextEnd}):`);
+        for (let i = contextStart; i < contextEnd; i++) {
+          console.log(`  Line ${i + 1}: ${lines[i].slice(0, 100)}${lines[i].length > 100 ? "..." : ""}`);
+        }
+
+        // Log DO block processing
+        console.log(`🛠️ Processing DO blocks in SQL content...`);
+        let doBlockCount = 0;
+        let doBlocks = [];
+        // Find all DO blocks with their line numbers
+        let lineNumber = 0;
+        let currentBlock = "";
+        let inBlock = false;
+        let blockStartLine = 0;
+        lines = sqlContent.split("\n");
+        for (let i = 0; i < lines.length; i++) {
+          lineNumber++;
+          const line = lines[i];
+          if (line.match(/^\s*DO\s+\$[^\$]*\$\s*$/i)) {
+            inBlock = true;
+            blockStartLine = lineNumber;
+            currentBlock = line + "\n";
+            continue;
           }
-          
-          // Handle conflicts based on dropExisting setting
-          if (dropExisting) {
-            console.log(`🔧 Complete database replacement mode - ensuring data integrity`);
-            // When dropExisting is true, we want to drop and recreate everything
-            // This ensures all foreign key relationships are preserved
-          } else {
-            console.log(`⚠️  WARNING: Preserving existing database may cause foreign key constraint violations`);
-            console.log(`⚠️  For complete data integrity, use dropExisting: true`);
-            
-            // Remove DROP DATABASE and CREATE DATABASE commands to preserve existing database
-            modifiedContent = modifiedContent.replace(
-              /-- Terminate existing connections to the database[\s\S]*?DROP DATABASE IF EXISTS [^;]+;/gi,
-              '-- Database preservation mode: DROP DATABASE command removed'
-            );
-            modifiedContent = modifiedContent.replace(
-              /CREATE DATABASE [^;]+;/gi,
-              '-- Database preservation mode: CREATE DATABASE command removed'
-            );
-            modifiedContent = modifiedContent.replace(
-              /\\connect [^;\n]+/gi,
-              '-- Database preservation mode: connect command removed'
-            );
-            
-            // Add IF NOT EXISTS to CREATE EXTENSION statements to avoid conflicts
-            modifiedContent = modifiedContent.replace(
-              /CREATE EXTENSION ([^\s;]+)/g,
-              'CREATE EXTENSION IF NOT EXISTS $1'
-            );
-            
-            // Add error handling for foreign key constraint violations
-            modifiedContent = `-- Foreign key constraint handling for partial restore\n` +
-              `SET session_replication_role = replica; -- Disable FK checks temporarily\n` +
-              modifiedContent +
-              `\nSET session_replication_role = DEFAULT; -- Re-enable FK checks\n`;
-          }
-          
-          // Write modified content to temp file
-          await fsPromises.writeFile(tempFilePath, modifiedContent);
-          filePath = tempFilePath;
-          
-          // Determine connection database based on dropExisting and database commands
-          if (dropExisting) {
-            // When dropping existing, connect to postgres database for database-level operations
-            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=postgres --set ON_ERROR_STOP=on --file="${filePath}"`;
-          } else {
-            // When preserving existing, connect directly to target database with detailed error reporting
-            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --echo-errors --file="${filePath}"`;
-          }
-        } else {
-          // No database-level commands, restore directly to target database
-          // Handle schema conflicts when not dropping existing
-          if (!dropExisting) {
-            console.log(`⚠️  WARNING: Schema-only restore may have foreign key constraint issues`);
-            console.log(`⚠️  Recommend using dropExisting: true for complete data integrity`);
-            tempFilePath = path.join(backupDir, `temp_${sqlFile}`);
-            
-            let modifiedContent = sqlContent;
-            
-            // Add foreign key constraint handling
-            modifiedContent = `-- Foreign key constraint handling for schema-only restore\n` +
-              `SET session_replication_role = replica; -- Disable FK checks temporarily\n` +
-              modifiedContent +
-              `\nSET session_replication_role = DEFAULT; -- Re-enable FK checks\n`;
-            
-            // Handle extensions to avoid conflicts
-            modifiedContent = modifiedContent.replace(
-              /CREATE EXTENSION ([^\s;]+)/g,
-              'CREATE EXTENSION IF NOT EXISTS $1'
-            );
-            
-            // Write modified content to temp file
-            await fsPromises.writeFile(tempFilePath, modifiedContent);
-            filePath = tempFilePath;
-          }
-          
-          if (dropExisting) {
-            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --set ON_ERROR_STOP=on --file="${filePath}"`;
-          } else {
-            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --echo-errors --file="${filePath}"`;
+          if (inBlock) {
+            currentBlock += line + "\n";
+            if (line.match(/\$\s*(?:LANGUAGE\s+plpgsql\s*;)?$/i) || line.match(/\$\s*$/)) {
+              inBlock = false;
+              doBlocks.push({ block: currentBlock.trim(), startLine: blockStartLine });
+              doBlockCount++;
+              currentBlock = "";
+            }
           }
         }
-        break;
+        if (inBlock) {
+          // Handle unterminated block
+          doBlocks.push({ block: currentBlock.trim(), startLine: blockStartLine });
+          doBlockCount++;
+        }
+        console.log(`🔢 Found ${doBlockCount} potential DO blocks to process`);
+        if (doBlockCount > 0) {
+          console.log(`📜 DO blocks found:`);
+          doBlocks.forEach((block, index) => {
+            console.log(`  Block ${index + 1} (starting at line ${block.startLine}): ${block.block.slice(0, 50)}...`);
+          });
+        }
 
+        // Fix DO blocks
+        sqlContent = sqlContent.replace(/DO\s+\$[^\$]*\$([\s\S]*?)(?=\$[^\$]*\$|$)/gi, (match, block, offset) => {
+          const blockStartLine = sqlContent.slice(0, offset).split("\n").length;
+          console.log(`🔧 Processing DO block at line ${blockStartLine}: ${match.slice(0, 50)}...`);
+          let cleanedBlock = block.trim();
+
+          // Remove any existing END statements at the end
+          cleanedBlock = cleanedBlock.replace(/\s*END\s*\$\$\s*LANGUAGE\s+\w+\s*;?\s*$/i, "");
+          console.log(`🧹 Cleaned block (removed END): ${cleanedBlock.slice(0, 50)}...`);
+
+          // Ensure the block starts with BEGIN if it doesn't already
+          if (!cleanedBlock.trim().toUpperCase().startsWith("BEGIN") && !cleanedBlock.trim().toUpperCase().startsWith("DECLARE")) {
+            console.log(`➕ Adding BEGIN/END to block`);
+            cleanedBlock = `BEGIN\n${cleanedBlock}\nEND`;
+          }
+
+          // Add the language specifier
+          const blockWithoutLang = cleanedBlock.replace(/\s*LANGUAGE\s+[a-zA-Z_]+\s*;?\s*$/, "").trim();
+          return `DO $$\n${blockWithoutLang}\n$$ LANGUAGE plpgsql;\n`;
+        });
+
+        // Clean up malformed DO blocks
+        console.log(`🧹 Cleaning up malformed DO blocks...`);
+        let malformedBlockCount = 0;
+        sqlContent = sqlContent.replace(/DO\s+\$[^\$]*\$[^\$]*\$\s*(?:LANGUAGE\s+plpgsql\s*;)?/gi, (match, offset) => {
+          const blockStartLine = sqlContent.slice(0, offset).split("\n").length;
+          const blockMatch = match.match(/DO\s+\$[^\$]*\$([^$]*)\$\s*(?:LANGUAGE\s+plpgsql\s*;)?/is);
+          if (blockMatch && blockMatch[1]) {
+            const blockContent = blockMatch[1].trim();
+            console.log(`⚠️ Processing potential malformed DO block at line ${blockStartLine}: ${blockContent.slice(0, 50)}...`);
+            if (!/^\s*(BEGIN|DECLARE)\b/i.test(blockContent)) {
+              malformedBlockCount++;
+              console.log(`🔧 Fixing malformed block by adding BEGIN/END`);
+              return `DO $$\nBEGIN\n${blockContent}\nEND\n$$ LANGUAGE plpgsql;`;
+            }
+            console.log(`✅ Valid DO block, no changes needed`);
+            return match;
+          }
+          malformedBlockCount++;
+          console.log(`🗑️ Commenting out malformed DO block at line ${blockStartLine}: ${match.slice(0, 50)}...`);
+          return `-- Skipped malformed DO block at line ${blockStartLine}: ${match.replace(/\n/g, " ").slice(0, 100)}...`;
+        });
+        console.log(`🔢 Processed ${malformedBlockCount} malformed DO blocks`);
+
+        // Validate SQL content
+        console.log(`🔍 Validating SQL content for potential syntax errors...`);
+        const potentialIssues = (sqlContent.match(/DO\s+\$[^\$]*\$/gi) || []).filter(block => !block.includes("$$ LANGUAGE plpgsql"));
+        if (potentialIssues.length > 0) {
+          console.warn(`⚠️ Found ${potentialIssues.length} potentially malformed DO blocks without proper termination:`);
+          potentialIssues.forEach((block, index) => {
+            console.warn(`  Issue ${index + 1}: ${block.slice(0, 50)}...`);
+          });
+        } else {
+          console.log(`✅ No obvious syntax issues detected in DO blocks`);
+        }
+
+        // Write the modified content to a temporary file
+        const tempSqlFile = path.join(backupDir, "temp_restore.sql");
+        await fsPromises.writeFile(tempSqlFile, sqlContent);
+        console.log(`💾 Wrote modified SQL content to temporary file: ${tempSqlFile}`);
+        filePath = tempSqlFile;
+
+        if (hasDbCommands) {
+          tempFilePath = path.join(backupDir, `temp_${sqlFile}`);
+          console.log(`📝 Creating temporary file for database commands: ${tempFilePath}`);
+
+          const dbNameMatch = sqlContent.match(/(?:DROP DATABASE IF EXISTS|CREATE DATABASE)\s+(\w+)/i);
+          const originalDbName = dbNameMatch ? dbNameMatch[1] : null;
+          console.log(`🔍 Original database name: ${originalDbName || "Not found"}`);
+          console.log(`🎯 Target database name: ${dbConfig.database}`);
+
+          let modifiedContent = sqlContent;
+
+          if (originalDbName && originalDbName !== dbConfig.database) {
+            console.log(`🔄 Replacing database name '${originalDbName}' with '${dbConfig.database}'`);
+            modifiedContent = sqlContent
+              .replace(new RegExp(`DROP DATABASE IF EXISTS ${originalDbName}`, "gi"), `DROP DATABASE IF EXISTS ${dbConfig.database}`)
+              .replace(new RegExp(`CREATE DATABASE ${originalDbName}`, "gi"), `CREATE DATABASE ${dbConfig.database}`)
+              .replace(new RegExp(`\\\\connect ${originalDbName}`, "gi"), `\\connect ${dbConfig.database}`);
+            console.log(`🔍 Connect command replaced: ${modifiedContent.includes(`\\connect ${dbConfig.database}`) ? "Success" : "Not found"}`);
+          }
+
+          console.log(`🔧 Adding enhanced connection termination script`);
+          const enhancedConnectionTermination = `
+              -- Enhanced connection termination with error handling
+              DO $$
+              DECLARE
+                r RECORD;
+                terminated_count INTEGER := 0;
+              BEGIN
+                RAISE NOTICE 'Attempting to terminate connections to database: ${dbConfig.database}';
+                FOR r IN SELECT pid FROM pg_stat_activity WHERE datname = '${dbConfig.database}' AND pid <> pg_backend_pid()
+                LOOP
+                  BEGIN
+                    PERFORM pg_terminate_backend(r.pid);
+                    terminated_count := terminated_count + 1;
+                    RAISE NOTICE 'Terminated connection: %', r.pid;
+                  EXCEPTION WHEN OTHERS THEN
+                    RAISE NOTICE 'Failed to terminate connection: %, Error: %', r.pid, SQLERRM;
+                  END;
+                END LOOP;
+                
+                IF terminated_count > 0 THEN
+                  PERFORM pg_sleep(1);
+                END IF;
+                
+                FOR r IN SELECT pid FROM pg_stat_activity WHERE datname = '${dbConfig.database}' AND pid <> pg_backend_pid()
+                LOOP
+                  BEGIN
+                    PERFORM pg_terminate_backend(r.pid);
+                    RAISE NOTICE 'Force terminated connection: %', r.pid;
+                  EXCEPTION WHEN OTHERS THEN
+                    RAISE NOTICE 'Failed to force terminate connection: %, Error: %', r.pid, SQLERRM;
+                  END;
+                END LOOP;
+                
+                RAISE NOTICE 'Connection termination completed for database: ${dbConfig.database}';
+              END $$;
+            `;
+
+          console.log(`🔄 Adding connection termination before DROP DATABASE`);
+          const dropDbPattern = new RegExp(`(DROP DATABASE IF EXISTS ${dbConfig.database})`, "gi");
+          modifiedContent = modifiedContent.replace(dropDbPattern, `${enhancedConnectionTermination}\n\n$1`);
+
+          if (dropExisting) {
+            console.log(`🔧 Complete database replacement mode enabled (dropExisting: true)`);
+          } else {
+            console.log(`⚠️ Preserving existing database (dropExisting: false)`);
+            console.log(`⚠️ Removing DROP/CREATE DATABASE commands to avoid conflicts`);
+            modifiedContent = modifiedContent.replace(new RegExp(`${enhancedConnectionTermination}`, "g"), "-- Database preservation mode: Connection termination removed");
+            modifiedContent = modifiedContent.replace(/DROP DATABASE IF EXISTS [^;]+;/gi, "-- Database preservation mode: DROP DATABASE command removed");
+            modifiedContent = modifiedContent.replace(/CREATE DATABASE [^;]+;/gi, "-- Database preservation mode: CREATE DATABASE command removed");
+            modifiedContent = modifiedContent.replace(/\\connect [^;\n]+/gi, "-- Database preservation mode: connect command removed");
+            console.log(`🔄 Added IF NOT EXISTS to CREATE EXTENSION statements`);
+            modifiedContent = modifiedContent.replace(/CREATE EXTENSION ([^\s;]+)/g, "CREATE EXTENSION IF NOT EXISTS $1");
+            console.log(`🔄 Added foreign key constraint handling for partial restore`);
+            modifiedContent = `-- Foreign key constraint handling for partial restore\nSET session_replication_role = replica; -- Disable FK checks temporarily\n${modifiedContent}\nSET session_replication_role = DEFAULT; -- Re-enable FK checks\n`;
+          }
+
+          console.log(`🛠️ Preprocessing SQL content for DO blocks and transaction handling`);
+          let doBlockPreprocessCount = 0;
+          modifiedContent = modifiedContent
+            .replace(/DO\s*\$\$([^$]*)\$$\s*LANGUAGE\s+plpgsql\s*;/gi, (match, content, offset) => {
+              const blockStartLine = modifiedContent.slice(0, offset).split("\n").length;
+              doBlockPreprocessCount++;
+              if (!content.trim().toUpperCase().includes("BEGIN")) {
+                console.log(`🔧 Adding BEGIN/END to DO block at line ${blockStartLine}: ${content.slice(0, 50)}...`);
+                return `DO $$\nBEGIN\n${content.trim()}\nEND\n$$ LANGUAGE plpgsql;`;
+              }
+              console.log(`✅ Valid DO block at line ${blockStartLine}: ${content.slice(0, 50)}...`);
+              return match;
+            })
+            .replace(/DO\s*\$\$[^$]*\$$\s*(?:LANGUAGE\s+plpgsql\s*;)?/gi, (match, offset) => {
+              const blockStartLine = modifiedContent.slice(0, offset).split("\n").length;
+              console.log(`🗑️ Commenting out problematic DO block at line ${blockStartLine}: ${match.slice(0, 50)}...`);
+              return `-- Skipped problematic DO block at line ${blockStartLine}: ${match.replace(/\n/g, " ").slice(0, 100)}...`;
+            })
+            .replace(/^/m, "BEGIN;\n")
+            .replace(/$/m, "\nCOMMIT;");
+
+          // Log content around line 28 in temp file
+          lines = modifiedContent.split("\n");
+          contextStart = Math.max(0, 25);
+          contextEnd = Math.min(lines.length, 35);
+          console.log(`🔍 Content around line 28 in ${tempFilePath} (lines ${contextStart + 1}-${contextEnd}):`);
+          for (let i = contextStart; i < contextEnd; i++) {
+            console.log(`  Line ${i + 1}: ${lines[i].slice(0, 100)}${lines[i].length > 100 ? "..." : ""}`);
+          }
+
+          await fsPromises.writeFile(tempFilePath, modifiedContent);
+          console.log(`💾 Wrote modified SQL content to: ${tempFilePath}`);
+          filePath = tempFilePath;
+
+          if (dropExisting) {
+            console.log(`🔄 Restore mode: Connecting to postgres database for full restore`);
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=postgres --set ON_ERROR_STOP=on --set VERBOSE=on --file="${filePath}"`;
+          } else {
+            console.log(`🔄 Restore mode: Connecting to target database ${dbConfig.database} with error reporting`);
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --echo-errors --set VERBOSE=on --file="${filePath}"`;
+          }
+          console.log(`📜 Restore command: ${restoreCommand}`);
+        } else {
+          console.log(`🔍 No database-level commands detected, restoring to target database ${dbConfig.database}`);
+          if (!dropExisting) {
+            console.log(`⚠️ Schema-only restore mode (dropExisting: false)`);
+            tempFilePath = path.join(backupDir, `temp_${sqlFile}`);
+            let modifiedContent = sqlContent;
+
+            console.log(`🔄 Adding foreign key constraint handling for schema-only restore`);
+            modifiedContent = `-- Foreign key constraint handling for schema-only restore\nSET session_replication_role = replica; -- Disable FK checks temporarily\n${modifiedContent}\nSET session_replication_role = DEFAULT; -- Re-enable FK checks\n`;
+
+            console.log(`🔄 Adding IF NOT EXISTS to CREATE EXTENSION statements`);
+            modifiedContent = modifiedContent.replace(/CREATE EXTENSION ([^\s;]+)/g, "CREATE EXTENSION IF NOT EXISTS $1");
+
+            await fsPromises.writeFile(tempFilePath, modifiedContent);
+            console.log(`💾 Wrote modified schema-only content to: ${tempFilePath}`);
+            filePath = tempFilePath;
+          }
+
+          if (dropExisting) {
+            console.log(`🔄 Restore mode: Full restore to ${dbConfig.database} with error stopping`);
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --set ON_ERROR_STOP=on --set VERBOSE=on --file="${filePath}"`;
+          } else {
+            console.log(`🔄 Restore mode: Schema-only restore to ${dbConfig.database} with error reporting`);
+            restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --echo-errors --set VERBOSE=on --file="${filePath}"`;
+          }
+          console.log(`📜 Restore command: ${restoreCommand}`);
+        }
+
+        // Execute restore command and capture output
+        console.log(`⚡ Executing restore command: ${restoreCommand}`);
+        try {
+          const execPromise = promisify(execCallback);
+          const { stdout, stderr } = await execPromise(restoreCommand, { env: { ...process.env, PGPASSWORD: dbConfig.password } });
+          console.log(`✅ Restore command executed successfully`);
+          console.log(`📜 psql stdout: ${stdout.slice(0, 500)}${stdout.length > 500 ? "..." : ""}`);
+          if (stderr) {
+            console.warn(`⚠️ psql stderr: ${stderr.slice(0, 500)}${stderr.length > 500 ? "..." : ""}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error restoring backup: ${error.message}`);
+          console.error(`📜 psql stderr: ${error.stderr ? error.stderr.slice(0, 500) + (error.stderr.length > 500 ? "..." : "") : "No stderr"}`);
+          // Fallback: Try synchronous execution
+          console.log(`🔄 Attempting synchronous execution to capture more output...`);
+          try {
+            const output = execSync(restoreCommand, { env: { ...process.env, PGPASSWORD: dbConfig.password }, encoding: "utf8" });
+            console.log(`📜 Synchronous psql output: ${output.slice(0, 500)}${output.length > 500 ? "..." : ""}`);
+          } catch (syncError) {
+            console.error(`❌ Synchronous execution failed: ${syncError.message}`);
+            console.error(`📜 Synchronous psql stderr: ${syncError.stderr ? syncError.stderr.slice(0, 500) + (syncError.stderr.length > 500 ? "..." : "") : "No stderr"}`);
+          }
+          throw error;
+        }
+        break;
       case "directory":
         const dirPath = path.join(backupDir, "backup_directory");
         restoreCommand = `"${pgRestorePath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --verbose`;
@@ -910,7 +1096,7 @@ router.post("/restore/:backupId", async (req, res) => {
     const duration = Date.now() - startTime;
 
     // Cleanup temp file if created
-    if (typeof tempFilePath !== 'undefined' && tempFilePath) {
+    if (typeof tempFilePath !== "undefined" && tempFilePath) {
       try {
         await fsPromises.unlink(tempFilePath);
         console.log(`🗑️ Cleaned up temp file: ${tempFilePath}`);
@@ -919,32 +1105,55 @@ router.post("/restore/:backupId", async (req, res) => {
       }
     }
 
+    // VERIFY STOCKENTRIES TABLE RESTORATION - ADD THIS SECTION
+    console.log("🔍 Verifying stockEntries table restoration...");
+    try {
+      // Check if stockEntries table exists
+      const tableExists = await sequelize.query(
+        `SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'stockEntries'
+        )`,
+        { type: sequelize.QueryTypes.SELECT }
+      );
+
+      console.log(`✅ stockEntries table exists: ${tableExists[0].exists}`);
+
+      // If table exists, check record count
+      if (tableExists[0].exists) {
+        const stockEntriesCount = await sequelize.query('SELECT COUNT(*) as count FROM "stockEntries"', { type: sequelize.QueryTypes.SELECT });
+        console.log(`📊 stockEntries record count: ${stockEntriesCount[0].count}`);
+      }
+    } catch (verificationError) {
+      console.warn("⚠️ Could not verify stockEntries table:", verificationError.message);
+    }
+
     // Get restore statistics and check for potential data integrity issues
     const dbStats = await getDatabaseStats();
-    
+    console.log(`📈 Database stats after restore:`, {
+      tables: dbStats.tables,
+      records: dbStats.records,
+      database: dbStats.name
+    });
+
     // Check for potential foreign key constraint issues
     let warnings = [];
     if (!dropExisting) {
       // Check if menuItemIngredients table has data (common foreign key issue)
       try {
-        const menuItemIngredientsCount = await sequelize.query(
-          'SELECT COUNT(*) as count FROM "menuItemIngredients"',
-          { type: sequelize.QueryTypes.SELECT }
-        );
-        const menuItemsCount = await sequelize.query(
-          'SELECT COUNT(*) as count FROM "menuItems"',
-          { type: sequelize.QueryTypes.SELECT }
-        );
-        
+        const menuItemIngredientsCount = await sequelize.query('SELECT COUNT(*) as count FROM "menuItemIngredients"', { type: sequelize.QueryTypes.SELECT });
+        const menuItemsCount = await sequelize.query('SELECT COUNT(*) as count FROM "menuItems"', { type: sequelize.QueryTypes.SELECT });
+
         if (menuItemsCount[0].count > 0 && menuItemIngredientsCount[0].count === 0) {
           warnings.push({
-            type: 'foreign_key_violation',
-            message: 'Menu items exist but no ingredients were restored. This indicates foreign key constraint violations.',
-            recommendation: 'Use dropExisting: true for complete data integrity'
+            type: "foreign_key_violation",
+            message: "Menu items exist but no ingredients were restored. This indicates foreign key constraint violations.",
+            recommendation: "Use dropExisting: true for complete data integrity"
           });
         }
       } catch (checkError) {
-        console.warn('Could not check for foreign key issues:', checkError.message);
+        console.warn("Could not check for foreign key issues:", checkError.message);
       }
     }
 
@@ -954,20 +1163,22 @@ router.post("/restore/:backupId", async (req, res) => {
         message: dropExisting ? "Database restored successfully with complete data integrity" : "Database restored with potential data integrity issues",
         restoredTables: dbStats.tables,
         restoredRecords: dbStats.records,
+        stockEntriesCount: dbStats.stockEntriesCount, // Add this line
         duration: Math.round(duration / 1000), // Convert to seconds
         warnings: warnings.length > 0 ? warnings : undefined,
         recommendation: !dropExisting && warnings.length > 0 ? "For complete data integrity, use dropExisting: true when restoring" : undefined
       }
     };
-    
+
     if (warnings.length > 0) {
-      console.warn('⚠️  Restore completed with warnings:', warnings);
+      console.warn("⚠️  Restore completed with warnings:", warnings);
     }
 
+    console.log("✅ Restore process completed successfully");
     res.json(response);
   } catch (error) {
     // Cleanup temp file if created
-    if (typeof tempFilePath !== 'undefined' && tempFilePath) {
+    if (typeof tempFilePath !== "undefined" && tempFilePath) {
       try {
         await fsPromises.unlink(tempFilePath);
         console.log(`🗑️ Cleaned up temp file after error: ${tempFilePath}`);
@@ -975,8 +1186,8 @@ router.post("/restore/:backupId", async (req, res) => {
         console.warn(`⚠️ Failed to cleanup temp file after error: ${cleanupError.message}`);
       }
     }
-    
-    console.error("Error restoring backup:", error);
+
+    console.error("❌ Error restoring backup:", error);
     res.status(500).json({
       success: false,
       message: "Failed to restore backup",
