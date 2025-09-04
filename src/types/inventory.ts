@@ -220,14 +220,18 @@ export interface StockEntry {
   // Core identification
   id: string;
   materialId: string;
-  supplier: string; // Now represents supplier ID instead of name
-  supplierId?: string; // Optional explicit supplier ID field for clarity
-  supplierName?: string; // Optional field to store the display name
-  supplierObject?: {
-    id: string;
-    name: string;
-    isActive?: boolean;
+  supplier: {
+    supplierId: string | number;
+    supplierName: string;
+    // contactPerson?: string;
+    // email?: string;
+    // phone?: string;
+    // address?: string;
+    // isActive?: boolean;
   };
+  // Legacy fields for backward compatibility during transition
+  // supplierId?: string | number; 
+  // supplierName?: string;
 
   // Purchase information
   purchaseDate: Date;

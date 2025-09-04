@@ -29,8 +29,6 @@ const stockEntriesController = {
       const selectedFields = parseFieldSelection(fields, [
         "id",
         "materialId",
-        "supplierId",
-        "supplierName",
         "purchasedQuantity",
         "purchasedUnit",
         "purchasedIndividualQuantity",
@@ -87,7 +85,7 @@ const stockEntriesController = {
           {
             model: Supplier,
             as: "supplier",
-            attributes: ["id", "name", "contactPerson", "email", "phone", "address", "isActive"],
+            attributes: ["id", "name", "isActive"],
             required: false
           }
         ];
@@ -109,7 +107,6 @@ const stockEntriesController = {
         filters: {
           search: req.query.search || "",
           materialId: req.query.materialId || "",
-          supplierId: req.query.supplierId || "",
           isPOSItem: req.query.isPOSItem || "",
           purchaseDate_from: req.query.purchaseDate_from || "",
           purchaseDate_to: req.query.purchaseDate_to || "",
@@ -161,7 +158,12 @@ const stockEntriesController = {
   // Create new stock entry
   createStockEntries: async (req, res, next) => {
     try {
-      const { materialId, supplierId, supplierName, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
+      // Extract data from request body, supporting both nested and flat supplier structure
+      const { materialId, supplier, supplierId: legacySupplierId, supplierName: legacySupplierName, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
+      
+      // Handle both new nested supplier structure and legacy flat structure
+      const supplierId = supplier?.supplierId || legacySupplierId;
+      const supplierName = supplier?.supplierName || legacySupplierName;
       const numericPurchasedQuantity = parseFloat(purchasedQuantity);
       const numericCostPerPurchasedUnit = parseFloat(costPerPurchasedUnit);
       const numericTotalCost = parseFloat(totalCost);
@@ -196,17 +198,27 @@ const stockEntriesController = {
       // Check if supplier exists if supplierId is provided
       let supplierData = {};
       if (supplierId) {
-        const supplier = await Supplier.findByPk(supplierId);
-        if (!supplier) {
+        const supplierRecord = await Supplier.findByPk(supplierId);
+        if (!supplierRecord) {
           return res.status(404).json({ error: "Supplier not found" });
         }
+        // Create both nested supplier object and legacy fields
         supplierData = {
+          supplier: {
+            supplierId,
+            supplierName: supplierRecord.name
+          },
+          // Legacy fields for backward compatibility
           supplierId,
-          supplierName: supplier.name
+          supplierName: supplierRecord.name
         };
       } else if (supplierName) {
         // If only supplier name is provided without ID
         supplierData = {
+          supplier: {
+            supplierName
+          },
+          // Legacy field for backward compatibility
           supplierName
         };
       }
@@ -242,7 +254,12 @@ const stockEntriesController = {
   updateStockEntries: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const { materialId, supplierId, supplierName, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
+      // Extract data from request body, supporting both nested and flat supplier structure
+      const { materialId, supplier, supplierId: legacySupplierId, supplierName: legacySupplierName, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
+      
+      // Handle both new nested supplier structure and legacy flat structure
+      const supplierId = supplier?.supplierId || legacySupplierId;
+      const supplierName = supplier?.supplierName || legacySupplierName;
       const numericPurchasedQuantity = purchasedQuantity ? parseFloat(purchasedQuantity) : undefined;
       const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
       const numericTotalCost = totalCost ? parseFloat(totalCost) : undefined;
@@ -282,17 +299,28 @@ const stockEntriesController = {
       if (supplierId !== undefined) {
         // If supplierId is provided, verify it exists
         if (supplierId !== null) {
-          const supplier = await Supplier.findByPk(supplierId);
-          if (!supplier) {
+          const supplierRecord = await Supplier.findByPk(supplierId);
+          if (!supplierRecord) {
             return res.status(404).json({ error: "Supplier not found" });
           }
+          // Create both nested supplier object and legacy fields
           supplierData = {
+            supplier: {
+              supplierId,
+              supplierName: supplierRecord.name
+            },
+            // Legacy fields for backward compatibility
             supplierId,
-            supplierName: supplier.name
+            supplierName: supplierRecord.name
           };
         } else {
           // If supplierId is explicitly set to null
           supplierData = {
+            supplier: {
+              supplierId: null,
+              supplierName: supplierName || null
+            },
+            // Legacy fields for backward compatibility
             supplierId: null,
             supplierName: supplierName || null
           };
@@ -300,6 +328,11 @@ const stockEntriesController = {
       } else if (supplierName !== undefined && stockEntry.supplierId === null) {
         // If only supplier name is being updated and there's no supplier ID
         supplierData = {
+          supplier: {
+            supplierId: null,
+            supplierName
+          },
+          // Legacy field for backward compatibility
           supplierName
         };
       }

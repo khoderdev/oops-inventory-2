@@ -24,7 +24,7 @@ import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 
 const isVirtualEntry = (entry: StockEntryWithMaterial) => {
   // Check if supplier is marked as virtual
-  return entry.supplierName === "-" || entry.supplier === "-";
+  return entry.supplier?.supplierName === "-" || entry.supplier?.supplierName === "-";
 };
 
 export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materials: prefetchedMaterials, loading: prefetchedLoading = false, onRefresh, onDeleteStockEntry, onTogglePOSVisibility }: StockEntriesTableProps) {
@@ -177,14 +177,14 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
       const searchLower = searchTerm.toLowerCase();
       const materialName = entry.material?.name?.toLowerCase() || "";
       const matchesMaterialName = materialName.includes(searchLower);
-      // Handle supplier - could be ID or name
+      // Handle supplier using the new nested structure
       let matchesSupplier = false;
-      if (entry.supplierName) {
-        // If we have supplierName, use that for filtering
-        matchesSupplier = entry.supplierName.toLowerCase().includes(searchLower);
-      } else if (entry.supplierObject?.name) {
-        // If we have supplierObject with name, use that
-        matchesSupplier = entry.supplierObject.name.toLowerCase().includes(searchLower);
+      if (entry.supplier?.supplierName) {
+        // If we have the new nested supplier structure
+        matchesSupplier = entry.supplier.supplierName.toLowerCase().includes(searchLower);
+      } else if (entry.supplier?.supplierName) {
+        // Fallback to legacy field for backward compatibility
+        matchesSupplier = entry.supplier.supplierName.toLowerCase().includes(searchLower);
       }
       const batchNumber = entry.batchNumber?.toLowerCase() || "";
       const matchesBatchNumber = batchNumber.includes(searchLower);
@@ -668,7 +668,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                         )}
                         <div className="flex-1">
                           <h3 className="font-semibold text-base text-gray-900">{material?.name || "Unknown Material"}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{isVirtual ? "VIRTUAL" : (entry.supplierName || entry.supplierObject?.name || "Unknown Supplier")}</p>
+                          <p className="text-sm text-gray-600 mt-1">{isVirtual ? "VIRTUAL" : (entry.supplier?.supplierName || entry.supplierName || "Unknown Supplier")}</p>
                         </div>
                       </div>
                     </div>

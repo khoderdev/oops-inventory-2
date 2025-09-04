@@ -17,29 +17,15 @@ export function SupplierSelector({ value, onChange, onSupplierCreate }: Supplier
   const { suppliers, loading, fetchSuppliers } = useSuppliersContext();
   const [isNewSupplierDialogOpen, setIsNewSupplierDialogOpen] = useState(false);
 
-  // Debug logging
-  console.log("SupplierSelector rendered with value:", value);
-  console.log("Available suppliers:", suppliers);
-
-  // Ensure suppliers are loaded when component mounts
   useEffect(() => {
-    console.log("Fetching suppliers...");
     fetchSuppliers(true);
-  }, []); // Empty dependency array to run only once on mount
+  }, []);
 
-  // Find the selected supplier
-  const selectedSupplier = suppliers.find(supplier => supplier.id.toString() === value);
-  console.log("Selected supplier:", selectedSupplier);
-
-  // Handle supplier selection
   const handleSelectSupplier = (supplierId: string) => {
-    console.log("Selecting supplier with ID:", supplierId);
     onChange(supplierId);
   };
 
-  // Handle new supplier creation
   const handleSupplierCreate = (supplier: Supplier) => {
-    console.log("New supplier created:", supplier);
     onChange(supplier.id.toString());
     setIsNewSupplierDialogOpen(false);
     if (onSupplierCreate) {
@@ -51,10 +37,7 @@ export function SupplierSelector({ value, onChange, onSupplierCreate }: Supplier
     <div className="flex gap-2">
       {/* Simple select dropdown */}
       <div className="relative w-full">
-        <Select 
-          value={value} 
-          onValueChange={handleSelectSupplier}
-        >
+        <Select value={value} onValueChange={handleSelectSupplier}>
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Select supplier" />
           </SelectTrigger>
@@ -64,11 +47,8 @@ export function SupplierSelector({ value, onChange, onSupplierCreate }: Supplier
             ) : suppliers.length === 0 ? (
               <div className="p-2 text-sm text-center">No suppliers found</div>
             ) : (
-              suppliers.map((supplier) => (
-                <SelectItem 
-                  key={supplier.id} 
-                  value={supplier.id.toString()}
-                >
+              suppliers.map(supplier => (
+                <SelectItem key={supplier.id} value={supplier.id.toString()}>
                   {supplier.name}
                   {!supplier.isActive && " (Inactive)"}
                 </SelectItem>
@@ -78,14 +58,7 @@ export function SupplierSelector({ value, onChange, onSupplierCreate }: Supplier
         </Select>
       </div>
 
-      {/* Add new supplier button */}
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        onClick={() => setIsNewSupplierDialogOpen(true)}
-        title="Add new supplier"
-      >
+      <Button type="button" variant="outline" size="icon" onClick={() => setIsNewSupplierDialogOpen(true)} title="Add new supplier">
         <Plus className="h-4 w-4" />
       </Button>
 
