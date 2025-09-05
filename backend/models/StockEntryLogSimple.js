@@ -49,7 +49,7 @@ const SystemLogs = sequelize.define(
       allowNull: true,
       comment: "ID of the stock entry being affected",
       references: {
-        model: 'StockEntries',
+        model: 'stockEntries',
         key: 'id'
       },
       onDelete: 'SET NULL',
@@ -60,7 +60,7 @@ const SystemLogs = sequelize.define(
       allowNull: true,
       comment: "ID of the material associated with the stock entry",
       references: {
-        model: 'Materials',
+        model: 'materials',
         key: 'id'
       },
       onDelete: 'SET NULL',
