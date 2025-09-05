@@ -594,6 +594,45 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     setShowBulkPrinterDialog(false);
   };
 
+  const handleDeleteSelectedStockEntries = async () => {
+    if (selectedStockEntries.size === 0) return;
+
+    try {
+      // Convert Set to Array of IDs
+      const ids = Array.from(selectedStockEntries);
+
+      // Call the API to delete selected stock entries
+      const response = await stockAPI.deleteAllStockEntries(ids);
+
+      if (response.success) {
+        // Update local state to remove the deleted entries
+        setStockEntries(prev => prev.filter(entry => !selectedStockEntries.has(entry.id.toString())));
+
+        toast({
+          title: "Success",
+          description: response.message,
+          variant: "default",
+          duration: 2000
+        });
+      } else {
+        throw new Error(response.message || "Failed to delete stock entries");
+      }
+    } catch (error) {
+      console.error("Error deleting stock entries:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete stock entries",
+        variant: "destructive",
+        duration: 2000
+      });
+    } finally {
+      // Reset selection
+      setSelectedStockEntries(new Set());
+      setBulkSelectionMode(false);
+      table.toggleAllRowsSelected(false);
+    }
+  };
+
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
       <div className="h-full flex flex-col">
@@ -658,6 +697,27 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                   <span className="hidden sm:inline">Assign Printer ({selectedStockEntries.size})</span>
                   <span className="sm:hidden truncate">Printer ({selectedStockEntries.size})</span>
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="outline" disabled={selectedStockEntries.size === 0} className="flex-1 sm:flex-none border-red-200 hover:border-red-300 hover:bg-red-50 hover:text-red-700 min-w-0">
+                      <Trash2 className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                      <span className="hidden sm:inline">Delete ({selectedStockEntries.size})</span>
+                      <span className="sm:hidden truncate">Delete</span>
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Selected Stock Entries</AlertDialogTitle>
+                      <AlertDialogDescription>Are you sure you want to delete {selectedStockEntries.size} selected stock entries? This action cannot be undone and will permanently remove all selected entries.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteSelectedStockEntries} className="bg-red-600 hover:bg-red-700">
+                        Delete {selectedStockEntries.size} Entries
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           )}

@@ -202,11 +202,11 @@ router.delete(
     });
     next();
   },
-  stockEntriesController.deleteStockEntries
+  stockEntriesController.deleteAllStockEntries
 );
 
 router.delete(
-  "/all",
+  "/delete-all",
   requirePermission("stock.delete"),
   warnIfDayClosed,
   logStockActivity,

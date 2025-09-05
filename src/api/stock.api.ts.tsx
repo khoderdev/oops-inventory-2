@@ -203,6 +203,15 @@ export const stockAPI = {
   updateStockEntryPOS: (id: string, posData: { isPOSItem: boolean }) => api.patch<StockEntry, { isPOSItem: boolean }>(`/stock-entries/${id}/pos`, posData),
   deleteStockEntry: (id: string) => api.delete<null>(`/stock-entries/${id}`),
 
+  deleteAllStockEntries: async (ids: string[]): Promise<{ success: boolean; message: string; count: number }> => {
+    const response = await api.delete<{
+      success: boolean;
+      message: string;
+      count: number;
+    }>("/stock-entries/delete-all");
+    return response.data;
+  },
+
   // Printer assignment methods
   getStockEntriesWithPrinters: async (params?: StockEntriesQueryParams): Promise<StockEntryWithMaterial[]> => {
     const config = params ? ({ params } as any) : undefined;
@@ -256,7 +265,7 @@ export const stockAPI = {
 
   // Get all unique categories from stock entries
   getStockEntryCategories: async (): Promise<StockEntryCategoriesResponse> => {
-    const response = await api.get<StockEntryCategoriesResponse>('/stock-entries/categories', {
+    const response = await api.get<StockEntryCategoriesResponse>("/stock-entries/categories", {
       params: { _t: Date.now() } // Add cache-busting
     });
     return response.data; // Extract data from the Axios response

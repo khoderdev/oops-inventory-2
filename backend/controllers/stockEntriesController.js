@@ -92,14 +92,14 @@ const stockEntriesController = {
       }
 
       const { count, rows: rawStockEntries } = await StockEntry.findAndCountAll(queryOptions);
-      
+
       // Remove legacy supplier fields from the response
       const stockEntries = rawStockEntries.map(entry => {
         const entryData = entry.toJSON ? entry.toJSON() : entry;
         const { supplierId, supplierName, ...cleanedEntry } = entryData;
         return cleanedEntry;
       });
-      
+
       if (stockEntries.length > 0) {
         const negativeStockEntries = stockEntries.filter(entry => entry.purchasedIndividualQuantity < 0 || entry.purchasedQuantity < 0);
         if (negativeStockEntries.length > 0) {
@@ -156,11 +156,11 @@ const stockEntriesController = {
       if (!stockEntry) {
         return res.status(404).json({ error: "Stock entry not found" });
       }
-      
+
       // Remove legacy supplier fields from the response
       const stockEntryData = stockEntry.toJSON();
       const { supplierId, supplierName, ...cleanedStockEntry } = stockEntryData;
-      
+
       res.status(200).json(cleanedStockEntry);
     } catch (error) {
       console.error("Error fetching stock entry by ID:", error);
@@ -173,25 +173,25 @@ const stockEntriesController = {
     try {
       // Extract data from request body, supporting both nested and flat supplier structure
       const { materialId, supplier, supplierId: legacySupplierId, supplierName: legacySupplierName, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
-      
+
       // Handle both new nested supplier structure and legacy flat structure
       // Extract supplierId, ensuring it's a primitive value (string or number), not an object
       let supplierId;
       if (supplier?.supplierId) {
         // If supplier.supplierId is an object with an id property, use that
-        if (typeof supplier.supplierId === 'object' && supplier.supplierId !== null && supplier.supplierId.id) {
+        if (typeof supplier.supplierId === "object" && supplier.supplierId !== null && supplier.supplierId.id) {
           supplierId = supplier.supplierId.id;
-        } 
+        }
         // Otherwise if it's already a primitive, use it directly
-        else if (typeof supplier.supplierId === 'string' || typeof supplier.supplierId === 'number') {
+        else if (typeof supplier.supplierId === "string" || typeof supplier.supplierId === "number") {
           supplierId = supplier.supplierId;
         }
-      } 
+      }
       // Fall back to legacy supplierId if available
       else if (legacySupplierId) {
         supplierId = legacySupplierId;
       }
-      
+
       const supplierName = supplier?.supplierName || legacySupplierName;
       const numericPurchasedQuantity = parseFloat(purchasedQuantity);
       const numericCostPerPurchasedUnit = parseFloat(costPerPurchasedUnit);
@@ -266,7 +266,7 @@ const stockEntriesController = {
         ...calculatedValues
       };
       const createdStockEntry = await TransactionService.createStockEntryTransaction(stockEntryCreateData, material, user, req);
-      
+
       // Format the response with a nested supplier object
       const formattedResponse = {
         ...createdStockEntry.toJSON(),
@@ -275,7 +275,7 @@ const stockEntriesController = {
           supplierName: createdStockEntry.supplierName || null
         }
       };
-      
+
       res.status(201).json(formattedResponse);
     } catch (error) {
       console.error("Error creating stock entry:", error);
@@ -295,25 +295,25 @@ const stockEntriesController = {
       const { id } = req.params;
       // Extract data from request body, supporting both nested and flat supplier structure
       const { materialId, supplier, supplierId: legacySupplierId, supplierName: legacySupplierName, purchasedQuantity, purchasedUnit, costPerPurchasedUnit, totalCost, costPerBaseUnit, purchaseDate, expiryDate, isPOSItem } = req.body;
-      
+
       // Handle both new nested supplier structure and legacy flat structure
       // Extract supplierId, ensuring it's a primitive value (string or number), not an object
       let supplierId;
       if (supplier?.supplierId) {
         // If supplier.supplierId is an object with an id property, use that
-        if (typeof supplier.supplierId === 'object' && supplier.supplierId !== null && supplier.supplierId.id) {
+        if (typeof supplier.supplierId === "object" && supplier.supplierId !== null && supplier.supplierId.id) {
           supplierId = supplier.supplierId.id;
-        } 
+        }
         // Otherwise if it's already a primitive, use it directly
-        else if (typeof supplier.supplierId === 'string' || typeof supplier.supplierId === 'number') {
+        else if (typeof supplier.supplierId === "string" || typeof supplier.supplierId === "number") {
           supplierId = supplier.supplierId;
         }
-      } 
+      }
       // Fall back to legacy supplierId if available
       else if (legacySupplierId) {
         supplierId = legacySupplierId;
       }
-      
+
       const supplierName = supplier?.supplierName || legacySupplierName;
       const numericPurchasedQuantity = purchasedQuantity ? parseFloat(purchasedQuantity) : undefined;
       const numericCostPerPurchasedUnit = costPerPurchasedUnit ? parseFloat(costPerPurchasedUnit) : undefined;
@@ -404,10 +404,10 @@ const stockEntriesController = {
         expiryDate: expiryDate ?? stockEntry.expiryDate,
         isPOSItem: isPOSItem !== undefined ? isPOSItem : stockEntry.isPOSItem
       };
-      
+
       const user = req.user || { id: null, fullName: "System", username: "system" };
       const updatedStockEntry = await TransactionService.updateStockEntryTransaction(stockEntry, stockUpdateData, user, req);
-      
+
       // Format the response with a nested supplier object
       const formattedResponse = {
         ...updatedStockEntry.toJSON(),
@@ -416,7 +416,7 @@ const stockEntriesController = {
           supplierName: updatedStockEntry.supplierName || null
         }
       };
-      
+
       res.status(200).json(formattedResponse);
     } catch (error) {
       console.error("Error updating stock entry:", error);
@@ -430,23 +430,38 @@ const stockEntriesController = {
     }
   },
 
-  // Delete stock entry
-  deleteStockEntries: async (req, res, next) => {
+  // Delete multiple stock entries
+  deleteBulkStockEntries: async (req, res, next) => {
     try {
-      const { id } = req.params;
-      const stockEntry = await StockEntry.findByPk(id);
-      if (!stockEntry) {
-        return res.status(404).json({ error: "Stock entry not found" });
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "No stock entry IDs provided" });
+      }
+      // Validate that all IDs are valid integers
+      const invalidIds = ids.filter(id => !Number.isInteger(parseInt(id)));
+      if (invalidIds.length > 0) {
+        return res.status(400).json({
+          error: "Invalid stock entry IDs",
+          invalidIds
+        });
       }
       const user = req.user || { id: null, fullName: "System", username: "system" };
-      await TransactionService.deleteStockEntryTransaction(stockEntry, user, req);
-      res.status(204).send();
+      // Delete each stock entry in a transaction
+      for (const id of ids) {
+        const stockEntry = await StockEntry.findByPk(id);
+        if (stockEntry) {
+          await TransactionService.deleteStockEntryTransaction(stockEntry, user, req);
+        }
+      }
+      res.status(200).json({
+        success: true,
+        message: `Successfully deleted ${ids.length} stock entries`
+      });
     } catch (error) {
-      console.error("Error deleting stock entry:", error);
+      console.error("Error deleting bulk stock entries:", error);
       next(error);
     }
   },
-
 
   addToSpecificEntry: async (req, res, next) => {
     try {
@@ -1030,7 +1045,7 @@ const stockEntriesController = {
           }
         };
       });
-      
+
       res.status(201).json({
         message: `Successfully added ${formattedEntries.length} stock entries`,
         entries: formattedEntries
@@ -1327,24 +1342,56 @@ const stockEntriesController = {
     }
   },
 
+  async deleteAllStockEntries(req, res, next) {
+    try {
+      // First, delete all wastage records since they reference stock entries
+      await Wasting.destroy({ where: {} });
+
+      // Then delete all stock entries
+      const deletedCount = await StockEntry.destroy({ where: {} });
+
+      // Reset all material stock levels to 0 (more efficient than individual updates)
+      await Material.update(
+        {
+          currentStock: 0,
+          stockValue: 0
+        },
+        { where: {} }
+      );
+
+      res.status(200).json({
+        success: true,
+        message: `Successfully deleted all ${deletedCount} stock entries and reset material stock levels`,
+        count: deletedCount
+      });
+    } catch (error) {
+      console.error("Error deleting all stock entries:", error);
+      next(error);
+    }
+  },
+
   // Get available material categories for stock entries
   getMaterialCategories: async (req, res, next) => {
     try {
       // Find all stock entries with their associated material and category
       const stockEntries = await StockEntry.findAll({
         attributes: [], // We don't need stock entry attributes
-        include: [{
-          model: Material,
-          as: 'material',
-          attributes: [],
-          include: [{
-            model: Category,
-            as: 'category',
-            attributes: ['id', 'name', 'value'],
-            required: true
-          }]
-        }],
-        group: ['material.category.id'], // Group by category to get unique categories
+        include: [
+          {
+            model: Material,
+            as: "material",
+            attributes: [],
+            include: [
+              {
+                model: Category,
+                as: "category",
+                attributes: ["id", "name", "value"],
+                required: true
+              }
+            ]
+          }
+        ],
+        group: ["material.category.id"], // Group by category to get unique categories
         raw: true,
         nest: true
       });
@@ -1356,14 +1403,11 @@ const stockEntriesController = {
         .map(({ id, name, value }) => ({
           id,
           name,
-          value: value || name.toLowerCase().replace(/\s+/g, '_')
+          value: value || name.toLowerCase().replace(/\s+/g, "_")
         }));
 
       // Add 'all' option at the beginning
-      const result = [
-        { id: 'all', name: 'All Categories', value: 'all' },
-        ...categories
-      ];
+      const result = [{ id: "all", name: "All Categories", value: "all" }, ...categories];
 
       res.json({
         success: true,
@@ -1371,7 +1415,7 @@ const stockEntriesController = {
         count: result.length - 1 // Exclude 'all' option from count
       });
     } catch (error) {
-      console.error('Error fetching stock entry categories:', error);
+      console.error("Error fetching stock entry categories:", error);
       next(error);
     }
   }
