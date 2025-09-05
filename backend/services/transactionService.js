@@ -151,6 +151,7 @@ class TransactionService {
       return deletedStockEntry;
     });
   }
+  
 
   static async wasteFromStockTransaction(stockEntry, wasteData, user, req) {
     return this.executeInTransaction(async (transaction) => {

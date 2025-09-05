@@ -47,7 +47,7 @@ router.get(
 router.get(
   "/categories",
   requirePermission("stock.read"),
-  cacheMiddleware(300, () => 'stock-entries-categories'),
+  cacheMiddleware(300, () => "stock-entries-categories"),
   stockEntriesController.getMaterialCategories
 );
 
@@ -203,6 +203,23 @@ router.delete(
     next();
   },
   stockEntriesController.deleteStockEntries
+);
+
+router.delete(
+  "/all",
+  requirePermission("stock.delete"),
+  warnIfDayClosed,
+  logStockActivity,
+  auditAction("stock_delete_all", "stock"),
+  (req, res, next) => {
+    import("../middleware/cacheMiddleware.js").then(({ clearCacheByPattern }) => {
+      clearCacheByPattern("stock-entries");
+      clearCacheByPattern("stock-entry");
+      clearCacheByPattern("materials");
+    });
+    next();
+  },
+  stockEntriesController.deleteAllStockEntries
 );
 
 // Printer assignment routes with cache invalidation

@@ -447,6 +447,7 @@ const stockEntriesController = {
     }
   },
 
+
   addToSpecificEntry: async (req, res, next) => {
     try {
       const { id } = req.params;
