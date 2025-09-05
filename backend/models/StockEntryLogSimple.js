@@ -47,12 +47,24 @@ const SystemLogs = sequelize.define(
     stockEntryId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      comment: "ID of the stock entry being affected"
+      comment: "ID of the stock entry being affected",
+      references: {
+        model: 'StockEntries',
+        key: 'id'
+      },
+      onDelete: 'SET NULL',
+      onUpdate: 'CASCADE'
     },
     materialId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-      comment: "ID of the material associated with the stock entry"
+      comment: "ID of the material associated with the stock entry",
+      references: {
+        model: 'Materials',
+        key: 'id'
+      },
+      onDelete: 'SET NULL',
+      onUpdate: 'CASCADE'
     },
     materialName: {
       type: DataTypes.STRING(200),
@@ -89,7 +101,28 @@ const SystemLogs = sequelize.define(
   },
   {
     tableName: "SystemLogs",
-    timestamps: false
+    timestamps: false,
+    // Add paranoid: true if you want soft deletes
+    // paranoid: true,
+    // Add indexes for better query performance
+    indexes: [
+      {
+        name: 'idx_system_logs_stock_entry',
+        fields: ['stockEntryId']
+      },
+      {
+        name: 'idx_system_logs_material',
+        fields: ['materialId']
+      },
+      {
+        name: 'idx_system_logs_user',
+        fields: ['userId']
+      },
+      {
+        name: 'idx_system_logs_timestamp',
+        fields: ['actionTimestamp']
+      }
+    ]
   }
 );
 
