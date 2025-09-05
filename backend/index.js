@@ -4,7 +4,7 @@ dotenv.config();
 import cors from "cors";
 import express from "express";
 import { createServer } from "http";
-import sequelize from "./config/database.js";
+import sequelize, { resetAllSequences, checkAndFixSequences } from "./config/database.js";
 import "./models/index.js";
 import User from "./models/User.js";
 import assignmentsRoutes from "./routes/assignments.js";
@@ -19,6 +19,7 @@ import logsRoutes from "./routes/logs.js";
 import materialRoutes from "./routes/materials.js";
 import menuItemsRoutes from "./routes/menuItems.js";
 import ordersRoutes from "./routes/orders.js";
+import suppliersRoutes from "./routes/suppliers.js";
 import posRoutes from "./routes/pos.js";
 import printersRoutes from "./routes/printers.js";
 import salesRoutes from "./routes/sales.js";
@@ -31,7 +32,6 @@ import departmentRoutes from "./routes/departmentRoutes.js";
 import userRoutes from "./routes/users.js";
 import variantsRoutes from "./routes/variants.js";
 import variantIngredientsRoutes from "./routes/variantIngredients.js";
-import suppliersRoutes from "./routes/suppliers.js";
 import PrinterService from "./services/PrinterService.js";
 import realTimeSessionService from "./services/realTimeSessionService.js";
 import { errorHandler } from "./utils/logger.js";
@@ -144,6 +144,7 @@ app.use("/api/pos", posRoutes);
 app.use("/api/tables", tablesRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/day-operations", dayOperationsRoutes);
+app.use("/api/suppliers", suppliersRoutes);
 app.use("/api/day-operation-reports", dayOperationReportsRoutes);
 app.use("/api/logs", logsRoutes);
 app.use("/api/sessions", sessionsRoutes);
@@ -153,7 +154,15 @@ app.use("/api/printers", printersRoutes);
 app.use("/api/variants", variantsRoutes);
 app.use("/api/variant-ingredients", variantIngredientsRoutes);
 app.use("/api/departments", departmentRoutes);
-app.use("/api/suppliers", suppliersRoutes);
+// Emergency fix for sequences
+app.post('/api/admin/fix-sequences', async (req, res) => { // call it using this in terminal: curl -X POST http://localhost:3000/api/admin/fix-sequences
+  try {
+    await resetAllSequences();
+    res.json({ success: true, message: "Database sequences reset successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to reset sequences", error: error.message });
+  }
+});
 
 app.use(errorHandler);
 
@@ -292,44 +301,119 @@ const connectToDatabase = async (retries = 3, delay = 5000) => {
         throw new DatabaseError("Failed to authenticate database connection", DatabaseErrorType.AUTHENTICATION, error);
       }
 
-      // 2. Synchronize schema
+      // 2. Clean up orphaned data before syncing
+      console.log("🧹 Cleaning up orphaned data before sync...");
+      try {
+        // Check if menuItemSauces table exists
+        const tableExists = await sequelize.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'menuItemSauces'
+          );
+        `);
+
+        if (tableExists[0][0].exists) {
+          // Clean up orphaned menuItemSauces that reference non-existent sauces
+          await sequelize.query(`
+            DELETE FROM "menuItemSauces" 
+            WHERE "sauceId" IS NOT NULL 
+            AND "sauceId" NOT IN (SELECT id FROM "sauces")
+          `);
+          console.log("✅ Cleaned up orphaned menuItemSauces data");
+        }
+      } catch (cleanupError) {
+        console.warn("⚠️ Could not clean up orphaned data:", cleanupError.message);
+      }
+
+      // 3. Synchronize schema with a more controlled approach
       console.log("🔄 Synchronizing database schema...");
       try {
-        // First sync without foreign keys
-        await sequelize.sync({
-          force: false,
-          alter: { drop: false },
-          hooks: false
-        });
+        // Get all model names except the problematic ones
+        const modelNames = Object.keys(sequelize.models).filter(modelName => !["MenuItemSauce"].includes(modelName));
 
-        // Then add foreign keys separately
-        await sequelize
-          .query(
-            `
-            ALTER TABLE "SystemLogs"  
-            ADD FOREIGN KEY ("stockEntryId") 
-            REFERENCES "StockEntries" ("id") 
-            ON DELETE SET NULL ON UPDATE CASCADE;
-          `
-          )
-          .catch(error => {
-            console.warn("⚠️ Could not add foreign key constraint (may already exist):", error.message);
+        // Sync non-problematic models first
+        for (const modelName of modelNames) {
+          await sequelize.models[modelName].sync({
+            force: false,
+            alter: { drop: false },
+            hooks: false
           });
+        }
+
+        // Now handle the problematic MenuItemSauce model separately
+        try {
+          // First check if the table exists and needs to be altered
+          const tableExists = await sequelize.query(`
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = 'menuItemSauces'
+            );
+          `);
+
+          if (tableExists[0][0].exists) {
+            // Table exists, so we need to handle the foreign key constraint carefully
+            console.log("🔧 Handling existing menuItemSauces table...");
+
+            // First, drop the existing foreign key constraint if it exists
+            try {
+              await sequelize.query(`
+                ALTER TABLE "menuItemSauces" 
+                DROP CONSTRAINT IF EXISTS "menuItemSauces_sauceId_fkey";
+              `);
+            } catch (dropError) {
+              console.warn("⚠️ Could not drop existing foreign key:", dropError.message);
+            }
+
+            // Now sync the model without constraints
+            await sequelize.models.MenuItemSauce.sync({
+              force: false,
+              alter: { drop: false },
+              hooks: false
+            });
+
+            // Add the foreign key constraint manually with proper error handling
+            try {
+              await sequelize.query(`
+                ALTER TABLE "menuItemSauces" 
+                ADD CONSTRAINT "menuItemSauces_sauceId_fkey"
+                FOREIGN KEY ("sauceId") 
+                REFERENCES "sauces" ("id") 
+                ON DELETE CASCADE ON UPDATE CASCADE;
+              `);
+              console.log("✅ Added foreign key constraint to menuItemSauces");
+            } catch (fkError) {
+              console.warn("⚠️ Could not add foreign key constraint to menuItemSauces:", fkError.message);
+              console.log("💡 This is non-critical and the application will continue");
+            }
+          } else {
+            // Table doesn't exist, sync normally
+            await sequelize.models.MenuItemSauce.sync({
+              force: false,
+              alter: { drop: false },
+              hooks: false
+            });
+          }
+        } catch (menuItemError) {
+          console.warn("⚠️ Could not sync MenuItemSauce model:", menuItemError.message);
+          console.log("💡 This is non-critical and the application will continue");
+        }
 
         console.log("✅ Database schema synchronized successfully");
       } catch (error) {
         throw new DatabaseError("Failed to synchronize database schema", DatabaseErrorType.SYNC, error);
       }
 
-      // 3. Reset sequence
+      // 4. Reset sequence
       try {
-        await resetAuditLogSequence();
-      } catch (error) {
-        // For sequence errors, we'll log but continue as it's not critical
-        console.warn("⚠️ Sequence reset failed, continuing without it:", error.message);
+        await checkAndFixSequences(); // Check first
+        await resetAllSequences(); // Then reset all
+      } catch (seqError) {
+        console.warn("⚠️ Sequence reset failed, continuing without it:", seqError.message);
       }
 
-      // 4. Initialize data
+      // 5. Initialize data
       console.log("🔧 Initializing essential data...");
 
       try {
@@ -487,151 +571,3 @@ startServer().catch(error => {
     process.exit(1); // Exit if emergency start also fails
   }
 });
-
-// const resetAuditLogSequence = async () => {
-//   try {
-//     await sequelize.query(`
-//       SELECT setval('"audit_logs_id_seq"',
-//         COALESCE((SELECT MAX(id) FROM "audit_logs"), 0) + 1,
-//         false
-//       );
-//     `);
-//     console.log("✅ Audit log sequence reset successfully");
-//   } catch (error) {
-//     console.error("❌ Error resetting audit log sequence:", error);
-//     throw error; // Consider whether you want to throw or continue
-//   }
-// };
-
-// const connectToDatabase = async (retries = 3, delay = 5000) => {
-//   for (let attempt = 1; attempt <= retries; attempt++) {
-//     try {
-//       console.log(`🔄 Database connection attempt ${attempt}/${retries}...`);
-
-//       // 1. Authenticate connection
-//       await sequelize.authenticate();
-//       console.log("✅ Database connection established successfully");
-
-//       // 2. Synchronize schema
-//       console.log("🔄 Synchronizing database schema...");
-//       await sequelize.sync({
-//         force: false,
-//         alter: { drop: false },
-//         logging: sql => {
-//           if (!sql.trim().toUpperCase().startsWith("SELECT")) {
-//             // You might want to log non-SELECT queries for debugging
-//           }
-//         }
-//       });
-//       console.log("✅ Database schema synchronized successfully");
-
-//       // 3. Reset sequence
-//       await resetAuditLogSequence();
-
-//       // 4. Initialize data
-//       console.log("🔧 Initializing essential data...");
-
-//       console.log("👤 Initializing admin user...");
-//       const adminResult = await initializeAdminUser();
-//       console.log(`✅ Admin user initialized: ${adminResult.created} created, ${adminResult.existing} existing`);
-
-//       console.log("👤 Initializing cashier user...");
-//       const cashierResult = await initializeCashier();
-//       console.log(`✅ Cashier user initialized: ${cashierResult.created} created, ${cashierResult.existing} existing`);
-
-//       await seedTables();
-//       await seedPrinters();
-//       console.log("✅ Tables and printers seeded successfully");
-
-//       console.log("✅ Essential initialization completed");
-//       console.log("ℹ️  For comprehensive data seeding, run: npm run seed");
-
-//       return true;
-//     } catch (error) {
-//       console.error(`🚨 Database attempt ${attempt} failed:`, error.message);
-
-//       if (attempt === retries) {
-//         console.error("🚨 All database connection attempts failed");
-//         console.log("🔄 Starting server without database connection...");
-//         console.log("⚠️ Warning: Some features may not work properly");
-//         return false;
-//       }
-
-//       console.log(`⏳ Retrying in ${delay / 1000} seconds...`);
-//       await new Promise(resolve => setTimeout(resolve, delay));
-//     }
-//   }
-//   return false;
-// };
-
-// const startServer = async () => {
-//   try {
-//     console.log("🚀 Starting Cost Craft Converter Server...");
-//     console.log("📅 Timestamp:", new Date().toISOString());
-//     console.log("💻 Environment:", process.env.NODE_ENV || "development");
-//     const dbConnected = await connectToDatabase();
-//     if (!dbConnected) {
-//       console.log("⚠️ Server starting in limited mode (no database)");
-//     }
-//     httpServer = createServer(app);
-//     realTimeSessionService.initialize(httpServer);
-//     if (dbConnected) {
-//       try {
-//         const printerService = new PrinterService();
-//         app.set("printerService", printerService);
-//         console.log("🖨️  Printer service initialized successfully");
-//       } catch (error) {
-//         console.error("❌ Failed to initialize printer service:", error.message);
-//       }
-//     } else {
-//       console.log("⚠️ Printer service disabled (no database connection)");
-//     }
-//     server = httpServer.listen(PORT, () => {
-//       console.log("✅ =================================");
-//       console.log(`🚀 Server running on port ${PORT}`);
-//       console.log(`🌐 Health check: http://localhost:${PORT}/health`);
-//       console.log(`🔌 WebSocket server: ws://localhost:${PORT}`);
-//       console.log(`📊 Database: ${dbConnected ? "Connected" : "Disconnected"}`);
-//       console.log(`🕰️ Started at: ${new Date().toLocaleString()}`);
-//       console.log("✅ =================================");
-//     });
-//     server.on("error", error => {
-//       if (error.code === "EADDRINUSE") {
-//         console.error(`🚨 Port ${PORT} is already in use`);
-//         console.log("🔄 Trying alternative port...");
-//         const altPort = PORT + 1;
-//         server = httpServer.listen(altPort, () => {
-//           console.log(`🚀 Server running on alternative port ${altPort}`);
-//           console.log(`🔌 WebSocket server: ws://localhost:${altPort}`);
-//         });
-//       } else {
-//         console.error("🚨 Server error:", error.message);
-//       }
-//     });
-//     setInterval(async () => {
-//       try {
-//         if (dbConnected) {
-//           await sequelize.authenticate();
-//         }
-//       } catch (error) {
-//         console.warn("⚠️ Database health check failed:", error.message);
-//       }
-//     }, 30000);
-//   } catch (error) {
-//     console.error("🚨 Failed to start server:", error.message);
-//     console.error("Stack:", error.stack);
-//     console.log("🔄 Server will attempt to continue...");
-//   }
-// };
-
-// startServer().catch(error => {
-//   console.error("🚨 Critical startup error:", error.message);
-//   console.log("🔄 Attempting emergency server start...");
-//   try {
-//     server = app.listen(PORT, () => {
-//       console.log(`🆘 Emergency server running on port ${PORT} (limited functionality)`);
-//     });
-//   } catch (emergencyError) {
-//     console.error("🚨 Emergency server start failed:", emergencyError.message);
-//   }
-// });

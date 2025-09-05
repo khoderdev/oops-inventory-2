@@ -71,9 +71,18 @@ const DatabaseBackupManager: React.FC = () => {
     try {
       const blob = await backupAPI.downloadBackup(format.id);
       const url = window.URL.createObjectURL(blob);
+      const ext = format.type === "sql" ? "sql" : format.type === "custom" ? "custom" : "zip";
+      const formatBase = format.filename ? format.filename.replace(/\.[^/.]+$/, "") : null;
+      let namePrefix: string | null = null;
+      if (formatBase) {
+        namePrefix = formatBase;
+      } else if (backup.name && backup.name !== backup.id) {
+        namePrefix = backup.name;
+      }
+      const downloadName = namePrefix ? `${namePrefix}_${backup.id}.${ext}` : `${backup.id}.${ext}`;
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${backup.name}.${format.type === "sql" ? "sql" : format.type === "custom" ? "custom" : "zip"}`;
+      a.download = downloadName;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -82,6 +91,7 @@ const DatabaseBackupManager: React.FC = () => {
       console.error("Failed to download backup:", error);
     }
   };
+  
 
   if (loading) {
     return (

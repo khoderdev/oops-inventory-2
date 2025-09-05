@@ -31,7 +31,7 @@ const BackupsTab: React.FC<BackupsTabProps> = ({ backups, lastRefresh, onOpenUpl
       </div>
 
       {/* Backups List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
         {backups.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -54,7 +54,13 @@ const BackupsTab: React.FC<BackupsTabProps> = ({ backups, lastRefresh, onOpenUpl
                       <Database className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <CardTitle className="text-lg font-semibold">{backup.metadata?.database ? `${backup.metadata.database} Backup` : backup.name.replace(/^pgdump_/, "").replace(/_/g, " ")}</CardTitle>
+                      <CardTitle className="text-lg font-semibold">
+                        {backup.formats?.[0]?.filename
+                          ? backup.formats[0].filename.replace(/\.[^/.]+$/, "") // strip extension -> "khoder"
+                          : backup.metadata?.database
+                            ? `${backup.metadata.database} Backup`
+                            : backup.name.replace(/^pgdump_/, "").replace(/_/g, " ")}
+                      </CardTitle>
                       <CardDescription className="text-sm">Created {backupAPI.formatDate(backup.createdAt)}</CardDescription>
                     </div>
                   </div>
@@ -64,6 +70,7 @@ const BackupsTab: React.FC<BackupsTabProps> = ({ backups, lastRefresh, onOpenUpl
                   </div>
                 </div>
               </CardHeader>
+
               <CardContent>
                 {/* Format Details */}
                 <div className="mb-4 ">
