@@ -31,7 +31,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [sortBy, setSortBy] = useState("purchaseDate");
@@ -680,7 +680,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
             </div>
           )}
           {sortedStockEntries.length > 0 && (
-            <div className="lg:hidden space-y-4">
+            <div className="xl:hidden space-y-4">
               {paginatedStockEntries.map(entry => {
                 const material = materialsMap.get(entry.materialId);
 
@@ -845,7 +845,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
 
           {/* Desktop Table View - TanStack Virtualized */}
           {sortedStockEntries.length > 0 && (
-            <div className="hidden lg:block px-2">
+            <div className="hidden xl:block px-2">
               <div className="h-[calc(100vh-225px)] overflow-y-hidden">
                 <TanStackTable
                   table={table}
