@@ -152,12 +152,13 @@ export const TanStackTable: React.FC<TanStackTableProps> = ({ table, virtualized
           </div>
 
           {/* Virtualized Table Body */}
-          <div className={`flex-1 overflow-auto ${bodyClassName}`} ref={parentRef}>
+          <div className={`flex-1 overflow-x-hidden ${bodyClassName}`} ref={parentRef}>
             <div
               style={{
                 height: `${rowVirtualizer.getTotalSize()}px`,
                 width: "100%",
-                position: "relative"
+                position: "relative",
+                overflow: "hidden"
               }}
             >
               {rowVirtualizer.getVirtualItems().map(virtualItem => {
@@ -174,21 +175,35 @@ export const TanStackTable: React.FC<TanStackTableProps> = ({ table, virtualized
                       left: 0,
                       width: "100%",
                       height: `${virtualItem.size}px`,
-                      transform: `translateY(${virtualItem.start}px)`
+                      transform: `translateY(${virtualItem.start}px)`,
+                      overflow: "hidden" // Added to prevent horizontal overflow in each row
                     }}
                     onClick={() => onRowClick?.(row)}
                   >
-                    <Table>
-                      <TableBody>
-                        <TableRow>
-                          {row.getVisibleCells().map((cell: any) => (
-                            <TableCell key={cell.id} style={{ width: cell.column.getSize() }} className={`px-6 py-4 ${getCellClassName(cell)}`}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      </TableBody>
-                    </Table>
+                    {/* Added a container div with overflow constraints */}
+                    <div className="overflow-x-hidden w-full">
+                      <Table>
+                        <TableBody>
+                          <TableRow>
+                            {row.getVisibleCells().map((cell: any) => (
+                              <TableCell
+                                key={cell.id}
+                                style={{
+                                  width: cell.column.getSize(),
+                                  maxWidth: cell.column.getSize(), // Ensure cell doesn't exceed column size
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap"
+                                }}
+                                className={`px-6 py-4 ${getCellClassName(cell)}`}
+                              >
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 );
               })}

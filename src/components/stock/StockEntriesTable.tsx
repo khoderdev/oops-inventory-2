@@ -31,7 +31,7 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [sortBy, setSortBy] = useState("purchaseDate");
@@ -126,16 +126,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
   useEffect(() => {
     if (prefetchedMaterials && prefetchedMaterials.length > 0) {
       setMaterials(prefetchedMaterials);
-      // Debug: Log first few materials with their category structure
-      console.log(
-        "Material categories sample:",
-        prefetchedMaterials.slice(0, 5).map(m => ({
-          id: m.id,
-          name: m.name,
-          category: m.category,
-          categoryType: typeof m.category
-        }))
-      );
     }
   }, [prefetchedMaterials]);
 
