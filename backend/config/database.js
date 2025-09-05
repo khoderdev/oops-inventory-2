@@ -28,7 +28,7 @@ const sequelize = isProduction
   : new Sequelize({
       dialect: "postgres",
       host: "localhost",
-      database: "inventory_db2",
+      database: "inventory_db3",
       username: "postgres",
       password: "postgres",
       port: 5432,

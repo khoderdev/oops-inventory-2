@@ -35,7 +35,7 @@ import { useMenuItems } from "@/contexts/MenuItemsContext";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   // Use MenuItemsContext for menu items data
-  const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems, handleTabChange } = useMenuItems();
+  const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems } = useMenuItems();
   const [cart, setCart] = useState<POSCartItem[]>([]);
   const [searchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -219,12 +219,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     if (currentOrder && selectedOrderForPOS && currentOrder.id && selectedOrderForPOS.id && currentOrder.id.toString() === selectedOrderForPOS.id.toString()) {
       return;
     }
-
     // Block if order has been completed
     if (selectedOrderForPOS && completedOrdersRef.current.has(selectedOrderForPOS.id.toString())) {
       return;
     }
-
     if (selectedOrderForPOS && !isPaymentCompleted) {
       if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
         if (loadOrder) {
@@ -667,72 +665,181 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [menuItemCategories, beverageCategories]);
 
   // Memoized POS items to prevent unnecessary re-renders during POS operations
-  const memoizedPosItems = useMemo(() => {
-    if (categoriesMap.size === 0) return [];
-    const allMenuItems: MenuItem[] = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
-    if (allMenuItems.length === 0) return [];
-    const posItemsFromData: POSItem[] = [];
+  // Remove the memoizedPosItems and replace with this useEffect:
+  useEffect(() => {
+    if (menuItemsLoading) {
+      setIsItemsGridLoading(true);
+      return;
+    }
 
-    allMenuItems.forEach(menuItem => {
-      if (!menuItem?.isPOSItem) return;
-      let categoryId: number;
-      if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
-        categoryId = (menuItem.category as any).id;
-      } else if (menuItem.category && typeof menuItem.category === "number") {
-        categoryId = menuItem.category;
-      } else {
-        console.warn("⚠️ Invalid category format for menu item:", menuItem?.name, menuItem?.category);
-        categoryId = 0;
-      }
-      const categoryName = categoriesMap.get(categoryId);
-      if (!categoryName) return;
-      posItemsFromData.push({
-        id: `menu-${menuItem.id}`,
-        name: menuItem.name,
-        // Ensure price is always a valid number, default to 0 if null or NaN
-        price: typeof menuItem.price === 'number' && !isNaN(menuItem.price) ? menuItem.price : 0,
-        category: categoryName,
-        type: "menu_item",
-        menuItemId: menuItem.id,
-        unit: menuItem.unit,
-        availableQuantity: menuItem.availableQuantity,
-        costPerUnit: menuItem.costPerUnit,
-        createdAt: menuItem.createdAt.toString(),
-        updatedAt: menuItem.updatedAt.toString(),
-        description: menuItem.description,
-        image: menuItem.image,
-        imageUrl: undefined,
-        // Transform variants to match expected array format if present
-        variants: menuItem.variants ? 
-          (Array.isArray(menuItem.variants) ? menuItem.variants : 
-            // Convert object format to array format
-            Object.keys(menuItem.variants.variantVolumes || {}).map(variantKey => ({
-              id: variantKey,
-              name: variantKey,
-              volume: menuItem.variants.variantVolumes[variantKey] || 0,
-              unit: menuItem.variants.variantVolumeUnits?.[variantKey] || 'cl',
-              price: menuItem.variants.variantPrices?.[variantKey] || 0
-            }))
-          ) : undefined
+    // Only proceed if we have menu items
+    const allMenuItems = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+    if (allMenuItems.length === 0) {
+      setIsItemsGridLoading(false);
+      return;
+    }
+
+    const transformedItems: POSItem[] = allMenuItems
+      .filter(menuItem => menuItem?.isPOSItem)
+      .map(menuItem => {
+        // Handle category transformation with fallbacks
+        let categoryName = "Uncategorized";
+
+        if (menuItem.category) {
+          if (typeof menuItem.category === "object" && "id" in menuItem.category) {
+            categoryName = categoriesMap.get(menuItem.category.id) || (menuItem.category as any).name || (menuItem.category as any).value || "Uncategorized";
+          } else if (typeof menuItem.category === "number") {
+            categoryName = categoriesMap.get(menuItem.category) || "Uncategorized";
+          } else if (typeof menuItem.category === "string") {
+            categoryName = menuItem.category;
+          }
+        }
+
+        // Transform variants if they exist
+        const variants = menuItem.variants ? transformVariants(menuItem.variants) : undefined;
+
+        return {
+          id: `menu-${menuItem.id}`,
+          name: menuItem.name,
+          price: typeof menuItem.price === "number" && !isNaN(menuItem.price) ? menuItem.price : 0,
+          category: categoryName,
+          type: "menu_item",
+          menuItemId: menuItem.id,
+          unit: menuItem.unit || "unit",
+          availableQuantity: menuItem.availableQuantity || 0,
+          costPerUnit: menuItem.costPerUnit || 0,
+          createdAt: menuItem.createdAt?.toString() || new Date().toISOString(),
+          updatedAt: menuItem.updatedAt?.toString() || new Date().toISOString(),
+          description: menuItem.description,
+          image: menuItem.image,
+          imageUrl: undefined,
+          variants: variants
+        };
       });
-    });
-    return posItemsFromData;
-  }, [foodMenuItems, beverageMenuItems, categoriesMap]);
+
+    setPosItems(transformedItems);
+    setIsItemsGridLoading(false);
+  }, [foodMenuItems, beverageMenuItems, categoriesMap, menuItemsLoading]);
+
+  // Helper function for variants transformation
+  const transformVariants = (
+    variants: any
+  ): Array<{
+    id: string | number;
+    name: string;
+    volume: number;
+    unit: string;
+    price: string | number;
+  }> => {
+    if (Array.isArray(variants)) return variants;
+
+    if (variants && typeof variants === "object") {
+      if (variants.variantVolumes) {
+        return Object.keys(variants.variantVolumes).map(variantKey => ({
+          id: variantKey,
+          name: variantKey,
+          volume: variants.variantVolumes[variantKey] || 0,
+          unit: variants.variantVolumeUnits?.[variantKey] || "cl",
+          price: variants.variantPrices?.[variantKey] || 0
+        }));
+      }
+
+      // Handle other possible variant formats
+      return Object.entries(variants).map(([key, value]: [string, any]) => ({
+        id: key,
+        name: key,
+        volume: value.volume || value.size || 0,
+        unit: value.unit || "cl",
+        price: value.price || 0
+      }));
+    }
+
+    return [];
+  };
+  // const memoizedPosItems = useMemo(() => {
+  //   if (categoriesMap.size === 0) return [];
+  //   const allMenuItems: MenuItem[] = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+  //   if (allMenuItems.length === 0) return [];
+  //   const posItemsFromData: POSItem[] = [];
+
+  //   allMenuItems.forEach(menuItem => {
+  //     if (!menuItem?.isPOSItem) return;
+  //     let categoryId: number;
+  //     if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
+  //       categoryId = (menuItem.category as any).id;
+  //     } else if (menuItem.category && typeof menuItem.category === "number") {
+  //       categoryId = menuItem.category;
+  //     } else {
+  //       console.warn("⚠️ Invalid category format for menu item:", menuItem?.name, menuItem?.category);
+  //       categoryId = 0;
+  //     }
+  //     const categoryName = categoriesMap.get(categoryId);
+  //     if (!categoryName) return;
+  //     posItemsFromData.push({
+  //       id: `menu-${menuItem.id}`,
+  //       name: menuItem.name,
+  //       // Ensure price is always a valid number, default to 0 if null or NaN
+  //       price: typeof menuItem.price === 'number' && !isNaN(menuItem.price) ? menuItem.price : 0,
+  //       category: categoryName,
+  //       type: "menu_item",
+  //       menuItemId: menuItem.id,
+  //       unit: menuItem.unit,
+  //       availableQuantity: menuItem.availableQuantity,
+  //       costPerUnit: menuItem.costPerUnit,
+  //       createdAt: menuItem.createdAt.toString(),
+  //       updatedAt: menuItem.updatedAt.toString(),
+  //       description: menuItem.description,
+  //       image: menuItem.image,
+  //       imageUrl: undefined,
+  //       // Transform variants to match expected array format if present
+  //       variants: menuItem.variants ?
+  //         (Array.isArray(menuItem.variants) ? menuItem.variants :
+  //           // Convert object format to array format
+  //           Object.keys(menuItem.variants.variantVolumes || {}).map(variantKey => ({
+  //             id: variantKey,
+  //             name: variantKey,
+  //             volume: menuItem.variants.variantVolumes[variantKey] || 0,
+  //             unit: menuItem.variants.variantVolumeUnits?.[variantKey] || 'cl',
+  //             price: menuItem.variants.variantPrices?.[variantKey] || 0
+  //           }))
+  //         ) : undefined
+  //     });
+  //   });
+  //   return posItemsFromData;
+  // }, [foodMenuItems, beverageMenuItems, categoriesMap]);
 
   // Update posItems state only when memoized items actually change and no POS action is in progress
   useEffect(() => {
     // Block updates during POS actions to prevent grid refresh
     if (isPOSActionInProgress) return;
     if (!isItemsGridStable) {
-      setPosItems(memoizedPosItems);
+      setPosItems(posItems);
       setIsItemsGridStable(true);
     } else {
-      const hasSignificantChange = memoizedPosItems.length !== posItems.length || memoizedPosItems.some((item, index) => !posItems[index] || item.id !== posItems[index].id || item.name !== posItems[index].name || item.price !== posItems[index].price);
-      if (hasSignificantChange) setPosItems(memoizedPosItems);
+      const hasSignificantChange = posItems.length !== posItems.length || posItems.some((item, index) => !posItems[index] || item.id !== posItems[index].id || item.name !== posItems[index].name || item.price !== posItems[index].price);
+      if (hasSignificantChange) setPosItems(posItems);
     }
     // Loading state mirrors context loading
     setIsItemsGridLoading(!!menuItemsLoading);
-  }, [memoizedPosItems, isItemsGridStable, posItems, isPOSActionInProgress, menuItemsLoading]);
+  }, [isItemsGridStable, posItems, isPOSActionInProgress, menuItemsLoading]);
+
+  const availablePosItems = posItems.filter(posItem => {
+    const getCategoryString = (category: string | number | Category | { id: number; name: string; value: string } | undefined): string => {
+      if (!category) return "";
+      if (typeof category === "string") return category;
+      if (typeof category === "number") return category.toString();
+      if (typeof category === "object") {
+        return category.name || category.value || "";
+      }
+      return "";
+    };
+
+    const categoryString = getCategoryString(posItem.category);
+    const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || categoryString.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
+
+  const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
 
   const fetchTablesData = useCallback(async () => {
     try {
@@ -812,24 +919,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     await Promise.all([fetchMenuItems(), fetchTablesData(), refreshCountsRef?.current ? refreshCountsRef.current() : Promise.resolve()]);
   }, [fetchMenuItems, fetchTablesData, refreshCountsRef]);
 
-  const availablePosItems = posItems.filter(posItem => {
-    const getCategoryString = (category: string | number | Category | { id: number; name: string; value: string } | undefined): string => {
-      if (!category) return "";
-      if (typeof category === "string") return category;
-      if (typeof category === "number") return category.toString();
-      if (typeof category === "object") {
-        return category.name || category.value || "";
-      }
-      return "";
-    };
-
-    const categoryString = getCategoryString(posItem.category);
-    const matchesSearch = searchTerm === "" || posItem.name.toLowerCase().includes(searchTerm.toLowerCase()) || categoryString.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
-
-  const filteredPosItems = activeCategory === "all" ? availablePosItems : availablePosItems.filter(item => item.category === activeCategory);
-
   const recalculateEmployeeDiscount = useCallback(
     (newCart: POSCartItem[]) => {
       if (selectedEmployee && selectedEmployee.discountPercentage > 0 && orderType === "employees") {
@@ -851,11 +940,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const addToCart = useCallback(
     (posItem: POSItem) => {
       setIsPOSActionInProgress(true);
-
       // Create a unique cart ID that includes variant information if present
       const variantId = posItem.selectedVariant ? `-variant-${posItem.selectedVariant.name}-${posItem.selectedVariant.volume}${posItem.selectedVariant.unit}` : "";
       const cartId = `pos-${posItem.id}${variantId}`;
-
       setCart(prevCart => {
         const currentCart = prevCart || [];
 
@@ -958,13 +1045,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             // Determine the correct price to use
             let itemPrice: number;
-            if (posItem.selectedVariant && typeof posItem.selectedVariant.price !== 'undefined') {
+            if (posItem.selectedVariant && typeof posItem.selectedVariant.price !== "undefined") {
               // If variant has a price, parse it to ensure it's a number
               const variantPrice = parseFloat(String(posItem.selectedVariant.price));
               itemPrice = !isNaN(variantPrice) ? variantPrice : 0;
             } else {
               // Otherwise use the posItem price, ensuring it's a valid number
-              itemPrice = typeof posItem.price === 'number' && !isNaN(posItem.price) ? posItem.price : 0;
+              itemPrice = typeof posItem.price === "number" && !isNaN(posItem.price) ? posItem.price : 0;
             }
 
             const newItem: POSCartItem = {
@@ -1003,8 +1090,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             }
 
             // Ensure price is a valid number for material items too
-            const itemPrice = typeof posItem.price === 'number' && !isNaN(posItem.price) ? posItem.price : 0;
-            
+            const itemPrice = typeof posItem.price === "number" && !isNaN(posItem.price) ? posItem.price : 0;
+
             const newItem: POSCartItem = {
               id: cartId,
               name: posItem.name,
