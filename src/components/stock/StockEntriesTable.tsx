@@ -16,9 +16,8 @@ import { selectedStockEntryAtom, showStockFormAtom, selectedMaterialAtom } from 
 import { getCoreRowModel, useReactTable, SortingState, ColumnFiltersState } from "@tanstack/react-table";
 import { useStockEntriesTableColumns } from "./StockEntriesTableColumns";
 import { hasNegativeStock, renderQuantityDisplay, renderUnitDisplay } from "./StockEntriesDisplayHelpers";
-import { Pagination } from "./Pagination";
 import { NegativeStock } from "./NegativeStock";
-import { stockAPI } from "@/api/stock.api.ts";
+import { stockAPI, StockEntryCategory } from "@/api/stock.api.ts";
 import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 
 const isVirtualEntry = (entry: StockEntryWithMaterial) => {
@@ -28,10 +27,11 @@ const isVirtualEntry = (entry: StockEntryWithMaterial) => {
 export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materials: prefetchedMaterials, loading: prefetchedLoading = false, onRefresh, onDeleteStockEntry, onTogglePOSVisibility }: StockEntriesTableProps) {
   const [stockEntries, setStockEntries] = useState<(StockEntry | StockEntryWithMaterial)[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [categories, setCategories] = useState<StockEntryCategory[]>([]);
   const [loading, setLoading] = useState(true);
-  const [, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [materialFilter, setMaterialFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [sortBy, setSortBy] = useState("purchaseDate");
@@ -74,12 +74,32 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     }
   }, []);
 
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await stockAPI.getStockEntryCategories();
+      setCategories(response.data);
+    } catch (err) {
+      console.error("Failed to fetch categories:", err);
+      toast({
+        title: "Error",
+        description: "Failed to load categories",
+        variant: "destructive",
+        duration: 1000
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (prefetchedStockEntries && prefetchedStockEntries.length > 0) {
       setStockEntries(prefetchedStockEntries);
       setLoading(false);
     }
   }, [prefetchedStockEntries]);
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   useEffect(() => {
     const handleStockEntryCreated = (event: CustomEvent) => {
@@ -106,6 +126,16 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
   useEffect(() => {
     if (prefetchedMaterials && prefetchedMaterials.length > 0) {
       setMaterials(prefetchedMaterials);
+      // Debug: Log first few materials with their category structure
+      console.log(
+        "Material categories sample:",
+        prefetchedMaterials.slice(0, 5).map(m => ({
+          id: m.id,
+          name: m.name,
+          category: m.category,
+          categoryType: typeof m.category
+        }))
+      );
     }
   }, [prefetchedMaterials]);
 
@@ -157,43 +187,77 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
   const [selectedStockEntry, setSelectedStockEntry] = useAtom(selectedStockEntryAtom) as [StockEntry | null, (value: StockEntry | null) => void];
   const [, setSelectedMaterial] = useAtom(selectedMaterialAtom) as [MaterialWithStock | null, (value: MaterialWithStock | null) => void];
 
-  const filteredStockEntries = useMemo(() => {
-    const stockEntriesWithMaterial = stockEntries
-      .filter(entry => {
-        const material = materialsMap.get(entry.materialId);
-        return material !== undefined;
-      })
-      .map(entry => {
-        const material = materialsMap.get(entry.materialId);
-        return {
-          ...entry,
-          material: material!
-        } as StockEntryWithMaterial;
-      });
+  // Extract unique categories from materials with their display names
+  const categoryOptions = useMemo(() => {
+    const categories = new Map<string, { value: string; label: string }>();
 
-    const finalFiltered = stockEntriesWithMaterial.filter(entry => {
-      const searchLower = searchTerm.toLowerCase();
-      const materialName = entry.material?.name?.toLowerCase() || "";
-      const matchesMaterialName = materialName.includes(searchLower);
-      let matchesSupplier = false;
-      if (entry.supplier?.supplierName) {
-        matchesSupplier = entry.supplier.supplierName.toLowerCase().includes(searchLower);
-      } else if (entry.supplier?.supplierName) {
-        matchesSupplier = entry.supplier.supplierName.toLowerCase().includes(searchLower);
+    materials.forEach(material => {
+      if (!material.category) return;
+
+      let categoryValue: string = "";
+      let categoryLabel: string = "";
+
+      if (typeof material.category === "string") {
+        categoryValue = material.category;
+        categoryLabel = material.category;
+      } else if (material.category && typeof material.category === "object") {
+        const cat = material.category as any;
+        categoryValue = cat.value || cat.id || cat.name || "";
+        categoryLabel = cat.label || cat.name || cat.value || "";
       }
-      const batchNumber = entry.batchNumber?.toLowerCase() || "";
-      const matchesBatchNumber = batchNumber.includes(searchLower);
-      const notes = entry.notes?.toLowerCase() || "";
-      const matchesNotes = notes.includes(searchLower);
-      const matchesSearch = searchTerm === "" || matchesMaterialName || matchesSupplier || matchesBatchNumber || matchesNotes;
-      const matchesMaterialFilter = materialFilter === "all" || entry.materialId === materialFilter;
-      return matchesSearch && matchesMaterialFilter;
+
+      if (categoryValue && categoryLabel) {
+        categories.set(categoryValue, { value: categoryValue, label: categoryLabel });
+      }
     });
-    return finalFiltered;
-  }, [stockEntries, materialsMap, searchTerm, materialFilter]);
+
+    return Array.from(categories.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [materials]);
+
+  // Get unique category values for filtering
+  const uniqueCategories = useMemo(() => ["all", ...categoryOptions.map(cat => cat.value)], [categoryOptions]);
+
+  const filteredStockEntries = useMemo(() => {
+    try {
+      if (!Array.isArray(stockEntries)) return [];
+
+      // First, create a map of materials for quick lookup
+      const materialsMap = new Map(materials.map(material => [material.id, material]));
+
+      return stockEntries
+        .filter(entry => {
+          const material = materialsMap.get(entry.materialId);
+          if (!material) return false;
+
+          const materialName = material?.name?.toLowerCase() || "";
+          const supplierName = entry.supplier?.supplierName?.toLowerCase() || "";
+          const searchLower = searchTerm.toLowerCase();
+
+          // Apply search filter
+          const matchesSearch = materialName.includes(searchLower) || supplierName.includes(searchLower) || entry.id?.toString().includes(searchTerm);
+
+          // Apply category filter
+          const matchesCategory = categoryFilter === "all" || material?.categoryId?.toString() === categoryFilter || (material?.category && typeof material.category === "object" && "id" in material.category && material.category.id.toString() === categoryFilter) || (material?.category && typeof material.category === "object" && "value" in material.category && material.category.value === categoryFilter) || material?.category?.toString() === categoryFilter;
+
+          return matchesSearch && matchesCategory;
+        })
+        .map(
+          entry =>
+            ({
+              ...entry,
+              material: materialsMap.get(entry.materialId)!
+            }) as StockEntryWithMaterial
+        );
+    } catch (error) {
+      console.error("Error filtering stock entries:", error);
+      return [];
+    }
+  }, [stockEntries, materials, searchTerm, categoryFilter]);
 
   const sortedStockEntries = useMemo(() => {
-    const sorted = [...filteredStockEntries];
+    // Ensure filteredStockEntries is always an array before spreading
+    const entries = Array.isArray(filteredStockEntries) ? filteredStockEntries : [];
+    const sorted = [...entries];
     sorted.sort((a, b) => {
       const dir = sortOrder === "ASC" ? 1 : -1;
       switch (sortBy) {
@@ -462,7 +526,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     return map;
   }, [materials]);
 
-  const uniqueMaterials = useMemo(() => materials.map(m => ({ id: m.id, name: m.name })).sort((a, b) => a.name.localeCompare(b.name)), [materials]);
   const table = useReactTable({
     data: sortedStockEntries,
     columns,
@@ -541,9 +604,6 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
     setShowBulkPrinterDialog(false);
   };
 
-
-
-
   return (
     <TooltipProvider delayDuration={100} skipDelayDuration={10}>
       <div className="h-full flex flex-col">
@@ -577,29 +637,21 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
                 </div>
 
                 <div className="flex justify-end items-center gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-                    <Input key="stock-search-input" type="search" placeholder="Search by material name or supplier..." value={searchTerm} onChange={handleSearchChange} className="pl-10 border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-32 sm:w-52" />
-                  </div>
-
-                  <div className="w-fit shrink-0">
-                    <Select value={materialFilter} onValueChange={setMaterialFilter}>
-                      <SelectTrigger className="border-gray-200 focus:border-emerald-500 focus:ring-emerald-500 !h-10 min-h-[2.5rem] w-28 sm:w-32">
-                        <SelectValue placeholder="All Materials">{materialFilter === "all" ? "All Materials" : materialsById.get(materialFilter)?.name || "All Materials"}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Materials</SelectItem>
-                        {uniqueMaterials.map(material => (
-                          <SelectItem key={material.id} value={String(material.id)}>
-                            {material.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Input placeholder="Search materials or suppliers..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="max-w-sm" />
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter} disabled={categories.length === 0}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder={categories.length === 0 ? "Loading categories..." : "Filter by category"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(category => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-              <Pagination pagination={pagination} pageSize={pageSize} onPageChange={handlePageChange} onPageSizeChange={handlePageSizeChange} />
             </div>
           </div>
 
@@ -627,9 +679,9 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
               <div className="bg-gray-100 rounded-full p-3 mb-4">
                 <Search className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">{searchTerm || materialFilter !== "all" ? "No matching stock entries" : "No stock entries found"}</h3>
-              <p className="text-gray-500 mb-4">{searchTerm || materialFilter !== "all" ? "Try adjusting your search or filter criteria" : "Get started by adding your first stock entry"}</p>
-              {!searchTerm && materialFilter === "all" && (
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{searchTerm || categoryFilter !== "all" ? "No matching stock entries" : "No stock entries found"}</h3>
+              <p className="text-gray-500 mb-4">{searchTerm || categoryFilter !== "all" ? "Try adjusting your search or filter criteria" : "Get started by adding your first stock entry"}</p>
+              {!searchTerm && categoryFilter === "all" && (
                 <Button onClick={handleAddStock} className="bg-primary hover:bg-primary/80">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Stock Entry

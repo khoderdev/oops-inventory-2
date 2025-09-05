@@ -33,7 +33,11 @@ export function InventoryManagementPanel({ onDeleteMaterial, onBulkDeleteMateria
   const fetchMaterials = useCallback(async () => {
     setLoading(prev => ({ ...prev, materials: true }));
     try {
-      const response = await materialsAPI.getMaterials({ limit: 10000, _t: Date.now() });
+      const response = await materialsAPI.getMaterials({ 
+        limit: 10000, 
+        _t: Date.now(),
+        include: 'category' // Include category data in the response
+      });
       if (response) {
         if (Array.isArray(response)) {
           setMaterials(response);

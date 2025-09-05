@@ -35,6 +35,7 @@ interface MaterialsQueryParams {
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
   fields?: string;
+  include?: string; // Include related models (e.g., 'category')
   createdAt_from?: string;
   createdAt_to?: string;
   _t?: number; // Cache-busting timestamp

@@ -43,6 +43,14 @@ router.get(
   stockEntriesController.getWastageReport
 );
 
+// Get all categories from stock entries with materials
+router.get(
+  "/categories",
+  requirePermission("stock.read"),
+  cacheMiddleware(300, () => 'stock-entries-categories'),
+  stockEntriesController.getMaterialCategories
+);
+
 // Get all beverage stock entries with pagination and filtering
 router.get("/beverage", beverageStockController.getBeverageStockEntries);
 // Get unique beverage names from stock entries

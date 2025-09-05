@@ -126,6 +126,8 @@ const materialController = {
   // Get all materials without stock information (with pagination and filtering)
   getAllMaterials: async (req, res, next) => {
     try {
+      const { include } = req.query;
+      
       // Parse pagination parameters
       const paginationParams = parsePaginationParams(req.query, {
         defaultLimit: 10000, // Increased default to load all materials
@@ -145,7 +147,7 @@ const materialController = {
       );
 
       // Parse field selection for optimized data transfer
-      const selectedFields = parseFieldSelection(req.query.fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "volumePerUnit", "volumeUnit", "category", "createdAt", "updatedAt"]);
+      const selectedFields = parseFieldSelection(req.query.fields, ["id", "name", "baseUnit", "unitType", "inputUnit", "packageQuantity", "volumePerUnit", "volumeUnit", "categoryId", "createdAt", "updatedAt"]);
 
       const queryOptions = {
         where: whereClause,
@@ -154,6 +156,18 @@ const materialController = {
         offset: paginationParams.offset,
         attributes: selectedFields
       };
+
+      // Include category data if requested
+      if (include && include.includes('category')) {
+        queryOptions.include = [
+          {
+            model: Category,
+            as: 'category',
+            attributes: ['id', 'name', 'value'],
+            required: false
+          }
+        ];
+      }
 
       const { count, rows: materials } = await Material.findAndCountAll(queryOptions);
 

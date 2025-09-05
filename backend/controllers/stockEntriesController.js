@@ -1329,14 +1329,49 @@ const stockEntriesController = {
   // Get available material categories for stock entries
   getMaterialCategories: async (req, res, next) => {
     try {
-      const categories = await getMaterialCategories();
+      // Find all stock entries with their associated material and category
+      const stockEntries = await StockEntry.findAll({
+        attributes: [], // We don't need stock entry attributes
+        include: [{
+          model: Material,
+          as: 'material',
+          attributes: [],
+          include: [{
+            model: Category,
+            as: 'category',
+            attributes: ['id', 'name', 'value'],
+            required: true
+          }]
+        }],
+        group: ['material.category.id'], // Group by category to get unique categories
+        raw: true,
+        nest: true
+      });
+
+      // Extract and format categories
+      const categories = stockEntries
+        .map(entry => entry.material?.category)
+        .filter(Boolean) // Remove any undefined categories
+        .map(({ id, name, value }) => ({
+          id,
+          name,
+          value: value || name.toLowerCase().replace(/\s+/g, '_')
+        }));
+
+      // Add 'all' option at the beginning
+      const result = [
+        { id: 'all', name: 'All Categories', value: 'all' },
+        ...categories
+      ];
+
       res.json({
         success: true,
-        data: categories,
-        count: categories.length
+        data: result,
+        count: result.length - 1 // Exclude 'all' option from count
       });
-    } catch (err) {
-      next(err);
+    } catch (error) {
+      console.error('Error fetching stock entry categories:', error);
+      next(error);
     }
   }
 };

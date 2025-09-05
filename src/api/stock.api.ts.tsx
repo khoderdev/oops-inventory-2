@@ -24,6 +24,18 @@ interface PaginatedResponse<T> {
   };
 }
 
+export interface StockEntryCategory {
+  id: string | number;
+  name: string;
+  value: string;
+}
+
+export interface StockEntryCategoriesResponse {
+  success: boolean;
+  data: StockEntryCategory[];
+  count: number;
+}
+
 export interface StockEntriesQueryParams {
   page?: number;
   limit?: number;
@@ -240,6 +252,14 @@ export const stockAPI = {
     const mergedParams = { ...(params || {}), _t: Date.now() } as any;
     const response = await api.get<TotalStockValueResponse>("/stock-entries/total-value", { params: mergedParams } as any);
     return response.data;
+  },
+
+  // Get all unique categories from stock entries
+  getStockEntryCategories: async (): Promise<StockEntryCategoriesResponse> => {
+    const response = await api.get<StockEntryCategoriesResponse>('/stock-entries/categories', {
+      params: { _t: Date.now() } // Add cache-busting
+    });
+    return response.data; // Extract data from the Axios response
   }
 };
 
