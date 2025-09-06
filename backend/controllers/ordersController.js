@@ -4,7 +4,7 @@ import { auditOrderOperation } from "../middleware/auditMiddleware.js";
 import { 
   Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, 
   Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, 
-  Table, PrintJob, PrinterChannel, Category, sequelize 
+  Table, PrintJob, PrinterChannel, Category, 
 } from "../models/index.js";
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";

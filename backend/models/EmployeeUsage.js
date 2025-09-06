@@ -237,7 +237,7 @@ EmployeeUsage.getMonthlyUsage = function(employeeId, month, year) {
       {
         model: sequelize.models.StockEntry,
         as: 'stockEntry',
-        attributes: ['id', 'supplier', 'purchaseDate']
+        attributes: ['id', 'supplierName', 'purchaseDate']
       }
     ],
     order: [['usageDate', 'DESC']]
