@@ -776,18 +776,12 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                                   <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div>
                                       <span className="text-muted-foreground">Date:</span>
-                                      <span className="block font-medium">{formatDate(item.saleDate)}</span>
-                                      <span className="text-xs text-muted-foreground">{item.saleDate ? new Date(item.saleDate).toLocaleTimeString() : "N/A"}</span>
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">Section:</span>
-                                      <span className="block">{item.sectionName ? <Badge variant="outline">{item.sectionName}</Badge> : item.sectionId ? <Badge variant="outline">Section {item.sectionId}</Badge> : <span className="text-muted-foreground">-</span>}</span>
+                                      <span className="block font-medium">{formatDate(group.saleDate)}</span>
+                                      <span className="text-xs text-muted-foreground">{group.saleDate ? new Date(group.saleDate).toLocaleTimeString() : "N/A"}</span>
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Quantity:</span>
-                                      <span className="block font-medium">
-                                        {item.quantity} {item.unit ? `(${item.unit})` : ""}
-                                      </span>
+                                      <span className="block font-medium">{item.quantity}</span>
                                     </div>
                                     <div>
                                       <span className="text-muted-foreground">Unit Price:</span>
