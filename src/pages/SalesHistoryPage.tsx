@@ -101,7 +101,6 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
   const [salesReportData, setSalesReportData] = React.useState<ReceiptData | null>(null);
   const currentSales = viewMode === "staff" ? staffSales : sales;
 
-
   const localFilteredSales = useMemo(() => {
     const items: ItemSale[] = [];
     currentSales.forEach(sale => {
@@ -546,7 +545,6 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
         )}
 
         {/* Filters and Summary */}
-        {/* <Card className="!bg-background !ring-0 !border-none !shadow-none !rounded-lg"> */}
         <CardContent className="p-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <Card className="p-4">
@@ -579,7 +577,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="flex-1">
                 <label className="text-sm font-medium">Select Item</label>
-                <Select value={selectedItem} onValueChange={setSelectedItem} >
+                <Select value={selectedItem} onValueChange={setSelectedItem}>
                   <SelectTrigger className="bg-white">
                     <SelectValue placeholder="Select an item to filter by..." />
                   </SelectTrigger>
@@ -593,6 +591,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="flex-1">
                 <label className="text-sm font-medium">Select Section</label>
                 <Select value={selectedSection} onValueChange={setSelectedSection}>
@@ -609,6 +608,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="flex-1">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">From Date</Label>
@@ -636,6 +636,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
                   </Popover>
                 </div>
               </div>
+
               <div className="flex-1">
                 <div className="space-y-1">
                   <Label className="text-sm font-medium text-gray-800 dark:text-gray-200 flex items-center gap-2">To Date</Label>

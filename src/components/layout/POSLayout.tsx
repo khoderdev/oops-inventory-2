@@ -589,6 +589,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           </div>
         </DialogContent>
       </Dialog>
+      
       {/* Day Operations Modal */}
       {/* Open Day Modal - Staff only */}
       {canOpenDay && <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} formatCurrency={formatCurrency} />}
