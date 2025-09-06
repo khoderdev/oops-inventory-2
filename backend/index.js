@@ -155,7 +155,8 @@ app.use("/api/variants", variantsRoutes);
 app.use("/api/variant-ingredients", variantIngredientsRoutes);
 app.use("/api/departments", departmentRoutes);
 // Emergency fix for sequences
-app.post('/api/admin/fix-sequences', async (req, res) => { // call it using this in terminal: curl -X POST http://localhost:3000/api/admin/fix-sequences
+app.post("/api/admin/fix-sequences", async (req, res) => {
+  // call it using this in terminal: curl -X POST http://localhost:3000/api/admin/fix-sequences
   try {
     await resetAllSequences();
     res.json({ success: true, message: "Database sequences reset successfully" });
@@ -252,6 +253,36 @@ async function initializeCashier() {
   }
 }
 
+// Add this function somewhere in your code
+const initializeCategoryTypes = async () => {
+  try {
+    console.log("🏷️ Checking for default category types...");
+
+    // First ensure the CategoryType table exists
+    await sequelize.models.CategoryType.sync({ force: false });
+
+    const defaultTypes = ["materials", "menu_items", "beverages"];
+    const existingTypes = await sequelize.models.CategoryType.findAll({
+      where: {
+        type: { [Op.in]: defaultTypes }
+      }
+    });
+
+    const existingTypeNames = existingTypes.map(type => type.type);
+    const typesToCreate = defaultTypes.filter(type => !existingTypeNames.includes(type));
+
+    if (typesToCreate.length > 0) {
+      console.log(`📋 Creating ${typesToCreate.length} missing category types`);
+      await sequelize.models.CategoryType.bulkCreate(typesToCreate.map(type => ({ type })));
+    }
+
+    return true;
+  } catch (error) {
+    console.warn("⚠️ Category type initialization failed:", error.message);
+    return false;
+  }
+};
+
 // Database error types for better error handling
 const DatabaseErrorType = {
   CONNECTION: "CONNECTION",
@@ -273,21 +304,7 @@ class DatabaseError extends Error {
   }
 }
 
-const resetAuditLogSequence = async () => {
-  try {
-    await sequelize.query(`
-      SELECT setval('"audit_logs_id_seq"', 
-        COALESCE((SELECT MAX(id) FROM "audit_logs"), 0) + 1, 
-        false
-      );
-    `);
-    console.log("✅ Audit log sequence reset successfully");
-  } catch (error) {
-    console.error("❌ Error resetting audit log sequence:", error);
-    throw new DatabaseError("Failed to reset audit log sequence", DatabaseErrorType.SEQUENCE, error);
-  }
-};
-
+// Replace your current connectToDatabase function with this updated version
 const connectToDatabase = async (retries = 3, delay = 5000) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -326,78 +343,80 @@ const connectToDatabase = async (retries = 3, delay = 5000) => {
         console.warn("⚠️ Could not clean up orphaned data:", cleanupError.message);
       }
 
-      // 3. Synchronize schema with a more controlled approach
+      // 3. Synchronize schema with proper order
       console.log("🔄 Synchronizing database schema...");
       try {
-        // Get all model names except the problematic ones
-        const modelNames = Object.keys(sequelize.models).filter(modelName => !["MenuItemSauce"].includes(modelName));
+        // Define the synchronization order - tables without foreign keys first
+        const syncOrder = [
+          "User", // Base table with no dependencies
+          "CategoryType", // Base table
+          "Category", // Depends on CategoryType
+          "Employee", // Base table, needed before Department
+          "Department", // Depends on Employee
+          "Supplier", // Base table
+          "Material", // Depends on Category, Supplier
+          "Section", // Base table
+          "MenuItem", // Depends on Category
+          "Sauce", // Base table
+          "Variants", // Depends on MenuItem
+          "Table", // Base table
+          "PrinterChannel", // Base table
+          "Printer", // Depends on PrinterChannel
+          "StockEntry", // Depends on Material
+          "MenuItemIngredient", // Depends on MenuItem, Material
+          "MenuItemSauce", // Depends on MenuItem, Sauce
+          "SauceIngredient", // Depends on Sauce, Material
+          "VariantIngredient", // Depends on Variants, Material
+          "Assignment", // Depends on Employee, Section
+          "Sale", // Depends on User, Table
+          "SaleMenuItem", // Depends on Sale, MenuItem
+          "Order", // Depends on User, Table
+          "OrderItem", // Depends on Order, MenuItem
+          "Wasting", // Depends on Material
+          "EmployeeUsage", // Depends on Employee, Material
+          "EmployeeSettlement", // Depends on Employee
+          "Session", // Depends on User
+          "AuditLog", // Depends on User
+          "SystemLogs", // Base table
+          "DayOperation", // Depends on User
+          "DayOperationReport", // Depends on DayOperation
+          "BackupSchedule", // Base table
+          "ScheduleExecution", // Depends on BackupSchedule
+          "PrintJob" // Depends on Printer
+        ];
 
-        // Sync non-problematic models first
-        for (const modelName of modelNames) {
-          await sequelize.models[modelName].sync({
-            force: false,
-            alter: { drop: false },
-            hooks: false
-          });
-        }
-
-        // Now handle the problematic MenuItemSauce model separately
-        try {
-          // First check if the table exists and needs to be altered
-          const tableExists = await sequelize.query(`
-            SELECT EXISTS (
-              SELECT FROM information_schema.tables 
-              WHERE table_schema = 'public' 
-              AND table_name = 'menuItemSauces'
-            );
-          `);
-
-          if (tableExists[0][0].exists) {
-            // Table exists, so we need to handle the foreign key constraint carefully
-            console.log("🔧 Handling existing menuItemSauces table...");
-
-            // First, drop the existing foreign key constraint if it exists
-            try {
-              await sequelize.query(`
-                ALTER TABLE "menuItemSauces" 
-                DROP CONSTRAINT IF EXISTS "menuItemSauces_sauceId_fkey";
-              `);
-            } catch (dropError) {
-              console.warn("⚠️ Could not drop existing foreign key:", dropError.message);
-            }
-
-            // Now sync the model without constraints
-            await sequelize.models.MenuItemSauce.sync({
-              force: false,
-              alter: { drop: false },
-              hooks: false
-            });
-
-            // Add the foreign key constraint manually with proper error handling
-            try {
-              await sequelize.query(`
-                ALTER TABLE "menuItemSauces" 
-                ADD CONSTRAINT "menuItemSauces_sauceId_fkey"
-                FOREIGN KEY ("sauceId") 
-                REFERENCES "sauces" ("id") 
-                ON DELETE CASCADE ON UPDATE CASCADE;
-              `);
-              console.log("✅ Added foreign key constraint to menuItemSauces");
-            } catch (fkError) {
-              console.warn("⚠️ Could not add foreign key constraint to menuItemSauces:", fkError.message);
-              console.log("💡 This is non-critical and the application will continue");
-            }
-          } else {
-            // Table doesn't exist, sync normally
-            await sequelize.models.MenuItemSauce.sync({
+        // First, sync all models without foreign key constraints
+        console.log("📋 Syncing models without foreign key constraints...");
+        for (const modelName of syncOrder) {
+          if (sequelize.models[modelName]) {
+            console.log(`📋 Syncing ${modelName} without constraints...`);
+            await sequelize.models[modelName].sync({
               force: false,
               alter: { drop: false },
               hooks: false
             });
           }
-        } catch (menuItemError) {
-          console.warn("⚠️ Could not sync MenuItemSauce model:", menuItemError.message);
-          console.log("💡 This is non-critical and the application will continue");
+        }
+
+        // Now add foreign key constraints
+        console.log("🔗 Adding foreign key constraints...");
+        await sequelize.query("SET CONSTRAINTS ALL DEFERRED");
+
+        // Enable foreign key constraints for each model
+        for (const modelName of syncOrder) {
+          if (sequelize.models[modelName]) {
+            try {
+              // This will add any missing foreign key constraints
+              await sequelize.models[modelName].sync({
+                force: false,
+                alter: true,
+                hooks: false
+              });
+              console.log(`✅ Constraints added for ${modelName}`);
+            } catch (error) {
+              console.warn(`⚠️ Could not add constraints for ${modelName}:`, error.message);
+            }
+          }
         }
 
         console.log("✅ Database schema synchronized successfully");
@@ -415,6 +434,20 @@ const connectToDatabase = async (retries = 3, delay = 5000) => {
 
       // 5. Initialize data
       console.log("🔧 Initializing essential data...");
+
+      try {
+        console.log("🏷️ Initializing category types...");
+        const categoryTypesInitialized = await initializeCategoryTypes();
+
+        if (categoryTypesInitialized) {
+          console.log("✅ Category types initialized successfully");
+        } else {
+          console.log("⚠️ Category types initialization skipped or failed (non-critical)");
+        }
+      } catch (error) {
+        console.warn("⚠️ Category type initialization failed:", error.message);
+        console.log("💡 This is non-critical, continuing with other initializations...");
+      }
 
       try {
         console.log("👤 Initializing admin user...");
@@ -454,6 +487,10 @@ const connectToDatabase = async (retries = 3, delay = 5000) => {
           break;
         case DatabaseErrorType.SYNC:
           console.error("🗄️ Schema synchronization failed - check migrations");
+          // Log the specific SQL error if available
+          if (error.originalError && error.originalError.sql) {
+            console.error("📝 SQL that failed:", error.originalError.sql);
+          }
           break;
         case DatabaseErrorType.INITIALIZATION:
           console.error("📊 Data initialization failed - check seed data");

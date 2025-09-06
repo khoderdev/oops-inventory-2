@@ -817,8 +817,18 @@ router.post("/restore/:backupId", async (req, res) => {
         if (!sqlFile) throw new Error("SQL backup file not found");
         filePath = path.join(backupDir, sqlFile);
 
-        // ... your existing SQL restore logic remains unchanged ...
-        // (keep tempFilePath handling, DROP/CREATE DB replacements, FK handling, etc.)
+        // ✅ FIX: Add proper SQL restore command construction
+        restoreCommand = `"${psqlPath}" --host=${dbConfig.host} --port=${dbConfig.port} --username=${dbConfig.username} --dbname=${dbConfig.database} --file="${filePath}"`;
+
+        // Set PGPASSWORD environment variable
+        const env = { ...process.env, PGPASSWORD: dbConfig.password };
+
+        console.log(`⚡ Executing SQL restore command: ${restoreCommand}`);
+        const startTime = Date.now();
+        await execAsync(restoreCommand, { env });
+        const duration = Date.now() - startTime;
+
+        console.log(`✅ SQL restore completed in ${duration}ms`);
         break;
       }
 

@@ -1,33 +1,55 @@
-// // // import sequelize from "./database.js";
-// // // import "../models/index.js";
+import sequelize from "./database.js";
+import "../models/index.js";
 
-// // // async function syncDatabase() {
-// // //   try {
-// // //     await sequelize.authenticate();
-// // //     console.log("✅ Database connected successfully.");
+async function syncDatabase() {
+  try {
+    await sequelize.authenticate();
+    console.log("✅ Database connected successfully.");
 
-// // //     // List all models that will be synchronized
-// // //     const modelNames = Object.keys(sequelize.models);
-// // //     console.log(`📋 Models to synchronize: ${modelNames.join(", ")}`);
+    // Disable foreign key checks temporarily
+    await sequelize.query('SET session_replication_role = "replica";');
+    console.log("🔧 Temporarily disabled foreign key checks");
 
-// // //     // Sync all models (create tables if not exists or alter them)
-// // //     await sequelize.sync({ alter: true }); // `alter` will update the table without dropping data
-// // //     console.log("✅ All models synchronized successfully.");
+    try {
+      // Sync Department model first
+      console.log("🔄 Syncing Department model...");
+      await sequelize.models.Department.sync({ alter: true, force: false });
+      
+      // Then sync other models
+      const modelNames = Object.keys(sequelize.models).filter(m => m !== 'Department');
+      console.log(`📋 Syncing remaining models: ${modelNames.join(", ")}`);
+      
+      for (const modelName of modelNames) {
+        console.log(`🔄 Syncing ${modelName}...`);
+        await sequelize.models[modelName].sync({ alter: true, force: false });
+      }
 
-// // //     if (sequelize.models.SystemLogs) {
-// // //       console.log("✅ SystemLogs model synchronized.");
-// // //     } else {
-// // //       console.log("⚠️  SystemLogs model not found in registered models.");
-// // //     }
+      console.log("✅ All models synchronized successfully.");
 
-// // //   } catch (error) {
-// // //     console.error("❌ Database sync failed:", error);
-// // //   } finally {
-// // //     await sequelize.close();
-// // //   }
-// // // }
+      if (sequelize.models.SystemLogs) {
+        console.log("✅ SystemLogs model synchronized.");
+      } else {
+        console.log("⚠️  SystemLogs model not found in registered models.");
+      }
+    } finally {
+      // Re-enable foreign key checks
+      await sequelize.query('SET session_replication_role = DEFAULT;');
+      console.log("🔧 Re-enabled foreign key checks");
+    }
 
-// // // syncDatabase();
+  } catch (error) {
+    console.error("❌ Database sync failed:", error);
+  } finally {
+    await sequelize.close();
+  }
+}
+
+syncDatabase();
+
+
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
 
 // // import sequelize from "./database.js";
 // // import "../models/index.js";
@@ -198,6 +220,14 @@
 // //     process.exit(1);
 // //   });
 // // }
+
+
+
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+
+
 // import sequelize from "./database.js";
 // import "../models/index.js";
 
@@ -269,76 +299,82 @@
 //   console.error("❌ Unhandled error in sync process:", error);
 //   process.exit(1);
 // });import sequelize from "./database.js";
-import "../models/index.js";
-import sequelize from "./database.js";
 
-async function syncDatabase() {
-  try {
-    await sequelize.authenticate();
-    console.log("✅ Database connected successfully.");
 
-    // List all models that will be synchronized
-    const modelNames = Object.keys(sequelize.models);
-    console.log(`📋 Models to synchronize: ${modelNames.join(", ")}`);
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
 
-    // FIX ALL FOREIGN KEY VIOLATIONS FIRST
-    console.log("🔍 Fixing ALL foreign key violations...");
-    try {
-      // Check if both tables exist
-      const tablesExist = await sequelize.query(`
-        SELECT 
-          EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'SystemLogs') as system_logs_exists,
-          EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'stockEntries') as stock_entries_exists
-      `);
+// import "../models/index.js";
+// import sequelize from "./database.js";
 
-      const systemLogsExists = tablesExist[0][0].system_logs_exists;
-      const stockEntriesExists = tablesExist[0][0].stock_entries_exists;
+// async function syncDatabase() {
+//   try {
+//     await sequelize.authenticate();
+//     console.log("✅ Database connected successfully.");
 
-      if (systemLogsExists && stockEntriesExists) {
-        // Find ALL problematic records (not just stockEntryId=111)
-        const problematicRecords = await sequelize.query(`
-          SELECT COUNT(*) as count 
-          FROM "SystemLogs" 
-          WHERE "stockEntryId" IS NOT NULL 
-          AND "stockEntryId" NOT IN (SELECT id FROM "stockEntries")
-        `);
+//     // List all models that will be synchronized
+//     const modelNames = Object.keys(sequelize.models);
+//     console.log(`📋 Models to synchronize: ${modelNames.join(", ")}`);
 
-        if (problematicRecords[0][0].count > 0) {
-          console.log(`🔄 Found ${problematicRecords[0][0].count} problematic records, fixing...`);
+//     // FIX ALL FOREIGN KEY VIOLATIONS FIRST
+//     console.log("🔍 Fixing ALL foreign key violations...");
+//     try {
+//       // Check if both tables exist
+//       const tablesExist = await sequelize.query(`
+//         SELECT 
+//           EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'SystemLogs') as system_logs_exists,
+//           EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'stockEntries') as stock_entries_exists
+//       `);
 
-          // Delete ALL problematic records with invalid foreign keys
-          await sequelize.query(`
-            DELETE FROM "SystemLogs" 
-            WHERE "stockEntryId" IS NOT NULL 
-            AND "stockEntryId" NOT IN (SELECT id FROM "stockEntries")
-          `);
-          console.log(`✅ Deleted ${problematicRecords[0][0].count} problematic records with invalid stockEntryId`);
-        } else {
-          console.log("✅ No foreign key violations found");
-        }
-      }
-    } catch (fixError) {
-      console.warn("⚠️ Could not fix foreign key violations:", fixError.message);
-    }
+//       const systemLogsExists = tablesExist[0][0].system_logs_exists;
+//       const stockEntriesExists = tablesExist[0][0].stock_entries_exists;
 
-    // Sync all models (create tables if not exists or alter them)
-    console.log("🔄 Synchronizing models...");
-    await sequelize.sync({ alter: true });
-    console.log("✅ All models synchronized successfully.");
+//       if (systemLogsExists && stockEntriesExists) {
+//         // Find ALL problematic records (not just stockEntryId=111)
+//         const problematicRecords = await sequelize.query(`
+//           SELECT COUNT(*) as count 
+//           FROM "SystemLogs" 
+//           WHERE "stockEntryId" IS NOT NULL 
+//           AND "stockEntryId" NOT IN (SELECT id FROM "stockEntries")
+//         `);
 
-    if (sequelize.models.SystemLogs) {
-      console.log("✅ SystemLogs model synchronized.");
-    } else {
-      console.log("⚠️ SystemLogs model not found in registered models.");
-    }
-  } catch (error) {
-    console.error("❌ Database sync failed:", error);
-  } finally {
-    await sequelize.close();
-  }
-}
+//         if (problematicRecords[0][0].count > 0) {
+//           console.log(`🔄 Found ${problematicRecords[0][0].count} problematic records, fixing...`);
 
-syncDatabase().catch(error => {
-  console.error("❌ Unhandled error in sync process:", error);
-  process.exit(1);
-});
+//           // Delete ALL problematic records with invalid foreign keys
+//           await sequelize.query(`
+//             DELETE FROM "SystemLogs" 
+//             WHERE "stockEntryId" IS NOT NULL 
+//             AND "stockEntryId" NOT IN (SELECT id FROM "stockEntries")
+//           `);
+//           console.log(`✅ Deleted ${problematicRecords[0][0].count} problematic records with invalid stockEntryId`);
+//         } else {
+//           console.log("✅ No foreign key violations found");
+//         }
+//       }
+//     } catch (fixError) {
+//       console.warn("⚠️ Could not fix foreign key violations:", fixError.message);
+//     }
+
+//     // Sync all models (create tables if not exists or alter them)
+//     console.log("🔄 Synchronizing models...");
+//     await sequelize.sync({ alter: true });
+//     console.log("✅ All models synchronized successfully.");
+
+//     if (sequelize.models.SystemLogs) {
+//       console.log("✅ SystemLogs model synchronized.");
+//     } else {
+//       console.log("⚠️ SystemLogs model not found in registered models.");
+//     }
+//   } catch (error) {
+//     console.error("❌ Database sync failed:", error);
+//   } finally {
+//     await sequelize.close();
+//   }
+// }
+
+// syncDatabase().catch(error => {
+//   console.error("❌ Unhandled error in sync process:", error);
+//   process.exit(1);
+// });
