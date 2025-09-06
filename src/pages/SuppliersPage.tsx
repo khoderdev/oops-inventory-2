@@ -6,12 +6,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useSuppliersContext } from "@/context/SuppliersContext";
 import { Loader2 } from "lucide-react";
 
-// Lazy load components to improve initial page load time
 const SupplierForm = lazy(() => import("@/components/suppliers/SupplierForm"));
 const SupplierDetail = lazy(() => import("@/components/suppliers/SupplierDetail"));
 const PaymentForm = lazy(() => import("@/components/suppliers/PaymentForm"));
 
-// Loading spinner component
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center p-8">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -26,72 +24,43 @@ export default function SuppliersPage() {
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeletePaymentDialogOpen, setIsDeletePaymentDialogOpen] = useState(false);
-
-  // Get all the supplier functions from our context
   const { refresh, deleteSupplier, deleteSupplierPayment } = useSuppliersContext();
 
-  // Memoize handlers to prevent unnecessary re-renders
   const handleAdd = useCallback(() => {
     setSelectedSupplier(null);
-    // Small delay to allow React to process state updates before opening modal
     setTimeout(() => setIsFormOpen(true), 10);
   }, []);
 
   const handleEdit = useCallback((supplier: Supplier) => {
     setSelectedSupplier(supplier);
-    // Small delay to allow React to process state updates before opening modal
     setTimeout(() => setIsFormOpen(true), 10);
   }, []);
 
   const handleView = useCallback((supplier: Supplier) => {
     setSelectedSupplier(supplier);
-    // Small delay to allow React to process state updates before opening modal
     setTimeout(() => setIsDetailOpen(true), 10);
   }, []);
 
   const handleDelete = useCallback((supplier: Supplier) => {
     setSelectedSupplier(supplier);
-    // Small delay to allow React to process state updates before opening modal
     setTimeout(() => setIsDeleteDialogOpen(true), 10);
   }, []);
 
   const confirmDelete = useCallback(async () => {
     if (!selectedSupplier) return;
-
     try {
       const success = await deleteSupplier(selectedSupplier.id);
       if (success) {
         setIsDeleteDialogOpen(false);
         setSelectedSupplier(null);
-        // The context already handles refreshing the data after deletion
       }
     } catch (error) {
       console.error("Error deleting supplier:", error);
     }
   }, [deleteSupplier, selectedSupplier]);
 
-  // Memoized handlers for payment operations
-  const handleAddPayment = useCallback(() => {
-    setSelectedPayment(null);
-    // Small delay to allow React to process state updates before opening modal
-    setTimeout(() => setIsPaymentFormOpen(true), 10);
-  }, []);
-
-  const handleEditPayment = useCallback((payment: SupplierPayment) => {
-    setSelectedPayment(payment);
-    // Small delay to allow React to process state updates before opening modal
-    setTimeout(() => setIsPaymentFormOpen(true), 10);
-  }, []);
-
-  const handleDeletePayment = useCallback((payment: SupplierPayment) => {
-    setSelectedPayment(payment);
-    // Small delay to allow React to process state updates before opening modal
-    setTimeout(() => setIsDeletePaymentDialogOpen(true), 10);
-  }, []);
-
   const confirmDeletePayment = useCallback(async () => {
     if (!selectedPayment) return;
-
     try {
       const success = await deleteSupplierPayment(selectedPayment.id);
       if (success) {
@@ -103,32 +72,26 @@ export default function SuppliersPage() {
     }
   }, [deleteSupplierPayment, selectedPayment]);
 
-  // Memoized success handlers
   const handleFormSuccess = useCallback(() => {
     setIsFormOpen(false);
-    // Refresh table data to show the new supplier
     refresh();
   }, [refresh]);
 
   const handlePaymentFormSuccess = useCallback(() => {
     setIsPaymentFormOpen(false);
-    // Refresh table data to show updated supplier data
     refresh();
   }, [refresh]);
 
   return (
-    <div className="container py-6">
-      {/* Suppliers Table */}
+    <div className="container py-4 md:py-6 px-3 sm:px-4">
       <SuppliersTable onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDelete} />
 
-      {/* Supplier Form Dialog */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto sm:w-full">
           <DialogHeader>
-            <DialogTitle>{selectedSupplier ? "Edit Supplier" : "Add New Supplier"}</DialogTitle>
-            <DialogDescription>{selectedSupplier ? "Update the supplier details below." : "Fill in the supplier details below."}</DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">{selectedSupplier ? "Edit Supplier" : "Add New Supplier"}</DialogTitle>
+            <DialogDescription className="text-sm sm:text-base">{selectedSupplier ? "Update the supplier details below." : "Fill in the supplier details below."}</DialogDescription>
           </DialogHeader>
-          {/* Use Suspense to handle lazy loading */}
           <Suspense fallback={<LoadingSpinner />}>
             {isFormOpen && (
               <div className="pb-4">
@@ -139,10 +102,8 @@ export default function SuppliersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Supplier Detail Dialog */}
       <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          {/* Use Suspense to handle lazy loading */}
+        <DialogContent className="w-[95vw] max-w-[800px] max-h-[90vh] overflow-y-auto sm:w-full p-3 sm:p-6">
           <Suspense fallback={<LoadingSpinner />}>
             {isDetailOpen && selectedSupplier && (
               <div className="pb-4">
@@ -150,12 +111,10 @@ export default function SuppliersPage() {
                   supplier={selectedSupplier}
                   onEdit={() => {
                     setIsDetailOpen(false);
-                    // Small delay to prevent UI freezing during transition
                     setTimeout(() => setIsFormOpen(true), 10);
                   }}
                   onDelete={() => {
                     setIsDetailOpen(false);
-                    // Small delay to prevent UI freezing during transition
                     setTimeout(() => setIsDeleteDialogOpen(true), 10);
                   }}
                 />
@@ -165,14 +124,12 @@ export default function SuppliersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Payment Form Dialog */}
       <Dialog open={isPaymentFormOpen} onOpenChange={setIsPaymentFormOpen}>
-        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto sm:w-full">
           <DialogHeader>
-            <DialogTitle>{selectedPayment ? "Edit Payment" : "Add New Payment"}</DialogTitle>
-            <DialogDescription>{selectedPayment ? "Update the payment details below." : "Fill in the payment details below."}</DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">{selectedPayment ? "Edit Payment" : "Add New Payment"}</DialogTitle>
+            <DialogDescription className="text-sm sm:text-base">{selectedPayment ? "Update the payment details below." : "Fill in the payment details below."}</DialogDescription>
           </DialogHeader>
-          {/* Use Suspense to handle lazy loading */}
           <Suspense fallback={<LoadingSpinner />}>
             {isPaymentFormOpen && selectedSupplier && (
               <div className="pb-4">
@@ -183,18 +140,17 @@ export default function SuppliersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Supplier Confirmation */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95vw] max-w-[450px] sm:w-full">
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-lg sm:text-xl">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm sm:text-base">
               This action cannot be undone. This will permanently delete the supplier
               {selectedSupplier && <strong> "{selectedSupplier.name}"</strong>} and all associated payment records.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="mt-0 sm:mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
               Delete
             </AlertDialogAction>
@@ -202,15 +158,14 @@ export default function SuppliersPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Payment Confirmation */}
       <AlertDialog open={isDeletePaymentDialogOpen} onOpenChange={setIsDeletePaymentDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95vw] max-w-[450px] sm:w-full">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Payment Record?</AlertDialogTitle>
-            <AlertDialogDescription>This action cannot be undone. This will permanently delete this payment record.</AlertDialogDescription>
+            <AlertDialogTitle className="text-lg sm:text-xl">Delete Payment Record?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm sm:text-base">This action cannot be undone. This will permanently delete this payment record.</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+            <AlertDialogCancel className="mt-0 sm:mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDeletePayment} className="bg-destructive text-destructive-foreground">
               Delete
             </AlertDialogAction>
@@ -219,4 +174,96 @@ export default function SuppliersPage() {
       </AlertDialog>
     </div>
   );
+  // return (
+  //   <div className="container py-6">
+  //     <SuppliersTable onAdd={handleAdd} onEdit={handleEdit} onView={handleView} onDelete={handleDelete} />
+
+  //     <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+  //       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+  //         <DialogHeader>
+  //           <DialogTitle>{selectedSupplier ? "Edit Supplier" : "Add New Supplier"}</DialogTitle>
+  //           <DialogDescription>{selectedSupplier ? "Update the supplier details below." : "Fill in the supplier details below."}</DialogDescription>
+  //         </DialogHeader>
+  //         <Suspense fallback={<LoadingSpinner />}>
+  //           {isFormOpen && (
+  //             <div className="pb-4">
+  //               <SupplierForm supplier={selectedSupplier || undefined} onSuccess={handleFormSuccess} onCancel={() => setIsFormOpen(false)} />
+  //             </div>
+  //           )}
+  //         </Suspense>
+  //       </DialogContent>
+  //     </Dialog>
+
+  //     <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+  //       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+  //         <Suspense fallback={<LoadingSpinner />}>
+  //           {isDetailOpen && selectedSupplier && (
+  //             <div className="pb-4">
+  //               <SupplierDetail
+  //                 supplier={selectedSupplier}
+  //                 onEdit={() => {
+  //                   setIsDetailOpen(false);
+  //                   setTimeout(() => setIsFormOpen(true), 10);
+  //                 }}
+  //                 onDelete={() => {
+  //                   setIsDetailOpen(false);
+  //                   setTimeout(() => setIsDeleteDialogOpen(true), 10);
+  //                 }}
+  //               />
+  //             </div>
+  //           )}
+  //         </Suspense>
+  //       </DialogContent>
+  //     </Dialog>
+
+  //     <Dialog open={isPaymentFormOpen} onOpenChange={setIsPaymentFormOpen}>
+  //       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+  //         <DialogHeader>
+  //           <DialogTitle>{selectedPayment ? "Edit Payment" : "Add New Payment"}</DialogTitle>
+  //           <DialogDescription>{selectedPayment ? "Update the payment details below." : "Fill in the payment details below."}</DialogDescription>
+  //         </DialogHeader>
+  //         <Suspense fallback={<LoadingSpinner />}>
+  //           {isPaymentFormOpen && selectedSupplier && (
+  //             <div className="pb-4">
+  //               <PaymentForm supplierId={selectedSupplier.id} payment={selectedPayment || undefined} onSuccess={handlePaymentFormSuccess} onCancel={() => setIsPaymentFormOpen(false)} />
+  //             </div>
+  //           )}
+  //         </Suspense>
+  //       </DialogContent>
+  //     </Dialog>
+
+  //     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+  //       <AlertDialogContent>
+  //         <AlertDialogHeader>
+  //           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+  //           <AlertDialogDescription>
+  //             This action cannot be undone. This will permanently delete the supplier
+  //             {selectedSupplier && <strong> "{selectedSupplier.name}"</strong>} and all associated payment records.
+  //           </AlertDialogDescription>
+  //         </AlertDialogHeader>
+  //         <AlertDialogFooter>
+  //           <AlertDialogCancel>Cancel</AlertDialogCancel>
+  //           <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground">
+  //             Delete
+  //           </AlertDialogAction>
+  //         </AlertDialogFooter>
+  //       </AlertDialogContent>
+  //     </AlertDialog>
+
+  //     <AlertDialog open={isDeletePaymentDialogOpen} onOpenChange={setIsDeletePaymentDialogOpen}>
+  //       <AlertDialogContent>
+  //         <AlertDialogHeader>
+  //           <AlertDialogTitle>Delete Payment Record?</AlertDialogTitle>
+  //           <AlertDialogDescription>This action cannot be undone. This will permanently delete this payment record.</AlertDialogDescription>
+  //         </AlertDialogHeader>
+  //         <AlertDialogFooter>
+  //           <AlertDialogCancel>Cancel</AlertDialogCancel>
+  //           <AlertDialogAction onClick={confirmDeletePayment} className="bg-destructive text-destructive-foreground">
+  //             Delete
+  //           </AlertDialogAction>
+  //         </AlertDialogFooter>
+  //       </AlertDialogContent>
+  //     </AlertDialog>
+  //   </div>
+  // );
 }
