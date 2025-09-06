@@ -37,7 +37,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [isResizing, setIsResizing] = useState(false);
   const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [, setShowDayOperationsModal] = useState(false);
-  const [userDayOpen, setUserDayOpen] = useState<boolean | null>(null); 
+  const [userDayOpen, setUserDayOpen] = useState<boolean | null>(null);
 
   const [, setDayOperationType] = useState<"open" | "close">("open");
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
@@ -90,12 +90,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       setCurrentDay(currentResponse.currentDay);
       const isDayOpen = currentResponse.currentDay?.status === "opened";
       setUserDayOpen(isDayOpen);
-      
+
       // Hide lock overlay immediately if day is open
       if (isDayOpen) {
         setShowLockOverlay(false);
       }
-      
+
       const recentResponse = await getDayOperations(1, 10);
       recentResponse.dayOperations.map(day => {
         const dateStr = day.date;
@@ -552,9 +552,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
           {/* Right Panel - Main Content */}
           <div className="flex-1 relative overflow-hidden">
-            <div className="h-full w-full pointer-events-auto">
-              {React.cloneElement(children as React.ReactElement, { isDayOpen: userDayOpen })}
-            </div>
+            <div className="h-full w-full pointer-events-auto">{React.cloneElement(children as React.ReactElement, { isDayOpen: userDayOpen })}</div>
             {canAccessPOS && isLocked && showLockOverlay && (
               <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
                 <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
@@ -565,10 +563,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
                       Open Day
                     </button>
                     {hasRole(["admin", "manager"]) && (
-                      <button 
-                        onClick={() => navigate("/")} 
-                        className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
-                      >
+                      <button onClick={() => navigate("/")} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
                         Back Office
                       </button>
                     )}
@@ -585,27 +580,17 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       <Dialog open={showSalesHistoryDialog} onOpenChange={setShowSalesHistoryDialog}>
         <DialogContent className="max-w-screen h-[100vh] shadow-2xl p-0 overflow-auto">
           <div className="h-full overflow-auto">
-            <SalesHistoryPage isOpen={showSalesHistoryDialog} onClose={handleCloseSalesHistoryDialog} />
+            <SalesHistoryPage key={showSalesHistoryDialog ? "sales-history-open" : "sales-history-closed"} isOpen={showSalesHistoryDialog} onClose={handleCloseSalesHistoryDialog} />
           </div>
         </DialogContent>
       </Dialog>
-      
+
       {/* Day Operations Modal */}
       {/* Open Day Modal - Staff only */}
       {canOpenDay && <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} formatCurrency={formatCurrency} />}
 
       {/* Close Day Modal - Staff only */}
-      {canCloseDayPerm && (
-        <DayOperationsModal
-          open={showCloseModal}
-          onOpenChange={setShowCloseModal}
-          onSubmit={handleCloseDay}
-          type="close"
-          formData={convertToModalFormData("close")}
-          onFormChange={data => handleModalFormChange("close", data)}
-          formatCurrency={formatCurrency}
-        />
-      )}
+      {canCloseDayPerm && <DayOperationsModal open={showCloseModal} onOpenChange={setShowCloseModal} onSubmit={handleCloseDay} type="close" formData={convertToModalFormData("close")} onFormChange={data => handleModalFormChange("close", data)} formatCurrency={formatCurrency} />}
       {/* Day Operation Alerts */}
       {dayError && (
         <div className="fixed top-4 right-4 z-50 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center max-w-md shadow-lg">
