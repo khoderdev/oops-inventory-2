@@ -1,11 +1,7 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { auditOrderOperation } from "../middleware/auditMiddleware.js";
-import { 
-  Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, 
-  Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, 
-  Table, PrintJob, PrinterChannel, Category, 
-} from "../models/index.js";
+import { Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, Table, PrintJob, PrinterChannel, Category } from "../models/index.js";
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 import { convertVolumeWithMaterial } from "../utils/volumeConversionUtils.js";
@@ -616,34 +612,24 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           if (currentYield < requiredQuantity) {
             const warningMessage = `⚠️ [${deductionId}] WARNING: Not enough ${ingredient.sauce.name} available. Required: ${requiredQuantity} ${ingredient.unit}, Available: ${currentYield} ${sauce.unit}. Allowing order but please restock soon.`;
             console.warn(warningMessage);
-            
+
             // Set yield to minimum value (0.001) to avoid negative values
             newYield = minYield;
-            
+
             // Log this incident for inventory management
-            await sequelize.query(
-              'INSERT INTO inventory_warnings (type, item_id, item_name, required, available, message, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
-              {
-                replacements: [
-                  'low_sauce',
-                  ingredient.sauceId,
-                  ingredient.sauce.name,
-                  requiredQuantity,
-                  currentYield,
-                  warningMessage
-                ],
-                transaction
-              }
-            );
+            await sequelize.query("INSERT INTO inventory_warnings (type, item_id, item_name, required, available, message, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())", {
+              replacements: ["low_sauce", ingredient.sauceId, ingredient.sauce.name, requiredQuantity, currentYield, warningMessage],
+              transaction
+            });
           }
 
           // Update sauce with new yield quantity
           const updateResult = await Sauce.update(
-            { 
-              yieldQuantity: newYield.toFixed(6), 
+            {
+              yieldQuantity: newYield.toFixed(6),
               updatedAt: new Date(),
               // Add a low stock flag if we're below a threshold (e.g., 10% of typical usage)
-              isLowStock: newYield < (requiredQuantity * 0.1)
+              isLowStock: newYield < requiredQuantity * 0.1
             },
             {
               where: { id: ingredient.sauceId },
@@ -779,33 +765,33 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 
         // Update the appropriate field - ensure integer fields are properly converted
         const updateData = {};
-        
+
         // Convert newQuantity to a number first and ensure it's a proper number
         const numericQuantity = parseFloat(newQuantity);
         if (isNaN(numericQuantity)) {
           console.error(`      - Error: Could not convert ${newQuantity} to a valid number`);
           throw new Error(`Invalid number format: ${newQuantity}`);
         }
-        
+
         // Handle integer fields specially - ensure we're storing proper integers
-        if (fieldToUpdate === 'purchasedIndividualQuantity' || fieldToUpdate === 'totalPieces') {
+        if (fieldToUpdate === "purchasedIndividualQuantity" || fieldToUpdate === "totalPieces") {
           // For integer fields, round to nearest whole number
           const intValue = Math.round(numericQuantity);
           updateData[fieldToUpdate] = intValue;
           console.log(`      - Converted ${fieldToUpdate} from ${newQuantity} to integer: ${intValue}`);
-          
+
           // Explicitly set other related fields to ensure they're in sync
-          if (fieldToUpdate === 'purchasedIndividualQuantity') {
+          if (fieldToUpdate === "purchasedIndividualQuantity") {
             updateData.purchasedConvertedQuantity = intValue;
           }
         } else {
           // For non-integer fields, ensure we're not passing strings
           updateData[fieldToUpdate] = numericQuantity;
         }
-        
+
         // Ensure we're not passing any string values for numeric fields
         Object.keys(updateData).forEach(key => {
-          if (typeof updateData[key] === 'string' && !isNaN(updateData[key])) {
+          if (typeof updateData[key] === "string" && !isNaN(updateData[key])) {
             updateData[key] = parseFloat(updateData[key]);
           }
         });
@@ -846,31 +832,40 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 
           // Ensure purchasedQuantity is a valid number and has proper decimal places
           const updatedPurchasedQuantity = parseFloat(newPurchasedQuantity.toFixed(6));
-          
+
           // Create update object with proper numeric values
-          const updateObj = { 
+          const updateObj = {
             purchasedQuantity: parseFloat(updatedPurchasedQuantity) // Ensure it's a proper float
           };
-          
+
           // Handle purchasedIndividualQuantity if it exists
           if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
             // Convert to number first, then round to integer
             const rawValue = stockEntry.purchasedIndividualQuantity;
-            const numValue = typeof rawValue === 'string' ? 
-              parseFloat(rawValue.replace(/[^0-9.-]+/g,"")) : 
-              Number(rawValue);
-              
+            let numValue;
+
+            // Handle different input types
+            if (typeof rawValue === "string") {
+              // Remove any non-numeric characters except decimal point and negative sign
+              const cleanValue = rawValue.replace(/[^0-9.-]+/g, "");
+              numValue = parseFloat(cleanValue);
+            } else {
+              numValue = Number(rawValue);
+            }
+
             if (!isNaN(numValue)) {
-              const intValue = Math.round(numValue);
+              // Ensure we're working with a proper integer
+              const intValue = Math.max(0, Math.round(numValue));
               updateObj.purchasedIndividualQuantity = intValue;
               updateObj.purchasedConvertedQuantity = intValue;
-              console.log(`      - Set package quantities to integer: ${intValue}`);
+              updateObj.purchasedQuantity = Math.max(0, Math.floor((intValue / material.packageQuantity) * 1000) / 1000);
+              console.log(`      - Updated package quantities to integer: ${intValue}`);
             } else {
               console.error(`      - Invalid purchasedIndividualQuantity: ${stockEntry.purchasedIndividualQuantity}`);
               throw new Error(`Invalid number format for purchasedIndividualQuantity: ${stockEntry.purchasedIndividualQuantity}`);
             }
           }
-          
+
           await stockEntry.update(updateObj, { transaction });
 
           console.log(`💰 [${deductionId}] Updated purchasedQuantity: ${stockEntry.purchasedQuantity} → ${newPurchasedQuantity} (deducted ${deductionInPurchasedUnits} purchased units)`);
