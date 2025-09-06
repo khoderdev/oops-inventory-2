@@ -35,6 +35,21 @@ import User from "./User.js";
 import Wasting from "./wastings.js";
 import InventoryWarning from "./InventoryWarning.js";
 
+// User ↔ InventoryWarning
+User.hasMany(InventoryWarning, {
+  foreignKey: 'resolved_by',
+  as: 'resolvedWarnings',
+  onDelete: 'SET NULL',
+  onUpdate: 'CASCADE'
+});
+
+InventoryWarning.belongsTo(User, {
+  foreignKey: 'resolved_by',
+  as: 'resolvedBy',
+  onDelete: 'SET NULL',
+  onUpdate: 'CASCADE'
+});
+
 // Material ↔ StockEntry
 Material.hasMany(StockEntry, {
   foreignKey: "materialId",
@@ -948,12 +963,12 @@ Sauce.belongsTo(User, {
 });
 
 // Set up InventoryWarning relationships
-InventoryWarning.belongsTo(User, {
-  foreignKey: 'resolved_by',
-  as: 'resolvedBy',
-  onDelete: 'SET NULL',
-  onUpdate: 'CASCADE'
-});
+// InventoryWarning.belongsTo(User, {
+//   foreignKey: 'resolved_by',
+//   as: 'resolvedBy',
+//   onDelete: 'SET NULL',
+//   onUpdate: 'CASCADE'
+// });
 
 // Export all models
 export {

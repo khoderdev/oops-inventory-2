@@ -1606,7 +1606,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               discountReason: appliedDiscount?.reason,
               notes: orderNotes || undefined
             };
-            savedOrder = await updateOrder(updateData);
+            console.log('Applied discount:', appliedDiscount);
+
           } else {
             const createData = {
               orderType,
@@ -1631,6 +1632,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               discountAmount: appliedDiscount?.amount || 0,
               discountReason: appliedDiscount?.reason
             };
+            console.log('Applied discount:', appliedDiscount);
             savedOrder = await createOrder(createData);
           }
 
@@ -1759,6 +1761,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           // Create order if needed
           if (!currentOrder) {
+            console.log('Applied discount:', appliedDiscount);
             const orderData = {
               orderType,
               tableId: selectedTable?.id,

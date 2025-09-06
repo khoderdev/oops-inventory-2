@@ -55,17 +55,25 @@ const InventoryWarning = sequelize.define('InventoryWarning', {
   resolved_by: {
     type: DataTypes.INTEGER,
     allowNull: true,
-    comment: 'ID of the user who resolved this warning',
-    references: {
-      model: 'Users',
-      key: 'id'
-    }
+    comment: 'ID of the user who resolved this warning'
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'inventory_warnings',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  define: {
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: {
+      field: 'updated_at',
+      allowNull: true
+    }
+  },
   indexes: [
     {
       fields: ['type']

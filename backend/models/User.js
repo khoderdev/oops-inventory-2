@@ -756,4 +756,14 @@ User.resetLoginAttempts = async function (userId) {
   });
 };
 
+// Define associations
+User.associate = (models) => {
+  User.hasMany(models.InventoryWarning, {
+    foreignKey: 'resolved_by',
+    as: 'resolvedWarnings',
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE'
+  });
+};
+
 export default User;

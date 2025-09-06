@@ -874,6 +874,7 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 };
 
 export const ordersController = {
+
   createOrder: async (req, res) => {
     console.log(`🔄 Starting order creation with new transaction`);
     const transaction = await sequelize.transaction();
@@ -1504,7 +1505,7 @@ export const ordersController = {
     }
   },
 
-  // Complete order (convert to sale)
+  // Complete order (convert to sale) 
   completeOrder: async (req, res) => {
     const transaction = await sequelize.transaction();
     try {

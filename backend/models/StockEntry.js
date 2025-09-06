@@ -75,7 +75,7 @@ const StockEntry = sequelize.define(
     // CONVERTED VALUES (Normalized)
     // ==========================================
     purchasedConvertedQuantity: {
-      type: DataTypes.DECIMAL(10, 3),
+      type: DataTypes.DECIMAL(15, 3),
       allowNull: true
     },
     purchasedConvertedUnit: {
