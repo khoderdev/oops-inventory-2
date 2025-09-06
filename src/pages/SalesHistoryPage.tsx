@@ -115,97 +115,64 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   const currentSales = viewMode === "staff" ? staffSales : sales;
 
   const localFilteredSales = useMemo(() => {
-    const items: ItemSale[] = [];
-    currentSales.forEach(sale => {
-      sale.items?.forEach((item, index: number) => {
-        items.push({
-          id: `${sale.id}-item-${index}`,
-          saleId: sale.id.toString(),
-          saleDate: new Date(sale.saleDate),
-          sectionId: sale.sectionId,
-          sectionName: sale.section?.name,
-          itemName: item.materialName || `Item ${item.materialId}`,
-          itemType: "individual",
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPrice: parseFloat(String(item.unitPrice || 0)),
-          totalPrice: parseFloat(String(item.totalPrice || 0)),
-          materialId: item.materialId
-        });
-      });
-      sale.menuItems?.forEach((menuItem, index: number) => {
-        items.push({
-          id: `${sale.id}-menu-${index}`,
-          saleId: sale.id.toString(),
-          saleDate: new Date(sale.saleDate),
-          sectionId: sale.sectionId,
-          sectionName: sale.section?.name,
-          itemName: menuItem.menuItemName || `Menu Item ${menuItem.menuItemId}`,
-          itemType: "menu",
-          quantity: menuItem.quantity,
-          unitPrice: parseFloat(String(menuItem.unitPrice || 0)),
-          totalPrice: parseFloat(String(menuItem.totalPrice || 0)),
-          menuItemId: menuItem.menuItemId
-        });
-      });
-    });
+    return currentSales.filter(sale => {
+      // Filter by date range
+      const saleDate = new Date(sale.saleDate);
+      const matchesDate = (!dateFrom || saleDate >= dateFrom) && (!dateTo || saleDate <= dateTo);
 
-    let filtered = [...items];
-    if (selectedItem && selectedItem !== "all") {
-      filtered = filtered.filter(item => item.itemName === selectedItem);
-    }
-    if (selectedSection && selectedSection !== "all") {
-      filtered = filtered.filter(item => {
-        const itemSectionName = item.sectionName || `Section ${item.sectionId}`;
-        return itemSectionName === selectedSection;
-      });
-    }
-    if (dateFrom || dateTo) {
-      filtered = filtered.filter(item => {
-        const itemDate = new Date(item.saleDate);
-        itemDate.setHours(0, 0, 0, 0);
-        let withinRange = true;
-        if (dateFrom) {
-          const fromDate = new Date(dateFrom);
-          fromDate.setHours(0, 0, 0, 0);
-          withinRange = withinRange && itemDate >= fromDate;
-        }
-        if (dateTo) {
-          const toDate = new Date(dateTo);
-          toDate.setHours(23, 59, 59, 999);
-          withinRange = withinRange && itemDate <= toDate;
-        }
-        return withinRange;
-      });
-    }
-    if (dateFilter && !dateFrom && !dateTo) {
-      filtered = filtered.filter(item => {
-        const itemDate = item.saleDate.toISOString().split("T")[0];
-        return itemDate === dateFilter;
-      });
-    }
-    return filtered.sort((a, b) => b.saleDate.getTime() - a.saleDate.getTime());
-  }, [currentSales, selectedItem, selectedSection, dateFilter, dateFrom, dateTo]);
+      // Filter by section
+      const matchesSection = !selectedSection || selectedSection === "all" || sale.section?.name === selectedSection;
+
+      // Filter by item (if any item in the sale matches)
+      const matchesItem = !selectedItem || selectedItem === "all" || sale.items?.some(item => item.materialName === selectedItem) || sale.menuItems?.some(menuItem => menuItem.menuItemName === selectedItem);
+
+      return matchesDate && matchesSection && matchesItem;
+    });
+  }, [currentSales, selectedItem, selectedSection, dateFrom, dateTo]);
 
   const groupedSales = useMemo(() => {
-    const grouped = new Map<string, ItemSale[]>();
-    localFilteredSales.forEach(item => {
-      if (!grouped.has(item.saleId)) {
-        grouped.set(item.saleId, []);
-      }
-      grouped.get(item.saleId)!.push(item);
-    });
-    return Array.from(grouped.entries()).map(([saleId, items]) => {
-      const originalSale = currentSales.find(sale => sale.id.toString() === saleId);
-      return {
-        saleId,
-        items,
-        saleDate: items[0].saleDate,
-        total: items.reduce((sum, item) => sum + item.totalPrice, 0),
-        order: originalSale?.order
-      };
-    });
-  }, [localFilteredSales, currentSales]);
+    return localFilteredSales
+      .map(sale => {
+        // Combine both items and menuItems into a single array for display
+        const allItems = [
+          ...(sale.items || []).map(item => ({
+            ...item,
+            itemType: "material" as const
+          })),
+          ...(sale.menuItems || []).map(item => ({
+            ...item,
+            itemType: "menu" as const,
+            itemName: item.menuItemName,
+            totalPrice: parseFloat(item.totalPrice.toString())
+          }))
+        ];
+
+        return {
+          saleId: sale.id.toString(),
+          items: allItems,
+          saleDate: new Date(sale.saleDate),
+          total: parseFloat(sale.totalAmount),
+          order: sale.order,
+          section: sale.section
+        };
+      })
+      .sort((a, b) => b.saleDate.getTime() - a.saleDate.getTime());
+  }, [localFilteredSales]);
+
+  // console.log("Sales Data:", {
+  //   sales: currentSales,
+  //   filtered: localFilteredSales,
+  //   grouped: groupedSales.map(g => ({
+  //     saleId: g.saleId,
+  //     total: g.total,
+  //     formatted: formatCurrency(g.total),
+  //     items: g.items.map(i => ({
+  //       name: i.itemName,
+  //       price: i.totalPrice,
+  //       type: typeof i.totalPrice
+  //     }))
+  //   }))
+  // });
 
   const uniqueItemNames = useAtomValue(uniqueItemNamesAtom);
   const uniqueSectionNames = useAtomValue(uniqueSectionNamesAtom);
@@ -828,7 +795,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                                   <div>
                                     <span className="text-muted-foreground">Date:</span>
                                     <span className="block font-medium">{formatDate(item.saleDate)}</span>
-                                    <span className="text-xs text-muted-foreground">{item.saleDate.toLocaleTimeString()}</span>
+                                    <span className="text-xs text-muted-foreground">{item.saleDate ? new Date(item.saleDate).toLocaleTimeString() : "N/A"}</span>
                                   </div>
                                   <div>
                                     <span className="text-muted-foreground">Section:</span>
