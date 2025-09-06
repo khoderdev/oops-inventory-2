@@ -780,9 +780,12 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         // Update the appropriate field - ensure integer fields are properly converted
         const updateData = {};
         
-        // Handle integer fields specially
+        // Handle integer fields specially - ensure we're storing proper integers
         if (fieldToUpdate === 'purchasedIndividualQuantity' || fieldToUpdate === 'totalPieces') {
-          updateData[fieldToUpdate] = Math.round(parseFloat(newQuantity));
+          // Convert to number first, then round to nearest integer
+          const intValue = Math.round(Number(newQuantity));
+          updateData[fieldToUpdate] = intValue;
+          console.log(`      - Converted ${fieldToUpdate} from ${newQuantity} to integer: ${intValue}`);
         } else {
           updateData[fieldToUpdate] = newQuantity;
         }
@@ -823,7 +826,14 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 
           // Ensure purchasedQuantity is a valid number and has proper decimal places
           const updatedPurchasedQuantity = parseFloat(newPurchasedQuantity.toFixed(6));
-          await stockEntry.update({ purchasedQuantity: updatedPurchasedQuantity }, { transaction });
+          
+          // Update purchasedQuantity and ensure purchasedIndividualQuantity is an integer
+          await stockEntry.update({ 
+            purchasedQuantity: updatedPurchasedQuantity,
+            purchasedIndividualQuantity: stockEntry.purchasedIndividualQuantity ? 
+              Math.round(Number(stockEntry.purchasedIndividualQuantity)) : 
+              stockEntry.purchasedIndividualQuantity
+          }, { transaction });
 
           console.log(`💰 [${deductionId}] Updated purchasedQuantity: ${stockEntry.purchasedQuantity} → ${newPurchasedQuantity} (deducted ${deductionInPurchasedUnits} purchased units)`);
         }

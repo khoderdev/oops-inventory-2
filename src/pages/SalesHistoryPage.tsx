@@ -800,8 +800,9 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                   <AccordionItem key={group.saleId} value={group.saleId}>
                     <AccordionTrigger>
                       <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-start gap-1">
                           <span className="font-bold">{formatDate(group.saleDate)}</span>
+                          {group.orderNumber && <span className="text-sm text-muted-foreground">Order: {group.orderNumber}</span>}
                         </div>
                         <span className="font-bold">{formatCurrency(group.total)}</span>
                       </div>
