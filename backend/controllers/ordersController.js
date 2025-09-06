@@ -1,7 +1,11 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { auditOrderOperation } from "../middleware/auditMiddleware.js";
-import { Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, Table, PrintJob, PrinterChannel, Category } from "../models/index.js";
+import { 
+  Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, 
+  Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, 
+  Table, PrintJob, PrinterChannel, Category, sequelize 
+} from "../models/index.js";
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 import { convertVolumeWithMaterial } from "../utils/volumeConversionUtils.js";
@@ -608,18 +612,44 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 
           console.log(`🥫 [${deductionId}] Deducting ${requiredQuantity} ${ingredient.unit} from sauce: ${ingredient.sauce.name} (Current yield: ${currentYield} ${sauce.unit})`);
 
+          // Enhanced sauce quantity check with warning instead of error
           if (currentYield < requiredQuantity) {
-            throw new Error(`Not enough ${ingredient.sauce.name} available. Required: ${requiredQuantity} ${ingredient.unit}, Available: ${currentYield} ${sauce.unit}`);
+            const warningMessage = `⚠️ [${deductionId}] WARNING: Not enough ${ingredient.sauce.name} available. Required: ${requiredQuantity} ${ingredient.unit}, Available: ${currentYield} ${sauce.unit}. Allowing order but please restock soon.`;
+            console.warn(warningMessage);
+            
+            // Set yield to minimum value (0.001) to avoid negative values
+            newYield = minYield;
+            
+            // Log this incident for inventory management
+            await sequelize.query(
+              'INSERT INTO inventory_warnings (type, item_id, item_name, required, available, message, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())',
+              {
+                replacements: [
+                  'low_sauce',
+                  ingredient.sauceId,
+                  ingredient.sauce.name,
+                  requiredQuantity,
+                  currentYield,
+                  warningMessage
+                ],
+                transaction
+              }
+            );
           }
 
-          // FIX: Add proper validation and verification
+          // Update sauce with new yield quantity
           const updateResult = await Sauce.update(
-            { yieldQuantity: newYield.toFixed(6), updatedAt: new Date() },
+            { 
+              yieldQuantity: newYield.toFixed(6), 
+              updatedAt: new Date(),
+              // Add a low stock flag if we're below a threshold (e.g., 10% of typical usage)
+              isLowStock: newYield < (requiredQuantity * 0.1)
+            },
             {
               where: { id: ingredient.sauceId },
               transaction,
               validate: true,
-              returning: true // Ensure we get the updated record (for PostgreSQL)
+              returning: true
             }
           );
 

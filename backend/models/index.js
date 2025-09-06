@@ -33,6 +33,7 @@ import SupplierPayment from "./SupplierPayment.js";
 import Table from "./Table.js";
 import User from "./User.js";
 import Wasting from "./wastings.js";
+import InventoryWarning from "./InventoryWarning.js";
 
 // Material ↔ StockEntry
 Material.hasMany(StockEntry, {
@@ -946,4 +947,52 @@ Sauce.belongsTo(User, {
   onUpdate: "CASCADE"
 });
 
-export { Assignment, AuditLog, BackupSchedule, Category, CategoryType, DayOperation, DayOperationReport, Department, Employee, EmployeeSettlement, EmployeeUsage, Material, MenuItem, MenuItemIngredient, MenuItemSauce, Order, OrderItem, Printer, PrinterChannel, PrintJob, Sale, SaleMenuItem, Sauce, SauceIngredient, ScheduleExecution, Section, sequelize, Session, StockEntry, Supplier, SupplierPayment, SystemLogs, Table, User, VariantIngredient, Variants, Wasting };
+// Set up InventoryWarning relationships
+InventoryWarning.belongsTo(User, {
+  foreignKey: 'resolved_by',
+  as: 'resolvedBy',
+  onDelete: 'SET NULL',
+  onUpdate: 'CASCADE'
+});
+
+// Export all models
+export {
+  Assignment,
+  AuditLog,
+  BackupSchedule,
+  Category,
+  CategoryType,
+  DayOperation,
+  DayOperationReport,
+  Department,
+  Employee,
+  EmployeeSettlement,
+  EmployeeUsage,
+  InventoryWarning,
+  Material,
+  MenuItem,
+  MenuItemIngredient,
+  MenuItemSauce,
+  Order,
+  OrderItem,
+  Printer,
+  PrinterChannel,
+  PrintJob,
+  Sale,
+  SaleMenuItem,
+  ScheduleExecution,
+  Section,
+  Session,
+  StockEntry,
+  Supplier,
+  SupplierPayment,
+  SystemLogs,
+  Table,
+  User,
+  Variants,
+  VariantIngredient,
+  Wasting,
+  Sauce,
+  SauceIngredient,
+  sequelize
+};

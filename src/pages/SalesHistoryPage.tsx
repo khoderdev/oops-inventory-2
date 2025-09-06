@@ -23,7 +23,7 @@ import { AlertCircle, CalendarIcon, CheckCircle, CheckSquare, Loader2, Package, 
 import React, { useCallback, useEffect, useMemo } from "react";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
 
-export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => void }) {
   const [selectedItem, setSelectedItem] = useAtom(selectedItemFilterAtom);
   const [selectedSection, setSelectedSection] = useAtom(selectedSectionFilterAtom);
   const [dateFilter, setDateFilter] = useAtom(dateFilterAtom);
@@ -753,7 +753,7 @@ export function SalesHistoryPage({ isOpen, onClose }: { isOpen: boolean; onClose
           </div>
         </div>
 
-        <Card className="h-[calc(100vh-200px)] overflow-y-auto !bg-white !ring-0 !border-none !shadow-none !rounded-lg my-4 pb-2">
+        <Card className="h-[calc(100vh-150px)] overflow-y-auto !bg-white !ring-0 !border-none !shadow-none !rounded-lg my-4 mb-12">
           <CardHeader className="sticky top-0 z-10 px-4 bg-white">
             <div className="flex justify-between gap-3">
               {/* Results summary */}
