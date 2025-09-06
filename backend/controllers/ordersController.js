@@ -747,8 +747,15 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         console.log(`      - Will deduct: ${deductAmount} ${unit}`);
         console.log(`      - New Quantity: ${newQuantity}`);
 
-        // Update the appropriate field
-        const updateData = { [fieldToUpdate]: newQuantity };
+        // Update the appropriate field - ensure integer fields are properly converted
+        const updateData = {};
+        
+        // Handle integer fields specially
+        if (fieldToUpdate === 'purchasedIndividualQuantity' || fieldToUpdate === 'totalPieces') {
+          updateData[fieldToUpdate] = Math.round(parseFloat(newQuantity));
+        } else {
+          updateData[fieldToUpdate] = newQuantity;
+        }
 
         // Also update cost per unit if we're updating calculated fields
         if (unitType === "volume" && newQuantity > 0 && stockEntry.totalCost > 0) {
@@ -784,7 +791,9 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 
           const newPurchasedQuantity = Math.max(0, parseFloat(stockEntry.purchasedQuantity || 0) - deductionInPurchasedUnits);
 
-          await stockEntry.update({ purchasedQuantity: parseFloat(newPurchasedQuantity.toFixed(6)) }, { transaction });
+          // Ensure purchasedQuantity is a valid number and has proper decimal places
+          const updatedPurchasedQuantity = parseFloat(newPurchasedQuantity.toFixed(6));
+          await stockEntry.update({ purchasedQuantity: updatedPurchasedQuantity }, { transaction });
 
           console.log(`💰 [${deductionId}] Updated purchasedQuantity: ${stockEntry.purchasedQuantity} → ${newPurchasedQuantity} (deducted ${deductionInPurchasedUnits} purchased units)`);
         }
