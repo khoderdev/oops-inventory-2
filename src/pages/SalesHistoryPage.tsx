@@ -184,7 +184,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
       const reportItems: ReceiptData["items"] = [];
       groupedSales.forEach(sale => {
         const saleDate = format(sale.saleDate, "hh:mm a");
-        const orderNumber = sale.order?.orderNumber || `ORD-${sale.saleId.toString().padStart(4, "0")}`;
+        const orderNumber = sale.orderNumber || `ORD-${sale.saleId.toString().padStart(4, "0")}`;
         reportItems.push({
           name: `${orderNumber} (${saleDate})`,
           quantity: sale.items.length,
@@ -234,27 +234,45 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     setSelectedItemIds(new Set());
   }, [setSelectedItemIds]);
 
-  const handleRevertSale = useCallback(
-    (saleId: string) => {
-      const sale = currentSales.find(s => s.id.toString() === saleId);
-      if (sale) {
-        setSelectedSaleForRevert(sale);
-        setRevertDialogOpen(true);
-      }
-    },
-    [currentSales, setSelectedSaleForRevert, setRevertDialogOpen]
-  );
+  const handleRevertSale = (item: any) => {
+    // Find the full sale record from currentSales
+    const sale = currentSales.find(s => s.id === item.id);
+    if (sale) {
+      setSelectedSaleForRevert(sale);
+      setRevertDialogOpen(true);
+    }
+  };
 
-  const handleSoftDeleteSale = useCallback(
-    (saleId: string) => {
-      const sale = currentSales.find(s => s.id.toString() === saleId);
-      if (sale) {
-        setSelectedSaleForDelete(sale);
-        setDeleteDialogOpen(true);
-      }
-    },
-    [currentSales, setSelectedSaleForDelete, setDeleteDialogOpen]
-  );
+  const handleSoftDeleteSale = (item: any) => {
+    // Find the full sale record from currentSales
+    const sale = currentSales.find(s => s.id === item.id);
+    if (sale) {
+      setSelectedSaleForDelete(sale);
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  // const handleRevertSale = useCallback(
+  //   (saleId: string) => {
+  //     const sale = currentSales.find(s => s.id.toString() === saleId);
+  //     if (sale) {
+  //       setSelectedSaleForRevert(sale);
+  //       setRevertDialogOpen(true);
+  //     }
+  //   },
+  //   [currentSales, setSelectedSaleForRevert, setRevertDialogOpen]
+  // );
+
+  // const handleSoftDeleteSale = useCallback(
+  //   (saleId: string) => {
+  //     const sale = currentSales.find(s => s.id.toString() === saleId);
+  //     if (sale) {
+  //       setSelectedSaleForDelete(sale);
+  //       setDeleteDialogOpen(true);
+  //     }
+  //   },
+  //   [currentSales, setSelectedSaleForDelete, setDeleteDialogOpen]
+  // );
 
   const handleBulkRevert = useCallback(() => {
     setBulkRevertDialogOpen(true);
@@ -791,11 +809,11 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                                     </div>
                                   </div>
                                   <div className="flex gap-2 mt-2">
-                                    <Button variant="outline" size="sm" onClick={() => handleRevertSale(itemId)} className="flex-1" title="Revert Sale">
+                                    <Button variant="outline" size="sm" onClick={() => handleRevertSale(item)} className="flex-1" title="Revert Sale">
                                       <Undo2 className="mr-2 h-4 w-4" />
                                       Revert
                                     </Button>
-                                    <Button variant="outline" size="sm" onClick={() => handleSoftDeleteSale(itemId)} className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50" title="Delete Sale">
+                                    <Button variant="outline" size="sm" onClick={() => handleSoftDeleteSale(item)} className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50" title="Delete Sale">
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Delete
                                     </Button>

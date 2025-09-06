@@ -498,6 +498,7 @@ export interface SoldItem {
 
 export interface SaleRecord {
   id: string;
+  orderNumber: string;
   saleDate: Date;
   items: SoldItem[];
   menuItems: MenuItemSale[];
