@@ -114,7 +114,7 @@ export const VirtualSelect: React.FC<VirtualSelectProps> = ({ items, value, onCh
         )}
 
         {/* Dropdown toggle button (arrow) */}
-        <button type="button" onClick={toggleDropdown} disabled={disabled} className={`absolute inset-y-0 right-0 flex items-center pr-2 ${disabled ? 'text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
+        <button type="button" onClick={toggleDropdown} disabled={disabled} className={`absolute inset-y-0 right-0 flex items-center pr-2 z-50 ${disabled ? 'text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>
           {open ? (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clipRule="evenodd" />

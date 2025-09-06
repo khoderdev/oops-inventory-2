@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Trash2, Mail, Phone, MapPin, FileText, ToggleLeft, Calendar, RefreshCw } from "lucide-react";
+import { Edit, Trash2, Mail, Phone, MapPin, FileText, ToggleLeft, Calendar, RefreshCw, Loader2 } from "lucide-react";
 import PaymentsTable from "./PaymentsTable";
 import PaymentForm from "./PaymentForm";
 import { formatDate } from "@/utils/formatDate";
@@ -289,12 +289,32 @@ export const SupplierDetail: React.FC<SupplierDetailProps> = ({ supplier, onEdit
           </p>
         </CardFooter>
       </Card>
+
       <Dialog open={showPaymentForm} onOpenChange={setShowPaymentForm}>
-        <DialogContent className="w-[95vw] max-w-[600px] sm:w-full">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-[600px] sm:w-full h-[80vh] max-h-[600px] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="sticky top-0 z-10 bg-background border-b px-6 py-3">
             <DialogTitle className="text-lg sm:text-xl">{editingPayment ? `Edit Payment #${editingPayment.referenceNumber || editingPayment.id}` : "Add New Payment"}</DialogTitle>
           </DialogHeader>
-          <PaymentForm supplierId={localSupplier.id} payment={editingPayment || undefined} stockEntries={allStockEntries} stockEntriesLoading={stockEntriesLoading} onSuccess={handlePaymentFormSuccess} onCancel={handlePaymentFormCancel} />
+
+          <div className="flex-1 overflow-y-auto px-6 py-2">
+            <PaymentForm supplierId={localSupplier.id} payment={editingPayment || undefined} stockEntries={allStockEntries} stockEntriesLoading={stockEntriesLoading} onSuccess={handlePaymentFormSuccess} onCancel={handlePaymentFormCancel} />
+          </div>
+
+          <div className="sticky bottom-0 z-10 bg-background border-t px-6 py-2">
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={handlePaymentFormCancel} disabled={loading}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                form="payment-form"
+                disabled={loading}
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {editingPayment ? "Update Payment" : "Create Payment"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>

@@ -181,7 +181,6 @@ export const paymentFormSchema = z.object({
   paymentDate: z.date(),
   paymentMethod: z.enum(["Cash", "Bank Transfer", "Check", "Credit Card", "Other"]),
   status: z.enum(["Completed", "Pending", "Failed", "Refunded"]),
-  referenceNumber: z.string().optional(),
   description: z.string().optional(),
   attachmentUrl: z.string().optional(),
 });
