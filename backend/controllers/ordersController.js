@@ -780,10 +780,13 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         // Update the appropriate field - ensure integer fields are properly converted
         const updateData = {};
         
+        // Convert newQuantity to a number first
+        const numericQuantity = Number(newQuantity);
+        
         // Handle integer fields specially - ensure we're storing proper integers
         if (fieldToUpdate === 'purchasedIndividualQuantity' || fieldToUpdate === 'totalPieces') {
           // Convert to number first, then round to nearest integer
-          const intValue = Math.round(Number(newQuantity));
+          const intValue = Math.round(numericQuantity);
           updateData[fieldToUpdate] = intValue;
           console.log(`      - Converted ${fieldToUpdate} from ${newQuantity} to integer: ${intValue}`);
           
@@ -792,7 +795,8 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
             updateData.purchasedConvertedQuantity = intValue;
           }
         } else {
-          updateData[fieldToUpdate] = newQuantity;
+          // For non-integer fields, ensure we're not passing strings
+          updateData[fieldToUpdate] = numericQuantity;
         }
 
         // Also update cost per unit if we're updating calculated fields
@@ -834,14 +838,19 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           
           // Update purchasedQuantity and ensure purchasedIndividualQuantity is an integer
           const updateObj = { 
-            purchasedQuantity: updatedPurchasedQuantity
+            purchasedQuantity: parseFloat(updatedPurchasedQuantity) // Ensure it's a proper float
           };
           
           // Only include purchasedIndividualQuantity if it exists and is a valid number
           if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
-            const intValue = Math.round(Number(stockEntry.purchasedIndividualQuantity));
-            updateObj.purchasedIndividualQuantity = intValue;
-            updateObj.purchasedConvertedQuantity = intValue; // Keep in sync
+            const intValue = parseInt(stockEntry.purchasedIndividualQuantity, 10);
+            if (!isNaN(intValue)) {
+              updateObj.purchasedIndividualQuantity = intValue;
+              updateObj.purchasedConvertedQuantity = intValue; // Keep in sync
+              console.log(`      - Set package quantities to integer: ${intValue}`);
+            } else {
+              console.error(`      - Invalid purchasedIndividualQuantity: ${stockEntry.purchasedIndividualQuantity}`);
+            }
           }
           
           await stockEntry.update(updateObj, { transaction });
