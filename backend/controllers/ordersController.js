@@ -786,6 +786,11 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           const intValue = Math.round(Number(newQuantity));
           updateData[fieldToUpdate] = intValue;
           console.log(`      - Converted ${fieldToUpdate} from ${newQuantity} to integer: ${intValue}`);
+          
+          // Explicitly set other related fields to ensure they're in sync
+          if (fieldToUpdate === 'purchasedIndividualQuantity') {
+            updateData.purchasedConvertedQuantity = intValue;
+          }
         } else {
           updateData[fieldToUpdate] = newQuantity;
         }
@@ -828,12 +833,18 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           const updatedPurchasedQuantity = parseFloat(newPurchasedQuantity.toFixed(6));
           
           // Update purchasedQuantity and ensure purchasedIndividualQuantity is an integer
-          await stockEntry.update({ 
-            purchasedQuantity: updatedPurchasedQuantity,
-            purchasedIndividualQuantity: stockEntry.purchasedIndividualQuantity ? 
-              Math.round(Number(stockEntry.purchasedIndividualQuantity)) : 
-              stockEntry.purchasedIndividualQuantity
-          }, { transaction });
+          const updateObj = { 
+            purchasedQuantity: updatedPurchasedQuantity
+          };
+          
+          // Only include purchasedIndividualQuantity if it exists and is a valid number
+          if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
+            const intValue = Math.round(Number(stockEntry.purchasedIndividualQuantity));
+            updateObj.purchasedIndividualQuantity = intValue;
+            updateObj.purchasedConvertedQuantity = intValue; // Keep in sync
+          }
+          
+          await stockEntry.update(updateObj, { transaction });
 
           console.log(`💰 [${deductionId}] Updated purchasedQuantity: ${stockEntry.purchasedQuantity} → ${newPurchasedQuantity} (deducted ${deductionInPurchasedUnits} purchased units)`);
         }
