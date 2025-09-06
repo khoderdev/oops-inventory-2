@@ -193,8 +193,6 @@ export interface PaymentFormProps {
   payment?: SupplierPayment;
   stockEntries?: StockEntry[];
   stockEntriesLoading?: boolean;
-  SuppliersStockEntries?: StockEntry[];
-  SuppliersStockEntriesLoading?: boolean;
   onSuccess?: (payment: SupplierPayment) => void;
   onCancel?: () => void;
 }
@@ -230,3 +228,8 @@ export interface PaymentStatsProps {
   onAdd?: () => void;
   onRefresh?: () => void;
 }
+
+export type Item = {
+  id: string;
+  label: string;
+};

@@ -21,8 +21,8 @@ export const SupplierDetail: React.FC<SupplierDetailProps> = ({ supplier, onEdit
   const [editingPayment, setEditingPayment] = useState<SupplierPayment | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
-  const [allStockEntries, setAllStockEntries] = useState<StockEntry[]>([]); // Changed from SuppliersStockEntries
-  const [stockEntriesLoading, setStockEntriesLoading] = useState(false); // Changed from SuppliersStockEntriesLoading
+  const [allStockEntries, setAllStockEntries] = useState<StockEntry[]>([]);
+  const [stockEntriesLoading, setStockEntriesLoading] = useState(false);
 
   const [paymentStats, setPaymentStats] = useState<{
     totalPaid: number;
@@ -35,7 +35,6 @@ export const SupplierDetail: React.FC<SupplierDetailProps> = ({ supplier, onEdit
 
   useEffect(() => {
     if (activeTab === "payments") {
-      // Fetch payment stats (existing code)
       setPaymentsLoading(true);
       suppliersAPI
         .getSupplierPaymentStats(localSupplier.id)
@@ -54,13 +53,10 @@ export const SupplierDetail: React.FC<SupplierDetailProps> = ({ supplier, onEdit
           console.error("Error fetching payment stats:", error);
           setPaymentsLoading(false);
         });
-
-      // NEW: Fetch ALL stock entries using stockAPI
       fetchAllStockEntries();
     }
   }, [activeTab, localSupplier.id]);
 
-  // NEW: Function to fetch ALL stock entries using stockAPI
   const fetchAllStockEntries = async () => {
     try {
       setStockEntriesLoading(true);
@@ -72,19 +68,6 @@ export const SupplierDetail: React.FC<SupplierDetailProps> = ({ supplier, onEdit
       setStockEntriesLoading(false);
     }
   };
-
-  // // NEW: Function to fetch stock entries using context
-  // const fetchSuppliersStockEntries = async () => {
-  //   try {
-  //     setSuppliersStockEntriesLoading(true);
-  //     const entries = await getSupplierStockEntries(localSupplier.id);
-  //     setSuppliersStockEntries(entries);
-  //   } catch (error) {
-  //     console.error("Error fetching stock entries:", error);
-  //   } finally {
-  //     setSuppliersStockEntriesLoading(false);
-  //   }
-  // };
 
   const handleToggleStatus = async () => {
     setLocalSupplier(prev => ({
@@ -314,21 +297,6 @@ export const SupplierDetail: React.FC<SupplierDetailProps> = ({ supplier, onEdit
           <PaymentForm supplierId={localSupplier.id} payment={editingPayment || undefined} stockEntries={allStockEntries} stockEntriesLoading={stockEntriesLoading} onSuccess={handlePaymentFormSuccess} onCancel={handlePaymentFormCancel} />
         </DialogContent>
       </Dialog>
-      {/* <Dialog open={showPaymentForm} onOpenChange={setShowPaymentForm}>
-        <DialogContent className="w-[95vw] max-w-[600px] sm:w-full">
-          <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">{editingPayment ? `Edit Payment #${editingPayment.referenceNumber || editingPayment.id}` : "Add New Payment"}</DialogTitle>
-          </DialogHeader>
-          <PaymentForm
-            supplierId={localSupplier.id}
-            payment={editingPayment || undefined}
-            SuppliersStockEntries={SuppliersStockEntries}
-            SuppliersStockEntriesLoading={SuppliersStockEntriesLoading}
-            onSuccess={handlePaymentFormSuccess}
-            onCancel={handlePaymentFormCancel}
-          />
-        </DialogContent>
-      </Dialog> */}
     </>
   );
 };
