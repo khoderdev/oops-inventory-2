@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PaymentFormProps, paymentFormSchema, PaymentFormValues } from "@/types/suppliers";
@@ -9,19 +9,54 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Loader2, Plus, X } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { VirtualSelect } from "../ui/VirtualSelect";
 
-export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, stockEntries, onSuccess, onCancel }) => {
+type Item = {
+  id: string;
+  label: string;
+};
+
+export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, stockEntries, stockEntriesLoading, onSuccess, onCancel }) => {
   const { createSupplierPayment, updateSupplierPayment, loading } = useSuppliersContext();
   const { toast } = useToast();
   const isEditing = !!payment;
 
   // State for selected stock entries
   const [selectedStockEntries, setSelectedStockEntries] = useState<number[]>(payment?.stockEntryIds || []);
+
+  // Transform stock entries to VirtualSelect format
+  const virtualSelectItems = useMemo(() => {
+    if (!stockEntries) return [];
+
+    return stockEntries.map(entry => {
+      const materialName = entry.material?.name || "Unknown Material";
+      let supplierName = "No Supplier";
+
+      if (entry.supplier) {
+        if (typeof entry.supplier === "object" && "supplierName" in entry.supplier) {
+          supplierName = entry.supplier.supplierName;
+        } else if (typeof entry.supplier === "string") {
+          supplierName = entry.supplier;
+        }
+      }
+
+      return {
+        id: entry.id.toString(),
+        label: `${materialName} (${entry.purchasedQuantity} ${entry.purchasedUnit}) - ${supplierName}`
+      };
+    });
+  }, [stockEntries]);
+
+  // Get selected item for VirtualSelect (single selection mode)
+  const selectedItem = useMemo(() => {
+    if (selectedStockEntries.length === 0) return null;
+    const selectedId = selectedStockEntries[0].toString();
+    return virtualSelectItems.find(item => item.id === selectedId) || null;
+  }, [selectedStockEntries, virtualSelectItems]);
 
   // Initialize form with default values or existing payment data
   const form = useForm<PaymentFormValues>({
@@ -37,9 +72,14 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, s
     }
   });
 
-  // Toggle stock entry selection
-  const toggleStockEntry = (stockEntryId: number) => {
-    setSelectedStockEntries(prev => (prev.includes(stockEntryId) ? prev.filter(id => id !== stockEntryId) : [...prev, stockEntryId]));
+  // Handle VirtualSelect change
+  const handleVirtualSelectChange = (item: Item | null) => {
+    if (item) {
+      const entryId = Number(item.id);
+      setSelectedStockEntries([entryId]); // Single selection
+    } else {
+      setSelectedStockEntries([]);
+    }
   };
 
   // Handle form submission
@@ -127,7 +167,7 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, s
           name="paymentMethod"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Payment Method*</FormLabel>
+              <FormLabel>Payment Method *</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -188,39 +228,11 @@ export const PaymentForm: React.FC<PaymentFormProps> = ({ supplierId, payment, s
         />
 
         {/* Stock Entries Selection */}
-        {stockEntries && stockEntries.length > 0 && (
-          <div className="space-y-3">
-            <FormLabel>Associated Stock Entries (Optional)</FormLabel>
-            <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
-              {stockEntries.map(entry => (
-                <div key={entry.id} className={cn("flex items-center justify-between p-2 rounded-md border cursor-pointer", selectedStockEntries.includes(Number(entry.id)) ? "bg-primary/10 border-primary" : "hover:bg-muted/50")} onClick={() => toggleStockEntry(Number(entry.id))}>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">
-                      #{entry.id} - {entry.productName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Quantity: {entry.quantity} | Total: ${entry.totalAmount}
-                    </p>
-                  </div>
-                  {selectedStockEntries.includes(Number(entry.id)) ? <X className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4 text-muted-foreground" />}
-                </div>
-              ))}
-            </div>
-            {selectedStockEntries.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {selectedStockEntries.map(id => {
-                  const entry = stockEntries.find(e => e.id === String(id));
-                  return entry ? (
-                    <Badge key={id} variant="secondary" className="px-2 py-1">
-                      #{entry.id} - {entry.productName}
-                    </Badge>
-                  ) : null;
-                })}
-              </div>
-            )}
-            <FormDescription>Select stock entries that this payment applies to (optional)</FormDescription>
-          </div>
-        )}
+        <FormItem>
+          <FormLabel>Associated Stock Entry (Optional)</FormLabel>
+          <VirtualSelect items={virtualSelectItems} value={selectedItem} onChange={handleVirtualSelectChange} placeholder={stockEntriesLoading ? "Loading stock entries..." : "Select stock entry..."} disabled={stockEntriesLoading} />
+          <FormDescription>Select a stock entry that this payment applies to (optional)</FormDescription>
+        </FormItem>
 
         <div className="flex justify-end gap-2">
           {onCancel && (

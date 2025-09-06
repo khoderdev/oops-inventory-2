@@ -132,7 +132,7 @@ export const stockAPI = {
   // Legacy method for backward compatibility - gets all stock entries without pagination
   getAllStockEntries: async (): Promise<StockEntry[]> => {
     const response = await api.get<PaginatedResponse<StockEntry>>("/stock-entries", {
-      params: { limit: 1000, includeMaterial: "false" } as any
+      params: { limit: 1000, includeMaterial: "true" } as any
     } as any);
 
     return response.data.data.map(entry => ({

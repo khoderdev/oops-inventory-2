@@ -189,9 +189,12 @@ export const paymentFormSchema = z.object({
 export type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 
 export interface PaymentFormProps {
-  supplierId: number | string;
-  stockEntries?: StockEntry[];
+  supplierId: string | number;
   payment?: SupplierPayment;
+  stockEntries?: StockEntry[];
+  stockEntriesLoading?: boolean;
+  SuppliersStockEntries?: StockEntry[];
+  SuppliersStockEntriesLoading?: boolean;
   onSuccess?: (payment: SupplierPayment) => void;
   onCancel?: () => void;
 }

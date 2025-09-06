@@ -78,20 +78,7 @@ export const navigationItems: NavigationItem[] = [
   {
     label: "Suppliers",
     icon: Car,
-    children: [
-      {
-        label: "Suppliers",
-        href: "/suppliers",
-        icon: Car,
-        permission: PERMISSIONS.DEPARTMENT_READ
-      },
-      {
-        label: "Payments",
-        href: "/suppliers/payments",
-        icon: BanknoteArrowUp,
-        permission: PERMISSIONS.EMPLOYEE_READ
-      }
-    ]
+    href: "/suppliers"
   },
 
   {

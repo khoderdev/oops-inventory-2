@@ -1,5 +1,5 @@
 import express from "express";
-import { getAllSuppliers, getSupplierById, createSupplier, updateSupplier, deleteSupplier, toggleSupplierStatus } from "../controllers/suppliersController.js";
+import { getAllSuppliers, getSupplierById, createSupplier, updateSupplier, deleteSupplier, toggleSupplierStatus, getSupplierStockEntries } from "../controllers/suppliersController.js";
 import { getAllSupplierPayments, getPaymentById, createPayment, updatePayment, deletePayment, getSupplierPaymentStats } from "../controllers/supplierPaymentsController.js";
 import { authenticate } from "../middleware/authMiddleware.js";
 import { cacheMiddleware } from "../middleware/cacheMiddleware.js";
@@ -16,6 +16,9 @@ router.post("/", createSupplier);
 router.put("/:id", updateSupplier);
 router.delete("/:id", deleteSupplier);
 router.patch("/:id/toggle-status", toggleSupplierStatus);
+
+// NEW: Get supplier stock entries
+router.get("/:supplierId/stock-entries", cacheMiddleware(60), getSupplierStockEntries);
 
 // Supplier payment routes
 router.get("/payments/all", cacheMiddleware(60), getAllSupplierPayments);

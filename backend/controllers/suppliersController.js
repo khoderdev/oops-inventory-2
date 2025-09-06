@@ -1,4 +1,4 @@
-import { Supplier, SupplierPayment, StockEntry } from "../models/index.js";
+import { Supplier, SupplierPayment, Material, StockEntry } from "../models/index.js";
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { parsePaginationParams, buildPaginationResponse, buildFilterConditions } from "../utils/paginationHelpers.js";
@@ -85,7 +85,7 @@ export const createSupplier = async (req, res) => {
       await transaction.rollback();
       return res.status(409).json({ error: "Supplier with this name already exists" });
     }
-    const supplier = await Supplier.create( { name, contactPerson, email, phone, address, paymentTerms, notes, isActive, website, taxId }, { transaction } );
+    const supplier = await Supplier.create({ name, contactPerson, email, phone, address, paymentTerms, notes, isActive, website, taxId }, { transaction });
     await transaction.commit();
     return res.status(201).json(supplier);
   } catch (error) {
@@ -209,7 +209,7 @@ export const toggleSupplierStatus = async (req, res) => {
       await transaction.rollback();
       return res.status(404).json({ error: "Supplier not found" });
     }
-    await supplier.update( { isActive: !supplier.isActive }, { transaction } );
+    await supplier.update({ isActive: !supplier.isActive }, { transaction });
     await transaction.commit();
     return res.status(200).json({
       id: supplier.id,
@@ -221,5 +221,70 @@ export const toggleSupplierStatus = async (req, res) => {
     await transaction.rollback();
     console.error("Error toggling supplier status:", error);
     return res.status(500).json({ error: "Failed to update supplier status" });
+  }
+};
+
+// Get stock entries for a specific supplier
+export const getSupplierStockEntries = async (req, res) => {
+  try {
+    const { supplierId } = req.params;
+
+    // Validate supplier exists
+    const supplier = await Supplier.findByPk(supplierId);
+    if (!supplier) {
+      return res.status(404).json({ error: "Supplier not found" });
+    }
+
+    // Parse pagination parameters
+    const paginationParams = parsePaginationParams(req.query, {
+      defaultLimit: 100,
+      maxLimit: 1000,
+      defaultSortBy: "createdAt",
+      allowedSortFields: ["id", "purchaseDate", "purchasedQuantity", "unitPrice", "createdAt", "updatedAt"]
+    });
+
+    // Build filter conditions
+    const whereClause = {
+      supplierId: supplierId,
+      ...buildFilterConditions(
+        req.query,
+        {
+          searchFields: ["material.name", "batchNumber", "invoiceNumber"],
+          exactFilters: ["materialId", "status"],
+          rangeFilters: ["purchaseDate", "createdAt", "updatedAt", "unitPrice", "purchasedQuantity"]
+        },
+        Op
+      )
+    };
+
+    // Fetch stock entries with material information
+    const { count, rows: stockEntries } = await StockEntry.findAndCountAll({
+      where: whereClause,
+      include: [
+        {
+          model: Material,
+          as: "material",
+          attributes: ["id", "name"]
+        }
+      ],
+      order: [[paginationParams.sortBy, paginationParams.sortOrder]],
+      offset: paginationParams.offset,
+      limit: paginationParams.limit
+    });
+
+    const pagination = buildPaginationResponse(count, paginationParams.page, paginationParams.limit);
+
+    return res.status(200).json({
+      data: stockEntries,
+      pagination,
+      filters: {
+        search: req.query.search || "",
+        sortBy: paginationParams.sortBy,
+        sortOrder: paginationParams.sortOrder
+      }
+    });
+  } catch (error) {
+    console.error("Error getting supplier stock entries:", error);
+    return res.status(500).json({ error: "Failed to get supplier stock entries" });
   }
 };

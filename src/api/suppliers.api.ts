@@ -1,4 +1,5 @@
 import api from "@/lib/http";
+import { StockEntry } from "@/types/inventory";
 import { SuppliersQueryParams, Supplier, CreateSupplierData, UpdateSupplierData, SupplierPaymentsQueryParams, SupplierPayment, CreateSupplierPaymentData, UpdateSupplierPaymentData, SupplierPaymentStats, PaginatedResponse } from "@/types/suppliers";
 
 export const suppliersAPI = {
@@ -56,5 +57,19 @@ export const suppliersAPI = {
 
   deleteSupplierPayment: (id: number | string) => api.delete<null>(`/suppliers/payments/${id}`),
 
-  getSupplierPaymentStats: (supplierId: number | string) => api.get<SupplierPaymentStats>(`/suppliers/${supplierId}/payment-stats`)
+  getSupplierPaymentStats: (supplierId: number | string) => api.get<SupplierPaymentStats>(`/suppliers/${supplierId}/payment-stats`),
+
+  // NEW: Get supplier stock entries
+  getSupplierStockEntries: async (supplierId: number | string): Promise<StockEntry[]> => {
+    const response = await api.get<PaginatedResponse<StockEntry>>(`/suppliers/${supplierId}/stock-entries`, {
+      params: { _t: Date.now() } as any
+    } as any);
+    return response.data.data;
+  },
+
+  // Optional: If you need paginated version for stock entries
+  getSupplierStockEntriesPaginated: async (supplierId: number | string, params?: any) => {
+    const config = params ? ({ params: { ...params, _t: Date.now() } } as any) : { params: { _t: Date.now() } };
+    return api.get<PaginatedResponse<StockEntry>>(`/suppliers/${supplierId}/stock-entries`, config);
+  }
 };

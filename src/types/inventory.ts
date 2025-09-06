@@ -224,6 +224,10 @@ export interface StockEntry {
     supplierId: string | number;
     supplierName: string;
   };
+  material?: {
+    id: string;
+    name: string;
+  };
   // Purchase information
   purchaseDate: Date;
   expiryDate?: Date;
@@ -307,7 +311,7 @@ export interface UpdateStockEntryData {
   supplier?: {
     supplierId: string | number;
     supplierName: string;
-  }; 
+  };
   purchasedQuantity?: number;
   purchasedUnit?: string;
   purchasedIndividualQuantity?: number;
@@ -1051,7 +1055,6 @@ export interface AddStockData {
     supplierId: string | number;
     supplierName: string;
   };
-
 }
 
 export interface RecordWasteData {
@@ -1087,7 +1090,6 @@ export interface RecordWasteResponse {
     newQuantity: number;
   }>;
   reason: string;
-
 }
 export interface WasteRecord {
   materialId: string;
