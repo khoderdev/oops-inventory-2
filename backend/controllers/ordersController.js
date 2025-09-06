@@ -604,7 +604,7 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 
           const currentYield = parseFloat(sauce.yieldQuantity);
           const minYield = 0.001;
-          const newYield = Math.max(minYield, currentYield - requiredQuantity);
+          let newYield = Math.max(minYield, currentYield - requiredQuantity);
 
           console.log(`🥫 [${deductionId}] Deducting ${requiredQuantity} ${ingredient.unit} from sauce: ${ingredient.sauce.name} (Current yield: ${currentYield} ${sauce.unit})`);
 
@@ -805,48 +805,37 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           updateData.costPerPiece = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
         }
 
-        console.log(`      - Updating ${fieldToUpdate} from ${availableQuantity} to ${newQuantity}`);
+        console.log(`      - Updating ${fieldToUpdate} from ${availableQuantity} to ${updateData[fieldToUpdate]}`);
+        
+        // CRITICAL FIX: Update the stock entry with the calculated values
         await stockEntry.update(updateData, { transaction });
 
-        // ADD THIS: Handle package materials properly in regular deduction
+        // Handle package materials - but be careful not to overwrite integer fields with strings
         if (material.unitType === "package" && material.packageQuantity > 0) {
           console.log(`📦 [${deductionId}] Additional package material processing for ${material.name}`);
 
           // Calculate deduction in purchased units
-          let deductionInPurchasedUnits;
-
-          if (fieldToUpdate === "purchasedIndividualQuantity") {
-            // For individual quantity deduction
-            deductionInPurchasedUnits = deductAmount / material.packageQuantity;
-          } else if (fieldToUpdate === "totalVolume" && material.volumePerUnit) {
-            // For volume-based deduction (convert back to purchased units)
-            const volumePerUnitInMl = material.volumeUnit === "cl" ? material.volumePerUnit * 10 : material.volumeUnit === "l" ? material.volumePerUnit * 1000 : material.volumePerUnit;
-            const deductionInBaseUnits = deductAmount / volumePerUnitInMl;
-            deductionInPurchasedUnits = deductionInBaseUnits / material.packageQuantity;
-          } else {
-            // Default calculation
-            deductionInPurchasedUnits = deductAmount / material.packageQuantity;
-          }
-
+          let deductionInPurchasedUnits = deductAmount / material.packageQuantity;
           const newPurchasedQuantity = Math.max(0, parseFloat(stockEntry.purchasedQuantity || 0) - deductionInPurchasedUnits);
 
-          // Ensure purchasedQuantity is a valid number and has proper decimal places
+          // Ensure purchasedQuantity is a valid number
           const updatedPurchasedQuantity = parseFloat(newPurchasedQuantity.toFixed(6));
 
           // Create update object with proper numeric values
-          const updateObj = {
-            purchasedQuantity: parseFloat(updatedPurchasedQuantity) // Ensure it's a proper float
+          const packageUpdateObj = {
+            purchasedQuantity: updatedPurchasedQuantity
           };
 
-          // Handle purchasedIndividualQuantity if it exists
-          if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
-            // Convert to number first, then round to integer
+          // Only update purchasedIndividualQuantity if we didn't already update it above
+          if (fieldToUpdate !== "purchasedIndividualQuantity" && 
+              stockEntry.purchasedIndividualQuantity !== null && 
+              stockEntry.purchasedIndividualQuantity !== undefined) {
+            
+            // Convert to proper integer
             const rawValue = stockEntry.purchasedIndividualQuantity;
             let numValue;
 
-            // Handle different input types
             if (typeof rawValue === "string") {
-              // Remove any non-numeric characters except decimal point and negative sign
               const cleanValue = rawValue.replace(/[^0-9.-]+/g, "");
               numValue = parseFloat(cleanValue);
             } else {
@@ -854,21 +843,16 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
             }
 
             if (!isNaN(numValue)) {
-              // Ensure we're working with a proper integer
               const intValue = Math.max(0, Math.round(numValue));
-              updateObj.purchasedIndividualQuantity = intValue;
-              updateObj.purchasedConvertedQuantity = intValue;
-              updateObj.purchasedQuantity = Math.max(0, Math.floor((intValue / material.packageQuantity) * 1000) / 1000);
-              console.log(`      - Updated package quantities to integer: ${intValue}`);
-            } else {
-              console.error(`      - Invalid purchasedIndividualQuantity: ${stockEntry.purchasedIndividualQuantity}`);
-              throw new Error(`Invalid number format for purchasedIndividualQuantity: ${stockEntry.purchasedIndividualQuantity}`);
+              packageUpdateObj.purchasedIndividualQuantity = intValue;
+              packageUpdateObj.purchasedConvertedQuantity = intValue;
+              console.log(`      - Updated package individual quantity to integer: ${intValue}`);
             }
           }
 
-          await stockEntry.update(updateObj, { transaction });
-
-          console.log(`💰 [${deductionId}] Updated purchasedQuantity: ${stockEntry.purchasedQuantity} → ${newPurchasedQuantity} (deducted ${deductionInPurchasedUnits} purchased units)`);
+          // Apply the package-specific updates
+          await stockEntry.update(packageUpdateObj, { transaction });
+          console.log(`💰 [${deductionId}] Updated purchasedQuantity: ${stockEntry.purchasedQuantity} → ${updatedPurchasedQuantity}`);
         }
 
         remainingToDeduct -= deductAmount;
