@@ -780,12 +780,16 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         // Update the appropriate field - ensure integer fields are properly converted
         const updateData = {};
         
-        // Convert newQuantity to a number first
-        const numericQuantity = Number(newQuantity);
+        // Convert newQuantity to a number first and ensure it's a proper number
+        const numericQuantity = parseFloat(newQuantity);
+        if (isNaN(numericQuantity)) {
+          console.error(`      - Error: Could not convert ${newQuantity} to a valid number`);
+          throw new Error(`Invalid number format: ${newQuantity}`);
+        }
         
         // Handle integer fields specially - ensure we're storing proper integers
         if (fieldToUpdate === 'purchasedIndividualQuantity' || fieldToUpdate === 'totalPieces') {
-          // Convert to number first, then round to nearest integer
+          // For integer fields, round to nearest whole number
           const intValue = Math.round(numericQuantity);
           updateData[fieldToUpdate] = intValue;
           console.log(`      - Converted ${fieldToUpdate} from ${newQuantity} to integer: ${intValue}`);
@@ -798,6 +802,13 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           // For non-integer fields, ensure we're not passing strings
           updateData[fieldToUpdate] = numericQuantity;
         }
+        
+        // Ensure we're not passing any string values for numeric fields
+        Object.keys(updateData).forEach(key => {
+          if (typeof updateData[key] === 'string' && !isNaN(updateData[key])) {
+            updateData[key] = parseFloat(updateData[key]);
+          }
+        });
 
         // Also update cost per unit if we're updating calculated fields
         if (unitType === "volume" && newQuantity > 0 && stockEntry.totalCost > 0) {
@@ -836,20 +847,27 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           // Ensure purchasedQuantity is a valid number and has proper decimal places
           const updatedPurchasedQuantity = parseFloat(newPurchasedQuantity.toFixed(6));
           
-          // Update purchasedQuantity and ensure purchasedIndividualQuantity is an integer
+          // Create update object with proper numeric values
           const updateObj = { 
             purchasedQuantity: parseFloat(updatedPurchasedQuantity) // Ensure it's a proper float
           };
           
-          // Only include purchasedIndividualQuantity if it exists and is a valid number
+          // Handle purchasedIndividualQuantity if it exists
           if (stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
-            const intValue = parseInt(stockEntry.purchasedIndividualQuantity, 10);
-            if (!isNaN(intValue)) {
+            // Convert to number first, then round to integer
+            const rawValue = stockEntry.purchasedIndividualQuantity;
+            const numValue = typeof rawValue === 'string' ? 
+              parseFloat(rawValue.replace(/[^0-9.-]+/g,"")) : 
+              Number(rawValue);
+              
+            if (!isNaN(numValue)) {
+              const intValue = Math.round(numValue);
               updateObj.purchasedIndividualQuantity = intValue;
-              updateObj.purchasedConvertedQuantity = intValue; // Keep in sync
+              updateObj.purchasedConvertedQuantity = intValue;
               console.log(`      - Set package quantities to integer: ${intValue}`);
             } else {
               console.error(`      - Invalid purchasedIndividualQuantity: ${stockEntry.purchasedIndividualQuantity}`);
+              throw new Error(`Invalid number format for purchasedIndividualQuantity: ${stockEntry.purchasedIndividualQuantity}`);
             }
           }
           
