@@ -521,7 +521,7 @@ export interface SaleRecord {
   updatedAt: Date;
 }
 
-export interface MenuItemSale {
+export interface MenuItemSale { 
   menuItemId: string;
   menuItemName?: string;
   menuItemDescription?: string;

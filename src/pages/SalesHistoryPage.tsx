@@ -116,16 +116,10 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
 
   const localFilteredSales = useMemo(() => {
     return currentSales.filter(sale => {
-      // Filter by date range
       const saleDate = new Date(sale.saleDate);
       const matchesDate = (!dateFrom || saleDate >= dateFrom) && (!dateTo || saleDate <= dateTo);
-
-      // Filter by section
       const matchesSection = !selectedSection || selectedSection === "all" || sale.section?.name === selectedSection;
-
-      // Filter by item (if any item in the sale matches)
       const matchesItem = !selectedItem || selectedItem === "all" || sale.items?.some(item => item.materialName === selectedItem) || sale.menuItems?.some(menuItem => menuItem.menuItemName === selectedItem);
-
       return matchesDate && matchesSection && matchesItem;
     });
   }, [currentSales, selectedItem, selectedSection, dateFrom, dateTo]);
@@ -133,7 +127,6 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   const groupedSales = useMemo(() => {
     return localFilteredSales
       .map(sale => {
-        // Combine both items and menuItems into a single array for display
         const allItems = [
           ...(sale.items || []).map(item => ({
             ...item,
@@ -151,7 +144,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
           saleId: sale.id.toString(),
           items: allItems,
           saleDate: new Date(sale.saleDate),
-          total: parseFloat(sale.totalAmount),
+          total: parseFloat(sale.totalAmount.toString()),
           order: sale.order,
           section: sale.section
         };
@@ -159,29 +152,14 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
       .sort((a, b) => b.saleDate.getTime() - a.saleDate.getTime());
   }, [localFilteredSales]);
 
-  // console.log("Sales Data:", {
-  //   sales: currentSales,
-  //   filtered: localFilteredSales,
-  //   grouped: groupedSales.map(g => ({
-  //     saleId: g.saleId,
-  //     total: g.total,
-  //     formatted: formatCurrency(g.total),
-  //     items: g.items.map(i => ({
-  //       name: i.itemName,
-  //       price: i.totalPrice,
-  //       type: typeof i.totalPrice
-  //     }))
-  //   }))
-  // });
-
   const uniqueItemNames = useAtomValue(uniqueItemNamesAtom);
   const uniqueSectionNames = useAtomValue(uniqueSectionNamesAtom);
-  const visibleItemIds = useMemo(() => {
-    return new Set(localFilteredSales.map(item => item.id));
-  }, [localFilteredSales]);
 
   const localTotalQuantity = useMemo(() => {
-    return localFilteredSales.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+    return localFilteredSales.reduce((sum, sale) => {
+      const saleTotal = sale.items.reduce((itemSum, item) => itemSum + (Number(item.quantity) || 0), 0);
+      return sum + saleTotal;
+    }, 0);
   }, [localFilteredSales]);
 
   const filteredTotal = useMemo(() => {
@@ -324,7 +302,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     if (bulkRevertSales && setBulkRevertDialogOpen) {
       const selectedSaleIds = new Set(
         Array.from(selectedItemIds)
-          .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+          .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
           .filter(Boolean) as string[]
       );
       await bulkRevertSales(selectedSaleIds);
@@ -337,7 +315,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     if (bulkDeleteSales && setBulkDeleteDialogOpen) {
       const selectedSaleIds = new Set(
         Array.from(selectedItemIds)
-          .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+          .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
           .filter(Boolean) as string[]
       );
       await bulkDeleteSales(selectedSaleIds);
@@ -777,56 +755,63 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                     <AccordionContent>
                       <div className="p-4 bg-background">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {group.items.map(item => (
-                            <Card key={item.id} className={`p-4 ${selectedItemIds.has(item.id) ? "bg-blue-50 border-blue-200" : ""}`}>
-                              <div className="flex flex-col gap-2">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <Button variant="ghost" size="sm" onClick={() => toggleItemSelection(item.id)} className="h-8 w-8 p-0">
-                                      {selectedItemIds.has(item.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
-                                    </Button>
+                          {group.items.map((item, index) => {
+                            const itemId = item.itemType === "material" ? item.materialId : item.menuItemId;
+                            const itemName = item.itemType === "material" ? item.materialName : item.menuItemName;
+
+                            return (
+                              <Card key={`${item.itemType}-${itemId}-${index}`} className={`p-4 ${selectedItemIds.has(itemId) ? "bg-blue-50 border-blue-200" : ""}`}>
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                      {item.itemType === "individual" ? <Package className="h-4 w-4 text-blue-500" /> : <ShoppingBag className="h-4 w-4 text-green-500" />}
-                                      <span className="text-xl font-bold">{item.itemName}</span>
+                                      <Button variant="ghost" size="sm" onClick={() => toggleItemSelection(itemId)} className="h-8 w-8 p-0">
+                                        {selectedItemIds.has(itemId) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
+                                      </Button>
+                                      <div className="flex items-center gap-2">
+                                        {item.itemType === "material" ? <Package className="h-4 w-4 text-blue-500" /> : <ShoppingBag className="h-4 w-4 text-green-500" />}
+                                        <span className="text-xl font-bold">{itemName}</span>
+                                      </div>
                                     </div>
                                   </div>
+                                  <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div>
+                                      <span className="text-muted-foreground">Date:</span>
+                                      <span className="block font-medium">{formatDate(item.saleDate)}</span>
+                                      <span className="text-xs text-muted-foreground">{item.saleDate ? new Date(item.saleDate).toLocaleTimeString() : "N/A"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Section:</span>
+                                      <span className="block">{item.sectionName ? <Badge variant="outline">{item.sectionName}</Badge> : item.sectionId ? <Badge variant="outline">Section {item.sectionId}</Badge> : <span className="text-muted-foreground">-</span>}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Quantity:</span>
+                                      <span className="block font-medium">
+                                        {item.quantity} {item.unit ? `(${item.unit})` : ""}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Unit Price:</span>
+                                      <span className="block font-medium">{formatCurrency(item.unitPrice)}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Total:</span>
+                                      <span className="block font-bold text-green-600">{formatCurrency(item.totalPrice)}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-2 mt-2">
+                                    <Button variant="outline" size="sm" onClick={() => handleRevertSale(itemId)} className="flex-1" title="Revert Sale">
+                                      <Undo2 className="mr-2 h-4 w-4" />
+                                      Revert
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => handleSoftDeleteSale(itemId)} className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50" title="Delete Sale">
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </Button>
+                                  </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2 text-sm">
-                                  <div>
-                                    <span className="text-muted-foreground">Date:</span>
-                                    <span className="block font-medium">{formatDate(item.saleDate)}</span>
-                                    <span className="text-xs text-muted-foreground">{item.saleDate ? new Date(item.saleDate).toLocaleTimeString() : "N/A"}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Section:</span>
-                                    <span className="block">{item.sectionName ? <Badge variant="outline">{item.sectionName}</Badge> : item.sectionId ? <Badge variant="outline">Section {item.sectionId}</Badge> : <span className="text-muted-foreground">-</span>}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Quantity:</span>
-                                    <span className="block font-medium">{item.quantity}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Unit Price:</span>
-                                    <span className="block font-medium">{formatCurrency(item.unitPrice)}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-muted-foreground">Total:</span>
-                                    <span className="block font-bold text-green-600">{formatCurrency(item.totalPrice)}</span>
-                                  </div>
-                                </div>
-                                <div className="flex gap-2 mt-2">
-                                  <Button variant="outline" size="sm" onClick={() => handleRevertSale(item.saleId)} className="flex-1" title="Revert Sale">
-                                    <Undo2 className="mr-2 h-4 w-4" />
-                                    Revert
-                                  </Button>
-                                  <Button variant="outline" size="sm" onClick={() => handleSoftDeleteSale(item.saleId)} className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50" title="Delete Sale">
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete
-                                  </Button>
-                                </div>
-                              </div>
-                            </Card>
-                          ))}
+                              </Card>
+                            );
+                          })}
                         </div>
                       </div>
                     </AccordionContent>
@@ -945,14 +930,14 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                   {
                     new Set(
                       Array.from(selectedItemIds)
-                        .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+                        .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
                         .filter(Boolean)
                     ).size
                   }
                   sale
                   {new Set(
                     Array.from(selectedItemIds)
-                      .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+                      .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
                       .filter(Boolean)
                   ).size === 1
                     ? ""
@@ -1021,14 +1006,14 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                   {
                     new Set(
                       Array.from(selectedItemIds)
-                        .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+                        .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
                         .filter(Boolean)
                     ).size
                   }{" "}
                   sale
                   {new Set(
                     Array.from(selectedItemIds)
-                      .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+                      .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
                       .filter(Boolean)
                   ).size === 1
                     ? ""
@@ -1042,7 +1027,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                       Permanently delete the affected sale record
                       {new Set(
                         Array.from(selectedItemIds)
-                          .map(itemId => localFilteredSales.find(item => item.id === itemId)?.saleId)
+                          .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
                           .filter(Boolean)
                       ).size === 1
                         ? ""
@@ -1095,7 +1080,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
         </Dialog>
 
         {/* Stock Restoration Modal */}
-        <StockRestorationModal open={stockRestorationModalOpen} onOpenChange={setStockRestorationModalOpen} saleId={selectedSaleForRevert?.id?.toString() || ""} stockRestorationReport={stockRestorationReport} />
+        <StockRestorationModal open={stockRestorationModalOpen} onOpenChange={setStockRestorationModalOpen} saleId={selectedSaleForRevert ? String(selectedSaleForRevert.id) : ""} stockRestorationReport={stockRestorationReport} />
 
         {/* Delete Confirmation Modal */}
         <DeleteConfirmationModal open={deleteConfirmationModalOpen} onOpenChange={setDeleteConfirmationModalOpen} saleRecord={selectedSaleForDelete} />
