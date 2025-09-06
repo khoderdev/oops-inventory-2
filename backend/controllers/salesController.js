@@ -1,13 +1,13 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { auditSalesOperation } from "../middleware/auditMiddleware.js";
-import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, StockEntry, User } from "../models/index.js";
+import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, StockEntry, User, Order } from "../models/index.js";
 
 const salesController = {
   getNegativeStockReport: async (req, res, next) => {
     try {
       console.log("🔍 Starting negative stock report generation...");
-      
+
       const negativeStockEntries = await StockEntry.findAll({
         where: {
           [Op.or]: [{ purchasedIndividualQuantity: { [Op.lt]: 0 } }, { purchasedQuantity: { [Op.lt]: 0 } }]
@@ -21,7 +21,7 @@ const salesController = {
         ],
         order: [["updatedAt", "DESC"]]
       });
-      
+
       const report = {
         totalNegativeEntries: negativeStockEntries.length,
         negativeStockItems: negativeStockEntries.map(entry => ({
@@ -57,7 +57,7 @@ const salesController = {
         stack: error.stack,
         name: error.name
       });
-      
+
       // Send detailed error response for debugging
       res.status(500).json({
         error: "Internal Server Error",
@@ -91,6 +91,11 @@ const salesController = {
             model: User,
             as: "creator",
             attributes: ["username"]
+          },
+          {
+            model: Order,
+            as: "order",
+            attributes: ["orderNumber"]
           }
         ],
         order: [["saleDate", "DESC"]]
@@ -100,6 +105,12 @@ const salesController = {
       const processedSales = await Promise.all(
         sales.map(async sale => {
           const saleData = sale.toJSON();
+
+          // Flatten the order number
+          if (saleData.order) {
+            saleData.orderNumber = saleData.order.orderNumber;
+            delete saleData.order; // Remove the nested order object
+          }
 
           // Process menu items to include names
           if (saleData.menuItems && Array.isArray(saleData.menuItems)) {
@@ -455,25 +466,25 @@ const salesController = {
               // Determine which calculated field to use based on material type and available data
               let availableQuantity = 0;
               let fieldToUpdate = null;
-              let unitType = 'unknown';
-              
-              if (stockEntry.totalVolume > 0 && (material.unitType === 'volume' || material.unitType === 'package')) {
+              let unitType = "unknown";
+
+              if (stockEntry.totalVolume > 0 && (material.unitType === "volume" || material.unitType === "package")) {
                 availableQuantity = stockEntry.totalVolume;
-                fieldToUpdate = 'totalVolume';
-                unitType = 'volume';
-              } else if (stockEntry.totalMass > 0 && material.unitType === 'mass') {
+                fieldToUpdate = "totalVolume";
+                unitType = "volume";
+              } else if (stockEntry.totalMass > 0 && material.unitType === "mass") {
                 availableQuantity = stockEntry.totalMass;
-                fieldToUpdate = 'totalMass';
-                unitType = 'mass';
-              } else if (stockEntry.totalPieces > 0 && (material.unitType === 'piece' || material.unitType === 'package')) {
+                fieldToUpdate = "totalMass";
+                unitType = "mass";
+              } else if (stockEntry.totalPieces > 0 && (material.unitType === "piece" || material.unitType === "package")) {
                 availableQuantity = stockEntry.totalPieces;
-                fieldToUpdate = 'totalPieces';
-                unitType = 'pieces';
+                fieldToUpdate = "totalPieces";
+                unitType = "pieces";
               } else {
                 // Fallback to raw purchase data
                 availableQuantity = stockEntry.purchasedIndividualQuantity || 0;
-                fieldToUpdate = 'purchasedIndividualQuantity';
-                unitType = 'fallback';
+                fieldToUpdate = "purchasedIndividualQuantity";
+                unitType = "fallback";
               }
 
               const deductFromThisEntry = Math.min(remainingToDeduct, availableQuantity);
@@ -482,13 +493,13 @@ const salesController = {
                 // Update the appropriate field
                 const newQuantity = availableQuantity - deductFromThisEntry;
                 const updateData = { [fieldToUpdate]: Math.round(newQuantity) };
-                
+
                 // Also update cost per unit if we're updating calculated fields
-                if (unitType === 'volume' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                if (unitType === "volume" && newQuantity > 0 && stockEntry.totalCost > 0) {
                   updateData.costPerVolumeUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
-                } else if (unitType === 'mass' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                } else if (unitType === "mass" && newQuantity > 0 && stockEntry.totalCost > 0) {
                   updateData.costPerMassUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
-                } else if (unitType === 'pieces' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                } else if (unitType === "pieces" && newQuantity > 0 && stockEntry.totalCost > 0) {
                   updateData.costPerPiece = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
                 }
 
@@ -592,36 +603,36 @@ const salesController = {
           // Determine which calculated field to use based on material type and available data
           let availableQuantity = 0;
           let fieldToUpdate = null;
-          let unitType = 'unknown';
-          
-          if (stockEntry.totalVolume > 0 && (material.unitType === 'volume' || material.unitType === 'package')) {
+          let unitType = "unknown";
+
+          if (stockEntry.totalVolume > 0 && (material.unitType === "volume" || material.unitType === "package")) {
             availableQuantity = stockEntry.totalVolume;
-            fieldToUpdate = 'totalVolume';
-            unitType = 'volume';
-          } else if (stockEntry.totalMass > 0 && material.unitType === 'mass') {
+            fieldToUpdate = "totalVolume";
+            unitType = "volume";
+          } else if (stockEntry.totalMass > 0 && material.unitType === "mass") {
             availableQuantity = stockEntry.totalMass;
-            fieldToUpdate = 'totalMass';
-            unitType = 'mass';
-          } else if (stockEntry.totalPieces > 0 && (material.unitType === 'piece' || material.unitType === 'package')) {
+            fieldToUpdate = "totalMass";
+            unitType = "mass";
+          } else if (stockEntry.totalPieces > 0 && (material.unitType === "piece" || material.unitType === "package")) {
             availableQuantity = stockEntry.totalPieces;
-            fieldToUpdate = 'totalPieces';
-            unitType = 'pieces';
+            fieldToUpdate = "totalPieces";
+            unitType = "pieces";
           } else {
             // Fallback to raw purchase data
             availableQuantity = stockEntry.purchasedIndividualQuantity || 0;
-            fieldToUpdate = 'purchasedIndividualQuantity';
-            unitType = 'fallback';
+            fieldToUpdate = "purchasedIndividualQuantity";
+            unitType = "fallback";
           }
 
           const newQuantity = availableQuantity - stockEntryDeductionQuantity;
           const updateData = { [fieldToUpdate]: Math.round(newQuantity) };
-          
+
           // Also update cost per unit if we're updating calculated fields
-          if (unitType === 'volume' && newQuantity > 0 && stockEntry.totalCost > 0) {
+          if (unitType === "volume" && newQuantity > 0 && stockEntry.totalCost > 0) {
             updateData.costPerVolumeUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
-          } else if (unitType === 'mass' && newQuantity > 0 && stockEntry.totalCost > 0) {
+          } else if (unitType === "mass" && newQuantity > 0 && stockEntry.totalCost > 0) {
             updateData.costPerMassUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
-          } else if (unitType === 'pieces' && newQuantity > 0 && stockEntry.totalCost > 0) {
+          } else if (unitType === "pieces" && newQuantity > 0 && stockEntry.totalCost > 0) {
             updateData.costPerPiece = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
           }
 
@@ -641,7 +652,7 @@ const salesController = {
       } else if (menuItems && menuItems.length > 0 && fromExistingOrder) {
         console.log("⏭️ Skipping ingredient stock deduction - sale created from existing order (stock already deducted)");
       }
-      
+
       if (menuItems && menuItems.length > 0 && !fromExistingOrder) {
         for (const menuItemSale of menuItems) {
           // Fetch the menu item with its ingredients
@@ -678,18 +689,18 @@ const salesController = {
             // Calculate total available quantity using calculated totals (can now be negative)
             const totalAvailableQuantity = stockEntries.reduce((sum, entry) => {
               let availableInEntry = 0;
-              
-              if (entry.totalVolume > 0 && (material.unitType === 'volume' || material.unitType === 'package')) {
+
+              if (entry.totalVolume > 0 && (material.unitType === "volume" || material.unitType === "package")) {
                 availableInEntry = entry.totalVolume;
-              } else if (entry.totalMass > 0 && material.unitType === 'mass') {
+              } else if (entry.totalMass > 0 && material.unitType === "mass") {
                 availableInEntry = entry.totalMass;
-              } else if (entry.totalPieces > 0 && (material.unitType === 'piece' || material.unitType === 'package')) {
+              } else if (entry.totalPieces > 0 && (material.unitType === "piece" || material.unitType === "package")) {
                 availableInEntry = entry.totalPieces;
               } else {
                 // Fallback to raw purchase data
                 availableInEntry = entry.purchasedIndividualQuantity || 0;
               }
-              
+
               return sum + availableInEntry;
             }, 0);
 
@@ -759,40 +770,40 @@ const salesController = {
                 // Determine which calculated field to use based on material type and available data
                 let availableInThisEntry = 0;
                 let fieldToUpdate = null;
-                let unitType = 'unknown';
-                
-                if (stockEntry.totalVolume > 0 && (material.unitType === 'volume' || material.unitType === 'package')) {
+                let unitType = "unknown";
+
+                if (stockEntry.totalVolume > 0 && (material.unitType === "volume" || material.unitType === "package")) {
                   availableInThisEntry = stockEntry.totalVolume;
-                  fieldToUpdate = 'totalVolume';
-                  unitType = 'volume';
-                } else if (stockEntry.totalMass > 0 && material.unitType === 'mass') {
+                  fieldToUpdate = "totalVolume";
+                  unitType = "volume";
+                } else if (stockEntry.totalMass > 0 && material.unitType === "mass") {
                   availableInThisEntry = stockEntry.totalMass;
-                  fieldToUpdate = 'totalMass';
-                  unitType = 'mass';
-                } else if (stockEntry.totalPieces > 0 && (material.unitType === 'piece' || material.unitType === 'package')) {
+                  fieldToUpdate = "totalMass";
+                  unitType = "mass";
+                } else if (stockEntry.totalPieces > 0 && (material.unitType === "piece" || material.unitType === "package")) {
                   availableInThisEntry = stockEntry.totalPieces;
-                  fieldToUpdate = 'totalPieces';
-                  unitType = 'pieces';
+                  fieldToUpdate = "totalPieces";
+                  unitType = "pieces";
                 } else {
                   // Fallback to raw purchase data
                   availableInThisEntry = stockEntry.purchasedIndividualQuantity || 0;
-                  fieldToUpdate = 'purchasedIndividualQuantity';
-                  unitType = 'fallback';
+                  fieldToUpdate = "purchasedIndividualQuantity";
+                  unitType = "fallback";
                 }
 
                 // MODIFIED: Remove Math.min to allow negative deduction
                 const deductFromThisEntry = remainingToDeduct; // Deduct full remaining amount
-                
+
                 // Update stock entry - can now go negative
                 const newQuantity = Math.round(availableInThisEntry - deductFromThisEntry);
                 const updateData = { [fieldToUpdate]: newQuantity };
-                
+
                 // Also update cost per unit if we're updating calculated fields
-                if (unitType === 'volume' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                if (unitType === "volume" && newQuantity > 0 && stockEntry.totalCost > 0) {
                   updateData.costPerVolumeUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
-                } else if (unitType === 'mass' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                } else if (unitType === "mass" && newQuantity > 0 && stockEntry.totalCost > 0) {
                   updateData.costPerMassUnit = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
-                } else if (unitType === 'pieces' && newQuantity > 0 && stockEntry.totalCost > 0) {
+                } else if (unitType === "pieces" && newQuantity > 0 && stockEntry.totalCost > 0) {
                   updateData.costPerPiece = Math.round((stockEntry.totalCost / newQuantity) * 1000000) / 1000000;
                 }
 
@@ -800,7 +811,7 @@ const salesController = {
 
                 // Update remaining to deduct
                 remainingToDeduct = Math.max(0, remainingToDeduct - Math.max(0, availableInThisEntry));
-                
+
                 // Log negative stock entry
                 if (newQuantity < 0) {
                   console.warn(`NEGATIVE STOCK: Stock entry ${stockEntry.id} for ${material.name} now has negative ${fieldToUpdate}: ${newQuantity}`);

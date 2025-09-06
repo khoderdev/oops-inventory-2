@@ -145,7 +145,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
           items: allItems,
           saleDate: new Date(sale.saleDate),
           total: parseFloat(sale.totalAmount.toString()),
-          order: sale.order,
+          orderNumber: sale.orderNumber,
           section: sale.section
         };
       })
@@ -708,8 +708,6 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                   <span className="mx-1">|</span>
                   <span className="font-medium">{localFilteredSales.length}</span> items
                   <span className="mx-1">|</span>
-                  <span className="font-medium">{localTotalQuantity}</span> units
-                  <span className="mx-1">|</span>
                   <span className="font-medium text-green-600">{formatCurrency(filteredTotal)}</span> total
                 </p>
               </div>
@@ -745,9 +743,9 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                   <AccordionItem key={group.saleId} value={group.saleId}>
                     <AccordionTrigger>
                       <div className="flex items-center justify-between w-full">
-                        <div className="flex flex-col items-start gap-1">
-                          <span className="font-bold">{formatDate(group.saleDate)}</span>
-                          {group.orderNumber && <span className="text-sm text-muted-foreground">Order: {group.orderNumber}</span>}
+                        <div className="flex items-center gap-1">
+                          {group.orderNumber && <span className="font-bold">{group.orderNumber}</span>}
+                          {/* <span className="text-muted-foreground font-bold">{formatDate(group.saleDate)}</span> */}
                         </div>
                         <span className="font-bold">{formatCurrency(group.total)}</span>
                       </div>
