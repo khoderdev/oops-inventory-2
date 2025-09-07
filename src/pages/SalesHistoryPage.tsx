@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSalesOperations } from "@/hooks/useSalesOperations";
 import { cn } from "@/lib/utils";
 import { dateFilterAtom, selectedItemFilterAtom, selectedSectionFilterAtom, uniqueItemNamesAtom, uniqueSectionNamesAtom } from "@/store/salesAtoms";
-import { ReceiptData } from "@/types/inventory";
+import { ReceiptData, SaleRecord } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
 import { format, isValid } from "date-fns";
@@ -44,6 +44,12 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   const [staffSales, setStaffSales] = React.useState<typeof sales>([]);
   const [isLoadingStaff, setIsLoadingStaff] = React.useState(false);
   const [staffError, setStaffError] = React.useState<string | null>(null);
+  const [selectedItemForDelete, setSelectedItemForDelete] = React.useState<{
+    saleId: string;
+    itemId: string;
+    itemType: 'material' | 'menu';
+    itemName: string;
+  } | null>(null);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -245,7 +251,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     [currentSales, setSelectedSaleForRevert, setRevertDialogOpen]
   );
 
-  const [selectedItemForDelete, setSelectedItemForDelete] = React.useState<{saleId: string; itemId: string; itemType: "material" | "menu"; itemName: string} | null>(null);
+  // const [selectedItemForDelete, setSelectedItemForDelete] = React.useState<{saleId: string; itemId: string; itemType: "material" | "menu"; itemName: string} | null>(null);
 
   const handleSoftDeleteSale = useCallback(
     (saleId: string, itemId?: string, itemType?: "material" | "menu", itemName?: string) => {
@@ -278,10 +284,30 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     setSelectedSaleForRevert(null);
   }, [setRevertDialogOpen, setSelectedSaleForRevert]);
 
-  const cancelSoftDelete = useCallback(() => {
-    setDeleteDialogOpen(false);
-    setSelectedSaleForDelete(null);
-  }, [setDeleteDialogOpen, setSelectedSaleForDelete]);
+  const handleDeleteSale = useCallback((sale: SaleRecord) => {
+    setSelectedSaleForDelete(sale);
+    setSelectedItemForDelete(null); // Ensure no item is selected when deleting a sale
+    setDeleteConfirmationModalOpen(true);
+  }, [setSelectedSaleForDelete, setSelectedItemForDelete, setDeleteConfirmationModalOpen]);
+
+  const handleDeleteItem = useCallback((item: { saleId: string; itemId: string; itemType: 'material' | 'menu' }) => {
+    // Find the sale that contains this item
+    const sale = sales.find(s => s.id.toString() === item.saleId);
+    if (sale) {
+      // Set the sale and item to be deleted
+      setSelectedSaleForDelete(sale);
+      setSelectedItemForDelete({
+        saleId: item.saleId,
+        itemId: item.itemId,
+        itemType: item.itemType,
+        itemName: item.itemType === 'material' 
+          ? sale.items?.find(i => i.materialId === item.itemId)?.materialName || `Item ${item.itemId}`
+          : sale.menuItems?.find(i => i.menuItemId === item.itemId)?.menuItemName || `Menu Item ${item.itemId}`
+      });
+      // Don't open the delete dialog, just open the confirmation modal
+      setDeleteConfirmationModalOpen(true);
+    }
+  }, [sales, setSelectedSaleForDelete, setSelectedItemForDelete, setDeleteConfirmationModalOpen]);
 
   const cancelBulkRevert = useCallback(() => {
     setBulkRevertDialogOpen(false);
@@ -923,7 +949,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                 <p className="text-blue-600 font-medium">This is a "soft delete" - the sale data is preserved but hidden from view.</p>
               </div>
               <DialogFooter className="sticky bottom-0 z-10 bg-background border-t px-6 py-4">
-                <Button variant="outline" onClick={cancelSoftDelete} disabled={isDeleting}>
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>
                   Cancel
                 </Button>
                 <Button variant="destructive" onClick={confirmSoftDeleteSale} disabled={isDeleting}>
@@ -1109,7 +1135,26 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
         <StockRestorationModal open={stockRestorationModalOpen} onOpenChange={setStockRestorationModalOpen} saleId={selectedSaleForRevert ? String(selectedSaleForRevert.id) : ""} stockRestorationReport={stockRestorationReport} />
 
         {/* Delete Confirmation Modal */}
-        <DeleteConfirmationModal open={deleteConfirmationModalOpen} onOpenChange={setDeleteConfirmationModalOpen} saleRecord={selectedSaleForDelete} />
+        <DeleteConfirmationModal 
+          open={deleteConfirmationModalOpen} 
+          onOpenChange={(isOpen) => {
+            setDeleteConfirmationModalOpen(isOpen);
+            if (!isOpen) {
+              setSelectedItemForDelete(null);
+              setSelectedSaleForDelete(null);
+            }
+          }}
+          onConfirm={() => {
+            if (selectedItemForDelete) {
+              handleDeleteItem(selectedItemForDelete);
+            } else if (selectedSaleForDelete) {
+              handleDeleteSale(selectedSaleForDelete);
+            }
+            setDeleteConfirmationModalOpen(false);
+          }}
+          saleRecord={selectedSaleForDelete || (selectedItemForDelete ? sales.find(s => s.id.toString() === selectedItemForDelete.saleId) : null)}
+          itemToDelete={selectedItemForDelete}
+        />
 
         {/* Sales Report Printer */}
         <ReceiptPrinter isOpen={showSalesReportDialog} onClose={() => setShowSalesReportDialog(false)} receiptData={salesReportData} autoPrint={false} />
