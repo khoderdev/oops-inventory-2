@@ -101,7 +101,7 @@ export const recordUsage = async (req, res) => {
         },
         { model: Material, as: "material", attributes: ["id", "name", "categoryId"] },
         { model: MenuItem, as: "menuItem", attributes: ["id", "name", "categoryId"] },
-        { model: StockEntry, as: "stockEntry", attributes: ["id", "supplier"] },
+        { model: StockEntry, as: "stockEntry", attributes: ["id", "supplierId"] },
         {
           model: User,
           as: "recorder",
@@ -171,7 +171,7 @@ export const getUsageHistory = async (req, res) => {
         },
         { model: Material, as: "material", attributes: ["id", "name", "categoryId", "baseUnit"] },
         { model: MenuItem, as: "menuItem", attributes: ["id", "name", "categoryId", "description"] },
-        { model: StockEntry, as: "stockEntry", attributes: ["id", "supplierName", "purchaseDate"] },
+        { model: StockEntry, as: "stockEntry", attributes: ["id", "supplierId", "purchaseDate"] },
         {
           model: User,
           as: "recorder",
