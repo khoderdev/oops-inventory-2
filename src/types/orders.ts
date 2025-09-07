@@ -1,4 +1,4 @@
-import { Table } from "./inventory";
+import { MenuItemSale, Table } from "./inventory";
 
 export type OrderStatus = "draft" | "confirmed" | "preparing" | "ready" | "served" | "paid" | "cancelled" | "completed";
 export type OrderType = "delivery" | "takeaway" | "table" | "employees" | "bar";
@@ -45,6 +45,7 @@ export interface OrderItem {
 }
 
 export interface Order {
+
   id: string;
   employeeId?: string;
   orderNumber: string;
@@ -72,6 +73,7 @@ export interface Order {
   sectionId?: string;
   userId: string;
   userRole: string;
+  menuItems: MenuItemSale[];
 }
 
 export interface CreateOrderData {

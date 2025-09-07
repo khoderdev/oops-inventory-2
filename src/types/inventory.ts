@@ -496,6 +496,32 @@ export interface SoldItem {
   unit?: string;
 }
 
+// export interface SaleRecord {
+//   id: string;
+//   orderNumber: string;
+//   saleDate: Date;
+//   items: SoldItem[];
+//   menuItems: MenuItemSale[];
+//   totalAmount: number;
+//   sectionId: string;
+//   section?: {
+//     id: string;
+//     name: string;
+//   };
+//   creator?: {
+//     username: string;
+//   };
+//   order?: {
+//     id: string;
+//     orderNumber: string;
+//     orderType: string;
+//     customerName?: string;
+//   };
+//   isActive?: boolean;
+//   createdAt: Date;
+//   updatedAt: Date;
+// }
+
 export interface SaleRecord {
   id: string;
   orderNumber: string;
@@ -511,6 +537,8 @@ export interface SaleRecord {
   creator?: {
     username: string;
   };
+  // Add orderId to link to the actual order
+  orderId?: string;
   order?: {
     id: string;
     orderNumber: string;
@@ -523,6 +551,7 @@ export interface SaleRecord {
 }
 
 export interface MenuItemSale { 
+  orderId?: string;
   menuItemId: string;
   menuItemName?: string;
   menuItemDescription?: string;
