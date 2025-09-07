@@ -1,4 +1,4 @@
-import { menuAPI } from "@/api/menu.api.ts.tsx";
+import { menuAPI } from "@/api/menu.api.ts";
 import { printersAPI } from "@/api/printers.api";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
 import { Button } from "@/components/ui/button";

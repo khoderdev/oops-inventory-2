@@ -8,7 +8,7 @@ import { PERMISSIONS } from "@/types/auth";
 import { SaleResponse } from "@/types/inventory";
 import { Order, OrderSummary } from "@/types/orders";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate , useLocation} from "react-router-dom";
 
 interface POSClientPageProps {
   isDayOpen?: boolean;
@@ -16,6 +16,7 @@ interface POSClientPageProps {
 
 const POSClientPage: React.FC<POSClientPageProps> = ({ isDayOpen = true }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, hasPermission, logout, isAuthenticated, isLoading } = useAuth();
   const { sectionAssignments, fetchTabData } = useInventoryStore();
   const [sessionStats, setSessionStats] = useState({
@@ -24,9 +25,20 @@ const POSClientPage: React.FC<POSClientPageProps> = ({ isDayOpen = true }) => {
     incompleteOrdersCount: 0
   });
 
-  const [selectedOrderForPOS, setSelectedOrderForPOS] = useState<Order | null>(null);
-
   const refreshCountsRef = useRef<(() => Promise<void>) | null>(null);
+
+   // Get the selected order from navigation state
+   const [selectedOrderForPOS, setSelectedOrderForPOS] = useState<Order | null>(
+    location.state?.selectedOrderForPOS || null
+  );
+
+  // Clear the navigation state after using it
+  useEffect(() => {
+    if (location.state?.selectedOrderForPOS) {
+      // Replace the current location to remove the state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -123,6 +135,10 @@ const POSClientPage: React.FC<POSClientPageProps> = ({ isDayOpen = true }) => {
     }
   };
 
+  const handleOrderProcessed = useCallback(() => {
+  setSelectedOrderForPOS(null);
+}, []);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -151,7 +167,7 @@ const POSClientPage: React.FC<POSClientPageProps> = ({ isDayOpen = true }) => {
         sectionAssignments={sectionAssignments} 
         onSaleComplete={handleSaleComplete}
         selectedOrderForPOS={selectedOrderForPOS}
-        onOrderProcessed={undefined}
+        onOrderProcessed={handleOrderProcessed}
         refreshCountsRef={refreshCountsRef}
         isDayOpen={isDayOpen}
       />

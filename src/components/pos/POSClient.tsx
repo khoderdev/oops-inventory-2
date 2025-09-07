@@ -199,106 +199,292 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     };
   }, [leftPanelWidth]);
 
-  // When switching back to the Products view (especially on mobile), force a re-measure
-  // and allow the grid to refresh its items to avoid empty renders after being hidden.
   useEffect(() => {
     if (activeView === "products") {
-      // Let layout settle, then trigger resize so rightPanelPixelWidth recalculates
       setTimeout(() => {
         try {
           window.dispatchEvent(new Event("resize"));
         } catch {}
-        // Mark grid unstable so posItems state can refresh from memoizedPosItems if needed
         setIsItemsGridStable(false);
       }, 0);
     }
   }, [activeView]);
 
   useEffect(() => {
-    // Block selectedOrderForPOS if there's already a current order being edited
-    if (currentOrder && selectedOrderForPOS && currentOrder.id && selectedOrderForPOS.id && currentOrder.id.toString() === selectedOrderForPOS.id.toString()) {
-      return;
+    console.log("Current order updated:", currentOrder);
+    if (currentOrder && currentOrder.items) {
+      console.log("Current order items:", currentOrder.items);
     }
-    // Block if order has been completed
-    if (selectedOrderForPOS && completedOrdersRef.current.has(selectedOrderForPOS.id.toString())) {
-      return;
-    }
-    if (selectedOrderForPOS && !isPaymentCompleted) {
-      if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
-        if (loadOrder) {
-          loadOrder(selectedOrderForPOS.id.toString());
-        }
-        return;
+  }, [currentOrder]);
+
+  useEffect(() => {
+    if (selectedOrderForPOS && !isPaymentCompleted && processedOrderRef.current !== selectedOrderForPOS.id.toString()) {
+      // Clear previous state to prevent stale data
+      setCart([]);
+      setAppliedDiscount(null);
+      setDiscountAmount(0);
+      setOrderNotes("");
+      setSelectedTable(undefined);
+      setSelectedEmployee(undefined);
+      setHasUnsavedChanges(false);
+
+      if (clearOrder) {
+        clearOrder(); // Reset currentOrder to null
       }
+
       const orderId = selectedOrderForPOS.id.toString();
-      if (processedOrderRef.current === orderId) {
+      console.log("Loading order ID:", orderId);
+
+      // Skip if order is completed
+      if (selectedOrderForPOS.status === "completed" || selectedOrderForPOS.status === "paid") {
+        console.log(`Order ${orderId} is already completed, skipping load`);
         return;
       }
+
       processedOrderRef.current = orderId;
 
-      // Check if this is a completed order - don't load it into cart
-      if (selectedOrderForPOS.status === "completed" || selectedOrderForPOS.status === "paid") {
-        return;
-      }
-      const cartItems: POSCartItem[] = selectedOrderForPOS.items
-        .map((item: any, index: number) => {
-          if (item.menuItem) {
-            return {
-              id: `order-${selectedOrderForPOS.id}-menu-${item.menuItem.id}-${index}`,
-              name: item.menuItem.name,
-              price: item.menuItem.price,
-              quantity: item.quantity,
-              type: "menu_item" as const,
-              menuItemId: item.menuItem.id,
-              originalItem: item.menuItem,
-              stockEntryId: undefined,
-              orderItemId: item.id?.toString?.() || item.id,
-              notes: item.notes || undefined
-            };
-          } else if (item.material) {
-            return {
-              id: `order-${selectedOrderForPOS.id}-material-${item.material.id}-${index}`,
-              name: item.material.name,
-              price: parseFloat(item.unitPrice),
-              quantity: item.quantity,
-              type: "material" as const,
-              materialId: item.material.id,
-              originalItem: item.material,
-              stockEntryId: undefined,
-              orderItemId: item.id?.toString?.() || item.id,
-              notes: item.notes || undefined
-            };
+      // Load order data
+      const loadOrderData = async () => {
+        try {
+          setIsLoading(true);
+          if (loadOrder) {
+            await loadOrder(orderId);
+            console.log("Order loaded successfully:", orderId);
           }
-          return null;
-        })
-        .filter(Boolean) as POSCartItem[];
-      setOrderType(selectedOrderForPOS.orderType);
-      if (selectedOrderForPOS.orderType === "table" && selectedOrderForPOS.tableId) {
-        setSelectedTable(tables.find(t => t.id === selectedOrderForPOS.tableId));
-      }
-      if (selectedOrderForPOS.discountAmount && parseFloat(selectedOrderForPOS.discountAmount.toString()) > 0) {
-        const discount = {
-          type: (selectedOrderForPOS.discountType as "percentage" | "fixed") || "fixed",
-          value: parseFloat(selectedOrderForPOS.discountValue?.toString() || "0"),
-          amount: parseFloat(selectedOrderForPOS.discountAmount.toString()),
-          reason: selectedOrderForPOS.discountReason || undefined
-        };
-        setAppliedDiscount(discount);
-      }
-      if (loadOrder) {
-        loadOrder(selectedOrderForPOS.id.toString());
-      }
-      setCart(cartItems);
-      setTimeout(() => {
-        if (processedOrderRef.current === orderId) {
+
+          // Populate cart from selectedOrderForPOS - THIS IS THE KEY FIX
+          const cartItems: POSCartItem[] = selectedOrderForPOS.menuItems
+            .map((item: any, index: number) => {
+              if (item.menuItemId) {
+                return {
+                  id: `order-${selectedOrderForPOS.id}-menu-${item.menuItemId}-${index}`,
+                  name: item.menuItemName || `Menu Item ${item.menuItemId}`,
+                  price: item.unitPrice,
+                  quantity: item.quantity,
+                  type: "menu_item" as const,
+                  menuItemId: item.menuItemId,
+                  originalItem: {
+                    id: item.menuItemId,
+                    name: item.menuItemName,
+                    price: item.unitPrice
+                  } as MenuItem,
+                  stockEntryId: undefined,
+                  orderItemId: item.id?.toString?.() || `temp-${index}`,
+                  notes: item.notes || undefined
+                };
+              }
+              return null;
+            })
+            .filter(Boolean) as POSCartItem[];
+
+          setCart(cartItems);
+          setOrderType(selectedOrderForPOS.orderType || "takeaway");
+
+          // Only call onOrderProcessed AFTER cart is populated
+          if (onOrderProcessed) {
+            onOrderProcessed();
+          }
+
+          setHasUnsavedChanges(true);
+        } catch (error) {
+          console.error("Failed to load order:", error);
+          if (onOrderProcessed) {
+            onOrderProcessed();
+          }
+        } finally {
+          setIsLoading(false);
           processedOrderRef.current = null;
         }
-      }, 1000);
-      setHasUnsavedChanges(true);
-    } else if (!selectedOrderForPOS) {
-      processedOrderRef.current = null;
+      };
+
+      loadOrderData();
     }
-  }, [selectedOrderForPOS, loadOrder, posItems, isPaymentCompleted, isTableManuallySelected]);
+  }, [selectedOrderForPOS, loadOrder, tables, showError, clearOrder, isPaymentCompleted, onOrderProcessed]);
+
+  // useEffect(() => {
+  //   // Skip if no selected order or if already processing
+  //   if (!selectedOrderForPOS || isPaymentCompleted || processedOrderRef.current === selectedOrderForPOS.id.toString()) {
+  //     return;
+  //   }
+
+  //   // Clear previous state to prevent stale data
+  //   setCart([]);
+  //   setAppliedDiscount(null);
+  //   setDiscountAmount(0);
+  //   setOrderNotes("");
+  //   setSelectedTable(undefined);
+  //   setSelectedEmployee(undefined);
+  //   setHasUnsavedChanges(false);
+  //   if (clearOrder) {
+  //     clearOrder(); // Reset currentOrder to null
+  //   }
+
+  //   const orderId = selectedOrderForPOS.id.toString();
+  //   console.log("Loading order ID:", orderId); // Debug log
+
+  //   // Skip if order is completed
+  //   if (selectedOrderForPOS.status === "completed" || selectedOrderForPOS.status === "paid") {
+  //     console.log(`Order ${orderId} is already completed, skipping load`);
+  //     return;
+  //   }
+
+  //   processedOrderRef.current = orderId;
+
+  //   // Load order data
+  //   const loadOrderData = async () => {
+  //     try {
+  //       setIsLoading(true);
+  //       if (loadOrder) {
+  //         await loadOrder(orderId);
+  //         console.log("Order loaded successfully:", orderId); // Debug log
+  //       }
+
+  //       // Populate cart from selectedOrderForPOS
+  //       const cartItems: POSCartItem[] = selectedOrderForPOS.items
+  //         .map((item: any, index: number) => {
+  //           if (item.menuItem) {
+  //             return {
+  //               id: `order-${selectedOrderForPOS.id}-menu-${item.menuItem.id}-${index}`,
+  //               name: item.menuItem.name,
+  //               price: item.menuItem.price,
+  //               quantity: item.quantity,
+  //               type: "menu_item" as const,
+  //               menuItemId: item.menuItem.id,
+  //               originalItem: item.menuItem,
+  //               stockEntryId: undefined,
+  //               orderItemId: item.id?.toString?.() || item.id,
+  //               notes: item.notes || undefined
+  //             };
+  //           } else if (item.material) {
+  //             return {
+  //               id: `order-${selectedOrderForPOS.id}-material-${item.material.id}-${index}`,
+  //               name: item.material.name,
+  //               price: parseFloat(item.unitPrice),
+  //               quantity: item.quantity,
+  //               type: "material" as const,
+  //               materialId: item.material.id,
+  //               originalItem: item.material,
+  //               stockEntryId: undefined,
+  //               orderItemId: item.id?.toString?.() || item.id,
+  //               notes: item.notes || undefined
+  //             };
+  //           }
+  //           return null;
+  //         })
+  //         .filter(Boolean) as POSCartItem[];
+
+  //       setCart(cartItems);
+  //       setOrderType(selectedOrderForPOS.orderType);
+  //       if (selectedOrderForPOS.orderType === "table" && selectedOrderForPOS.tableId) {
+  //         setSelectedTable(tables.find(t => t.id === selectedOrderForPOS.tableId));
+  //       }
+  //       if (selectedOrderForPOS.discountAmount && parseFloat(selectedOrderForPOS.discountAmount.toString()) > 0) {
+  //         const discount = {
+  //           type: (selectedOrderForPOS.discountType as "percentage" | "fixed") || "fixed",
+  //           value: parseFloat(selectedOrderForPOS.discountValue?.toString() || "0"),
+  //           amount: parseFloat(selectedOrderForPOS.discountAmount.toString()),
+  //           reason: selectedOrderForPOS.discountReason || undefined
+  //         };
+  //         setAppliedDiscount(discount);
+  //         setDiscountAmount(discount.amount);
+  //       }
+  //       setHasUnsavedChanges(true);
+  //     } catch (error) {
+  //       console.error("Failed to load order:", error);
+  //     } finally {
+  //       setIsLoading(false);
+  //       processedOrderRef.current = null;
+  //     }
+  //   };
+
+  //   loadOrderData();
+  // }, [selectedOrderForPOS, loadOrder, tables, showError, clearOrder, isPaymentCompleted]);
+
+  // useEffect(() => {
+  //   // Block selectedOrderForPOS if there's already a current order being edited
+  //   if (currentOrder && selectedOrderForPOS && currentOrder.id && selectedOrderForPOS.id && currentOrder.id.toString() === selectedOrderForPOS.id.toString()) {
+  //     return;
+  //   }
+  //   // Block if order has been completed
+  //   if (selectedOrderForPOS && completedOrdersRef.current.has(selectedOrderForPOS.id.toString())) {
+  //     return;
+  //   }
+  //   if (selectedOrderForPOS && !isPaymentCompleted) {
+  //     if (!selectedOrderForPOS.items || selectedOrderForPOS.items.length === 0) {
+  //       if (loadOrder) {
+  //         loadOrder(selectedOrderForPOS.id.toString());
+  //       }
+  //       return;
+  //     }
+  //     const orderId = selectedOrderForPOS.id.toString();
+  //     if (processedOrderRef.current === orderId) {
+  //       return;
+  //     }
+  //     processedOrderRef.current = orderId;
+
+  //     // Check if this is a completed order - don't load it into cart
+  //     if (selectedOrderForPOS.status === "completed" || selectedOrderForPOS.status === "paid") {
+  //       return;
+  //     }
+  //     const cartItems: POSCartItem[] = selectedOrderForPOS.items
+  //       .map((item: any, index: number) => {
+  //         if (item.menuItem) {
+  //           return {
+  //             id: `order-${selectedOrderForPOS.id}-menu-${item.menuItem.id}-${index}`,
+  //             name: item.menuItem.name,
+  //             price: item.menuItem.price,
+  //             quantity: item.quantity,
+  //             type: "menu_item" as const,
+  //             menuItemId: item.menuItem.id,
+  //             originalItem: item.menuItem,
+  //             stockEntryId: undefined,
+  //             orderItemId: item.id?.toString?.() || item.id,
+  //             notes: item.notes || undefined
+  //           };
+  //         } else if (item.material) {
+  //           return {
+  //             id: `order-${selectedOrderForPOS.id}-material-${item.material.id}-${index}`,
+  //             name: item.material.name,
+  //             price: parseFloat(item.unitPrice),
+  //             quantity: item.quantity,
+  //             type: "material" as const,
+  //             materialId: item.material.id,
+  //             originalItem: item.material,
+  //             stockEntryId: undefined,
+  //             orderItemId: item.id?.toString?.() || item.id,
+  //             notes: item.notes || undefined
+  //           };
+  //         }
+  //         return null;
+  //       })
+  //       .filter(Boolean) as POSCartItem[];
+  //     setOrderType(selectedOrderForPOS.orderType);
+  //     if (selectedOrderForPOS.orderType === "table" && selectedOrderForPOS.tableId) {
+  //       setSelectedTable(tables.find(t => t.id === selectedOrderForPOS.tableId));
+  //     }
+  //     if (selectedOrderForPOS.discountAmount && parseFloat(selectedOrderForPOS.discountAmount.toString()) > 0) {
+  //       const discount = {
+  //         type: (selectedOrderForPOS.discountType as "percentage" | "fixed") || "fixed",
+  //         value: parseFloat(selectedOrderForPOS.discountValue?.toString() || "0"),
+  //         amount: parseFloat(selectedOrderForPOS.discountAmount.toString()),
+  //         reason: selectedOrderForPOS.discountReason || undefined
+  //       };
+  //       setAppliedDiscount(discount);
+  //     }
+  //     if (loadOrder) {
+  //       loadOrder(selectedOrderForPOS.id.toString());
+  //     }
+  //     setCart(cartItems);
+  //     setTimeout(() => {
+  //       if (processedOrderRef.current === orderId) {
+  //         processedOrderRef.current = null;
+  //       }
+  //     }, 1000);
+  //     setHasUnsavedChanges(true);
+  //   } else if (!selectedOrderForPOS) {
+  //     processedOrderRef.current = null;
+  //   }
+  // }, [selectedOrderForPOS, loadOrder, posItems, isPaymentCompleted, isTableManuallySelected]);
 
   useEffect(() => {
     if (currentOrder && currentOrder.items && currentOrder.items.length > 0) {
@@ -629,6 +815,27 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [selectedOrderForPOS, handleOrderSelect, onOrderProcessed]);
 
   useEffect(() => {
+    console.log("Current cart state:", cart);
+    console.log("Selected order for POS:", selectedOrderForPOS);
+  }, [cart, selectedOrderForPOS]);
+  // useEffect(() => {
+  //   if (selectedOrderForPOS) {
+  //     handleOrderSelect(selectedOrderForPOS)
+  //       .then(() => {
+  //         if (onOrderProcessed) {
+  //           onOrderProcessed();
+  //         }
+  //       })
+  //       .catch(error => {
+  //         console.error("❌ Failed to process order:", error);
+  //         if (onOrderProcessed) {
+  //           onOrderProcessed();
+  //         }
+  //       });
+  //   }
+  // }, [selectedOrderForPOS, handleOrderSelect, onOrderProcessed]);
+
+  useEffect(() => {
     setOptimisticAssignments(sectionAssignments);
   }, [sectionAssignments]);
 
@@ -646,13 +853,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     };
   }, []);
 
-  // Keep local menuItems in sync with context for legacy lookups in this component
   useEffect(() => {
     const combined = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
     setMenuItems(combined);
   }, [foodMenuItems, beverageMenuItems]);
 
-  // Build categories map from context categories
   useEffect(() => {
     const categoryMap = new Map<number, string>();
     if (menuItemCategories && menuItemCategories.length > 0) {
@@ -664,15 +869,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setCategoriesMap(categoryMap);
   }, [menuItemCategories, beverageCategories]);
 
-  // Memoized POS items to prevent unnecessary re-renders during POS operations
-  // Remove the memoizedPosItems and replace with this useEffect:
   useEffect(() => {
     if (menuItemsLoading) {
       setIsItemsGridLoading(true);
       return;
     }
 
-    // Only proceed if we have menu items
     const allMenuItems = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
     if (allMenuItems.length === 0) {
       setIsItemsGridLoading(false);
@@ -743,8 +945,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           price: variants.variantPrices?.[variantKey] || 0
         }));
       }
-
-      // Handle other possible variant formats
       return Object.entries(variants).map(([key, value]: [string, any]) => ({
         id: key,
         name: key,
@@ -756,61 +956,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     return [];
   };
-  // const memoizedPosItems = useMemo(() => {
-  //   if (categoriesMap.size === 0) return [];
-  //   const allMenuItems: MenuItem[] = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
-  //   if (allMenuItems.length === 0) return [];
-  //   const posItemsFromData: POSItem[] = [];
 
-  //   allMenuItems.forEach(menuItem => {
-  //     if (!menuItem?.isPOSItem) return;
-  //     let categoryId: number;
-  //     if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
-  //       categoryId = (menuItem.category as any).id;
-  //     } else if (menuItem.category && typeof menuItem.category === "number") {
-  //       categoryId = menuItem.category;
-  //     } else {
-  //       console.warn("⚠️ Invalid category format for menu item:", menuItem?.name, menuItem?.category);
-  //       categoryId = 0;
-  //     }
-  //     const categoryName = categoriesMap.get(categoryId);
-  //     if (!categoryName) return;
-  //     posItemsFromData.push({
-  //       id: `menu-${menuItem.id}`,
-  //       name: menuItem.name,
-  //       // Ensure price is always a valid number, default to 0 if null or NaN
-  //       price: typeof menuItem.price === 'number' && !isNaN(menuItem.price) ? menuItem.price : 0,
-  //       category: categoryName,
-  //       type: "menu_item",
-  //       menuItemId: menuItem.id,
-  //       unit: menuItem.unit,
-  //       availableQuantity: menuItem.availableQuantity,
-  //       costPerUnit: menuItem.costPerUnit,
-  //       createdAt: menuItem.createdAt.toString(),
-  //       updatedAt: menuItem.updatedAt.toString(),
-  //       description: menuItem.description,
-  //       image: menuItem.image,
-  //       imageUrl: undefined,
-  //       // Transform variants to match expected array format if present
-  //       variants: menuItem.variants ?
-  //         (Array.isArray(menuItem.variants) ? menuItem.variants :
-  //           // Convert object format to array format
-  //           Object.keys(menuItem.variants.variantVolumes || {}).map(variantKey => ({
-  //             id: variantKey,
-  //             name: variantKey,
-  //             volume: menuItem.variants.variantVolumes[variantKey] || 0,
-  //             unit: menuItem.variants.variantVolumeUnits?.[variantKey] || 'cl',
-  //             price: menuItem.variants.variantPrices?.[variantKey] || 0
-  //           }))
-  //         ) : undefined
-  //     });
-  //   });
-  //   return posItemsFromData;
-  // }, [foodMenuItems, beverageMenuItems, categoriesMap]);
-
-  // Update posItems state only when memoized items actually change and no POS action is in progress
   useEffect(() => {
-    // Block updates during POS actions to prevent grid refresh
     if (isPOSActionInProgress) return;
     if (!isItemsGridStable) {
       setPosItems(posItems);
@@ -819,7 +966,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       const hasSignificantChange = posItems.length !== posItems.length || posItems.some((item, index) => !posItems[index] || item.id !== posItems[index].id || item.name !== posItems[index].name || item.price !== posItems[index].price);
       if (hasSignificantChange) setPosItems(posItems);
     }
-    // Loading state mirrors context loading
     setIsItemsGridLoading(!!menuItemsLoading);
   }, [isItemsGridStable, posItems, isPOSActionInProgress, menuItemsLoading]);
 
@@ -1606,8 +1752,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               discountReason: appliedDiscount?.reason,
               notes: orderNotes || undefined
             };
-            console.log('Applied discount:', appliedDiscount);
-
+            console.log("Applied discount:", appliedDiscount);
           } else {
             const createData = {
               orderType,
@@ -1632,7 +1777,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               discountAmount: appliedDiscount?.amount || 0,
               discountReason: appliedDiscount?.reason
             };
-            console.log('Applied discount:', appliedDiscount);
+            console.log("Applied discount:", appliedDiscount);
             savedOrder = await createOrder(createData);
           }
 
@@ -1761,7 +1906,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           // Create order if needed
           if (!currentOrder) {
-            console.log('Applied discount:', appliedDiscount);
+            console.log("Applied discount:", appliedDiscount);
             const orderData = {
               orderType,
               tableId: selectedTable?.id,

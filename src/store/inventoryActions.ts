@@ -1,6 +1,5 @@
-import { materialsAPI } from "@/api/matierials.api.ts.tsx";
 import { stockAPI } from "@/api/stock.api.ts.tsx";
-import { menuAPI } from "@/api/menu.api.ts.tsx";
+import { menuAPI } from "@/api/menu.api.ts";
 import { inventoryAPI } from "@/api/inventory.api";
 import { stockEntriesAtom, materialsAtom, menuItemsAtom, optimisticStockEntriesAtom } from "./inventoryAtoms";
 import type { StockEntry, Material, MenuItem, CreateMenuItemData, UpdateMenuItemData } from "@/types/inventory";

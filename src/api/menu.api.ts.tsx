@@ -1,156 +1,156 @@
-import api from "@/lib/http";
-import { CreateMenuItemData, MenuItem, UpdateMenuItemData } from "@/types/inventory";
+// import api from "@/lib/http";
+// import { CreateMenuItemData, MenuItem, UpdateMenuItemData } from "@/types/inventory";
 
-// Query parameters interface for menu items
-interface MenuItemsQueryParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  category?: string;
-  sortBy?: string;
-  sortOrder?: 'ASC' | 'DESC';
-  _t?: number; // Cache-busting timestamp
-  isActive?: boolean; // Active status filter
-}
+// // Query parameters interface for menu items
+// interface MenuItemsQueryParams {
+//   page?: number;
+//   limit?: number;
+//   search?: string;
+//   category?: string;
+//   sortBy?: string;
+//   sortOrder?: 'ASC' | 'DESC';
+//   _t?: number; // Cache-busting timestamp
+//   isActive?: boolean; // Active status filter
+// }
 
-// Interface for beverage variant creation request
-export interface CreateBeverageVariantsRequest {
-  baseMenuItem: MenuItem;
-  selectedVariants: string[];
-  priceAdjustments: Record<string, number>;
-  nameFormat: "prefix" | "suffix";
-}
+// // Interface for beverage variant creation request
+// export interface CreateBeverageVariantsRequest {
+//   baseMenuItem: MenuItem;
+//   selectedVariants: string[];
+//   priceAdjustments: Record<string, number>;
+//   nameFormat: "prefix" | "suffix";
+// }
 
-// Helper function to process menu item data for JSON requests
-const processMenuItemData = (menuItemData: CreateMenuItemData | UpdateMenuItemData): CreateMenuItemData | UpdateMenuItemData => {
-  console.log('🔍 processMenuItemData - START - Raw input data:', {
-    menuItemData,
-    beverageFields: {
-      beverageStockId: (menuItemData as any).beverageStockId,
-      unit: (menuItemData as any).unit,
-      availableQuantity: (menuItemData as any).availableQuantity,
-      costPerUnit: (menuItemData as any).costPerUnit,
-      variants: (menuItemData as any).variants
-    },
-    image: (menuItemData as any).image ? 'base64 data present' : 'no image'
-  });
+// // Helper function to process menu item data for JSON requests
+// const processMenuItemData = (menuItemData: CreateMenuItemData | UpdateMenuItemData): CreateMenuItemData | UpdateMenuItemData => {
+//   console.log('🔍 processMenuItemData - START - Raw input data:', {
+//     menuItemData,
+//     beverageFields: {
+//       beverageStockId: (menuItemData as any).beverageStockId,
+//       unit: (menuItemData as any).unit,
+//       availableQuantity: (menuItemData as any).availableQuantity,
+//       costPerUnit: (menuItemData as any).costPerUnit,
+//       variants: (menuItemData as any).variants
+//     },
+//     image: (menuItemData as any).image ? 'base64 data present' : 'no image'
+//   });
   
-  const processedData = { ...menuItemData };
+//   const processedData = { ...menuItemData };
   
-  // Preserve the category object structure for backend
-  if (processedData.category && typeof processedData.category === 'object') {
-    const originalCategory = processedData.category;
-    // Keep the full category object intact
-    console.log('🔍 Category preserved:', { category: originalCategory });
-  }
+//   // Preserve the category object structure for backend
+//   if (processedData.category && typeof processedData.category === 'object') {
+//     const originalCategory = processedData.category;
+//     // Keep the full category object intact
+//     console.log('🔍 Category preserved:', { category: originalCategory });
+//   }
   
-  // Ensure variants are properly preserved
-  if (processedData.variants) {
-    console.log('🔍 Variants found in menu item data:', processedData.variants);
-  }
+//   // Ensure variants are properly preserved
+//   if (processedData.variants) {
+//     console.log('🔍 Variants found in menu item data:', processedData.variants);
+//   }
   
-  console.log('🔍 processMenuItemData - END - Final output:', {
-    processedData,
-    beverageFields: {
-      beverageStockId: (processedData as any).beverageStockId,
-      unit: (processedData as any).unit,
-      availableQuantity: (processedData as any).availableQuantity,
-      costPerUnit: (processedData as any).costPerUnit,
-      variants: (processedData as any).variants
-    },
-    image: (processedData as any).image ? 'base64 data included' : 'no image'
-  });
+//   console.log('🔍 processMenuItemData - END - Final output:', {
+//     processedData,
+//     beverageFields: {
+//       beverageStockId: (processedData as any).beverageStockId,
+//       unit: (processedData as any).unit,
+//       availableQuantity: (processedData as any).availableQuantity,
+//       costPerUnit: (processedData as any).costPerUnit,
+//       variants: (processedData as any).variants
+//     },
+//     image: (processedData as any).image ? 'base64 data included' : 'no image'
+//   });
   
-  return processedData;
-};
+//   return processedData;
+// };
 
-export const menuAPI = {
-  getMenus: () => api.get<MenuItem[]>("/menu-items"),
-  getMenuItems: async (params?: MenuItemsQueryParams): Promise<MenuItem[]> => {
-    const config = params ? { params } as any : undefined;
-    const response = await api.get<{ data: MenuItem[] } | MenuItem[]>("/menu-items", config);
-    // Handle both paginated response format and direct array format
-    if (Array.isArray(response.data)) {
-      return response.data;
-    } else {
-      return (response.data as { data: MenuItem[] }).data;
-    }
-  },
-  getMenuItem: (id: string) => api.get<MenuItem>(`/menu-items/${id}`),
-  createMenuItem: (menuItemData: CreateMenuItemData) => {
-    const data = processMenuItemData(menuItemData);
+// export const menuAPI = {
+//   getMenus: () => api.get<MenuItem[]>("/menu-items"),
+//   getMenuItems: async (params?: MenuItemsQueryParams): Promise<MenuItem[]> => {
+//     const config = params ? { params } as any : undefined;
+//     const response = await api.get<{ data: MenuItem[] } | MenuItem[]>("/menu-items", config);
+//     // Handle both paginated response format and direct array format
+//     if (Array.isArray(response.data)) {
+//       return response.data;
+//     } else {
+//       return (response.data as { data: MenuItem[] }).data;
+//     }
+//   },
+//   getMenuItem: (id: string) => api.get<MenuItem>(`/menu-items/${id}`),
+//   createMenuItem: (menuItemData: CreateMenuItemData) => {
+//     const data = processMenuItemData(menuItemData);
     
-    // Debug logging to see what's being sent to API
-    console.log("🌐 API: Sending to backend:", {
-      dataType: 'JSON',
-      originalData: menuItemData,
-      processedData: data
-    });
+//     // Debug logging to see what's being sent to API
+//     console.log("🌐 API: Sending to backend:", {
+//       dataType: 'JSON',
+//       originalData: menuItemData,
+//       processedData: data
+//     });
     
-    return api.post<MenuItem, CreateMenuItemData>("/menu-items", data as CreateMenuItemData);
-  },
-  updateMenuItem: (id: string, menuItemData: UpdateMenuItemData) => {
-    const data = processMenuItemData(menuItemData);
+//     return api.post<MenuItem, CreateMenuItemData>("/menu-items", data as CreateMenuItemData);
+//   },
+//   updateMenuItem: (id: string, menuItemData: UpdateMenuItemData) => {
+//     const data = processMenuItemData(menuItemData);
     
-    // Debug logging to see what's being sent to API
-    console.log("🌐 API: Updating menu item:", {
-      id,
-      dataType: 'JSON',
-      originalData: menuItemData,
-      processedData: data
-    });
+//     // Debug logging to see what's being sent to API
+//     console.log("🌐 API: Updating menu item:", {
+//       id,
+//       dataType: 'JSON',
+//       originalData: menuItemData,
+//       processedData: data
+//     });
     
-    return api.put<MenuItem, UpdateMenuItemData>(`/menu-items/${id}`, data as UpdateMenuItemData);
-  },
-  deleteMenuItem: (id: string) => {
-    const idStr = String(id).trim();
-    const isNumeric = /^\d+$/.test(idStr);
-    console.log("🗑️ API.deleteMenuItem called", { id, idStr, isNumeric });
-    if (!isNumeric) {
-      const message = idStr.startsWith("menu-")
-        ? "Cannot delete unsaved menu item. Please save it first."
-        : `Invalid menu item ID: ${idStr}`;
-      return Promise.reject({ message, status: 400, details: { id } });
-    }
-    return api.delete<null>(`/menu-items/${idStr}`);
-  },
+//     return api.put<MenuItem, UpdateMenuItemData>(`/menu-items/${id}`, data as UpdateMenuItemData);
+//   },
+//   deleteMenuItem: (id: string) => {
+//     const idStr = String(id).trim();
+//     const isNumeric = /^\d+$/.test(idStr);
+//     console.log("🗑️ API.deleteMenuItem called", { id, idStr, isNumeric });
+//     if (!isNumeric) {
+//       const message = idStr.startsWith("menu-")
+//         ? "Cannot delete unsaved menu item. Please save it first."
+//         : `Invalid menu item ID: ${idStr}`;
+//       return Promise.reject({ message, status: 400, details: { id } });
+//     }
+//     return api.delete<null>(`/menu-items/${idStr}`);
+//   },
 
-  // Printer assignment methods
-  getMenuItemsWithPrinters: () => api.get<MenuItem[]>("/menu-items/with-printers"),
-  assignPrinter: (id: string | number, printerId: number | null) => api.patch<{ menuItem: MenuItem }, { printerId: number | null }>(`/menu-items/${id}/assign-printer`, { printerId }),
-  bulkAssignPrinter: (menuItemIds: (string | number)[], printerId: number | null) => api.patch<{ updatedCount: number; menuItems: MenuItem[] }, { menuItemIds: (string | number)[]; printerId: number | null }>("/menu-items/bulk-assign-printer", { menuItemIds, printerId }),
+//   // Printer assignment methods
+//   getMenuItemsWithPrinters: () => api.get<MenuItem[]>("/menu-items/with-printers"),
+//   assignPrinter: (id: string | number, printerId: number | null) => api.patch<{ menuItem: MenuItem }, { printerId: number | null }>(`/menu-items/${id}/assign-printer`, { printerId }),
+//   bulkAssignPrinter: (menuItemIds: (string | number)[], printerId: number | null) => api.patch<{ updatedCount: number; menuItems: MenuItem[] }, { menuItemIds: (string | number)[]; printerId: number | null }>("/menu-items/bulk-assign-printer", { menuItemIds, printerId }),
   
-  // Bulk category update method
-  bulkUpdateCategory: (menuItemIds: (string | number)[], category: string) => api.patch<{ updatedCount: number; menuItems: MenuItem[]; message: string }, { menuItemIds: (string | number)[]; category: string }>("/menu-items/bulk-update-category", { menuItemIds, category }),
+//   // Bulk category update method
+//   bulkUpdateCategory: (menuItemIds: (string | number)[], category: string) => api.patch<{ updatedCount: number; menuItems: MenuItem[]; message: string }, { menuItemIds: (string | number)[]; category: string }>("/menu-items/bulk-update-category", { menuItemIds, category }),
   
-  // Beverage variant creation method
-  createBeverageVariants: (variantData: CreateBeverageVariantsRequest) => 
-    api.post<{ message: string; variants: MenuItem[] }, CreateBeverageVariantsRequest>(
-      "/menu-items/beverage-variants", 
-      variantData
-    ),
+//   // Beverage variant creation method
+//   createBeverageVariants: (variantData: CreateBeverageVariantsRequest) => 
+//     api.post<{ message: string; variants: MenuItem[] }, CreateBeverageVariantsRequest>(
+//       "/menu-items/beverage-variants", 
+//       variantData
+//     ),
     
-  // Get beverage menu items
-  getBeverageMenuItems: async (isActive: boolean = true): Promise<MenuItem[]> => {
-    const params = new URLSearchParams({
-      isActive: isActive.toString(),
-      _t: Date.now().toString()
-    });
-    console.log('🍹 Fetching beverage menu items with params:', Object.fromEntries(params));
-    const response = await api.get<MenuItem[]>(`/menu-items/type/beverage?${params.toString()}`);
-    return response.data;
-  },
+//   // Get beverage menu items
+//   getBeverageMenuItems: async (isActive: boolean = true): Promise<MenuItem[]> => {
+//     const params = new URLSearchParams({
+//       isActive: isActive.toString(),
+//       _t: Date.now().toString()
+//     });
+//     console.log('🍹 Fetching beverage menu items with params:', Object.fromEntries(params));
+//     const response = await api.get<MenuItem[]>(`/menu-items/type/beverage?${params.toString()}`);
+//     return response.data;
+//   },
   
-  // Get food menu items
-  getFoodMenuItems: async (isActive: boolean = true): Promise<MenuItem[]> => {
-    const params = new URLSearchParams({
-      isActive: isActive.toString(),
-      _t: Date.now().toString()
-    });
-    console.log('🍔 Fetching food menu items with params:', Object.fromEntries(params));
-    const response = await api.get<MenuItem[]>(`/menu-items/type/food?${params.toString()}`);
-    return response.data;
-  }
-};
+//   // Get food menu items
+//   getFoodMenuItems: async (isActive: boolean = true): Promise<MenuItem[]> => {
+//     const params = new URLSearchParams({
+//       isActive: isActive.toString(),
+//       _t: Date.now().toString()
+//     });
+//     console.log('🍔 Fetching food menu items with params:', Object.fromEntries(params));
+//     const response = await api.get<MenuItem[]>(`/menu-items/type/food?${params.toString()}`);
+//     return response.data;
+//   }
+// };
 
 
