@@ -245,23 +245,24 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     [currentSales, setSelectedSaleForRevert, setRevertDialogOpen]
   );
 
+  const [selectedItemForDelete, setSelectedItemForDelete] = React.useState<{saleId: string; itemId: string; itemType: "material" | "menu"; itemName: string} | null>(null);
+
   const handleSoftDeleteSale = useCallback(
-    async (saleId: string, itemId?: string, itemType?: "material" | "menu") => {
+    (saleId: string, itemId?: string, itemType?: "material" | "menu", itemName?: string) => {
       const sale = currentSales.find(s => s.id.toString() === saleId);
-      if (sale) {
-        if (itemId && itemType) {
-          // Delete specific item from sale
-          await deleteSaleItem(saleId, itemId, itemType);
-          setDeleteSuccess(`Item successfully deleted from sale #${saleId}`);
-          setTimeout(() => setDeleteSuccess(null), 3000);
-        } else {
-          // Delete entire sale
-          setSelectedSaleForDelete(sale);
-          setDeleteDialogOpen(true);
-        }
+      if (!sale) return;
+
+      if (itemId && itemType) {
+        // For item deletion, set the item to be deleted and show confirmation
+        setSelectedItemForDelete({ saleId, itemId, itemType, itemName: itemName || 'this item' });
+        setDeleteDialogOpen(true);
+      } else {
+        // For full sale deletion, show confirmation dialog
+        setSelectedSaleForDelete(sale);
+        setDeleteDialogOpen(true);
       }
     },
-    [currentSales]
+    [currentSales, setSelectedSaleForDelete, setDeleteDialogOpen]
   );
 
   const handleBulkRevert = useCallback(() => {
@@ -299,17 +300,27 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   }, [selectedSaleForRevert, revertSale, setRevertDialogOpen, setSelectedSaleForRevert]);
 
   const confirmSoftDeleteSale = useCallback(async () => {
-    console.log("confirmSoftDeleteSale called");
-    console.log("softDeleteSale function:", softDeleteSale);
-    console.log("bulkDeleteSales function:", bulkDeleteSales);
-
-    if (selectedSaleForDelete) {
-      console.log("Deleting sale:", selectedSaleForDelete.id);
-      await softDeleteSale(selectedSaleForDelete);
+    try {
+      if (selectedItemForDelete) {
+        // Handle item deletion
+        const { saleId, itemId, itemType } = selectedItemForDelete;
+        await deleteSaleItem(saleId, itemId, itemType);
+        setDeleteSuccess(`Item successfully deleted from sale #${saleId}`);
+        setTimeout(() => setDeleteSuccess(null), 3000);
+      } else if (selectedSaleForDelete) {
+        // Handle full sale deletion
+        await softDeleteSale(selectedSaleForDelete);
+      }
+      
+      // Close dialog and reset states
       setDeleteDialogOpen(false);
       setSelectedSaleForDelete(null);
+      setSelectedItemForDelete(null);
+    } catch (error) {
+      console.error('Error during deletion:', error);
+      // You might want to show an error message to the user here
     }
-  }, [selectedSaleForDelete, softDeleteSale, setDeleteDialogOpen, setSelectedSaleForDelete]);
+  }, [selectedSaleForDelete, selectedItemForDelete, softDeleteSale, deleteSaleItem, setDeleteDialogOpen, setSelectedSaleForDelete]);
 
   const confirmBulkRevert = useCallback(async () => {
     if (bulkRevertSales && setBulkRevertDialogOpen) {

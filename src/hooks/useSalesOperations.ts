@@ -137,64 +137,34 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
   );
 
   const softDeleteSale = useCallback(
-    async (sale: SaleRecord, itemId?: string, itemType?: "material" | "menu") => {
+    async (sale: SaleRecord, itemId?: string, itemType?: "material" | "menu"): Promise<void> => {
       if (!sale?.id) return;
 
       setIsDeleting(true);
       setError(null);
 
-      // Store original sales for potential rollback
-      const originalSales = [...sales];
-
       try {
-        let updatedSales;
-
         if (itemId && itemType) {
-          // Update specific item in sale
-          updatedSales = sales.map(s => {
-            if (s.id === sale.id) {
-              if (itemType === "material") {
-                const updatedItems = s.items?.filter(item => item.materialId !== itemId) || [];
-                return { ...s, items: updatedItems };
-              } else {
-                const updatedMenuItems = s.menuItems?.filter(item => item.menuItemId !== itemId) || [];
-                return { ...s, menuItems: updatedMenuItems };
-              }
-            }
-            return s;
-          });
-        } else {
-          // Remove entire sale
-          updatedSales = sales.filter(s => s.id !== sale.id);
-        }
-
-        setSales(updatedSales);
-        setDeleteDialogOpen(false);
-
-        // Make API call
-        if (itemId && itemType) {
+          // Delete specific item from sale
           await salesAPI.deleteSaleItem(sale.id.toString(), itemId, itemType);
+          // Refresh sales data to get the updated sale with the item removed
+          await fetchSales();
         } else {
+          // Delete entire sale
           await salesAPI.deleteSale(sale.id.toString());
+          // Update local state for full sale deletion
+          setSales(prevSales => prevSales.filter(s => s.id !== sale.id));
         }
 
-        // Show delete confirmation modal
+        setDeleteDialogOpen(false);
         setDeleteConfirmationModalOpen(true);
-      } catch (error) {
-        console.error("Error deleting sale:", error);
-
-        // Rollback: restore original sales
-        setSales(originalSales);
-
-        setError(error instanceof Error ? error.message : "Failed to delete sale");
-
-        // Auto-hide error message
-        setTimeout(() => setError(null), 5000);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete sale');
       } finally {
         setIsDeleting(false);
       }
     },
-    [sales, setSales, setIsDeleting, setError, setDeleteDialogOpen, setDeleteConfirmationModalOpen]
+    [fetchSales, setSales, setIsDeleting, setError, setDeleteDialogOpen, setDeleteConfirmationModalOpen]
   );
 
   const deleteSaleItem = useCallback(
@@ -203,7 +173,8 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
       setError(null);
       try {
         await salesAPI.deleteSaleItem(saleId, itemId, itemType);
-        // Remove the return statement since we don't need to return anything
+        // Refresh the sales data to reflect the deletion
+        await fetchSales();
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to delete sale item");
         throw err; // Re-throw to allow error handling in the component
@@ -211,7 +182,7 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
         setIsDeleting(false);
       }
     },
-    [setIsDeleting, setError]
+    [fetchSales, setIsDeleting, setError]
   );
 
   const bulkDeleteSales = useCallback(
