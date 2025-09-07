@@ -261,11 +261,11 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
       if (itemId && itemType) {
         // For item deletion, set the item to be deleted and show confirmation
         setSelectedItemForDelete({ saleId, itemId, itemType, itemName: itemName || 'this item' });
-        setDeleteDialogOpen(true);
+        setDeleteConfirmationModalOpen(true);
       } else {
         // For full sale deletion, show confirmation dialog
         setSelectedSaleForDelete(sale);
-        setDeleteDialogOpen(true);
+        setDeleteConfirmationModalOpen(true);
       }
     },
     [currentSales, setSelectedSaleForDelete, setDeleteDialogOpen]
@@ -956,12 +956,12 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                   {isDeleting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Hiding...
+                      Deleting...
                     </>
                   ) : (
                     <>
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Sale
+                      Delete
                     </>
                   )}
                 </Button>
@@ -1005,7 +1005,6 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                     <li>Allow the sales to be restored later if needed</li>
                   </ul>
                 </div>
-                <p className="text-blue-600 font-medium">This is a "soft delete" operation - the sale data is preserved but hidden from view.</p>
                 {(selectedItem !== "all" || selectedSection !== "all" || dateFilter || dateFrom || dateTo) && (
                   <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
                     <p className="text-sm text-yellow-800">

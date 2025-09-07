@@ -91,7 +91,7 @@ export function DeleteConfirmationModal({
           </div>
           <DialogDescription>
             {isItemDeletion 
-              ? `Are you sure you want to delete "${itemName}" from sale #${displayRecord.id}?`
+              ? `Are you sure you want to delete "${itemDetails?.name}" from sale #${displayRecord.id}?`
               : `Are you sure you want to delete sale #${displayRecord.id}?`
             }
           </DialogDescription>
@@ -103,7 +103,7 @@ export function DeleteConfirmationModal({
             <ul className="list-disc list-inside mt-2 space-y-1 text-sm text-foreground/80">
               {isItemDeletion ? (
                 <>
-                  <li>Remove <span className="font-semibold">"{itemName}"</span> from the sale</li>
+                  <li>Remove <span className="font-semibold">"{itemDetails?.name}"</span> from the sale</li>
                   <li>Update the sale total amount</li>
                   <li>Preserve the sale record in the database</li>
                   <li>Keep all stock levels unchanged</li>
@@ -117,9 +117,6 @@ export function DeleteConfirmationModal({
                 </>
               )}
             </ul>
-            <p className="mt-2 text-sm text-destructive/80">
-              This is a "soft delete" - the {isItemDeletion ? 'item' : 'sale data'} will be preserved but hidden from view.
-            </p>
           </div>
 
           {/* Summary Card */}
@@ -177,145 +174,7 @@ export function DeleteConfirmationModal({
 
           <Separator />
 
-          {/* Hidden Items Details */}
-          <div>
-            <h3 className="font-semibold mb-3 flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              {isItemDeletion ? "Deleted Item" : "Hidden Sale Items"}
-            </h3>
-            <div className="space-y-3">
-              {/* Individual Items */}
-              {isItemDeletion && itemToDelete?.itemType === "material" && displayRecord.items?.some(i => i.materialId === itemToDelete.itemId) && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">Deleted Item</h4>
-                  <div className="grid gap-2">
-                    {displayRecord.items
-                      .filter(item => item.materialId === itemToDelete.itemId)
-                      .map((item, index) => (
-                        <Card key={index} className="border-l-4 border-l-red-500">
-                          <CardContent className="pt-3 pb-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Package className="h-4 w-4 text-red-600" />
-                                <span className="font-medium">{item.materialName || `Item ${item.materialId}`}</span>
-                                <Badge variant="destructive" className="text-xs">
-                                  Deleted
-                                </Badge>
-                              </div>
-                              <div className="text-right text-sm">
-                                <div className="font-medium">
-                                  {item.quantity} {item.unit}
-                                </div>
-                                <div className="text-green-600 font-semibold">{formatCurrency(item.totalPrice)}</div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                  </div>
-                </div>
-              )}
 
-              {isItemDeletion && itemToDelete?.itemType === "menu" && displayRecord.menuItems?.some(i => i.menuItemId === itemToDelete.itemId) && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">Deleted Menu Item</h4>
-                  <div className="grid gap-2">
-                    {displayRecord.menuItems
-                      .filter(item => item.menuItemId === itemToDelete.itemId)
-                      .map((item, index) => (
-                        <Card key={index} className="border-l-4 border-l-red-500">
-                          <CardContent className="pt-3 pb-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <ShoppingBag className="h-4 w-4 text-red-600" />
-                                <span className="font-medium">{item.menuItemName || `Menu Item ${item.menuItemId}`}</span>
-                                <Badge variant="destructive" className="text-xs">
-                                  Deleted
-                                </Badge>
-                              </div>
-                              <div className="text-right text-sm">
-                                <div className="font-medium">{item.quantity} x</div>
-                                <div className="text-green-600 font-semibold">{formatCurrency(item.totalPrice)}</div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {!isItemDeletion && saleRecord.items && saleRecord.items.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">Individual Items</h4>
-                  <div className="grid gap-2">
-                    {saleRecord.items.map((item: SoldItem, index: number) => (
-                      <Card key={index} className="border-l-4 border-l-blue-500">
-                        <CardContent className="pt-3 pb-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Package className="h-4 w-4 text-blue-600" />
-                              <span className="font-medium">{item.materialName || `Item ${item.materialId}`}</span>
-                              <Badge variant="outline" className="text-xs">
-                                Individual
-                              </Badge>
-                            </div>
-                            <div className="text-right text-sm">
-                              <div className="font-medium">
-                                {item.quantity} {item.unit}
-                              </div>
-                              <div className="text-green-600 font-semibold">{formatCurrency(item.totalPrice)}</div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Menu Items */}
-              {!isItemDeletion && saleRecord.menuItems && saleRecord.menuItems.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium text-gray-600 mb-2">Menu Items</h4>
-                  <div className="grid gap-2">
-                    {saleRecord.menuItems.map((menuItem: MenuItemSale, index: number) => (
-                      <Card key={index} className="border-l-4 border-l-green-500">
-                        <CardContent className="pt-3 pb-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <ShoppingBag className="h-4 w-4 text-green-600" />
-                              <span className="font-medium">{menuItem.menuItemName || `Menu Item ${menuItem.menuItemId}`}</span>
-                              <Badge variant="outline" className="text-xs bg-green-50">
-                                Menu
-                              </Badge>
-                            </div>
-                            <div className="text-right text-sm">
-                              <div className="font-medium">Qty: {menuItem.quantity}</div>
-                              <div className="text-green-600 font-semibold">{formatCurrency(menuItem.totalPrice)}</div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Important Notice */}
-          <Card className="border-yellow-200 bg-yellow-50">
-            <CardContent className="pt-4">
-              <div className="flex items-start gap-2">
-                <Eye className="h-4 w-4 text-yellow-600 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-yellow-800 mb-1">Important Notice</h4>
-                  <p className="text-sm text-yellow-700">This is a "soft delete" operation. The sale data is preserved in the database and can be restored later if needed. No inventory changes have been made - all stock levels remain unchanged.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
