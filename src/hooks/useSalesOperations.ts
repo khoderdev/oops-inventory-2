@@ -54,7 +54,7 @@ interface UseSalesOperationsReturn {
   revertSale: (sale: SaleRecord) => Promise<void>;
   softDeleteSale: (sale: SaleRecord, itemId?: string, itemType?: "material" | "menu") => Promise<void>;
   deleteSaleItem: (saleId: string, itemId: string, itemType: "material" | "menu") => Promise<void>;
-  bulkDeleteSales: (saleIds: Set<string>) => Promise<void>;
+  deleteSaleItems: (saleId: string, itemIds: string[], itemType: "material" | "menu") => Promise<{ message: string }>;
   bulkRevertSales: (saleIds: Set<string>) => Promise<void>;
 }
 
@@ -203,47 +203,22 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
     [fetchSales, setIsDeleting, setError, sales, setSales]
   );
 
-  const bulkDeleteSales = useCallback(
-    async (saleIds: Set<string>) => {
-      if (saleIds.size === 0) return;
-
-      setIsBulkDeleting(true);
+  const deleteSaleItems = useCallback(
+    async (saleId: string, itemIds: string[], itemType: "material" | "menu") => {
+      setIsDeleting(true);
       setError(null);
-
-      // Store original sales for potential rollback
-      const originalSales = [...sales];
-
       try {
-        // Optimistic update: remove sales immediately
-        const updatedSales = sales.filter(sale => !saleIds.has(sale.id.toString()));
-        setSales(updatedSales);
-        setBulkDeleteDialogOpen(false);
-        setSelectedSaleIds(new Set());
-
-        // Make parallel API calls
-        const deletePromises = Array.from(saleIds).map(saleId => salesAPI.deleteSale(saleId));
-        await Promise.all(deletePromises);
-
-        // Show success message
-        setBulkDeleteSuccess(`Successfully deleted ${saleIds.size} sales!`);
-
-        // Auto-hide success message
-        setTimeout(() => setBulkDeleteSuccess(null), 3000);
-      } catch (error) {
-        console.error("Error bulk deleting sales:", error);
-
-        // Rollback: restore original sales
-        setSales(originalSales);
-
-        setError(error instanceof Error ? error.message : "Failed to delete sales");
-
-        // Auto-hide error message
-        setTimeout(() => setError(null), 5000);
+        const response = await salesAPI.deleteSaleItems(saleId, itemIds, itemType);
+        await fetchSales();
+        return response.data;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to delete sale items");
+        throw err;
       } finally {
-        setIsBulkDeleting(false);
+        setIsDeleting(false);
       }
     },
-    [sales, setSales, setSelectedSaleIds, setIsBulkDeleting, setError, setBulkDeleteDialogOpen, setBulkDeleteSuccess]
+    [fetchSales, setIsDeleting, setError]
   );
 
   const bulkRevertSales = useCallback(
@@ -369,7 +344,7 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
     revertSale,
     softDeleteSale,
     deleteSaleItem,
-    bulkDeleteSales,
+    deleteSaleItems,
     bulkRevertSales
   };
 };

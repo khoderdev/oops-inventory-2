@@ -90,7 +90,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     softDeleteSale,
     deleteSaleItem,
     setDeleteSuccess,
-    bulkDeleteSales,
+    deleteSaleItems,
     bulkRevertSales,
     setRevertDialogOpen,
     setDeleteDialogOpen,
@@ -360,17 +360,39 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   }, [bulkRevertSales, selectedItemIds, localFilteredSales, setBulkRevertDialogOpen, clearSelection]);
 
   const confirmBulkDelete = useCallback(async () => {
-    if (bulkDeleteSales && setBulkDeleteDialogOpen) {
-      const selectedSaleIds = new Set(
-        Array.from(selectedItemIds)
-          .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
-          .filter(Boolean) as string[]
+    if (deleteSaleItems && setBulkDeleteDialogOpen) {
+      // Get all selected sales
+      const selectedSales = Array.from(selectedItemIds)
+        .map(itemId => localFilteredSales.find(item => item.id === itemId))
+        .filter((sale): sale is SaleRecord => Boolean(sale));
+      
+      // Group by item type (menu or material)
+      const salesByType = selectedSales.reduce((acc, sale) => {
+        // Check if this is a menu item or material item
+        const hasMenuItems = sale.menuItems && sale.menuItems.length > 0;
+        const hasMaterialItems = sale.items && sale.items.length > 0;
+        
+        if (hasMenuItems) {
+          if (!acc.menu) acc.menu = [];
+          acc.menu.push(sale.id);
+        } else if (hasMaterialItems) {
+          if (!acc.material) acc.material = [];
+          acc.material.push(sale.id);
+        }
+        return acc;
+      }, {} as { menu?: string[]; material?: string[] });
+      
+      // Delete items for each type
+      await Promise.all(
+        Object.entries(salesByType).map(([type, ids]) => 
+          deleteSaleItems('bulk', ids, type as 'material' | 'menu')
+        )
       );
-      await bulkDeleteSales(selectedSaleIds);
+      
       setBulkDeleteDialogOpen(false);
       clearSelection();
     }
-  }, [bulkDeleteSales, selectedItemIds, localFilteredSales, setBulkDeleteDialogOpen, clearSelection]);
+  }, [deleteSaleItems, selectedItemIds, localFilteredSales, setBulkDeleteDialogOpen, clearSelection]);
 
   useEffect(() => {
     if (viewMode === "all") {

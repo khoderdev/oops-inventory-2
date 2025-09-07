@@ -1008,6 +1008,99 @@ const salesController = {
     }
   },
 
+  // In salesController.js
+  bulkDeleteSaleItems: async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { saleId } = req.params;
+      const { itemIds, type: itemType } = req.body;
+
+      if (!Array.isArray(itemIds) || itemIds.length === 0) {
+        await transaction.rollback();
+        return res.status(400).json({ error: "No item IDs provided" });
+      }
+
+      const sale = await Sale.findByPk(saleId, { transaction });
+      if (!sale) {
+        await transaction.rollback();
+        return res.status(404).json({ error: "Sale not found" });
+      }
+
+      // Store sale data for audit before modification
+      const originalSale = sale.toJSON();
+
+      // Delete items based on type
+      if (itemType === "material") {
+        await SaleMaterial.destroy({
+          where: {
+            id: itemIds,
+            saleId
+          },
+          transaction
+        });
+      } else if (itemType === "menu") {
+        await SaleMenuItem.destroy({
+          where: {
+            id: itemIds,
+            saleId
+          },
+          transaction
+        });
+      } else {
+        await transaction.rollback();
+        return res.status(400).json({ error: "Invalid item type" });
+      }
+
+      // Check if sale has any items left
+      const remainingItems = await Promise.all([SaleMaterial.count({ where: { saleId }, transaction }), SaleMenuItem.count({ where: { saleId }, transaction })]);
+
+      const totalRemaining = remainingItems.reduce((sum, count) => sum + count, 0);
+
+      if (totalRemaining === 0) {
+        // If no items left, delete the entire sale
+        await sale.destroy({ transaction });
+        await transaction.commit();
+
+        // Log successful sale deletion
+        if (req.user?.id) {
+          await auditSalesOperation(req.user.id, "DELETE", originalSale, null, req);
+        }
+
+        return res.status(200).json({
+          message: "All items deleted and sale removed as it contained no more items",
+          saleDeleted: true
+        });
+      }
+
+      await transaction.commit();
+
+      // Log successful bulk item deletion
+      if (req.user?.id) {
+        await auditSalesOperation(
+          req.user.id,
+          "BULK_DELETE_ITEMS",
+          {
+            saleId,
+            itemIds,
+            itemType,
+            remainingItems: totalRemaining
+          },
+          originalSale,
+          req
+        );
+      }
+
+      res.status(200).json({
+        message: `Successfully deleted ${itemIds.length} items from sale`,
+        saleDeleted: false,
+        remainingItems: totalRemaining
+      });
+    } catch (error) {
+      await transaction.rollback();
+      next(error);
+    }
+  },
+
   // Revert sale with stock restoration
   revertSale: async (req, res, next) => {
     const transaction = await sequelize.transaction();
@@ -1256,10 +1349,10 @@ const salesController = {
       const { saleId, itemId } = req.params;
       // Get the type from query parameters (using both 'type' and 'itemType' for backward compatibility)
       const itemType = req.query.type || req.query.itemType;
-      
+
       console.log(`[deleteSaleItem] Starting deletion of item ${itemId} from sale ${saleId}, type: ${itemType}`);
       console.log(`[deleteSaleItem] Processing saleId: ${saleId}, itemId: ${itemId}, itemType: ${itemType}`);
-      
+
       // Find the sale
       console.log(`[deleteSaleItem] Looking up sale ${saleId}`);
       const sale = await Sale.findByPk(saleId, { transaction });
@@ -1267,9 +1360,9 @@ const salesController = {
       if (!sale) {
         console.error(`[deleteSaleItem] Sale ${saleId} not found`);
         await transaction.rollback();
-        return res.status(404).json({ success: false, message: 'Sale not found' });
+        return res.status(404).json({ success: false, message: "Sale not found" });
       }
-      
+
       console.log(`[deleteSaleItem] Found sale:`, {
         id: sale.id,
         totalAmount: sale.totalAmount,
@@ -1279,12 +1372,12 @@ const salesController = {
       // Check if the sale is already reverted or deleted
       if (sale.isReverted) {
         await transaction.rollback();
-        return res.status(400).json({ success: false, message: 'Cannot modify a reverted sale' });
+        return res.status(400).json({ success: false, message: "Cannot modify a reverted sale" });
       }
 
       if (sale.isDeleted) {
         await transaction.rollback();
-        return res.status(400).json({ success: false, message: 'Cannot modify a deleted sale' });
+        return res.status(400).json({ success: false, message: "Cannot modify a deleted sale" });
       }
 
       // Create a copy of the sale data for potential rollback
@@ -1296,8 +1389,8 @@ const salesController = {
         if (!itemType) {
           throw new Error('itemType parameter is required. Must be either "material" or "menu"');
         }
-        
-        if (itemType === 'material') {
+
+        if (itemType === "material") {
           console.log(`[deleteSaleItem] Filtering material item ${itemIdNum} from sale.items`);
           const updatedItems = (sale.items || []).filter(item => {
             console.log(`[deleteSaleItem] Checking item:`, { id: item.id, menuItemId: item.menuItemId });
@@ -1305,7 +1398,7 @@ const salesController = {
           });
           console.log(`[deleteSaleItem] Items after filter:`, updatedItems.length);
           sale.items = updatedItems;
-        } else if (itemType === 'menu') {
+        } else if (itemType === "menu") {
           console.log(`[deleteSaleItem] Filtering menu item ${itemIdNum} from sale.menuItems`);
           const updatedMenuItems = (sale.menuItems || []).filter(item => {
             console.log(`[deleteSaleItem] Checking menu item:`, { id: item.id, menuItemId: item.menuItemId });
@@ -1323,30 +1416,30 @@ const salesController = {
         const newTotal = itemsTotal + menuItemsTotal;
         console.log(`[deleteSaleItem] Recalculating total - items: $${itemsTotal}, menuItems: $${menuItemsTotal}, newTotal: $${newTotal}`);
         sale.totalAmount = newTotal;
-        
+
         // Save the updated sale with explicit field updates
         console.log(`[deleteSaleItem] Updating sale with new data:`, {
           menuItemsCount: sale.menuItems?.length || 0,
           itemsCount: sale.items?.length || 0,
           totalAmount: sale.totalAmount
         });
-        
+
         const updateData = {
           menuItems: sale.menuItems,
           items: sale.items,
           totalAmount: sale.totalAmount,
           updatedAt: new Date()
         };
-        
+
         console.log(`[deleteSaleItem] Update payload:`, JSON.stringify(updateData, null, 2));
-        
+
         const result = await sale.update(updateData, {
           transaction,
-          fields: ['menuItems', 'items', 'totalAmount', 'updatedAt']
+          fields: ["menuItems", "items", "totalAmount", "updatedAt"]
         });
-        
-        console.log(`[deleteSaleItem] Update result:`, result ? 'Success' : 'Failed');
-        
+
+        console.log(`[deleteSaleItem] Update result:`, result ? "Success" : "Failed");
+
         // Get the updated sale data before committing
         console.log(`[deleteSaleItem] Fetching updated sale data before commit`);
         const updatedSale = await Sale.findByPk(saleId, { transaction });
@@ -1356,38 +1449,37 @@ const salesController = {
           itemsCount: updatedSale?.items?.length || 0,
           menuItemsCount: updatedSale?.menuItems?.length || 0
         });
-        
+
         // Check if sale is now empty
-        const isSaleEmpty = (!updatedSale.items || updatedSale.items.length === 0) && 
-                           (!updatedSale.menuItems || updatedSale.menuItems.length === 0);
-        
+        const isSaleEmpty = (!updatedSale.items || updatedSale.items.length === 0) && (!updatedSale.menuItems || updatedSale.menuItems.length === 0);
+
         if (isSaleEmpty) {
           console.log(`[deleteSaleItem] Sale is now empty, deleting entire sale`);
           await sale.update({ isDeleted: true, deletedAt: new Date() }, { transaction });
-          
+
           // Commit the transaction
           await transaction.commit();
-          
+
           // Log the audit trail for sale deletion
-          await auditSalesOperation(req.user.id, 'delete_sale', {
+          await auditSalesOperation(req.user.id, "delete_sale", {
             saleId: sale.id,
-            reason: 'Sale became empty after item removal',
+            reason: "Sale became empty after item removal",
             originalSale: originalSale,
             deletedAt: new Date()
           });
-          
-          return res.json({ 
-            success: true, 
-            message: 'Last item removed - sale has been deleted',
+
+          return res.json({
+            success: true,
+            message: "Last item removed - sale has been deleted",
             saleDeleted: true,
             sale: null
           });
         }
-        
+
         // If we get here, just commit the item removal
         await transaction.commit();
         console.log(`[deleteSaleItem] Transaction committed successfully`);
-        
+
         // Log the audit trail for item removal
         console.log(`[deleteSaleItem] Logging audit trail`);
         const updatedSaleData = await Sale.findByPk(saleId);
@@ -1397,8 +1489,8 @@ const salesController = {
           itemsCount: updatedSaleData?.items?.length || 0,
           menuItemsCount: updatedSaleData?.menuItems?.length || 0
         });
-        
-        await auditSalesOperation(req.user.id, 'delete_sale_item', {
+
+        await auditSalesOperation(req.user.id, "delete_sale_item", {
           saleId: sale.id,
           itemId,
           itemType,
@@ -1406,9 +1498,9 @@ const salesController = {
           updatedSale: updatedSaleData ? updatedSaleData.get({ plain: true }) : sale.get({ plain: true })
         });
 
-        res.json({ 
-          success: true, 
-          message: 'Item removed from sale successfully',
+        res.json({
+          success: true,
+          message: "Item removed from sale successfully",
           sale: sale.get({ plain: true })
         });
       } catch (error) {
