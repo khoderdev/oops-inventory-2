@@ -159,7 +159,7 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
         setDeleteDialogOpen(false);
         setDeleteConfirmationModalOpen(true);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to delete sale');
+        setError(err instanceof Error ? err.message : "Failed to delete sale");
       } finally {
         setIsDeleting(false);
       }
@@ -167,22 +167,40 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
     [fetchSales, setSales, setIsDeleting, setError, setDeleteDialogOpen, setDeleteConfirmationModalOpen]
   );
 
+  // In useSalesOperations hook - update the deleteSaleItem function
   const deleteSaleItem = useCallback(
     async (saleId: string, itemId: string, itemType: "material" | "menu"): Promise<void> => {
       setIsDeleting(true);
       setError(null);
       try {
-        await salesAPI.deleteSaleItem(saleId, itemId, itemType);
-        // Refresh the sales data to reflect the deletion
-        await fetchSales();
+        // First, get the current sale to check how many items it has
+        const sale = sales.find(s => s.id.toString() === saleId);
+        if (!sale) {
+          throw new Error("Sale not found");
+        }
+
+        // Count the total items in the sale
+        const totalItems = (sale.items?.length || 0) + (sale.menuItems?.length || 0);
+
+        // If this is the only item, delete the entire sale
+        if (totalItems === 1) {
+          await salesAPI.deleteSale(saleId);
+          // Remove the entire sale from local state
+          setSales(prevSales => prevSales.filter(s => s.id.toString() !== saleId));
+        } else {
+          // Otherwise, delete just the specific item
+          await salesAPI.deleteSaleItem(saleId, itemId, itemType);
+          // Refresh the sales data to reflect the deletion
+          await fetchSales();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to delete sale item");
-        throw err; // Re-throw to allow error handling in the component
+        throw err;
       } finally {
         setIsDeleting(false);
       }
     },
-    [fetchSales, setIsDeleting, setError]
+    [fetchSales, setIsDeleting, setError, sales, setSales]
   );
 
   const bulkDeleteSales = useCallback(

@@ -1353,21 +1353,49 @@ const salesController = {
         console.log(`[deleteSaleItem] Updated sale data before commit:`, {
           id: updatedSale?.id,
           totalAmount: updatedSale?.totalAmount,
-          itemCount: updatedSale?.menuItems?.length || 0
+          itemsCount: updatedSale?.items?.length || 0,
+          menuItemsCount: updatedSale?.menuItems?.length || 0
         });
         
-        // Commit the transaction
-        console.log(`[deleteSaleItem] Committing transaction`);
+        // Check if sale is now empty
+        const isSaleEmpty = (!updatedSale.items || updatedSale.items.length === 0) && 
+                           (!updatedSale.menuItems || updatedSale.menuItems.length === 0);
+        
+        if (isSaleEmpty) {
+          console.log(`[deleteSaleItem] Sale is now empty, deleting entire sale`);
+          await sale.update({ isDeleted: true, deletedAt: new Date() }, { transaction });
+          
+          // Commit the transaction
+          await transaction.commit();
+          
+          // Log the audit trail for sale deletion
+          await auditSalesOperation(req.user.id, 'delete_sale', {
+            saleId: sale.id,
+            reason: 'Sale became empty after item removal',
+            originalSale: originalSale,
+            deletedAt: new Date()
+          });
+          
+          return res.json({ 
+            success: true, 
+            message: 'Last item removed - sale has been deleted',
+            saleDeleted: true,
+            sale: null
+          });
+        }
+        
+        // If we get here, just commit the item removal
         await transaction.commit();
         console.log(`[deleteSaleItem] Transaction committed successfully`);
         
-        // Log the audit trail
+        // Log the audit trail for item removal
         console.log(`[deleteSaleItem] Logging audit trail`);
         const updatedSaleData = await Sale.findByPk(saleId);
         console.log(`[deleteSaleItem] Final sale data from DB:`, {
           id: updatedSaleData?.id,
           totalAmount: updatedSaleData?.totalAmount,
-          itemCount: updatedSaleData?.menuItems?.length || 0
+          itemsCount: updatedSaleData?.items?.length || 0,
+          menuItemsCount: updatedSaleData?.menuItems?.length || 0
         });
         
         await auditSalesOperation(req.user.id, 'delete_sale_item', {

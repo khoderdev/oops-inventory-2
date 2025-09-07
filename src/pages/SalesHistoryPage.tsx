@@ -161,8 +161,6 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
       .sort((a, b) => b.saleDate.getTime() - a.saleDate.getTime());
   }, [localFilteredSales]);
 
-
-
   const filteredTotal = useMemo(() => {
     return groupedSales.reduce((sum, sale) => sum + sale.total, 0);
   }, [groupedSales]);
@@ -277,7 +275,6 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     setSelectedSaleForRevert(null);
   }, [setRevertDialogOpen, setSelectedSaleForRevert]);
 
-
   const handleDeleteItem = useCallback(
     (item: { saleId: string; itemId: string; itemType: "material" | "menu" }) => {
       const sale = sales.find(s => s.id.toString() === item.saleId);
@@ -315,19 +312,39 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     try {
       if (selectedItemForDelete) {
         const { saleId, itemId, itemType } = selectedItemForDelete;
-        await deleteSaleItem(saleId, itemId, itemType);
-        setDeleteSuccess(`Item successfully deleted from sale #${saleId}`);
-        setTimeout(() => setDeleteSuccess(null), 3000);
+
+        // Check if this is the last item in the order
+        const sale = sales.find(s => s.id.toString() === saleId);
+        if (sale) {
+          const totalItems = (sale.items?.length || 0) + (sale.menuItems?.length || 0);
+
+          if (totalItems === 1) {
+            // Delete the entire sale if this is the last item
+            await softDeleteSale(sale);
+            setDeleteSuccess(`Order #${saleId} has been deleted (last item removed).`);
+          } else {
+            // Delete just the specific item
+            await deleteSaleItem(saleId, itemId, itemType);
+            setDeleteSuccess(`Item successfully deleted from order #${saleId}`);
+          }
+        }
       } else if (selectedSaleForDelete) {
         await softDeleteSale(selectedSaleForDelete);
+        setDeleteSuccess(`Order #${selectedSaleForDelete.id} has been deleted.`);
       }
+
+      // Close the modal and reset states
       setDeleteDialogOpen(false);
+      setDeleteConfirmationModalOpen(false);
       setSelectedSaleForDelete(null);
       setSelectedItemForDelete(null);
+
+      // Refresh the sales data
+      await fetchSales();
     } catch (error) {
       console.error("Error during deletion:", error);
     }
-  }, [selectedSaleForDelete, selectedItemForDelete, softDeleteSale, deleteSaleItem, setDeleteDialogOpen, setSelectedSaleForDelete]);
+  }, [selectedSaleForDelete, selectedItemForDelete, softDeleteSale, deleteSaleItem, setDeleteDialogOpen, setSelectedSaleForDelete, setDeleteSuccess, fetchSales, sales]);
 
   const confirmBulkRevert = useCallback(async () => {
     if (bulkRevertSales && setBulkRevertDialogOpen) {
@@ -1127,11 +1144,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
           onConfirm={async () => {
             if (selectedItemForDelete) {
               // Call deleteSaleItem directly instead of handleDeleteItem
-              await deleteSaleItem(
-                selectedItemForDelete.saleId,
-                selectedItemForDelete.itemId,
-                selectedItemForDelete.itemType
-              );
+              await deleteSaleItem(selectedItemForDelete.saleId, selectedItemForDelete.itemId, selectedItemForDelete.itemType);
             }
             setDeleteConfirmationModalOpen(false);
           }}
