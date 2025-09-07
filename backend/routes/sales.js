@@ -1,11 +1,7 @@
 import express from "express";
 import salesController from "../controllers/salesController.js";
 import { authenticate, requirePermission, auditAction } from "../middleware/authMiddleware.js";
-import { 
-  checkDayOperationStatus, 
-  logSaleActivity, 
-  warnIfDayClosed 
-} from "../middleware/dayOperationsMiddleware.js";
+import { checkDayOperationStatus, logSaleActivity, warnIfDayClosed } from "../middleware/dayOperationsMiddleware.js";
 
 const router = express.Router();
 
@@ -29,5 +25,8 @@ router.put("/:id", requirePermission("sales.update"), warnIfDayClosed, logSaleAc
 router.delete("/:id", requirePermission("sales.delete"), warnIfDayClosed, logSaleActivity, auditAction("sale_delete", "sale"), salesController.deleteSales);
 router.post("/:id/revert", requirePermission("sales.revert"), warnIfDayClosed, logSaleActivity, auditAction("sale_revert", "sale"), salesController.revertSale);
 router.post("/:id/soft-delete", requirePermission("sales.delete"), warnIfDayClosed, logSaleActivity, auditAction("sale_soft_delete", "sale"), salesController.softDeleteSale);
+
+// Delete specific item from sale
+router.delete("/:saleId/items/:itemId", requirePermission("sales.update"), warnIfDayClosed, logSaleActivity, auditAction("sale_item_delete", "sale"), salesController.deleteSaleItem);
 
 export default router;

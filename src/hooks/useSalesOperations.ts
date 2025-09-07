@@ -198,48 +198,20 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
   );
 
   const deleteSaleItem = useCallback(
-    async (saleId: string, itemId: string, itemType: "material" | "menu"): Promise<boolean> => {
+    async (saleId: string, itemId: string, itemType: "material" | "menu"): Promise<void> => {
       setIsDeleting(true);
       setError(null);
-
-      // Store original sales for potential rollback
-      const originalSales = [...sales];
-
       try {
-        // Optimistic update: remove item from sale
-        const updatedSales = sales.map(sale => {
-          if (sale.id === saleId) {
-            if (itemType === "material") {
-              const updatedItems = sale.items?.filter(item => item.materialId !== itemId) || [];
-              return { ...sale, items: updatedItems };
-            } else {
-              const updatedMenuItems = sale.menuItems?.filter(item => item.menuItemId !== itemId) || [];
-              return { ...sale, menuItems: updatedMenuItems };
-            }
-          }
-          return sale;
-        });
-
-        setSales(updatedSales);
-
-        // Make API call
         await salesAPI.deleteSaleItem(saleId, itemId, itemType);
-        return true; // Success
-      } catch (error) {
-        console.error("Error deleting sale item:", error);
-
-        // Rollback: restore original sales
-        setSales(originalSales);
-
-        const errorMessage = error instanceof Error ? error.message : "Failed to delete sale item";
-        setError(errorMessage);
-        setTimeout(() => setError(null), 5000);
-        return false; // Failure
+        // Remove the return statement since we don't need to return anything
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to delete sale item");
+        throw err; // Re-throw to allow error handling in the component
       } finally {
         setIsDeleting(false);
       }
     },
-    [sales, setSales, setIsDeleting, setError]
+    [setIsDeleting, setError]
   );
 
   const bulkDeleteSales = useCallback(

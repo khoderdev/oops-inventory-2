@@ -1247,6 +1247,150 @@ const salesController = {
       console.error(`Error soft deleting sale ${id}:`, error);
       next(error);
     }
+  },
+
+  // Delete specific item from sale
+  deleteSaleItem: async (req, res, next) => {
+    const transaction = await sequelize.transaction();
+    try {
+      const { saleId, itemId } = req.params;
+      // Get the type from query parameters (using both 'type' and 'itemType' for backward compatibility)
+      const itemType = req.query.type || req.query.itemType;
+      
+      console.log(`[deleteSaleItem] Starting deletion of item ${itemId} from sale ${saleId}, type: ${itemType}`);
+      console.log(`[deleteSaleItem] Processing saleId: ${saleId}, itemId: ${itemId}, itemType: ${itemType}`);
+      
+      // Find the sale
+      console.log(`[deleteSaleItem] Looking up sale ${saleId}`);
+      const sale = await Sale.findByPk(saleId, { transaction });
+
+      if (!sale) {
+        console.error(`[deleteSaleItem] Sale ${saleId} not found`);
+        await transaction.rollback();
+        return res.status(404).json({ success: false, message: 'Sale not found' });
+      }
+      
+      console.log(`[deleteSaleItem] Found sale:`, {
+        id: sale.id,
+        totalAmount: sale.totalAmount,
+        itemCount: sale.menuItems?.length || 0
+      });
+
+      // Check if the sale is already reverted or deleted
+      if (sale.isReverted) {
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: 'Cannot modify a reverted sale' });
+      }
+
+      if (sale.isDeleted) {
+        await transaction.rollback();
+        return res.status(400).json({ success: false, message: 'Cannot modify a deleted sale' });
+      }
+
+      // Create a copy of the sale data for potential rollback
+      const originalSale = { ...sale.get({ plain: true }) };
+      const itemIdNum = parseInt(itemId, 10);
+      console.log(`[deleteSaleItem] Original sale data:`, JSON.stringify(originalSale, null, 2));
+
+      try {
+        if (!itemType) {
+          throw new Error('itemType parameter is required. Must be either "material" or "menu"');
+        }
+        
+        if (itemType === 'material') {
+          console.log(`[deleteSaleItem] Filtering material item ${itemIdNum} from sale.items`);
+          const updatedItems = (sale.items || []).filter(item => {
+            console.log(`[deleteSaleItem] Checking item:`, { id: item.id, menuItemId: item.menuItemId });
+            return item.id !== itemIdNum;
+          });
+          console.log(`[deleteSaleItem] Items after filter:`, updatedItems.length);
+          sale.items = updatedItems;
+        } else if (itemType === 'menu') {
+          console.log(`[deleteSaleItem] Filtering menu item ${itemIdNum} from sale.menuItems`);
+          const updatedMenuItems = (sale.menuItems || []).filter(item => {
+            console.log(`[deleteSaleItem] Checking menu item:`, { id: item.id, menuItemId: item.menuItemId });
+            return item.menuItemId !== itemIdNum;
+          });
+          console.log(`[deleteSaleItem] Menu items after filter:`, updatedMenuItems.length);
+          sale.menuItems = updatedMenuItems;
+        } else {
+          throw new Error('Invalid item type. Must be either "material" or "menu"');
+        }
+
+        // Recalculate the total
+        const itemsTotal = (sale.items || []).reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+        const menuItemsTotal = (sale.menuItems || []).reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+        const newTotal = itemsTotal + menuItemsTotal;
+        console.log(`[deleteSaleItem] Recalculating total - items: $${itemsTotal}, menuItems: $${menuItemsTotal}, newTotal: $${newTotal}`);
+        sale.totalAmount = newTotal;
+        
+        // Save the updated sale with explicit field updates
+        console.log(`[deleteSaleItem] Updating sale with new data:`, {
+          menuItemsCount: sale.menuItems?.length || 0,
+          itemsCount: sale.items?.length || 0,
+          totalAmount: sale.totalAmount
+        });
+        
+        const updateData = {
+          menuItems: sale.menuItems,
+          items: sale.items,
+          totalAmount: sale.totalAmount,
+          updatedAt: new Date()
+        };
+        
+        console.log(`[deleteSaleItem] Update payload:`, JSON.stringify(updateData, null, 2));
+        
+        const result = await sale.update(updateData, {
+          transaction,
+          fields: ['menuItems', 'items', 'totalAmount', 'updatedAt']
+        });
+        
+        console.log(`[deleteSaleItem] Update result:`, result ? 'Success' : 'Failed');
+        
+        // Get the updated sale data before committing
+        console.log(`[deleteSaleItem] Fetching updated sale data before commit`);
+        const updatedSale = await Sale.findByPk(saleId, { transaction });
+        console.log(`[deleteSaleItem] Updated sale data before commit:`, {
+          id: updatedSale?.id,
+          totalAmount: updatedSale?.totalAmount,
+          itemCount: updatedSale?.menuItems?.length || 0
+        });
+        
+        // Commit the transaction
+        console.log(`[deleteSaleItem] Committing transaction`);
+        await transaction.commit();
+        console.log(`[deleteSaleItem] Transaction committed successfully`);
+        
+        // Log the audit trail
+        console.log(`[deleteSaleItem] Logging audit trail`);
+        const updatedSaleData = await Sale.findByPk(saleId);
+        console.log(`[deleteSaleItem] Final sale data from DB:`, {
+          id: updatedSaleData?.id,
+          totalAmount: updatedSaleData?.totalAmount,
+          itemCount: updatedSaleData?.menuItems?.length || 0
+        });
+        
+        await auditSalesOperation(req.user.id, 'delete_sale_item', {
+          saleId: sale.id,
+          itemId,
+          itemType,
+          originalSale,
+          updatedSale: updatedSaleData ? updatedSaleData.get({ plain: true }) : sale.get({ plain: true })
+        });
+
+        res.json({ 
+          success: true, 
+          message: 'Item removed from sale successfully',
+          sale: sale.get({ plain: true })
+        });
+      } catch (error) {
+        // Rollback the transaction on error
+        await transaction.rollback();
+        throw error;
+      }
+    } catch (error) {
+      next(error);
+    }
   }
 };
 

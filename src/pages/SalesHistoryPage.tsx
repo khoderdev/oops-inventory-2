@@ -246,19 +246,14 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   );
 
   const handleSoftDeleteSale = useCallback(
-    (saleId: string, itemId?: string, itemType?: "material" | "menu") => {
+    async (saleId: string, itemId?: string, itemType?: "material" | "menu") => {
       const sale = currentSales.find(s => s.id.toString() === saleId);
       if (sale) {
         if (itemId && itemType) {
           // Delete specific item from sale
-          deleteSaleItem(saleId, itemId, itemType).then(async () => {
-            const success = await deleteSaleItem(saleId, itemId, itemType);
-            if (success) {
-              // Handle success case
-              setDeleteSuccess(`Item successfully deleted from sale #${saleId}`);
-              setTimeout(() => setDeleteSuccess(null), 3000);
-            }
-          });
+          await deleteSaleItem(saleId, itemId, itemType);
+          setDeleteSuccess(`Item successfully deleted from sale #${saleId}`);
+          setTimeout(() => setDeleteSuccess(null), 3000);
         } else {
           // Delete entire sale
           setSelectedSaleForDelete(sale);
@@ -266,7 +261,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
         }
       }
     },
-    [currentSales, setSelectedSaleForDelete, setDeleteDialogOpen, deleteSaleItem, setDeleteSuccess]
+    [currentSales]
   );
 
   const handleBulkRevert = useCallback(() => {
