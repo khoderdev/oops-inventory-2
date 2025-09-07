@@ -47,7 +47,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   const [selectedItemForDelete, setSelectedItemForDelete] = React.useState<{
     saleId: string;
     itemId: string;
-    itemType: 'material' | 'menu';
+    itemType: "material" | "menu";
     itemName: string;
   } | null>(null);
 
@@ -64,18 +64,6 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     }
   }, [isOpen]);
 
-  const fetchStaffSales = useCallback(async () => {
-    try {
-      setIsLoadingStaff(true);
-      setStaffError(null);
-      const res = await salesAPI.getStaffSales();
-      setStaffSales(res?.data || []);
-    } catch (e: any) {
-      setStaffError(e?.message || "Failed to load staff sales");
-    } finally {
-      setIsLoadingStaff(false);
-    }
-  }, []);
   const {
     sales,
     error,
@@ -119,6 +107,21 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   const [showSalesReportDialog, setShowSalesReportDialog] = React.useState(false);
   const [salesReportData, setSalesReportData] = React.useState<ReceiptData | null>(null);
   const currentSales = viewMode === "staff" ? staffSales : sales;
+  const uniqueItemNames = useAtomValue(uniqueItemNamesAtom);
+  const uniqueSectionNames = useAtomValue(uniqueSectionNamesAtom);
+
+  const fetchStaffSales = useCallback(async () => {
+    try {
+      setIsLoadingStaff(true);
+      setStaffError(null);
+      const res = await salesAPI.getStaffSales();
+      setStaffSales(res?.data || []);
+    } catch (e: any) {
+      setStaffError(e?.message || "Failed to load staff sales");
+    } finally {
+      setIsLoadingStaff(false);
+    }
+  }, []);
 
   const localFilteredSales = useMemo(() => {
     return currentSales.filter(sale => {
@@ -158,15 +161,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
       .sort((a, b) => b.saleDate.getTime() - a.saleDate.getTime());
   }, [localFilteredSales]);
 
-  const uniqueItemNames = useAtomValue(uniqueItemNamesAtom);
-  const uniqueSectionNames = useAtomValue(uniqueSectionNamesAtom);
 
-  const localTotalQuantity = useMemo(() => {
-    return localFilteredSales.reduce((sum, sale) => {
-      const saleTotal = sale.items.reduce((itemSum, item) => itemSum + (Number(item.quantity) || 0), 0);
-      return sum + saleTotal;
-    }, 0);
-  }, [localFilteredSales]);
 
   const filteredTotal = useMemo(() => {
     return groupedSales.reduce((sum, sale) => sum + sale.total, 0);
@@ -186,8 +181,10 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
           : dateFilter
             ? formatDate(new Date(dateFilter))
             : "All Time";
+
       const filterText = [selectedItem !== "all" ? `Item: ${selectedItem}` : null, selectedSection !== "all" ? `Section: ${selectedSection}` : null].filter(Boolean).join(", ");
       const reportItems: ReceiptData["items"] = [];
+
       groupedSales.forEach(sale => {
         const saleDate = format(sale.saleDate, "hh:mm a");
         const orderNumber = sale.orderNumber || `ORD-${sale.saleId.toString().padStart(4, "0")}`;
@@ -199,6 +196,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
           type: "material"
         });
       });
+
       const salesReport: ReceiptData = {
         id: `SALES-REPORT-${Date.now()}`,
         date: new Date().toLocaleDateString(),
@@ -251,19 +249,14 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     [currentSales, setSelectedSaleForRevert, setRevertDialogOpen]
   );
 
-  // const [selectedItemForDelete, setSelectedItemForDelete] = React.useState<{saleId: string; itemId: string; itemType: "material" | "menu"; itemName: string} | null>(null);
-
   const handleSoftDeleteSale = useCallback(
     (saleId: string, itemId?: string, itemType?: "material" | "menu", itemName?: string) => {
       const sale = currentSales.find(s => s.id.toString() === saleId);
       if (!sale) return;
-
       if (itemId && itemType) {
-        // For item deletion, set the item to be deleted and show confirmation
-        setSelectedItemForDelete({ saleId, itemId, itemType, itemName: itemName || 'this item' });
+        setSelectedItemForDelete({ saleId, itemId, itemType, itemName: itemName || "this item" });
         setDeleteConfirmationModalOpen(true);
       } else {
-        // For full sale deletion, show confirmation dialog
         setSelectedSaleForDelete(sale);
         setDeleteConfirmationModalOpen(true);
       }
@@ -284,30 +277,23 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     setSelectedSaleForRevert(null);
   }, [setRevertDialogOpen, setSelectedSaleForRevert]);
 
-  const handleDeleteSale = useCallback((sale: SaleRecord) => {
-    setSelectedSaleForDelete(sale);
-    setSelectedItemForDelete(null); // Ensure no item is selected when deleting a sale
-    setDeleteConfirmationModalOpen(true);
-  }, [setSelectedSaleForDelete, setSelectedItemForDelete, setDeleteConfirmationModalOpen]);
 
-  const handleDeleteItem = useCallback((item: { saleId: string; itemId: string; itemType: 'material' | 'menu' }) => {
-    // Find the sale that contains this item
-    const sale = sales.find(s => s.id.toString() === item.saleId);
-    if (sale) {
-      // Set the sale and item to be deleted
-      setSelectedSaleForDelete(sale);
-      setSelectedItemForDelete({
-        saleId: item.saleId,
-        itemId: item.itemId,
-        itemType: item.itemType,
-        itemName: item.itemType === 'material' 
-          ? sale.items?.find(i => i.materialId === item.itemId)?.materialName || `Item ${item.itemId}`
-          : sale.menuItems?.find(i => i.menuItemId === item.itemId)?.menuItemName || `Menu Item ${item.itemId}`
-      });
-      // Don't open the delete dialog, just open the confirmation modal
-      setDeleteConfirmationModalOpen(true);
-    }
-  }, [sales, setSelectedSaleForDelete, setSelectedItemForDelete, setDeleteConfirmationModalOpen]);
+  const handleDeleteItem = useCallback(
+    (item: { saleId: string; itemId: string; itemType: "material" | "menu" }) => {
+      const sale = sales.find(s => s.id.toString() === item.saleId);
+      if (sale) {
+        setSelectedSaleForDelete(sale);
+        setSelectedItemForDelete({
+          saleId: item.saleId,
+          itemId: item.itemId,
+          itemType: item.itemType,
+          itemName: item.itemType === "material" ? sale.items?.find(i => i.materialId === item.itemId)?.materialName || `Item ${item.itemId}` : sale.menuItems?.find(i => i.menuItemId === item.itemId)?.menuItemName || `Menu Item ${item.itemId}`
+        });
+        setDeleteConfirmationModalOpen(true);
+      }
+    },
+    [sales, setSelectedSaleForDelete, setSelectedItemForDelete, setDeleteConfirmationModalOpen]
+  );
 
   const cancelBulkRevert = useCallback(() => {
     setBulkRevertDialogOpen(false);
@@ -328,23 +314,18 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   const confirmSoftDeleteSale = useCallback(async () => {
     try {
       if (selectedItemForDelete) {
-        // Handle item deletion
         const { saleId, itemId, itemType } = selectedItemForDelete;
         await deleteSaleItem(saleId, itemId, itemType);
         setDeleteSuccess(`Item successfully deleted from sale #${saleId}`);
         setTimeout(() => setDeleteSuccess(null), 3000);
       } else if (selectedSaleForDelete) {
-        // Handle full sale deletion
         await softDeleteSale(selectedSaleForDelete);
       }
-      
-      // Close dialog and reset states
       setDeleteDialogOpen(false);
       setSelectedSaleForDelete(null);
       setSelectedItemForDelete(null);
     } catch (error) {
-      console.error('Error during deletion:', error);
-      // You might want to show an error message to the user here
+      console.error("Error during deletion:", error);
     }
   }, [selectedSaleForDelete, selectedItemForDelete, softDeleteSale, deleteSaleItem, setDeleteDialogOpen, setSelectedSaleForDelete]);
 
@@ -1134,20 +1115,23 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
         <StockRestorationModal open={stockRestorationModalOpen} onOpenChange={setStockRestorationModalOpen} saleId={selectedSaleForRevert ? String(selectedSaleForRevert.id) : ""} stockRestorationReport={stockRestorationReport} />
 
         {/* Delete Confirmation Modal */}
-        <DeleteConfirmationModal 
-          open={deleteConfirmationModalOpen} 
-          onOpenChange={(isOpen) => {
+        <DeleteConfirmationModal
+          open={deleteConfirmationModalOpen}
+          onOpenChange={isOpen => {
             setDeleteConfirmationModalOpen(isOpen);
             if (!isOpen) {
               setSelectedItemForDelete(null);
               setSelectedSaleForDelete(null);
             }
           }}
-          onConfirm={() => {
+          onConfirm={async () => {
             if (selectedItemForDelete) {
-              handleDeleteItem(selectedItemForDelete);
-            } else if (selectedSaleForDelete) {
-              handleDeleteSale(selectedSaleForDelete);
+              // Call deleteSaleItem directly instead of handleDeleteItem
+              await deleteSaleItem(
+                selectedItemForDelete.saleId,
+                selectedItemForDelete.itemId,
+                selectedItemForDelete.itemType
+              );
             }
             setDeleteConfirmationModalOpen(false);
           }}
