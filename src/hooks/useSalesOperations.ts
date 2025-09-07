@@ -19,6 +19,7 @@ interface UseSalesOperationsReturn {
   // Success messages
   revertSuccess: string | null;
   deleteSuccess: string | null;
+  setDeleteSuccess: (value: string | null) => void;
   bulkRevertSuccess: string | null;
   bulkDeleteSuccess: string | null;
   stockRestorationReport: StockRestorationItem[];
@@ -51,7 +52,8 @@ interface UseSalesOperationsReturn {
   // Actions
   fetchSales: () => Promise<void>;
   revertSale: (sale: SaleRecord) => Promise<void>;
-  softDeleteSale: (sale: SaleRecord) => Promise<void>;
+  softDeleteSale: (sale: SaleRecord, itemId?: string, itemType?: "material" | "menu") => Promise<void>;
+  deleteSaleItem: (saleId: string, itemId: string, itemType: "material" | "menu") => Promise<void>;
   bulkDeleteSales: (saleIds: Set<string>) => Promise<void>;
   bulkRevertSales: (saleIds: Set<string>) => Promise<void>;
 }
@@ -135,7 +137,7 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
   );
 
   const softDeleteSale = useCallback(
-    async (sale: SaleRecord) => {
+    async (sale: SaleRecord, itemId?: string, itemType?: "material" | "menu") => {
       if (!sale?.id) return;
 
       setIsDeleting(true);
@@ -145,13 +147,36 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
       const originalSales = [...sales];
 
       try {
-        // Optimistic update: remove sale immediately
-        const updatedSales = sales.filter(s => s.id !== sale.id);
+        let updatedSales;
+
+        if (itemId && itemType) {
+          // Update specific item in sale
+          updatedSales = sales.map(s => {
+            if (s.id === sale.id) {
+              if (itemType === "material") {
+                const updatedItems = s.items?.filter(item => item.materialId !== itemId) || [];
+                return { ...s, items: updatedItems };
+              } else {
+                const updatedMenuItems = s.menuItems?.filter(item => item.menuItemId !== itemId) || [];
+                return { ...s, menuItems: updatedMenuItems };
+              }
+            }
+            return s;
+          });
+        } else {
+          // Remove entire sale
+          updatedSales = sales.filter(s => s.id !== sale.id);
+        }
+
         setSales(updatedSales);
         setDeleteDialogOpen(false);
 
         // Make API call
-        await salesAPI.deleteSale(sale.id.toString());
+        if (itemId && itemType) {
+          await salesAPI.deleteSaleItem(sale.id.toString(), itemId, itemType);
+        } else {
+          await salesAPI.deleteSale(sale.id.toString());
+        }
 
         // Show delete confirmation modal
         setDeleteConfirmationModalOpen(true);
@@ -170,6 +195,51 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
       }
     },
     [sales, setSales, setIsDeleting, setError, setDeleteDialogOpen, setDeleteConfirmationModalOpen]
+  );
+
+  const deleteSaleItem = useCallback(
+    async (saleId: string, itemId: string, itemType: "material" | "menu"): Promise<boolean> => {
+      setIsDeleting(true);
+      setError(null);
+
+      // Store original sales for potential rollback
+      const originalSales = [...sales];
+
+      try {
+        // Optimistic update: remove item from sale
+        const updatedSales = sales.map(sale => {
+          if (sale.id === saleId) {
+            if (itemType === "material") {
+              const updatedItems = sale.items?.filter(item => item.materialId !== itemId) || [];
+              return { ...sale, items: updatedItems };
+            } else {
+              const updatedMenuItems = sale.menuItems?.filter(item => item.menuItemId !== itemId) || [];
+              return { ...sale, menuItems: updatedMenuItems };
+            }
+          }
+          return sale;
+        });
+
+        setSales(updatedSales);
+
+        // Make API call
+        await salesAPI.deleteSaleItem(saleId, itemId, itemType);
+        return true; // Success
+      } catch (error) {
+        console.error("Error deleting sale item:", error);
+
+        // Rollback: restore original sales
+        setSales(originalSales);
+
+        const errorMessage = error instanceof Error ? error.message : "Failed to delete sale item";
+        setError(errorMessage);
+        setTimeout(() => setError(null), 5000);
+        return false; // Failure
+      } finally {
+        setIsDeleting(false);
+      }
+    },
+    [sales, setSales, setIsDeleting, setError]
   );
 
   const bulkDeleteSales = useCallback(
@@ -322,6 +392,7 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
     selectedSaleIds,
 
     // Setters for dialogs and selected items
+    setDeleteSuccess,
     setRevertDialogOpen,
     setDeleteDialogOpen,
     setBulkRevertDialogOpen,
@@ -336,6 +407,7 @@ export const useSalesOperations = (): UseSalesOperationsReturn => {
     fetchSales,
     revertSale,
     softDeleteSale,
+    deleteSaleItem,
     bulkDeleteSales,
     bulkRevertSales
   };

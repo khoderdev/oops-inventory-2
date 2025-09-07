@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSalesOperations } from "@/hooks/useSalesOperations";
 import { cn } from "@/lib/utils";
 import { dateFilterAtom, selectedItemFilterAtom, selectedSectionFilterAtom, uniqueItemNamesAtom, uniqueSectionNamesAtom } from "@/store/salesAtoms";
-import { ItemSale, ReceiptData } from "@/types/inventory";
+import { ReceiptData } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { formatDate } from "@/utils/formatDate";
 import { format, isValid } from "date-fns";
@@ -94,6 +94,8 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     fetchSales,
     revertSale,
     softDeleteSale,
+    deleteSaleItem,
+    setDeleteSuccess,
     bulkDeleteSales,
     bulkRevertSales,
     setRevertDialogOpen,
@@ -107,8 +109,6 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   } = useSalesOperations();
 
   const [selectedItemIds, setSelectedItemIds] = React.useState<Set<string>>(new Set());
-  const [showReceiptDialog, setShowReceiptDialog] = React.useState(false);
-  const [receiptData] = React.useState<ReceiptData | null>(null);
   const [isPrintingReport, setIsPrintingReport] = React.useState(false);
   const [showSalesReportDialog, setShowSalesReportDialog] = React.useState(false);
   const [salesReportData, setSalesReportData] = React.useState<ReceiptData | null>(null);
@@ -234,45 +234,40 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
     setSelectedItemIds(new Set());
   }, [setSelectedItemIds]);
 
-  const handleRevertSale = (item: any) => {
-    // Find the full sale record from currentSales
-    const sale = currentSales.find(s => s.id === item.id);
-    if (sale) {
-      setSelectedSaleForRevert(sale);
-      setRevertDialogOpen(true);
-    }
-  };
+  const handleRevertSale = useCallback(
+    (saleId: string) => {
+      const sale = currentSales.find(s => s.id.toString() === saleId);
+      if (sale) {
+        setSelectedSaleForRevert(sale);
+        setRevertDialogOpen(true);
+      }
+    },
+    [currentSales, setSelectedSaleForRevert, setRevertDialogOpen]
+  );
 
-  const handleSoftDeleteSale = (item: any) => {
-    // Find the full sale record from currentSales
-    const sale = currentSales.find(s => s.id === item.id);
-    if (sale) {
-      setSelectedSaleForDelete(sale);
-      setDeleteDialogOpen(true);
-    }
-  };
-
-  // const handleRevertSale = useCallback(
-  //   (saleId: string) => {
-  //     const sale = currentSales.find(s => s.id.toString() === saleId);
-  //     if (sale) {
-  //       setSelectedSaleForRevert(sale);
-  //       setRevertDialogOpen(true);
-  //     }
-  //   },
-  //   [currentSales, setSelectedSaleForRevert, setRevertDialogOpen]
-  // );
-
-  // const handleSoftDeleteSale = useCallback(
-  //   (saleId: string) => {
-  //     const sale = currentSales.find(s => s.id.toString() === saleId);
-  //     if (sale) {
-  //       setSelectedSaleForDelete(sale);
-  //       setDeleteDialogOpen(true);
-  //     }
-  //   },
-  //   [currentSales, setSelectedSaleForDelete, setDeleteDialogOpen]
-  // );
+  const handleSoftDeleteSale = useCallback(
+    (saleId: string, itemId?: string, itemType?: "material" | "menu") => {
+      const sale = currentSales.find(s => s.id.toString() === saleId);
+      if (sale) {
+        if (itemId && itemType) {
+          // Delete specific item from sale
+          deleteSaleItem(saleId, itemId, itemType).then(async () => {
+            const success = await deleteSaleItem(saleId, itemId, itemType);
+            if (success) {
+              // Handle success case
+              setDeleteSuccess(`Item successfully deleted from sale #${saleId}`);
+              setTimeout(() => setDeleteSuccess(null), 3000);
+            }
+          });
+        } else {
+          // Delete entire sale
+          setSelectedSaleForDelete(sale);
+          setDeleteDialogOpen(true);
+        }
+      }
+    },
+    [currentSales, setSelectedSaleForDelete, setDeleteDialogOpen, deleteSaleItem, setDeleteSuccess]
+  );
 
   const handleBulkRevert = useCallback(() => {
     setBulkRevertDialogOpen(true);
@@ -309,7 +304,12 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   }, [selectedSaleForRevert, revertSale, setRevertDialogOpen, setSelectedSaleForRevert]);
 
   const confirmSoftDeleteSale = useCallback(async () => {
+    console.log("confirmSoftDeleteSale called");
+    console.log("softDeleteSale function:", softDeleteSale);
+    console.log("bulkDeleteSales function:", bulkDeleteSales);
+
     if (selectedSaleForDelete) {
+      console.log("Deleting sale:", selectedSaleForDelete.id);
       await softDeleteSale(selectedSaleForDelete);
       setDeleteDialogOpen(false);
       setSelectedSaleForDelete(null);
@@ -761,10 +761,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                   <AccordionItem key={group.saleId} value={group.saleId}>
                     <AccordionTrigger>
                       <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-1">
-                          {group.orderNumber && <span className="font-bold">{group.orderNumber}</span>}
-                          {/* <span className="text-muted-foreground font-bold">{formatDate(group.saleDate)}</span> */}
-                        </div>
+                        <div className="flex items-center gap-1">{group.orderNumber && <span className="font-bold">{group.orderNumber}</span>}</div>
                         <span className="font-bold">{formatCurrency(group.total)}</span>
                       </div>
                     </AccordionTrigger>
@@ -809,13 +806,26 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                                     </div>
                                   </div>
                                   <div className="flex gap-2 mt-2">
-                                    <Button variant="outline" size="sm" onClick={() => handleRevertSale(item)} className="flex-1" title="Revert Sale">
+                                    <Button variant="outline" size="sm" onClick={() => handleRevertSale(group.saleId)} className="flex-1" title="Revert Sale">
                                       <Undo2 className="mr-2 h-4 w-4" />
                                       Revert
                                     </Button>
-                                    <Button variant="outline" size="sm" onClick={() => handleSoftDeleteSale(item)} className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50" title="Delete Sale">
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Delete
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        if (item.itemType === "material") {
+                                          handleSoftDeleteSale(group.saleId, item.materialId, "material");
+                                        } else {
+                                          handleSoftDeleteSale(group.saleId, item.menuItemId, "menu");
+                                        }
+                                      }}
+                                      className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      title="Delete Item"
+                                      disabled={isDeleting}
+                                    >
+                                      {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                                      Delete Item
                                     </Button>
                                   </div>
                                 </div>
@@ -1094,9 +1104,6 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
 
         {/* Delete Confirmation Modal */}
         <DeleteConfirmationModal open={deleteConfirmationModalOpen} onOpenChange={setDeleteConfirmationModalOpen} saleRecord={selectedSaleForDelete} />
-
-        {/* Receipt Printer */}
-        <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => setShowReceiptDialog(false)} receiptData={receiptData} autoPrint={false} />
 
         {/* Sales Report Printer */}
         <ReceiptPrinter isOpen={showSalesReportDialog} onClose={() => setShowSalesReportDialog(false)} receiptData={salesReportData} autoPrint={false} />

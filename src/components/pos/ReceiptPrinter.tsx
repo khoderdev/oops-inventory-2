@@ -7,6 +7,7 @@ import { ReceiptPrinterProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { AlertCircle, CheckCircle, Loader2, Printer } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import PrinterSelector from "../common/PrinterSelector";
 
 export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   isOpen,
@@ -16,7 +17,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   onPrintSuccess,
   businessInfo = {
     name: "oOps Resto-Café",
-    address: "Batroun, seaside",
+    address: "Zgharta, Main Road",
     phone: "+961 81 510 059"
   }
 }) => {
@@ -29,7 +30,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
   const [autoPrintAttempted, setAutoPrintAttempted] = useState(false);
 
   // Printer selector hook
-  const { getSavedPrinter, hasSavedPrinter } = usePrinterSelector();
+  const { getSavedPrinter, hasSavedPrinter, selectPrinter } = usePrinterSelector();
 
   // Generate receipt content for thermal printer - optimized for 80mm thermal paper
   const generateReceiptContent = useCallback((receiptData: ReceiptPrinterProps["receiptData"], businessInfo: ReceiptPrinterProps["businessInfo"], currentUser?: { username?: string }) => {
@@ -49,7 +50,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
       // Only remove specific problematic Chinese/Unicode characters
       // Keep normal ASCII and Arabic characters intact
       if (!text) return text;
-      
+
       // Only remove if the text contains actual Chinese characters mixed with other text
       // This is more conservative to avoid corrupting normal English text
       return text
@@ -69,22 +70,22 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     content += `Date: ${receiptData.date}\n`;
     content += `Time: ${receiptData.time}\n`;
     content += `Cashier: ${receiptData.cashier || currentUser?.username || "Unknown User"}\n`;
-    
+
     // Add employee information for staff orders
     if (receiptData.employeeName && receiptData.orderType === "employees") {
       content += `Staff: ${receiptData.employeeName}\n`;
     }
-    
+
     // Add table information for table orders
     if (receiptData.tableNumber && receiptData.orderType === "table") {
       content += `Table: ${receiptData.tableNumber}\n`;
     }
-    
+
     // Add order type information
     if (receiptData.orderType) {
       content += `Order Type: ${receiptData.orderType.toUpperCase()}\n`;
     }
-    
+
     content += "------------------------------------------------\n";
     content += "\n";
 
@@ -92,16 +93,15 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     receiptData.items.forEach((item, index) => {
       // Item name (handle Arabic text and truncate if too long)
       const cleanItemName = handleArabicText(item.name);
-      
+
       // Create the item line: "3x Hamburger                   $12.00"
       const qtyAndName = `${item.quantity}x ${cleanItemName}`;
       const total = formatCurrency(item.totalPrice);
-      
+
       // Calculate available space for item name (accounting for quantity prefix and total price)
       const maxItemLineLength = 48 - total.length - 1; // -1 for at least one space
-      const truncatedQtyAndName = qtyAndName.length > maxItemLineLength ? 
-        qtyAndName.substring(0, maxItemLineLength - 3) + "..." : qtyAndName;
-      
+      const truncatedQtyAndName = qtyAndName.length > maxItemLineLength ? qtyAndName.substring(0, maxItemLineLength - 3) + "..." : qtyAndName;
+
       // Calculate spaces needed for right alignment
       const spacesNeeded = 48 - truncatedQtyAndName.length - total.length;
       content += truncatedQtyAndName + " ".repeat(Math.max(1, spacesNeeded)) + total + "\n";
@@ -297,14 +297,14 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
           console.log(`--- RECEIPT CONTENT START ---`);
           console.log(receiptContent);
           console.log(`--- RECEIPT CONTENT END ---`);
-          
+
           // Check if footer message is included
           if (receiptContent.includes("oOps! dont forget to visit us again soon!")) {
             console.log(`✅ Footer message IS included in receipt content`);
           } else {
             console.log(`❌ Footer message NOT found in receipt content`);
           }
-          
+
           // Also log the last 200 characters to see what's at the end
           console.log(`🔍 Last 200 characters of receipt:`);
           console.log(receiptContent.slice(-200));
@@ -476,9 +476,7 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md w-full max-h-[95vh] h-auto flex flex-col p-0 pt-2">
         <DialogTitle className="sr-only">Receipt Printer</DialogTitle>
-        <DialogDescription className="sr-only">
-          Print receipt for order {receiptData?.id || 'N/A'}. Review receipt details and click Print to send to thermal printer.
-        </DialogDescription>
+        <DialogDescription className="sr-only">Print receipt for order {receiptData?.id || "N/A"}. Review receipt details and click Print to send to thermal printer.</DialogDescription>
         {/* Scrollable Receipt Container */}
         <div className="flex-1 overflow-y-auto p-0">
           <div ref={receiptRef} className="receipt bg-white text-black" style={{ width: "100%", maxWidth: "120mm", padding: "4mm", margin: "0 auto", fontFamily: "Courier New, monospace", fontSize: "16px", lineHeight: "1.2", transform: "scale(1)", transformOrigin: "top center" }}>
@@ -591,9 +589,26 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
         {(printError || !dataValidated || isPrinting) && (
           <div className="p-4 border-t bg-gray-50">
             {printError && (
-              <div className="flex items-center gap-2 text-red-600 text-sm mb-2">
-                <AlertCircle className="w-4 h-4" />
-                <span>{printError}</span>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{printError}</span>
+                </div>
+
+                {/* Show printer selector only for the specific error */}
+                {printError.includes("No network printer selected") && (
+                  <div className="mt-2">
+                    <PrinterSelector
+                      onPrinterSelect={printer => {
+                        // Set the selected printer using the hook function
+                        selectPrinter(printer);
+                        // Clear the error when a printer is selected
+                        setPrintError(null);
+                      }}
+                      size="sm"
+                    />
+                  </div>
+                )}
               </div>
             )}
             {!dataValidated && !printError && (
