@@ -644,8 +644,8 @@ export interface EmployeeSelectorProps {
 export interface MobileSettlementCardViewProps {
   settlements: EmployeeSettlement[];
   onViewDetails: (settlement: EmployeeSettlement) => void;
-  onApprove: (id: string) => void;
-  onMarkAsPaid: (id: string) => void;
+  onApprove: (id: number) => void;
+  onMarkAsPaid: (id: number) => void;
   onDelete: (settlement: EmployeeSettlement) => void;
   canDeleteSettlement: (settlement: EmployeeSettlement) => boolean;
   canForceDelete: boolean;

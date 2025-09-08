@@ -346,18 +346,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                       )}
                     />
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Calculator className="w-5 h-5" />
-                    <span>Adjustments</span>
-                  </CardTitle>
-                  <CardDescription>Add bonus or penalty amounts to the settlement</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -395,21 +383,6 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                       )}
                     />
                   </div>
-
-                  <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notes</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="Add any notes or comments about this settlement..." className="min-h-[100px]" {...field} />
-                        </FormControl>
-                        <FormDescription>Optional notes about the settlement</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </CardContent>
               </Card>
             </div>

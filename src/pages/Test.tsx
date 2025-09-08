@@ -1189,7 +1189,7 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
       </Dialog>
 
       <Dialog open={settlementFormOpen} onOpenChange={setSettlementFormOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl">
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl h-[95vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Settlement</DialogTitle>
             <DialogDescription>Generate a monthly settlement for an employee based on their usage and salary</DialogDescription>

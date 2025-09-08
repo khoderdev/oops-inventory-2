@@ -60,28 +60,60 @@ const MobileSettlementCardView = ({ settlements, onViewDetails, onApprove, onMar
 
             {/* Action Buttons */}
             <div className="flex justify-between items-center pt-3 border-t">
-              <Button variant="ghost" size="sm" onClick={() => onViewDetails(settlement)} className="h-8 px-3 text-xs font-medium text-primary hover:bg-primary/5">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewDetails(settlement);
+                }} 
+                className="h-8 px-3 text-xs font-medium text-primary hover:bg-primary/5"
+              >
                 <Eye className="h-3.5 w-3.5 mr-1.5" />
                 View Details
               </Button>
 
               <div className="flex items-center space-x-1">
                 {settlement.status === "pending" && (
-                  <Button variant="ghost" size="sm" onClick={() => onApprove(settlement.id.toString())} className="h-8 px-3 text-xs font-medium text-blue-600 hover:bg-blue-50">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApprove(settlement.id);
+                    }} 
+                    className="h-8 px-3 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                  >
                     <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
                     Approve
                   </Button>
                 )}
 
                 {settlement.status === "approved" && (
-                  <Button variant="ghost" size="sm" onClick={() => onMarkAsPaid(settlement.id.toString())} className="h-8 px-3 text-xs font-medium text-green-600 hover:bg-green-50">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onMarkAsPaid(settlement.id);
+                    }} 
+                    className="h-8 px-3 text-xs font-medium text-green-600 hover:bg-green-50"
+                  >
                     <DollarSign className="h-3.5 w-3.5 mr-1.5" />
                     Mark Paid
                   </Button>
                 )}
 
                 {(canDeleteSettlement(settlement) || canForceDelete) && (
-                  <Button variant="ghost" size="sm" onClick={() => onDelete(settlement)} className="h-8 px-3 text-xs font-medium text-destructive hover:bg-destructive/10">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(settlement);
+                    }} 
+                    className="h-8 px-3 text-xs font-medium text-destructive hover:bg-destructive/10"
+                  >
                     <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                     Delete
                   </Button>
