@@ -1,5 +1,5 @@
 import { Employee } from "@/types/employee";
-import { MenuItemCategory, Table } from "@/types/inventory";
+import { Table } from "@/types/inventory";
 import { OrderStatus, OrderType } from "@/types/orders";
 import { Bike, Package, Car, UserCheck, Utensils, Wine } from "lucide-react";
 

@@ -103,7 +103,7 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
     <>
       {/* Desktop sidebar */}
       <div
-        className="fixed inset-y-0 left-0 z-50 hidden md:block "
+        className="fixed inset-y-0 left-0 z-50 hidden md:block"
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
         style={{
@@ -122,11 +122,11 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
           transition: "margin-left 150ms cubic-bezier(0.4, 0, 0.2, 1)"
         }}
       >
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-gray-200 bg-white sticky top-0 z-40 px-2 sm:px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b border-gray-200 bg-white sticky top-0 z-40 px-2 xs:px-3 sm:px-4">
           <div className="flex items-center gap-2 sm:gap-4 w-full min-w-0">
             {/* Mobile menu button */}
-            <Button variant="ghost" size="icon" className="md:hidden p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex-shrink-0 h-10 w-10" onClick={() => setOpenMobile(true)}>
-              <Menu className="h-5 w-5 text-gray-600" />
+            <Button variant="ghost" size="icon" className="md:hidden p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex-shrink-0 h-9 w-9 xs:h-10 xs:w-10" onClick={() => setOpenMobile(true)}>
+              <Menu className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
               <span className="sr-only">Menu</span>
             </Button>
 
@@ -134,16 +134,16 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
             <SidebarTrigger className="hidden md:flex p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex-shrink-0" onClick={handleToggleLock} />
 
             {/* Page title */}
-            {pageTitle && <div className={`font-medium text-gray-900 ${showSearch ? "hidden sm:block" : "block"} truncate min-w-0 text-base sm:text-lg`}>{pageTitle}</div>}
+            {pageTitle && <div className={`font-medium text-gray-900 ${showSearch ? "hidden xs:block" : "block"} truncate min-w-0 text-sm xs:text-base sm:text-lg`}>{pageTitle}</div>}
 
             <div className="flex-1 min-w-0" />
 
             {/* Desktop search */}
             {showSearch && (
-              <form onSubmit={handleSearch} className="hidden lg:flex items-center gap-2 flex-1 max-w-2xl mx-4 xl:mx-8">
+              <form onSubmit={handleSearch} className="hidden lg:flex items-center gap-2 flex-1 max-w-2xl mx-2 sm:mx-4 xl:mx-8">
                 <div className="relative w-full">
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
-                  <Input type="search" placeholder="Search" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-12 pr-4 h-10 sm:h-12 w-full bg-gray-100 border-0 rounded-full text-sm placeholder:text-gray-500 focus:bg-white focus:shadow-lg focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+                  <Input type="search" placeholder="Search" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 pr-4 h-9 sm:h-10 w-full bg-gray-100 border-0 rounded-full text-xs xs:text-sm placeholder:text-gray-500 focus:bg-white focus:shadow-lg focus:ring-2 focus:ring-blue-500 transition-all duration-200" />
                 </div>
               </form>
             )}
@@ -153,12 +153,12 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex-shrink-0 h-10 w-10"
+                className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex-shrink-0 h-9 w-9 xs:h-10 xs:w-10"
                 onClick={() => {
                   console.log("Open mobile search");
                 }}
               >
-                <Search className="h-5 w-5 text-gray-600" />
+                <Search className="h-4 w-4 xs:h-5 xs:w-5 text-gray-600" />
                 <span className="sr-only">Search</span>
               </Button>
             )}
@@ -166,8 +166,8 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
             {/* Action buttons */}
             <div className="flex items-center gap-1 sm:gap-2">
               {showNotifications && (
-                <Button variant="ghost" size="icon" className="relative p-1 sm:p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex-shrink-0 h-9 w-9 sm:h-10 sm:w-10" onClick={() => navigate("/pos")}>
-                  <img src="/pos.png" alt="POS" className="h-5 w-5 sm:h-6 sm:w-6 object-contain" />
+                <Button variant="ghost" size="icon" className="relative p-1 sm:p-2 hover:bg-gray-100 rounded-full transition-colors duration-200 flex-shrink-0 h-8 w-8 xs:h-9 xs:w-9 sm:h-10 sm:w-10" onClick={() => navigate("/pos")}>
+                  <img src="/pos.png" alt="POS" className="h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 object-contain" />
                 </Button>
               )}
             </div>
@@ -176,14 +176,14 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
             <div className="flex-shrink-0 sm:hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="p-1 hover:bg-gray-100 rounded-full transition-colors duration-200 h-9 w-9 sm:h-10 sm:w-10">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs sm:text-sm font-medium">{user?.firstName?.charAt(0)?.toUpperCase() || "U"}</span>
+                  <Button variant="ghost" size="icon" className="p-1 hover:bg-gray-100 rounded-full transition-colors duration-200 h-8 w-8 xs:h-9 xs:w-9 sm:h-10 sm:w-10">
+                    <div className="w-6 h-6 xs:w-7 xs:h-7 sm:w-8 sm:h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs font-medium">{user?.firstName?.charAt(0)?.toUpperCase() || "U"}</span>
                     </div>
                     <span className="sr-only">User menu</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64 mr-2 sm:mr-4" sideOffset={8}>
+                <DropdownMenuContent align="end" className="w-56 xs:w-64 mr-2 sm:mr-4" sideOffset={8}>
                   <DropdownMenuLabel className="py-1.5">
                     <div className="flex flex-col space-y-1">
                       <p className="text-xs font-medium truncate">{user?.fullName || "User"}</p>
@@ -191,11 +191,11 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate("/profile")} className="transition-all duration-200 cursor-pointer py-1.5 text-sm">
+                  <DropdownMenuItem onClick={() => navigate("/profile")} className="transition-all duration-200 cursor-pointer py-1.5 text-xs xs:text-sm">
                     <User className="mr-2 h-4 w-4" />
                     Profile
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/profile/sessions")} className="transition-all duration-200 cursor-pointer py-1.5 text-sm">
+                  <DropdownMenuItem onClick={() => navigate("/profile/sessions")} className="transition-all duration-200 cursor-pointer py-1.5 text-xs xs:text-sm">
                     <Settings className="mr-2 h-4 w-4" />
                     Settings
                   </DropdownMenuItem>

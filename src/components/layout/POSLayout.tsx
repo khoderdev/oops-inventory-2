@@ -208,7 +208,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         return isToday && isIncomplete;
       });
       incompleteOrdersCount = incompleteOrdersToday.length;
-      console.log("incompleteOrdersCount Today", incompleteOrdersCount);
+      // console.log("incompleteOrdersCount Today", incompleteOrdersCount);
     } catch (error) {
       console.error("Failed to fetch orders count:", error);
     }

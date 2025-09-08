@@ -10,16 +10,18 @@ import { approveSettlementAtom, createSettlementAtom, deleteSettlementAtom, empl
 import { employeeAPI } from "@/api/employee.api";
 import type { CreateSettlementData, EmployeeSettlement, SettlementStatus } from "@/types/employee";
 import { useAtom } from "jotai";
-import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus, Trash2 } from "lucide-react";
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
-import { EmployeeSettlementForm } from "./EmployeeSettlementForm";
+import { EmployeeSettlementForm } from "@/components/employees/EmployeeSettlementForm";
 import { statusColors } from "@/constants/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import MobileSettlementCardView from "@/components/employees/MobileSettlementCardView";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import MobileSettlementCardView from "@/components/employees/MobileSettlementCardView";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface EmployeeSettlementsProps {
   selectedEmployeeId?: number | null;
@@ -28,8 +30,7 @@ interface EmployeeSettlementsProps {
 
 const statuses: SettlementStatus[] = ["pending", "approved", "paid", "disputed", "cancelled"];
 
-export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmployeeSelect }) => {
-  const isMobile = useMediaQuery("(max-width: 1080px)");
+const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmployeeSelect }) => {
   const [settlements] = useAtom(settlementsAtom);
   const [employees] = useAtom(employeesAtom);
   const [settlementStats] = useAtom(settlementStatsAtom);
@@ -63,7 +64,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     return ["pending", "disputed", "cancelled"].includes(settlement.status);
   };
   const canForceDelete = user?.role === "admin";
-
+  const isMobile = useMediaQuery("(max-width: 1104px)");
   // Table sorting & pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -559,188 +560,242 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
       columnHelper.accessor(row => `${row.employee?.firstName ?? ""} ${row.employee?.lastName ?? ""}`.trim(), {
         id: "employee",
         header: () => (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              const newOrder = sortBy === "employee" && sortOrder === "ASC" ? "DESC" : "ASC";
-              handleSortChange("employee", newOrder);
-            }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
-          >
-            Employee
-            <span className="ml-2 text-xs">{sortBy === "employee" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
-          </Button>
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const newOrder = sortBy === "employee" && sortOrder === "ASC" ? "DESC" : "ASC";
+                handleSortChange("employee", newOrder);
+              }}
+              className="text-xs h-auto p-0 font-semibold hover:bg-transparent hover:text-black flex items-center gap-1"
+            >
+              Employee
+              <span className="text-xs">{sortBy === "employee" ? (sortOrder === "ASC" ? "↑" : "↓") : ""}</span>
+            </Button>
+          </div>
         ),
         cell: ({ row }) => (
-          <div>
-            <div className="font-medium">
+          <div className="flex flex-col min-w-0">
+            <div className="font-medium truncate">
               {row.original.employee?.firstName} {row.original.employee?.lastName}
             </div>
-            <div className="text-xs text-muted-foreground">#{row.original.employee?.employeeNumber}</div>
+            <div className="text-xs text-muted-foreground truncate">#{row.original.employee?.employeeNumber}</div>
           </div>
         ),
         enableSorting: false,
-        size: 220
+        size: 220,
+        minSize: 180
       }),
       columnHelper.display({
         id: "period",
         header: () => (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              const newOrder = sortBy === "period" && sortOrder === "ASC" ? "DESC" : "ASC";
-              handleSortChange("period", newOrder);
-            }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
-          >
-            Period
-            <span className="ml-2 text-xs">{sortBy === "period" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
-          </Button>
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const newOrder = sortBy === "period" && sortOrder === "ASC" ? "DESC" : "ASC";
+                handleSortChange("period", newOrder);
+              }}
+              className="text-xs h-auto p-0 font-semibold hover:bg-transparent hover:text-black flex items-center gap-1"
+            >
+              Period
+              <span className="text-xs">{sortBy === "period" ? (sortOrder === "ASC" ? "↑" : "↓") : ""}</span>
+            </Button>
+          </div>
         ),
         cell: ({ row }) => (
-          <div>
+          <div className="flex flex-col items-start min-w-0">
             <div className="font-medium">
               {getMonthName(row.original.settlementMonth)} {row.original.settlementYear}
             </div>
-            <div className="text-xs text-muted-foreground">{row.original.usageItemsCount} usage items</div>
+            <div className="text-xs text-muted-foreground">
+              {row.original.usageItemsCount} usage item{row.original.usageItemsCount !== 1 ? "s" : ""}
+            </div>
           </div>
         ),
         enableSorting: false,
-        size: 160
+        size: 180,
+        minSize: 150
       }),
       columnHelper.accessor("baseSalary", {
         id: "baseSalary",
         header: () => (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              const newOrder = sortBy === "baseSalary" && sortOrder === "ASC" ? "DESC" : "ASC";
-              handleSortChange("baseSalary", newOrder);
-            }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
-          >
-            Base Salary
-            <span className="ml-2 text-xs">{sortBy === "baseSalary" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
-          </Button>
+          <div className="flex items-center justify-end w-full">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const newOrder = sortBy === "baseSalary" && sortOrder === "ASC" ? "DESC" : "ASC";
+                handleSortChange("baseSalary", newOrder);
+              }}
+              className="text-xs h-auto p-0 font-semibold hover:bg-transparent hover:text-black flex items-center gap-1"
+            >
+              Base Salary
+              <span className="text-xs">{sortBy === "baseSalary" ? (sortOrder === "ASC" ? "↑" : "↓") : ""}</span>
+            </Button>
+          </div>
         ),
-        cell: ({ getValue }) => <div className="font-mono">{formatCurrency(Number(getValue()))}</div>,
+        cell: ({ getValue }) => <div className="font-mono text-right w-full">{formatCurrency(Number(getValue()))}</div>,
         enableSorting: false,
-        size: 130
+        size: 140,
+        minSize: 120
       }),
       columnHelper.display({
         id: "deductions",
         header: () => (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              const newOrder = sortBy === "deductions" && sortOrder === "ASC" ? "DESC" : "ASC";
-              handleSortChange("deductions", newOrder);
-            }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
-          >
-            Deductions
-            <span className="ml-2 text-xs">{sortBy === "deductions" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
-          </Button>
+          <div className="flex items-center justify-end w-full">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const newOrder = sortBy === "deductions" && sortOrder === "ASC" ? "DESC" : "ASC";
+                handleSortChange("deductions", newOrder);
+              }}
+              className="text-xs h-auto p-0 font-semibold hover:bg-transparent hover:text-black flex items-center gap-1"
+            >
+              Deductions
+              <span className="text-xs">{sortBy === "deductions" ? (sortOrder === "ASC" ? "↑" : "↓") : ""}</span>
+            </Button>
+          </div>
         ),
-        cell: ({ row }) => <div className="font-mono text-red-600">-{formatCurrency(Number(row.original.totalDeduction))}</div>,
+        cell: ({ row }) => <div className="font-mono text-red-600 text-right w-full">-{formatCurrency(Number(row.original.totalDeduction))}</div>,
         enableSorting: false,
-        size: 130
+        size: 140,
+        minSize: 120
       }),
       columnHelper.accessor("finalSalary", {
         id: "finalSalary",
         header: () => (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              const newOrder = sortBy === "finalSalary" && sortOrder === "ASC" ? "DESC" : "ASC";
-              handleSortChange("finalSalary", newOrder);
-            }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
-          >
-            Final Salary
-            <span className="ml-2 text-xs">{sortBy === "finalSalary" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
-          </Button>
+          <div className="flex items-center justify-end w-full">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const newOrder = sortBy === "finalSalary" && sortOrder === "ASC" ? "DESC" : "ASC";
+                handleSortChange("finalSalary", newOrder);
+              }}
+              className="text-xs h-auto p-0 font-semibold hover:bg-transparent hover:text-black flex items-center gap-1"
+            >
+              Final Salary
+              <span className="text-xs">{sortBy === "finalSalary" ? (sortOrder === "ASC" ? "↑" : "↓") : ""}</span>
+            </Button>
+          </div>
         ),
-        cell: ({ getValue }) => <div className="font-mono font-medium">{formatCurrency(Number(getValue()))}</div>,
+        cell: ({ getValue }) => <div className="font-mono font-medium text-right w-full">{formatCurrency(Number(getValue()))}</div>,
         enableSorting: false,
-        size: 130
+        size: 140,
+        minSize: 120
       }),
       columnHelper.accessor("status", {
         id: "status",
         header: () => (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              const newOrder = sortBy === "status" && sortOrder === "ASC" ? "DESC" : "ASC";
-              handleSortChange("status", newOrder);
-            }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
-          >
-            Status
-            <span className="ml-2 text-xs">{sortBy === "status" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
-          </Button>
+          <div className="flex items-center justify-center w-full">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const newOrder = sortBy === "status" && sortOrder === "ASC" ? "DESC" : "ASC";
+                handleSortChange("status", newOrder);
+              }}
+              className="text-xs h-auto p-0 font-semibold hover:bg-transparent hover:text-black flex items-center gap-1"
+            >
+              Status
+              <span className="text-xs">{sortBy === "status" ? (sortOrder === "ASC" ? "↑" : "↓") : ""}</span>
+            </Button>
+          </div>
         ),
         cell: ({ getValue }) => (
-          <Badge variant="secondary" className={statusColors[getValue() as SettlementStatus]}>
-            {String(getValue())}
-          </Badge>
+          <div className="flex justify-center w-full">
+            <Badge variant="secondary" className={cn("min-w-[80px] justify-center py-1 px-2 text-xs font-medium", statusColors[getValue() as SettlementStatus])}>
+              {String(getValue()).charAt(0).toUpperCase() + String(getValue()).slice(1)}
+            </Badge>
+          </div>
         ),
         enableSorting: false,
-        size: 120
+        size: 120,
+        minSize: 100
       }),
       columnHelper.accessor("settlementDate", {
         id: "settlementDate",
         header: () => (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              const newOrder = sortBy === "settlementDate" && sortOrder === "ASC" ? "DESC" : "ASC";
-              handleSortChange("settlementDate", newOrder);
-            }}
-            className="h-auto p-0 font-semibold hover:bg-transparent"
-          >
-            Settlement Date
-            <span className="ml-2 text-xs">{sortBy === "settlementDate" ? (sortOrder === "ASC" ? "↑" : "↓") : "↕"}</span>
-          </Button>
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                const newOrder = sortBy === "settlementDate" && sortOrder === "ASC" ? "DESC" : "ASC";
+                handleSortChange("settlementDate", newOrder);
+              }}
+              className="text-xs h-auto p-0 font-semibold hover:bg-transparent hover:text-black flex items-center gap-1"
+            >
+              Date
+              <span className="text-xs">{sortBy === "settlementDate" ? (sortOrder === "ASC" ? "↑" : "↓") : ""}</span>
+            </Button>
+          </div>
         ),
-        cell: ({ getValue }) => <div className="text-sm">{formatDate(String(getValue()))}</div>,
+        cell: ({ getValue }) => <div className="text-sm text-gray-700">{getValue() ? formatDate(String(getValue())) : "-"}</div>,
         enableSorting: false,
-        size: 150
+        size: 150,
+        minSize: 130
       }),
       columnHelper.display({
         id: "actions",
-        header: () => <div className="w-full text-right">Actions</div>,
+        header: () => <div className="w-full text-right pr-4">Actions</div>,
         cell: ({ row }) => {
           const settlement = row.original;
           return (
-            <div className="flex items-center gap-2 justify-end">
-              <Button variant="ghost" size="sm" onClick={() => handleViewDetails(settlement)} className="gap-1">
-                <Eye className="h-3 w-3" />
-                View
-              </Button>
+            <div className="flex items-center gap-2 justify-end pr-2">
+              <TooltipProvider>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="sm" onClick={() => handleViewDetails(settlement)} className="h-8 w-8 p-0">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>View details</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               {settlement.status === "pending" && (
-                <Button variant="ghost" size="sm" onClick={() => handleApprove(settlement.id)} className="gap-1 text-blue-600">
-                  <CheckCircle className="h-3 w-3" />
-                  Approve
-                </Button>
+                <TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" onClick={() => handleApprove(settlement.id)} className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                        <CheckCircle className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Approve settlement</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
+
               {settlement.status === "approved" && (
-                <Button variant="ghost" size="sm" onClick={() => handleMarkAsPaid(settlement.id)} className="gap-1 text-green-600">
-                  <DollarSign className="h-3 w-3" />
-                  Mark Paid
-                </Button>
+                <TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" onClick={() => handleMarkAsPaid(settlement.id)} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50">
+                        <DollarSign className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Mark as paid</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
+
               {(canDeleteSettlement(settlement) || canForceDelete) && (
-                <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(settlement)} className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50">
-                  <Trash2 className="h-3 w-3" />
-                  Delete
-                </Button>
+                <TooltipProvider>
+                  <Tooltip delayDuration={0}>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(settlement)} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Delete settlement</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
           );
         },
         enableSorting: false,
-        size: 220
+        size: 160,
+        minSize: 140,
+        enableResizing: false
       })
     ],
     [sortBy, sortOrder, handleSortChange]
@@ -750,77 +805,37 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     data: paginatedSettlements,
     columns,
     state: { sorting },
+    columnResizeMode: "onChange",
+    enableColumnResizing: true,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
     manualPagination: true
+    // defaultColumn: {
+    //     minSize: 40,
+    //     maxSize: 800,
+    //   },
   });
 
   return (
-    <div className="space-y-4 p-4">
-      {/* Stats Grid */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Settlements</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{settlementStats?.totals?.totalCount || 0}</div>
-            <p className="text-xs text-muted-foreground">In selected period</p>
-          </CardContent>
-        </Card>
+    <div className="space-y-4 p-2 sm:p-4">
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Base Salary</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(settlementStats?.totals?.totalBaseSalary || 0)}</div>
-            <p className="text-xs text-muted-foreground">Before deductions</p>
-          </CardContent>
-        </Card>
+      {isMobile ? (
+        <MobileSettlementCardView settlements={paginatedSettlements} onViewDetails={handleViewDetails} onApprove={handleApprove} onMarkAsPaid={handleMarkAsPaid} onDelete={handleDeleteClick} canDeleteSettlement={canDeleteSettlement} canForceDelete={canForceDelete} statusColors={statusColors} />
+      ) : (
+        <>
+          {/* Header row */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
+            {/* Title & description */}
+            <div className="flex flex-col shrink-0">
+              <CardTitle className="text-lg font-semibold">Settlement Records</CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">Monthly salary settlements and payment tracking</CardDescription>
+            </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deductions</CardTitle>
-            <DollarSign className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">-{formatCurrency(settlementStats?.totals?.totalDeductions || 0)}</div>
-            <p className="text-xs text-muted-foreground">Employee usage costs</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Final Salary</CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(settlementStats?.totals?.totalFinalSalary || 0)}</div>
-            <p className="text-xs text-muted-foreground">After deductions</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters Card */}
-      <Card>
-        <CardHeader className="p-4 pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Filters</CardTitle>
-            <Button size="sm" className="gap-1" onClick={() => setSettlementFormOpen(true)} disabled={formLoading}>
-              <Plus className="h-4 w-4" />
-              Create Settlement
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex-1 min-w-[160px]">
+            {/* Filters & buttons */}
+            <div className="flex-1 flex  items-stretch lg:items-center justify-end gap-2">
               <Select value={internalSelectedEmployeeId?.toString() || "all"} onValueChange={handleEmployeeChange}>
-                <SelectTrigger className="h-8 px-2 text-xs">
+                <SelectTrigger className="h-9 px-2 text-xs !w-[160px]">
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
@@ -832,11 +847,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                   ))}
                 </SelectContent>
               </Select>
-            </div>
 
-            <div className="min-w-[100px]">
               <Select value={selectedYear.toString()} onValueChange={value => setSelectedYear(parseInt(value))}>
-                <SelectTrigger className="h-8 px-2 text-xs">
+                <SelectTrigger className="h-9 px-2 text-xs !w-[70px]">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -847,11 +860,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                   ))}
                 </SelectContent>
               </Select>
-            </div>
 
-            <div className="min-w-[120px]">
               <Select value={selectedMonth?.toString() || "all"} onValueChange={value => setSelectedMonth(value === "all" ? undefined : parseInt(value))}>
-                <SelectTrigger className="h-8 px-2 text-xs">
+                <SelectTrigger className="h-9 px-2 text-xs !w-[100px]">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -863,11 +874,9 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                   ))}
                 </SelectContent>
               </Select>
-            </div>
 
-            <div className="min-w-[120px]">
               <Select value={filters.status || "all"} onValueChange={handleStatusFilter}>
-                <SelectTrigger className="h-8 px-2 text-xs">
+                <SelectTrigger className="h-9 px-2 text-xs !w-[100px]">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -879,45 +888,30 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Action buttons */}
+              <div className="flex gap-2 flex-1 sm:flex-none justify-end">
+                <Button size="sm" variant="outline" className="gap-1 h-9 w-full sm:w-auto" onClick={exportSettlements} disabled={loading || settlements.length === 0}>
+                  <Download className="h-4 w-4" />
+                  Export
+                </Button>
+                <Button size="sm" className="gap-1 h-9 w-full sm:w-auto" onClick={() => setSettlementFormOpen(true)} disabled={formLoading}>
+                  <Plus className="h-4 w-4" />
+                  Create Settlement
+                </Button>
+              </div>
             </div>
-
-            <Button size="sm" variant="outline" className="gap-1" onClick={exportSettlements} disabled={loading || settlements.length === 0}>
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Settlements Table Card */}
-      {isMobile ? (
-        <MobileSettlementCardView settlements={paginatedSettlements} onViewDetails={handleViewDetails} onApprove={handleApprove} onMarkAsPaid={handleMarkAsPaid} onDelete={handleDeleteClick} canDeleteSettlement={canDeleteSettlement} canForceDelete={canForceDelete} statusColors={statusColors} />
-      ) : (
-        <Card>
-          <CardHeader className="p-4">
-            <CardTitle>Settlement Records</CardTitle>
-            <CardDescription>Monthly salary settlements and payment tracking</CardDescription>
-          </CardHeader>
-
-          <TanStackTable table={table} virtualized={true} customHeaderAlignment={{ actions: "right" }} stickyHeader={true} customCellAlignment={{ actions: "right" }} estimatedRowSize={60} overscan={10} loading={false} emptyMessage="No materials found" maxHeight="calc(100vh-380px)" />
-        </Card>
-      )}
-      {/* <Card>
-        <CardHeader>
-          <CardTitle>Settlement Records</CardTitle>
-          <CardDescription>Monthly salary settlements and payment tracking</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
+          {/* Table */}
           <div className="w-full overflow-x-auto">
-            <div className="min-w-full w-max">
-              <TanStackTable table={table} virtualized={false} loading={loading} emptyMessage="No settlements found" stickyHeader={true} maxHeight="calc(100vh - 380px)" customHeaderAlignment={{ actions: "right" }} customCellAlignment={{ actions: "right" }} className="w-full min-w-[1200px]" />
-            </div>
+            <TanStackTable table={table} loading={false} emptyMessage="No settlements found" maxHeight="calc(100vh - 170px)" />
           </div>
-        </CardContent>
-      </Card> */}
+        </>
+      )}
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -927,74 +921,74 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
           </DialogHeader>
 
           {selectedSettlement && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Settlement Summary</CardTitle>
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base sm:text-lg">Settlement Summary</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <CardContent className="p-4 pt-0">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                     <div>
-                      <div className="text-sm text-muted-foreground">Employee</div>
-                      <div className="font-medium">
+                      <div className="text-xs sm:text-sm text-muted-foreground">Employee</div>
+                      <div className="font-medium text-sm sm:text-base">
                         {selectedSettlement.employee?.firstName} {selectedSettlement.employee?.lastName}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-muted-foreground">Period</div>
-                      <div className="font-medium">
+                      <div className="text-xs sm:text-sm text-muted-foreground">Period</div>
+                      <div className="font-medium text-sm sm:text-base">
                         {getMonthName(selectedSettlement.settlementMonth)} {selectedSettlement.settlementYear}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-muted-foreground">Status</div>
-                      <Badge className={statusColors[selectedSettlement.status]}>{selectedSettlement.status}</Badge>
+                      <div className="text-xs sm:text-sm text-muted-foreground">Status</div>
+                      <Badge className={`text-xs ${statusColors[selectedSettlement.status]}`}>{selectedSettlement.status}</Badge>
                     </div>
                     <div>
-                      <div className="text-sm text-muted-foreground">Settlement Date</div>
-                      <div className="font-medium">{formatDate(selectedSettlement.settlementDate)}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">Settlement Date</div>
+                      <div className="font-medium text-sm sm:text-base">{formatDate(selectedSettlement.settlementDate)}</div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Financial Breakdown</CardTitle>
+                <CardHeader className="p-4">
+                  <CardTitle className="text-base sm:text-lg">Financial Breakdown</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
+                <CardContent className="p-4 pt-0">
+                  <div className="space-y-2 sm:space-y-3">
                     <div className="flex justify-between items-center">
-                      <span>Base Salary</span>
-                      <span className="font-mono">{formatCurrency(selectedSettlement.baseSalary)}</span>
+                      <span className="text-sm sm:text-base">Base Salary</span>
+                      <span className="font-mono text-sm sm:text-base">{formatCurrency(selectedSettlement.baseSalary)}</span>
                     </div>
                     <div className="flex justify-between items-center text-red-600">
-                      <span>Total Usage Cost</span>
-                      <span className="font-mono">-{formatCurrency(selectedSettlement.totalUsageCost)}</span>
+                      <span className="text-sm sm:text-base">Total Usage Cost</span>
+                      <span className="font-mono text-sm sm:text-base">-{formatCurrency(selectedSettlement.totalUsageCost)}</span>
                     </div>
                     <div className="flex justify-between items-center text-green-600">
-                      <span>Discount Amount</span>
-                      <span className="font-mono">+{formatCurrency(selectedSettlement.totalDiscountAmount)}</span>
+                      <span className="text-sm sm:text-base">Discount Amount</span>
+                      <span className="font-mono text-sm sm:text-base">+{formatCurrency(selectedSettlement.totalDiscountAmount)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between items-center text-red-600">
-                      <span>Net Deduction</span>
-                      <span className="font-mono">-{formatCurrency(selectedSettlement.totalDeduction)}</span>
+                      <span className="text-sm sm:text-base">Net Deduction</span>
+                      <span className="font-mono text-sm sm:text-base">-{formatCurrency(selectedSettlement.totalDeduction)}</span>
                     </div>
                     {selectedSettlement.bonusAmount > 0 && (
                       <div className="flex justify-between items-center text-green-600">
-                        <span>Bonus</span>
-                        <span className="font-mono">+{formatCurrency(selectedSettlement.bonusAmount)}</span>
+                        <span className="text-sm sm:text-base">Bonus</span>
+                        <span className="font-mono text-sm sm:text-base">+{formatCurrency(selectedSettlement.bonusAmount)}</span>
                       </div>
                     )}
                     {selectedSettlement.penaltyAmount > 0 && (
                       <div className="flex justify-between items-center text-red-600">
-                        <span>Penalty</span>
-                        <span className="font-mono">-{formatCurrency(selectedSettlement.penaltyAmount)}</span>
+                        <span className="text-sm sm:text-base">Penalty</span>
+                        <span className="font-mono text-sm sm:text-base">-{formatCurrency(selectedSettlement.penaltyAmount)}</span>
                       </div>
                     )}
                     <Separator />
-                    <div className="flex justify-between items-center font-bold text-lg">
+                    <div className="flex justify-between items-center font-bold text-base sm:text-lg">
                       <span>Final Salary</span>
                       <span className="font-mono">{formatCurrency(selectedSettlement.finalSalary)}</span>
                     </div>
@@ -1004,12 +998,12 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
 
               {selectedSettlement.settlementData?.usageBreakdown && (
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-lg">Usage Breakdown</CardTitle>
+                  <CardHeader className="flex flex-col xs:flex-row xs:items-center xs:justify-between p-4 gap-2">
+                    <CardTitle className="text-base sm:text-lg">Usage Breakdown</CardTitle>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Discount input:</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">Discount input:</span>
                       <Select value={discountInputMode} onValueChange={(value: "percentage" | "amount") => setDiscountInputMode(value)}>
-                        <SelectTrigger className="w-32 h-8">
+                        <SelectTrigger className="w-28 sm:w-32 h-8 text-xs">
                           <SelectValue placeholder="Input mode" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1019,29 +1013,29 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                       </Select>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="rounded-md border">
+                  <CardContent className="p-4 pt-0">
+                    <div className="rounded-md border overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Item</TableHead>
-                            <TableHead>Quantity</TableHead>
-                            <TableHead>Unit Cost</TableHead>
-                            <TableHead>Total</TableHead>
-                            <TableHead>Discount</TableHead>
-                            <TableHead>Final</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Item</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Quantity</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Unit Cost</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Total</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Discount</TableHead>
+                            <TableHead className="text-xs sm:text-sm">Final</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {selectedSettlement.settlementData.usageBreakdown.map(usage => (
                             <TableRow key={usage.id}>
-                              <TableCell className="text-sm">{formatDate(usage.usageDate)}</TableCell>
-                              <TableCell>{usage.itemName}</TableCell>
-                              <TableCell>{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
-                              <TableCell className="font-mono">{formatCurrency(usage.unitCost)}</TableCell>
-                              <TableCell className="font-mono">{formatCurrency(usage.totalCost)}</TableCell>
-                              <TableCell className="font-mono text-green-600 cursor-pointer hover:bg-muted/50" onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied, usage.totalCost)} title="Double-click to edit discount">
+                              <TableCell className="text-xs sm:text-sm">{formatDate(usage.usageDate)}</TableCell>
+                              <TableCell className="text-xs sm:text-sm">{usage.itemName}</TableCell>
+                              <TableCell className="text-xs sm:text-sm">{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
+                              <TableCell className="font-mono text-xs sm:text-sm">{formatCurrency(usage.unitCost)}</TableCell>
+                              <TableCell className="font-mono text-xs sm:text-sm">{formatCurrency(usage.totalCost)}</TableCell>
+                              <TableCell className="font-mono text-green-600 text-xs sm:text-sm cursor-pointer hover:bg-muted/50" onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied, usage.totalCost)} title="Double-click to edit discount">
                                 {editingDiscountId === usage.id ? (
                                   <div className="flex items-center gap-1">
                                     <input
@@ -1056,7 +1050,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                                         }
                                       }}
                                       onBlur={() => handleDiscountSave(usage.id, usage.totalCost)}
-                                      className="w-16 px-1 py-0 text-xs border rounded"
+                                      className="w-14 sm:w-16 px-1 py-0 text-xs border rounded"
                                       min="0"
                                       max={discountInputMode === "percentage" ? "100" : usage.totalCost.toFixed(2)}
                                       step={discountInputMode === "percentage" ? "0.1" : "0.01"}
@@ -1068,7 +1062,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
                                   <span>{discountInputMode === "percentage" ? `-${usage.discountApplied}%` : `-${formatCurrency((usage.totalCost * usage.discountApplied) / 100)}`}</span>
                                 )}
                               </TableCell>
-                              <TableCell className="font-mono font-medium">{formatCurrency(usage.finalCost)}</TableCell>
+                              <TableCell className="font-mono font-medium text-xs sm:text-sm">{formatCurrency(usage.finalCost)}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -1083,7 +1077,7 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
       </Dialog>
 
       <Dialog open={settlementFormOpen} onOpenChange={setSettlementFormOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Settlement</DialogTitle>
             <DialogDescription>Generate a monthly settlement for an employee based on their usage and salary</DialogDescription>
@@ -1093,10 +1087,10 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
       </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Settlement</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="space-y-3">
               Are you sure you want to delete this settlement record? This action cannot be undone.
               {settlementToDelete && (
                 <div className="mt-3 p-3 bg-muted rounded-md">
@@ -1139,3 +1133,5 @@ export const EmployeeSettlements: React.FC<EmployeeSettlementsProps> = ({ select
     </div>
   );
 };
+
+export default Test;

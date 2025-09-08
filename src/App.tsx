@@ -38,6 +38,7 @@ const EmployeeTable = lazy(() => import("./components/employees/EmployeeTable").
 const EmployeeUsageView = lazy(() => import("./components/employees/EmployeeUsageView").then(m => ({ default: m.EmployeeUsageView })));
 const DatabaseBackupManager = lazy(() => import("./components/system/settings").then(m => ({ default: m.DatabaseBackupManager })));
 const MenuPage = lazy(() => import("./components/menu/TabMenu").then(m => ({ default: m.MenuPage })));
+const Test = lazy(() => import("./pages/Test").then(m => ({ default: m.default })));
 const queryClient = new QueryClient();
 
 export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }: InventoryManagementPanelProps = {}) {
@@ -241,6 +242,16 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                         <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
                           <AuthenticatedLayout pageTitle="Employee Settlements" showSearch={true} showNotifications={true}>
                             <EmployeeSettlements />
+                          </AuthenticatedLayout>
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/employees/test"
+                      element={
+                        <ProtectedRoute requiredPermission={PERMISSIONS.EMPLOYEE_SETTLEMENT_VIEW}>
+                          <AuthenticatedLayout pageTitle="Employee Test" showSearch={true} showNotifications={true}>
+                            <Test />
                           </AuthenticatedLayout>
                         </ProtectedRoute>
                       }
