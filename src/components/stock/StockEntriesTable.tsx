@@ -904,46 +904,44 @@ export function StockEntriesTable({ stockEntries: prefetchedStockEntries, materi
           )}
 
           {/* Desktop Table View - TanStack Virtualized */}
+        </div>
+        <div className="hidden xl:block px-2">
           {sortedStockEntries.length > 0 && (
-            <div className="hidden xl:block px-2">
-              <div className="h-[calc(100vh-225px)] overflow-y-hidden">
-                <TanStackTable
-                  table={table}
-                  virtualized={true}
-                  customHeaderAlignment={{
-                    materialName: "left",
-                    remainingQty: "center",
-                    unit: "center",
-                    costPerUnit: "center",
-                    totalCost: "center",
-                    purchaseDate: "center",
-                    actions: "center"
-                  }}
-                  customCellAlignment={{
-                    materialName: "left",
-                    remainingQty: "center",
-                    unit: "center",
-                    costPerUnit: "center",
-                    totalCost: "center",
-                    purchaseDate: "center",
-                    actions: "center"
-                  }}
-                  estimatedRowSize={60}
-                  overscan={10}
-                  loading={false}
-                  emptyMessage="No stock entries found"
-                  maxHeight="calc(100vh-225px)"
-                  rowClassName={row => {
-                    const entry = row.original;
-                    const isNegative = hasNegativeStock(entry);
-                    const isVirtual = isVirtualEntry(entry);
-                    const isSelected = row.getIsSelected();
-                    return isSelected ? "bg-green-50 border-l-4 border-l-green-500" : isNegative ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" : isVirtual ? "border-l-4 border-l-orange-500 hover:bg-gray-50" : "";
-                  }}
-                  className=""
-                />
-              </div>
-            </div>
+            <TanStackTable
+              table={table}
+              virtualized={true}
+              // customHeaderAlignment={{
+              //   materialName: "left",
+              //   remainingQty: "right",
+              //   unit: "center",
+              //   costPerUnit: "center", // This should match column.id
+              //   totalCost: "center",
+              //   purchaseDate: "center",
+              //   actions: "center"
+              // }}
+              // customCellAlignment={{
+              //   materialName: "left",
+              //   remainingQty: "center",
+              //   unit: "center",
+              //   costPerUnit: "center", // This should match column.id
+              //   totalCost: "right", // Changed to right alignment
+              //   purchaseDate: "center",
+              //   actions: "center"
+              // }}
+              estimatedRowSize={60}
+              overscan={10}
+              loading={false}
+              emptyMessage="No stock entries found"
+              maxHeight="calc(100vh - 150px)"
+              rowClassName={row => {
+                const entry = row.original;
+                const isNegative = hasNegativeStock(entry);
+                const isVirtual = isVirtualEntry(entry);
+                const isSelected = row.getIsSelected();
+                return isSelected ? "bg-green-50 border-l-4 border-l-green-500" : isNegative ? "bg-red-50 border-l-4 border-l-red-500 hover:bg-red-100" : isVirtual ? "border-l-4 border-l-orange-500 hover:bg-gray-50" : "";
+              }}
+              className=""
+            />
           )}
         </div>
 

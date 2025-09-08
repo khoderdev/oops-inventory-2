@@ -4,7 +4,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Material, StockEntry, StockEntryWithMaterial } from "@/types/inventory";
 import { formatCleanCurrency } from "@/utils/numberFormatting";
 import { highlightText } from "@/utils/highlightText";
-import { calculateCurrentTotalCost } from "./StockEntriesCalculationHelpers";
 import { AlertTriangle, Edit, Eye, EyeOff, Printer, Trash2 } from "lucide-react";
 import { useMemo } from "react";
 import { createColumnHelper, ColumnDef } from "@tanstack/react-table";
@@ -73,8 +72,8 @@ export function useStockEntriesTableColumns({ searchTerm, bulkSelectionMode, sor
 
       columnHelper.display({
         id: "remainingQty",
-        size: 100,
-        header: ({ column }) => <div className="text-left w-[100px] font-semibold px-2 flex items-center h-8">Current Qty</div>,
+        size: 150,
+        header: ({ column }) => <div className="text-left w-[150px] font-semibold px-2 flex items-center h-8">Current Qty</div>,
         cell: ({ row }) => <div className="text-left w-[150px] h-8 px-2 flex items-center">{renderQuantityDisplay(row.original)}</div>
       }),
 

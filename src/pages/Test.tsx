@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { VirtualSelect } from "@/components/ui/VirtualSelect";
 import { TanStackTable } from "@/components/ui/TanStackTable";
 import { approveSettlementAtom, createSettlementAtom, deleteSettlementAtom, employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom } from "@/store/employeeAtoms";
 import { employeeAPI } from "@/api/employee.api";
@@ -95,10 +96,24 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
   }, [internalSelectedEmployeeId, selectedYear, selectedMonth, fetchSettlements, fetchStats, setFilters]);
 
   const handleEmployeeChange = (employeeId: string) => {
-    const id = employeeId === "all" ? null : parseInt(employeeId);
-    setInternalSelectedEmployeeId(id);
-    onEmployeeSelect?.(id);
+    // Your existing code
+    if (employeeId === "all") {
+      setInternalSelectedEmployeeId(null);
+      onEmployeeSelect?.(null);
+    } else {
+      const id = parseInt(employeeId, 10);
+      setInternalSelectedEmployeeId(id);
+      onEmployeeSelect?.(id);
+    }
   };
+
+  //   const handleEmployeeChange = (item: { id: string | number; label: string } | null) => {
+  //     if (item) {
+  //       setInternalSelectedEmployeeId(item.id === "all" ? null : Number(item.id));
+  //     } else {
+  //       setInternalSelectedEmployeeId(null);
+  //     }
+  //   };
 
   const handleStatusFilter = async (status: string) => {
     const updatedFilters = {
@@ -199,11 +214,6 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
       throw error;
     }
   };
-
-  // const handleDiscountEdit = (usageId: number, currentDiscount: number) => {
-  //   setEditingDiscountId(usageId);
-  //   setEditingDiscountValue(currentDiscount.toString());
-  // };
 
   const handleDiscountEdit = (usageId: number, currentDiscount: number, totalCost: number) => {
     setEditingDiscountId(usageId);
@@ -795,7 +805,7 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
         enableSorting: false,
         size: 160,
         minSize: 140,
-        enableResizing: false
+        enableResizing: true
       })
     ],
     [sortBy, sortOrder, handleSortChange]
@@ -811,15 +821,10 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
     getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
     manualPagination: true
-    // defaultColumn: {
-    //     minSize: 40,
-    //     maxSize: 800,
-    //   },
   });
 
   return (
-    <div className="space-y-4 p-2 sm:p-4">
-
+    <div className="p-2 px-6">
       {isMobile ? (
         <MobileSettlementCardView settlements={paginatedSettlements} onViewDetails={handleViewDetails} onApprove={handleApprove} onMarkAsPaid={handleMarkAsPaid} onDelete={handleDeleteClick} canDeleteSettlement={canDeleteSettlement} canForceDelete={canForceDelete} statusColors={statusColors} />
       ) : (
@@ -834,19 +839,29 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
 
             {/* Filters & buttons */}
             <div className="flex-1 flex  items-stretch lg:items-center justify-end gap-2">
-              <Select value={internalSelectedEmployeeId?.toString() || "all"} onValueChange={handleEmployeeChange}>
-                <SelectTrigger className="h-9 px-2 text-xs !w-[160px]">
-                  <SelectValue placeholder="Select employee" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Employees</SelectItem>
-                  {employees.map(employee => (
-                    <SelectItem key={employee.id} value={employee.id.toString()}>
-                      {employee.firstName} {employee.lastName} (#{employee.employeeNumber})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <VirtualSelect
+                items={[
+                  { id: "all", label: "All Employees" },
+                  ...employees.map(employee => ({
+                    id: employee.id.toString(),
+                    label: `${employee.firstName} ${employee.lastName}`
+                  }))
+                ]}
+                value={
+                  internalSelectedEmployeeId
+                    ? {
+                        id: internalSelectedEmployeeId.toString(),
+                        label: employees.find(e => e.id === internalSelectedEmployeeId)?.firstName + " " + employees.find(e => e.id === internalSelectedEmployeeId)?.lastName || "Unknown"
+                      }
+                    : { id: "all", label: "All Employees" }
+                }
+                onChange={item => handleEmployeeChange(item ? String(item.id) : "all")}
+                placeholder="Select employee"
+                disabled={employees.length === 0}
+                height={250}
+                inputHeight={35}
+                className="!bg-background !w-[160px]"
+              />
 
               <Select value={selectedYear.toString()} onValueChange={value => setSelectedYear(parseInt(value))}>
                 <SelectTrigger className="h-9 px-2 text-xs !w-[70px]">
