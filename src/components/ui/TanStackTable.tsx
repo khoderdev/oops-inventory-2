@@ -197,8 +197,13 @@
 //                 <tr
 //                   key={row.id}
 //                   className={`border-b border-gray-100 transition-colors duration-150 ${virtualRow.index % 2 === 0 ? "bg-white" : "bg-gray-50/50"} hover:bg-blue-50/50 active:bg-blue-100/50 ${onRowClick ? "cursor-pointer" : ""} focus:outline-none focus:ring-2 focus:ring-blue-300`}
-//                   onClick={() => onRowClick?.(row)}
-//                   tabIndex={onRowClick ? 0 : undefined}
+//                   onClick={(e) => {
+//                     // Only trigger if the click is not on a button or input
+//                     const target = e.target as HTMLElement;
+//                     if (!target.closest('button, a, input, .no-row-click')) {
+//                       onRowClick?.(row);
+//                     }
+//                   }}
 //                   style={{
 //                     position: "absolute",
 //                     top: 0,
@@ -327,7 +332,13 @@ export const TanStackTable = <TData,>({ table, className = "", onRowClick, loadi
               <tr
                 key={row.id}
                 className={`border-b border-gray-100 transition-colors duration-150 ${row.index % 2 === 0 ? "bg-white" : "bg-gray-50/50"} hover:bg-blue-50/50 active:bg-blue-100/50 ${onRowClick ? "cursor-pointer" : ""} focus:outline-none focus:ring-2 focus:ring-blue-300`}
-                onClick={() => onRowClick?.(row)}
+                onClick={(e) => {
+                  // Only trigger if the click is not on a button, link, or input
+                  const target = e.target as HTMLElement;
+                  if (onRowClick && !target.closest('button, a, input, .no-row-click')) {
+                    onRowClick(row);
+                  }
+                }}
                 tabIndex={onRowClick ? 0 : undefined}
               >
                 {row.getVisibleCells().map(cell => (

@@ -983,7 +983,12 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
 
           {/* Table */}
           <div className="w-full overflow-x-auto">
-            <TanStackTable table={table} emptyMessage="No settlements found" maxHeight="calc(100vh - 170px)" />
+            <TanStackTable 
+              table={table} 
+              emptyMessage="No settlements found" 
+              maxHeight="calc(100vh - 170px)" 
+              onRowClick={(row) => handleViewDetails(row.original)}
+            />
           </div>
         </>
       )}
