@@ -66,7 +66,6 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
   };
   const canForceDelete = user?.role === "admin";
   const isMobile = useMediaQuery("(max-width: 1104px)");
-  // Table sorting & pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [sortBy, setSortBy] = useState<string>("settlementDate");
@@ -96,7 +95,6 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
   }, [internalSelectedEmployeeId, selectedYear, selectedMonth, fetchSettlements, fetchStats, setFilters]);
 
   const handleEmployeeChange = (employeeId: string) => {
-    // Your existing code
     if (employeeId === "all") {
       setInternalSelectedEmployeeId(null);
       onEmployeeSelect?.(null);
@@ -106,14 +104,6 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
       onEmployeeSelect?.(id);
     }
   };
-
-  //   const handleEmployeeChange = (item: { id: string | number; label: string } | null) => {
-  //     if (item) {
-  //       setInternalSelectedEmployeeId(item.id === "all" ? null : Number(item.id));
-  //     } else {
-  //       setInternalSelectedEmployeeId(null);
-  //     }
-  //   };
 
   const handleStatusFilter = async (status: string) => {
     const updatedFilters = {
@@ -221,7 +211,6 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
     if (discountInputMode === "percentage") {
       setEditingDiscountValue(currentDiscount.toString());
     } else {
-      // Convert percentage to amount
       const discountAmount = (totalCost * currentDiscount) / 100;
       setEditingDiscountValue(discountAmount.toString());
     }
@@ -592,9 +581,9 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
             <div className="text-xs text-muted-foreground truncate">#{row.original.employee?.employeeNumber}</div>
           </div>
         ),
-        enableSorting: false,
-        size: 220,
-        minSize: 180
+        enableSorting: false
+        // size: 220,
+        // minSize: 180
       }),
       columnHelper.display({
         id: "period",
@@ -623,9 +612,9 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
             </div>
           </div>
         ),
-        enableSorting: false,
-        size: 180,
-        minSize: 150
+        enableSorting: false
+        // size: 180,
+        // minSize: 150
       }),
       columnHelper.accessor("baseSalary", {
         id: "baseSalary",
@@ -667,9 +656,9 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
           </div>
         ),
         cell: ({ row }) => <div className="font-mono text-red-600 text-right w-full">-{formatCurrency(Number(row.original.totalDeduction))}</div>,
-        enableSorting: false,
-        size: 140,
-        minSize: 120
+        enableSorting: false
+        // size: 140,
+        // minSize: 120
       }),
       columnHelper.accessor("finalSalary", {
         id: "finalSalary",
@@ -689,9 +678,9 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
           </div>
         ),
         cell: ({ getValue }) => <div className="font-mono font-medium text-right w-full">{formatCurrency(Number(getValue()))}</div>,
-        enableSorting: false,
-        size: 140,
-        minSize: 120
+        enableSorting: false
+        // size: 140,
+        // minSize: 120
       }),
       columnHelper.accessor("status", {
         id: "status",
@@ -717,9 +706,9 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
             </Badge>
           </div>
         ),
-        enableSorting: false,
-        size: 120,
-        minSize: 100
+        enableSorting: false
+        // size: 120,
+        // minSize: 100
       }),
       columnHelper.accessor("settlementDate", {
         id: "settlementDate",
@@ -739,17 +728,17 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
           </div>
         ),
         cell: ({ getValue }) => <div className="text-sm text-gray-700">{getValue() ? formatDate(String(getValue())) : "-"}</div>,
-        enableSorting: false,
-        size: 150,
-        minSize: 130
+        enableSorting: false
+        // size: 150,
+        // minSize: 130
       }),
       columnHelper.display({
         id: "actions",
-        header: () => <div className="w-full text-right pr-4">Actions</div>,
+        header: () => <div className="flex w-full items-center justify-end pr-6 text-xs font-semibold">Actions</div>,
         cell: ({ row }) => {
           const settlement = row.original;
           return (
-            <div className="flex items-center gap-2 justify-end pr-2">
+            <div className="flex w-full items-center justify-end">
               <TooltipProvider>
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
@@ -804,8 +793,8 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
         },
         enableSorting: false,
         size: 160,
-        minSize: 140,
-        enableResizing: true
+        // minSize: 140,
+        enableResizing: false
       })
     ],
     [sortBy, sortOrder, handleSortChange]
@@ -1013,10 +1002,10 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
 
               {selectedSettlement.settlementData?.usageBreakdown && (
                 <Card>
-                  <CardHeader className="flex flex-col xs:flex-row xs:items-center xs:justify-between p-4 gap-2">
+                  <div className="flex justify-between items-center p-4 gap-2">
                     <CardTitle className="text-base sm:text-lg">Usage Breakdown</CardTitle>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm text-muted-foreground">Discount input:</span>
+                      <span className="text-xs sm:text-sm font-medium">Discount type:</span>
                       <Select value={discountInputMode} onValueChange={(value: "percentage" | "amount") => setDiscountInputMode(value)}>
                         <SelectTrigger className="w-28 sm:w-32 h-8 text-xs">
                           <SelectValue placeholder="Input mode" />
@@ -1027,7 +1016,7 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
                         </SelectContent>
                       </Select>
                     </div>
-                  </CardHeader>
+                  </div>
                   <CardContent className="p-4 pt-0">
                     <div className="rounded-md border overflow-x-auto">
                       <Table>
@@ -1038,7 +1027,7 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
                             <TableHead className="text-xs sm:text-sm">Quantity</TableHead>
                             <TableHead className="text-xs sm:text-sm">Unit Cost</TableHead>
                             <TableHead className="text-xs sm:text-sm">Total</TableHead>
-                            <TableHead className="text-xs sm:text-sm">Discount</TableHead>
+                            <TableHead className="text-xs sm:text-sm ">Discount</TableHead>
                             <TableHead className="text-xs sm:text-sm">Final</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1050,7 +1039,7 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
                               <TableCell className="text-xs sm:text-sm">{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
                               <TableCell className="font-mono text-xs sm:text-sm">{formatCurrency(usage.unitCost)}</TableCell>
                               <TableCell className="font-mono text-xs sm:text-sm">{formatCurrency(usage.totalCost)}</TableCell>
-                              <TableCell className="font-mono text-green-600 text-xs sm:text-sm cursor-pointer hover:bg-muted/50" onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied, usage.totalCost)} title="Double-click to edit discount">
+                              <TableCell className="font-mono text-green-600 text-xs sm:text-sm cursor-pointer hover:bg-green-400/25" onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied, usage.totalCost)} title="Double-click to edit discount">
                                 {editingDiscountId === usage.id ? (
                                   <div className="flex items-center gap-1">
                                     <input
@@ -1065,16 +1054,16 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
                                         }
                                       }}
                                       onBlur={() => handleDiscountSave(usage.id, usage.totalCost)}
-                                      className="w-14 sm:w-16 px-1 py-0 text-xs border rounded"
+                                      className="w-14 sm:w-16 px-1 py-1 text-xs rounded"
                                       min="0"
                                       max={discountInputMode === "percentage" ? "100" : usage.totalCost.toFixed(2)}
                                       step={discountInputMode === "percentage" ? "0.1" : "0.01"}
                                       autoFocus
                                     />
-                                    <span className="text-xs">{discountInputMode === "percentage" ? "%" : "$"}</span>
+                                    <span className="text-xs font-bold ml-1">{discountInputMode === "percentage" ? "%" : "$"}</span>
                                   </div>
                                 ) : (
-                                  <span>{discountInputMode === "percentage" ? `-${usage.discountApplied}%` : `-${formatCurrency((usage.totalCost * usage.discountApplied) / 100)}`}</span>
+                                  <span className="font-semibold">{discountInputMode === "percentage" ? `-${usage.discountApplied}%` : `-${formatCurrency((usage.totalCost * usage.discountApplied) / 100)}`}</span>
                                 )}
                               </TableCell>
                               <TableCell className="font-mono font-medium text-xs sm:text-sm">{formatCurrency(usage.finalCost)}</TableCell>

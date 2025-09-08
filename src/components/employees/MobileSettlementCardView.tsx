@@ -15,7 +15,7 @@ const MobileSettlementCardView = ({ settlements, onViewDetails, onApprove, onMar
             <div className="flex justify-between items-start space-x-2">
               <div className="min-w-0">
                 <div className="flex items-center space-x-2">
-                  <CardTitle className="text-lg font-semibold truncate">
+                  <CardTitle className="text-lg font-bold truncate">
                     {settlement.employee?.firstName} {settlement.employee?.lastName}
                   </CardTitle>
                 </div>
@@ -41,18 +41,18 @@ const MobileSettlementCardView = ({ settlements, onViewDetails, onApprove, onMar
             </div>
 
             {/* Financial Summary */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="space-y-1 p-3 bg-muted/10 rounded-lg">
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="space-y-1 p-3 bg-muted/50 rounded-lg">
                 <div className="text-xs font-medium text-muted-foreground">Base Salary</div>
                 <div className="font-mono text-base font-semibold">{formatCurrency(Number(settlement.baseSalary))}</div>
               </div>
 
-              <div className="space-y-1 p-3 bg-muted/10 rounded-lg">
+              <div className="space-y-1 p-3 bg-muted/50 rounded-lg">
                 <div className="text-xs font-medium text-muted-foreground">Deductions</div>
                 <div className="font-mono text-base font-semibold text-destructive">-{formatCurrency(Number(settlement.totalDeduction))}</div>
               </div>
 
-              <div className="space-y-1 p-3 bg-primary/5 rounded-lg col-span-2 border border-primary/10">
+              <div className="space-y-1 p-3 bg-primary/5 rounded-lg  border border-primary/10">
                 <div className="text-xs font-medium text-muted-foreground">Final Salary</div>
                 <div className="font-mono text-lg font-bold text-primary">{formatCurrency(Number(settlement.finalSalary))}</div>
               </div>
