@@ -13,6 +13,15 @@ export const employeesPageAtom = atom<number>(1);
 export const employeesLimitAtom = atom<number>(20);
 export const employeesFiltersAtom = atomWithReset<EmployeeFilters>({});
 
+// Cache for employee usages by employee ID
+export const employeeUsagesCacheAtom = atom<Record<number, EmployeeUsage[]>>({});
+
+// Loading states for employee usages
+export const employeeUsagesLoadingAtom = atom<Record<number, boolean>>({});
+
+// Error states for employee usages
+export const employeeUsagesErrorAtom = atom<Record<number, string | null>>({});
+
 // Employee loading and error states
 export const employeesLoadingAtom = atom<boolean>(false);
 export const employeesErrorAtom = atomWithReset<string | null>(null);
@@ -44,13 +53,14 @@ export const employeesByDepartmentAtom = atom(get => {
   const employees = get(employeesAtom);
   return employees.reduce(
     (acc, emp) => {
-      if (!acc[emp.department]) {
-        acc[emp.department] = [];
+      const deptKey = emp.department.id;
+      if (!acc[deptKey]) {
+        acc[deptKey] = [];
       }
-      acc[emp.department].push(emp);
+      acc[deptKey].push(emp);
       return acc;
     },
-    {} as Record<string, Employee[]>
+    {} as Record<number, Employee[]>
   );
 });
 
@@ -588,42 +598,39 @@ export const markSettlementAsPaidAtom = atom(
   }
 );
 
-export const deleteSettlementAtom = atom(
-  null,
-  async (get, set, { id, force }: { id: number; force?: boolean }) => {
-    set(settlementsLoadingAtom, true);
-    set(settlementsErrorAtom, null);
+export const deleteSettlementAtom = atom(null, async (get, set, { id, force }: { id: number; force?: boolean }) => {
+  set(settlementsLoadingAtom, true);
+  set(settlementsErrorAtom, null);
 
-    try {
-      const { employeeAPI } = await import("@/api/employee.api");
-      const response = await employeeAPI.deleteSettlement(id, force);
+  try {
+    const { employeeAPI } = await import("@/api/employee.api");
+    const response = await employeeAPI.deleteSettlement(id, force);
 
-      if (response.success) {
-        // Remove settlement from the list
-        const settlements = get(settlementsAtom);
-        const updatedSettlements = settlements.filter(settlement => settlement.id !== id);
-        set(settlementsAtom, updatedSettlements);
-        set(settlementsTotalAtom, get(settlementsTotalAtom) - 1);
+    if (response.success) {
+      // Remove settlement from the list
+      const settlements = get(settlementsAtom);
+      const updatedSettlements = settlements.filter(settlement => settlement.id !== id);
+      set(settlementsAtom, updatedSettlements);
+      set(settlementsTotalAtom, get(settlementsTotalAtom) - 1);
 
-        // Clear selected settlement if it was deleted
-        const selectedSettlement = get(selectedSettlementAtom);
-        if (selectedSettlement?.id === id) {
-          set(selectedSettlementAtom, null);
-        }
-
-        return true;
-      } else {
-        throw new Error(response.message || "Failed to delete settlement");
+      // Clear selected settlement if it was deleted
+      const selectedSettlement = get(selectedSettlementAtom);
+      if (selectedSettlement?.id === id) {
+        set(selectedSettlementAtom, null);
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to delete settlement";
-      set(settlementsErrorAtom, errorMessage);
-      throw error;
-    } finally {
-      set(settlementsLoadingAtom, false);
+
+      return true;
+    } else {
+      throw new Error(response.message || "Failed to delete settlement");
     }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to delete settlement";
+    set(settlementsErrorAtom, errorMessage);
+    throw error;
+  } finally {
+    set(settlementsLoadingAtom, false);
   }
-);
+});
 
 // ============================================================================
 // FETCH ATOMS
@@ -679,9 +686,100 @@ export const fetchEmployeeStatsAtom = atom(null, async (get, set) => {
   }
 });
 
+// Action to fetch and cache employee usages
+export const fetchEmployeeUsagesAtom = atom(null, async (get, set, employeeId: number) => {
+  // Check if we already have data for this employee
+  const cache = get(employeeUsagesCacheAtom);
+  if (cache[employeeId]) {
+    return cache[employeeId];
+  }
+
+  // Set loading state
+  const loadingStates = { ...get(employeeUsagesLoadingAtom) };
+  loadingStates[employeeId] = true;
+  set(employeeUsagesLoadingAtom, loadingStates);
+
+  // Clear any previous error
+  const errorStates = { ...get(employeeUsagesErrorAtom) };
+  delete errorStates[employeeId];
+  set(employeeUsagesErrorAtom, errorStates);
+
+  try {
+    const { employeeAPI } = await import("@/api/employee.api");
+
+    // Fetch all usages for this employee (both settled and unsettled)
+    const response = await employeeAPI.getUsageHistory({
+      employeeId,
+      isSettled: undefined // Get both settled and unsettled
+    });
+
+    if (response.success) {
+      // Update cache
+      const newCache = { ...cache };
+      newCache[employeeId] = response.data?.usages || [];
+      set(employeeUsagesCacheAtom, newCache);
+
+      return newCache[employeeId];
+    } else {
+      throw new Error(response.message || "Failed to fetch employee usages");
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : "Failed to fetch employee usages";
+
+    // Update error state
+    const newErrorStates = { ...get(employeeUsagesErrorAtom) };
+    newErrorStates[employeeId] = errorMessage;
+    set(employeeUsagesErrorAtom, newErrorStates);
+
+    throw error;
+  } finally {
+    // Clear loading state
+    const loadingStates = { ...get(employeeUsagesLoadingAtom) };
+    delete loadingStates[employeeId];
+    set(employeeUsagesLoadingAtom, loadingStates);
+  }
+});
+
+// Action to pre-fetch usages for all employees
+export const prefetchAllEmployeeUsagesAtom = atom(null, async (get, set) => {
+  const employees = get(employeesAtom);
+  const cache = get(employeeUsagesCacheAtom);
+
+  // Only fetch for employees we don't have data for
+  const employeesToFetch = employees.filter(emp => !cache[emp.id]);
+
+  for (const employee of employeesToFetch) {
+    try {
+      await set(fetchEmployeeUsagesAtom, employee.id);
+    } catch (error) {
+      console.error(`Failed to fetch usages for employee ${employee.id}:`, error);
+      // Continue with other employees even if one fails
+    }
+  }
+});
+
+// Derived atom to get usages for a specific employee
+export const getEmployeeUsagesAtom = atom(get => (employeeId: number) => {
+  const cache = get(employeeUsagesCacheAtom);
+  return cache[employeeId] || [];
+});
+
+// Derived atom to check if usages are loading for an employee
+export const isEmployeeUsagesLoadingAtom = atom(get => (employeeId: number) => {
+  const loadingStates = get(employeeUsagesLoadingAtom);
+  return loadingStates[employeeId] || false;
+});
+
 // ============================================================================
 // RESET ATOMS
 // ============================================================================
+
+// Action to clear the cache
+export const clearEmployeeUsagesCacheAtom = atom(null, (get, set) => {
+  set(employeeUsagesCacheAtom, {});
+  set(employeeUsagesLoadingAtom, {});
+  set(employeeUsagesErrorAtom, {});
+});
 
 export const resetEmployeeStateAtom = atom(null, (get, set) => {
   set(employeesAtom, []);

@@ -7,14 +7,13 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { VirtualSelect } from "@/components/ui/VirtualSelect";
 import { TanStackTable } from "@/components/ui/TanStackTable";
-import { approveSettlementAtom, createSettlementAtom, deleteSettlementAtom, employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom } from "@/store/employeeAtoms";
+import { approveSettlementAtom, createSettlementAtom, deleteSettlementAtom, employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, fetchSettlementStatsAtom, markSettlementAsPaidAtom, selectedSettlementAtom, settlementFormLoadingAtom, settlementsAtom, settlementsFiltersAtom, settlementsLoadingAtom, settlementStatsAtom, employeeUsagesCacheAtom, getEmployeeUsagesAtom, prefetchAllEmployeeUsagesAtom } from "@/store/employeeAtoms";
 import { employeeAPI } from "@/api/employee.api";
 import type { CreateSettlementData, EmployeeSettlement, SettlementStatus } from "@/types/employee";
 import { useAtom } from "jotai";
-import { Calendar, CheckCircle, DollarSign, Download, Eye, Plus, Trash2 } from "lucide-react";
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { CheckCircle, DollarSign, Download, Eye, Plus, Trash2 } from "lucide-react";
+import React, { useEffect, useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
-import { EmployeeSettlementForm } from "@/components/employees/EmployeeSettlementForm";
 import { statusColors } from "@/constants/constants";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -23,6 +22,10 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import MobileSettlementCardView from "@/components/employees/MobileSettlementCardView";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/hooks/useDebounce";
+
+// Lazy load the form component
+const EmployeeSettlementForm = lazy(() => import("@/components/employees/EmployeeSettlementForm"));
 
 interface EmployeeSettlementsProps {
   selectedEmployeeId?: number | null;
@@ -54,16 +57,29 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
   const [settlementToDelete, setSettlementToDelete] = useState<EmployeeSettlement | null>(null);
   const [forceDelete, setForceDelete] = useState(false);
   const [internalSelectedEmployeeId, setInternalSelectedEmployeeId] = useState<number | null>(selectedEmployeeId || null);
-  const [addedUsageIds, setAddedUsageIds] = useState<Set<number>>(new Set());
+  const [, setAddedUsageIds] = useState<Set<number>>(new Set());
   const [editingDiscountId, setEditingDiscountId] = useState<number | null>(null);
   const [editingDiscountValue, setEditingDiscountValue] = useState<string>("");
   const { user } = useAuth();
   const canDeleteSettlements = user?.role === "admin" || user?.role === "manager";
   const [discountInputMode, setDiscountInputMode] = useState<"percentage" | "amount">("percentage");
-  const canDeleteSettlement = (settlement: EmployeeSettlement | null) => {
-    if (!canDeleteSettlements || !settlement) return false;
-    return ["pending", "disputed", "cancelled"].includes(settlement.status);
-  };
+  const [, prefetchAllUsages] = useAtom(prefetchAllEmployeeUsagesAtom);
+  const getEmployeeUsages = useAtom(getEmployeeUsagesAtom)[0];
+  const [employeeUsagesCache, setEmployeeUsagesCache] = useAtom(employeeUsagesCacheAtom);
+
+  // Helper function to get the cache
+  const getEmployeeUsagesCache = useCallback(() => {
+    return employeeUsagesCache;
+  }, [employeeUsagesCache]);
+
+  const canDeleteSettlement = useCallback(
+    (settlement: EmployeeSettlement | null) => {
+      if (!canDeleteSettlements || !settlement) return false;
+      return ["pending", "disputed", "cancelled"].includes(settlement.status);
+    },
+    [canDeleteSettlements]
+  );
+
   const canForceDelete = user?.role === "admin";
   const isMobile = useMediaQuery("(max-width: 1104px)");
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,6 +87,16 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
   const [sortBy, setSortBy] = useState<string>("settlementDate");
   const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
   const [sorting, setSorting] = useState<SortingState>([]);
+
+  // Debounced filters to reduce API calls
+  const debouncedFilters = useDebounce(filters, 500);
+
+  useEffect(() => {
+    if (employees.length > 0) {
+      // Pre-fetch usages for all employees in the background
+      prefetchAllUsages();
+    }
+  }, [employees, prefetchAllUsages]);
 
   useEffect(() => {
     fetchEmployees();
@@ -86,102 +112,136 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
           year: selectedYear,
           month: selectedMonth
         };
-        fetchSettlements(updatedFilters);
-        fetchStats(updatedFilters);
         return updatedFilters;
       });
     };
     loadData();
-  }, [internalSelectedEmployeeId, selectedYear, selectedMonth, fetchSettlements, fetchStats, setFilters]);
+  }, [internalSelectedEmployeeId, selectedYear, selectedMonth, setFilters]);
 
-  const handleEmployeeChange = (employeeId: string) => {
-    if (employeeId === "all") {
-      setInternalSelectedEmployeeId(null);
-      onEmployeeSelect?.(null);
-    } else {
-      const id = parseInt(employeeId, 10);
-      setInternalSelectedEmployeeId(id);
-      onEmployeeSelect?.(id);
-    }
-  };
+  // Use debounced filters for API calls
+  useEffect(() => {
+    fetchSettlements(debouncedFilters);
+    fetchStats(debouncedFilters);
+  }, [debouncedFilters, fetchSettlements, fetchStats]);
 
-  const handleStatusFilter = async (status: string) => {
-    const updatedFilters = {
-      ...filters,
-      status: status === "all" ? undefined : (status as SettlementStatus)
-    };
-    setFilters(updatedFilters);
-    await fetchSettlements(updatedFilters);
-  };
-
-  const handleViewDetails = async (settlement: EmployeeSettlement) => {
-    try {
-      const settledUsagesResponse = await employeeAPI.getUsageHistory({
-        employeeId: settlement.employeeId,
-        isSettled: true,
-        settlementId: settlement.id
-      });
-      if (settledUsagesResponse.success && settledUsagesResponse.data?.usages) {
-        const settledUsages = settledUsagesResponse.data.usages;
-
-        const usageBreakdown = settledUsages.map(usage => ({
-          id: usage.id,
-          usageType: usage.usageType,
-          itemName: usage.material?.name || usage.menuItem?.name || "Unknown Item",
-          quantity: Number(usage.quantity),
-          unit: usage.unit,
-          unitCost: Number(usage.unitCost),
-          totalCost: Number(usage.totalCost),
-          discountApplied: Number(usage.discountApplied),
-          finalCost: Number(usage.finalCost),
-          usageDate: usage.usageDate
-        }));
-
-        const totalUsageCost = usageBreakdown.reduce((sum, item) => sum + item.totalCost, 0);
-        const totalDiscountAmount = usageBreakdown.reduce((sum, item) => sum + (item.totalCost - item.finalCost), 0);
-        const totalDeduction = totalUsageCost - totalDiscountAmount;
-
-        const updatedSettlement = {
-          ...settlement,
-          settlementData: {
-            ...settlement.settlementData,
-            usageBreakdown,
-            calculationDetails: {
-              baseSalary: Number(settlement.baseSalary),
-              totalUsageCost,
-              discountPercentage: Number(settlement.employee?.discountPercentage || 0),
-              totalDiscountAmount,
-              netDeduction: totalDeduction,
-              bonusAmount: Number(settlement.bonusAmount),
-              penaltyAmount: Number(settlement.penaltyAmount)
-            }
-          },
-          totalUsageCost,
-          totalDiscountAmount,
-          totalDeduction,
-          usageItemsCount: usageBreakdown.length
-        };
-
-        setSelectedSettlement(updatedSettlement);
+  const handleEmployeeChange = useCallback(
+    (employeeId: string) => {
+      if (employeeId === "all") {
+        setInternalSelectedEmployeeId(null);
+        onEmployeeSelect?.(null);
       } else {
-        setSelectedSettlement(settlement);
+        const id = parseInt(employeeId, 10);
+        setInternalSelectedEmployeeId(id);
+        onEmployeeSelect?.(id);
       }
-      setDetailsOpen(true);
-      setAddedUsageIds(new Set());
-    } catch (error) {
-      console.error("Error fetching settled usages:", error);
-      setSelectedSettlement(settlement);
-      setDetailsOpen(true);
-      setAddedUsageIds(new Set());
-    }
-  };
+    },
+    [onEmployeeSelect]
+  );
 
-  const markUsageItemsAsSettled = async (settlement: EmployeeSettlement) => {
+  const handleStatusFilter = useCallback(
+    async (status: string) => {
+      const updatedFilters = {
+        ...filters,
+        status: status === "all" ? undefined : (status as SettlementStatus)
+      };
+      setFilters(updatedFilters);
+    },
+    [filters, setFilters]
+  );
+
+  // Helper function to update settlement with usage data
+  const updateSettlementWithUsageData = useCallback((settlement: EmployeeSettlement, usages: any[]) => {
+    const usageBreakdown = usages.map(usage => ({
+      id: usage.id,
+      usageType: usage.usageType,
+      itemName: usage.material?.name || usage.menuItem?.name || "Unknown Item",
+      quantity: Number(usage.quantity),
+      unit: usage.unit,
+      unitCost: Number(usage.unitCost),
+      totalCost: Number(usage.totalCost),
+      discountApplied: Number(usage.discountApplied),
+      finalCost: Number(usage.finalCost),
+      usageDate: usage.usageDate
+    }));
+
+    const totalUsageCost = usageBreakdown.reduce((sum, item) => sum + item.totalCost, 0);
+    const totalDiscountAmount = usageBreakdown.reduce((sum, item) => sum + (item.totalCost - item.finalCost), 0);
+    const totalDeduction = totalUsageCost - totalDiscountAmount;
+
+    const updatedSettlement = {
+      ...settlement,
+      settlementData: {
+        ...settlement.settlementData,
+        usageBreakdown,
+        calculationDetails: {
+          baseSalary: Number(settlement.baseSalary),
+          totalUsageCost,
+          discountPercentage: Number(settlement.employee?.discountPercentage || 0),
+          totalDiscountAmount,
+          netDeduction: totalDeduction,
+          bonusAmount: Number(settlement.bonusAmount),
+          penaltyAmount: Number(settlement.penaltyAmount)
+        }
+      },
+      totalUsageCost,
+      totalDiscountAmount,
+      totalDeduction,
+      usageItemsCount: usageBreakdown.length
+    };
+
+    setSelectedSettlement(updatedSettlement);
+  }, []);
+
+  // Update the handleViewDetails function to include the missing dependency
+  const handleViewDetails = useCallback(
+    async (settlement: EmployeeSettlement) => {
+      try {
+        // Immediately show the dialog with basic data
+        setSelectedSettlement(settlement);
+        setDetailsOpen(true);
+        setAddedUsageIds(new Set());
+        // Check if we have cached usages for this employee
+        const cachedUsages = getEmployeeUsages(settlement.employeeId);
+        if (cachedUsages.length > 0) {
+          // Filter usages for the settlement period and settled status
+          const settledUsages = cachedUsages.filter(usage => usage.isSettled && usage.settlementId === settlement.id);
+          if (settledUsages.length > 0) {
+            updateSettlementWithUsageData(settlement, settledUsages);
+            return;
+          }
+        }
+        // If no cached data or no settled usages found, fetch from API
+        const settledUsagesResponse = await employeeAPI.getUsageHistory({
+          employeeId: settlement.employeeId,
+          isSettled: true,
+          settlementId: settlement.id
+        });
+
+        if (settledUsagesResponse.success && settledUsagesResponse.data?.usages) {
+          updateSettlementWithUsageData(settlement, settledUsagesResponse.data.usages);
+          // Also update the cache with the fetched data
+          const newCache = { ...getEmployeeUsagesCache() };
+          if (!newCache[settlement.employeeId]) {
+            newCache[settlement.employeeId] = [];
+          }
+          // Merge with existing cache, avoiding duplicates
+          const existingUsages = newCache[settlement.employeeId];
+          const newUsages = settledUsagesResponse.data.usages.filter(newUsage => !existingUsages.some(existing => existing.id === newUsage.id));
+          newCache[settlement.employeeId] = [...existingUsages, ...newUsages];
+          setEmployeeUsagesCache(newCache);
+        }
+      } catch (error) {
+        console.error("Error fetching settled usages:", error);
+      }
+    },
+    [getEmployeeUsages, updateSettlementWithUsageData, getEmployeeUsagesCache, setEmployeeUsagesCache]
+  );
+
+  const markUsageItemsAsSettled = useCallback(async (settlement: EmployeeSettlement) => {
     try {
       // Get the date range for the settlement period
       const startDate = new Date(settlement.settlementYear, settlement.settlementMonth - 1, 1).toISOString().split("T")[0];
       const endDate = new Date(settlement.settlementYear, settlement.settlementMonth, 0).toISOString().split("T")[0];
-
       // Get all unsettled usage records for this employee and period
       const unsettledUsages = await employeeAPI.getUsageHistory({
         employeeId: settlement.employeeId,
@@ -203,185 +263,199 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
       console.error("Error marking usage items as settled:", error);
       throw error;
     }
-  };
+  }, []);
 
-  const handleDiscountEdit = (usageId: number, currentDiscount: number, totalCost: number) => {
-    setEditingDiscountId(usageId);
-
-    if (discountInputMode === "percentage") {
-      setEditingDiscountValue(currentDiscount.toString());
-    } else {
-      const discountAmount = (totalCost * currentDiscount) / 100;
-      setEditingDiscountValue(discountAmount.toString());
-    }
-  };
-
-  const handleDiscountSave = async (usageId: number, totalCost: number) => {
-    if (!selectedSettlement) return;
-
-    try {
-      let newDiscountValue: number;
-      let discountAmount: number;
+  const handleDiscountEdit = useCallback(
+    (usageId: number, currentDiscount: number, totalCost: number) => {
+      setEditingDiscountId(usageId);
 
       if (discountInputMode === "percentage") {
-        newDiscountValue = parseFloat(editingDiscountValue);
-        if (isNaN(newDiscountValue) || newDiscountValue < 0 || newDiscountValue > 100) {
-          toast.error("Please enter a valid discount percentage (0-100)");
-          return;
-        }
-        discountAmount = (totalCost * newDiscountValue) / 100;
+        setEditingDiscountValue(currentDiscount.toString());
       } else {
-        // Amount mode
-        discountAmount = parseFloat(editingDiscountValue);
-        if (isNaN(discountAmount) || discountAmount < 0 || discountAmount > totalCost) {
-          toast.error(`Please enter a valid discount amount (0-${totalCost.toFixed(2)})`);
-          return;
-        }
-        newDiscountValue = (discountAmount / totalCost) * 100;
+        const discountAmount = (totalCost * currentDiscount) / 100;
+        setEditingDiscountValue(discountAmount.toString());
       }
+    },
+    [discountInputMode]
+  );
 
-      const newFinalCost = totalCost - discountAmount;
-      await employeeAPI.updateUsage(usageId, {
-        discountApplied: newDiscountValue,
-        finalCost: newFinalCost
-      });
-      const updatedUsageBreakdown = selectedSettlement.settlementData.usageBreakdown.map(usage => (usage.id === usageId ? { ...usage, discountApplied: newDiscountValue, finalCost: newFinalCost } : usage));
-      const totalUsageCost = updatedUsageBreakdown.reduce((sum, item) => sum + Number(item.totalCost || 0), 0);
-      const totalDiscountAmount = updatedUsageBreakdown.reduce((sum, item) => sum + (Number(item.totalCost || 0) - Number(item.finalCost || 0)), 0);
-      const totalDeduction = totalUsageCost - totalDiscountAmount;
-      const baseSalary = Number(selectedSettlement.baseSalary || 0);
-      const bonusAmount = Number(selectedSettlement.bonusAmount || 0);
-      const penaltyAmount = Number(selectedSettlement.penaltyAmount || 0);
-      const finalSalary = baseSalary - totalDeduction + bonusAmount - penaltyAmount;
-      const updatedSettlementDataForState = {
-        ...selectedSettlement.settlementData,
-        usageBreakdown: updatedUsageBreakdown,
-        calculationDetails: {
-          ...selectedSettlement.settlementData.calculationDetails,
-          totalUsageCost,
-          totalDiscountAmount,
-          netDeduction: totalDeduction
+  const handleDiscountSave = useCallback(
+    async (usageId: number, totalCost: number) => {
+      if (!selectedSettlement) return;
+      try {
+        let newDiscountValue: number;
+        let discountAmount: number;
+
+        if (discountInputMode === "percentage") {
+          newDiscountValue = parseFloat(editingDiscountValue);
+          if (isNaN(newDiscountValue) || newDiscountValue < 0 || newDiscountValue > 100) {
+            toast.error("Please enter a valid discount percentage (0-100)");
+            return;
+          }
+          discountAmount = (totalCost * newDiscountValue) / 100;
+        } else {
+          // Amount mode
+          discountAmount = parseFloat(editingDiscountValue);
+          if (isNaN(discountAmount) || discountAmount < 0 || discountAmount > totalCost) {
+            toast.error(`Please enter a valid discount amount (0-${totalCost.toFixed(2)})`);
+            return;
+          }
+          newDiscountValue = (discountAmount / totalCost) * 100;
         }
-      };
 
-      // Build settlement data for API (SettlementPreview format)
-      const settlementDataForAPI = {
-        employee: {
-          id: selectedSettlement.employee.id,
-          name: `${selectedSettlement.employee.firstName} ${selectedSettlement.employee.lastName}`,
-          employeeNumber: selectedSettlement.employee.employeeNumber,
-          department: selectedSettlement.employee.department,
-          discountPercentage: Number(selectedSettlement.employee?.discountPercentage || 0)
-        },
-        period: {
-          month: selectedSettlement.settlementMonth,
-          year: selectedSettlement.settlementYear,
-          monthName: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth - 1).toLocaleString("default", { month: "long" })
-        },
-        calculation: {
-          baseSalary: Number(selectedSettlement.baseSalary),
+        const newFinalCost = totalCost - discountAmount;
+        await employeeAPI.updateUsage(usageId, {
+          discountApplied: newDiscountValue,
+          finalCost: newFinalCost
+        });
+        const updatedUsageBreakdown = selectedSettlement.settlementData.usageBreakdown.map(usage => (usage.id === usageId ? { ...usage, discountApplied: newDiscountValue, finalCost: newFinalCost } : usage));
+        const totalUsageCost = updatedUsageBreakdown.reduce((sum, item) => sum + Number(item.totalCost || 0), 0);
+        const totalDiscountAmount = updatedUsageBreakdown.reduce((sum, item) => sum + (Number(item.totalCost || 0) - Number(item.finalCost || 0)), 0);
+        const totalDeduction = totalUsageCost - totalDiscountAmount;
+        const baseSalary = Number(selectedSettlement.baseSalary || 0);
+        const bonusAmount = Number(selectedSettlement.bonusAmount || 0);
+        const penaltyAmount = Number(selectedSettlement.penaltyAmount || 0);
+        const finalSalary = baseSalary - totalDeduction + bonusAmount - penaltyAmount;
+        const updatedSettlementDataForState = {
+          ...selectedSettlement.settlementData,
+          usageBreakdown: updatedUsageBreakdown,
+          calculationDetails: {
+            ...selectedSettlement.settlementData.calculationDetails,
+            totalUsageCost,
+            totalDiscountAmount,
+            netDeduction: totalDeduction
+          }
+        };
+
+        // Build settlement data for API (SettlementPreview format)
+        const settlementDataForAPI = {
+          employee: {
+            id: selectedSettlement.employee.id,
+            name: `${selectedSettlement.employee.firstName} ${selectedSettlement.employee.lastName}`,
+            employeeNumber: selectedSettlement.employee.employeeNumber,
+            department: selectedSettlement.employee.department,
+            discountPercentage: Number(selectedSettlement.employee?.discountPercentage || 0)
+          },
+          period: {
+            month: selectedSettlement.settlementMonth,
+            year: selectedSettlement.settlementYear,
+            monthName: new Date(selectedSettlement.settlementYear, selectedSettlement.settlementMonth - 1).toLocaleString("default", { month: "long" })
+          },
+          calculation: {
+            baseSalary: Number(selectedSettlement.baseSalary),
+            totalUsageCost,
+            totalDiscountAmount,
+            totalDeduction,
+            bonusAmount: Number(selectedSettlement.bonusAmount),
+            penaltyAmount: Number(selectedSettlement.penaltyAmount),
+            finalSalary,
+            usageItemsCount: updatedUsageBreakdown.length
+          },
+          usages: updatedUsageBreakdown,
+          usageBreakdown: updatedUsageBreakdown
+        };
+
+        // Update the settlement in the backend
+        await employeeAPI.updateSettlement(selectedSettlement.id, {
           totalUsageCost,
           totalDiscountAmount,
           totalDeduction,
-          bonusAmount: Number(selectedSettlement.bonusAmount),
-          penaltyAmount: Number(selectedSettlement.penaltyAmount),
           finalSalary,
-          usageItemsCount: updatedUsageBreakdown.length
-        },
-        usages: updatedUsageBreakdown,
-        usageBreakdown: updatedUsageBreakdown
-      };
+          settlementData: settlementDataForAPI
+        });
+        setSelectedSettlement({
+          ...selectedSettlement,
+          totalUsageCost,
+          totalDiscountAmount,
+          totalDeduction,
+          finalSalary,
+          settlementData: updatedSettlementDataForState
+        });
+        setEditingDiscountId(null);
+        setEditingDiscountValue("");
+        await fetchSettlements(filters);
+        toast.success("Discount updated successfully");
+      } catch (error) {
+        console.error("Error updating discount:", error);
+        toast.error("Failed to update discount");
+      }
+    },
+    [selectedSettlement, discountInputMode, editingDiscountValue, filters, fetchSettlements]
+  );
 
-      // Update the settlement in the backend
-      await employeeAPI.updateSettlement(selectedSettlement.id, {
-        totalUsageCost,
-        totalDiscountAmount,
-        totalDeduction,
-        finalSalary,
-        settlementData: settlementDataForAPI
-      });
-      setSelectedSettlement({
-        ...selectedSettlement,
-        totalUsageCost,
-        totalDiscountAmount,
-        totalDeduction,
-        finalSalary,
-        settlementData: updatedSettlementDataForState
-      });
-      setEditingDiscountId(null);
-      setEditingDiscountValue("");
-      await fetchSettlements(filters);
-      toast.success("Discount updated successfully");
-    } catch (error) {
-      console.error("Error updating discount:", error);
-      toast.error("Failed to update discount");
-    }
-  };
-
-  const handleDiscountCancel = () => {
+  const handleDiscountCancel = useCallback(() => {
     setEditingDiscountId(null);
     setEditingDiscountValue("");
-  };
+  }, []);
 
-  const handleApprove = async (settlementId: number) => {
-    try {
-      const settlement = settlements.find(s => s.id === settlementId);
-      if (!settlement) {
-        throw new Error("Settlement not found");
+  const handleApprove = useCallback(
+    async (settlementId: number) => {
+      try {
+        const settlement = settlements.find(s => s.id === settlementId);
+        if (!settlement) {
+          throw new Error("Settlement not found");
+        }
+        await approveSettlement({
+          id: settlementId,
+          notes: "Approved via settlement management interface"
+        });
+        await markUsageItemsAsSettled(settlement);
+        await fetchSettlements(filters);
+        toast.success("Settlement approved and usage items marked as settled");
+      } catch (error) {
+        console.error("Error approving settlement:", error);
+        toast.error("Failed to approve settlement");
       }
-      await approveSettlement({
-        id: settlementId,
-        notes: "Approved via settlement management interface"
-      });
-      await markUsageItemsAsSettled(settlement);
-      await fetchSettlements(filters);
-      toast.success("Settlement approved and usage items marked as settled");
-    } catch (error) {
-      console.error("Error approving settlement:", error);
-      toast.error("Failed to approve settlement");
-    }
-  };
+    },
+    [settlements, approveSettlement, markUsageItemsAsSettled, fetchSettlements, filters]
+  );
 
-  const handleMarkAsPaid = async (settlementId: number) => {
-    try {
-      const settlement = settlements.find(s => s.id === settlementId);
-      if (!settlement) {
-        throw new Error("Settlement not found");
+  const handleMarkAsPaid = useCallback(
+    async (settlementId: number) => {
+      try {
+        const settlement = settlements.find(s => s.id === settlementId);
+        if (!settlement) {
+          throw new Error("Settlement not found");
+        }
+        await markAsPaid({
+          id: settlementId,
+          paymentMethod: "cash",
+          paymentReference: `PAY-${settlementId}-${Date.now()}`
+        });
+        await markUsageItemsAsSettled(settlement);
+        await fetchSettlements(filters);
+        toast.success("Settlement marked as paid and usage items marked as settled");
+      } catch (error) {
+        console.error("Error marking as paid:", error);
+        toast.error("Failed to mark settlement as paid");
       }
-      await markAsPaid({
-        id: settlementId,
-        paymentMethod: "cash",
-        paymentReference: `PAY-${settlementId}-${Date.now()}`
-      });
-      await markUsageItemsAsSettled(settlement);
-      await fetchSettlements(filters);
-      toast.success("Settlement marked as paid and usage items marked as settled");
-    } catch (error) {
-      console.error("Error marking as paid:", error);
-      toast.error("Failed to mark settlement as paid");
-    }
-  };
+    },
+    [settlements, markAsPaid, markUsageItemsAsSettled, fetchSettlements, filters]
+  );
 
-  const handleCreateSettlement = async (data: CreateSettlementData) => {
-    try {
-      await createSettlement(data);
-      setSettlementFormOpen(false);
-      toast.success("Settlement created successfully");
-      await fetchSettlements(filters);
-      await fetchStats({ year: selectedYear, month: selectedMonth });
-    } catch (error) {
-      console.error("Error creating settlement:", error);
-      toast.error("Failed to create settlement");
-    }
-  };
+  const handleCreateSettlement = useCallback(
+    async (data: CreateSettlementData) => {
+      try {
+        await createSettlement(data);
+        setSettlementFormOpen(false);
+        toast.success("Settlement created successfully");
+        await fetchSettlements(filters);
+        await fetchStats({ year: selectedYear, month: selectedMonth });
+      } catch (error) {
+        console.error("Error creating settlement:", error);
+        toast.error("Failed to create settlement");
+      }
+    },
+    [createSettlement, fetchSettlements, filters, fetchStats, selectedYear, selectedMonth]
+  );
 
-  const handleDeleteClick = (settlement: EmployeeSettlement) => {
+  const handleDeleteClick = useCallback((settlement: EmployeeSettlement) => {
     setSettlementToDelete(settlement);
     setForceDelete(false);
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!settlementToDelete) return;
     try {
       await deleteSettlement({ id: settlementToDelete.id, force: forceDelete });
@@ -401,19 +475,19 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
         toast.error(`Failed to delete settlement: ${error.message || "Unknown error"}`);
       }
     }
-  };
+  }, [settlementToDelete, forceDelete, deleteSettlement, fetchSettlements, filters, fetchStats, selectedYear, selectedMonth]);
 
-  const handleDeleteCancel = () => {
+  const handleDeleteCancel = useCallback(() => {
     setDeleteDialogOpen(false);
     setSettlementToDelete(null);
     setForceDelete(false);
-  };
+  }, []);
 
-  const handleCancelForm = () => {
+  const handleCancelForm = useCallback(() => {
     setSettlementFormOpen(false);
-  };
+  }, []);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = useCallback((amount: number) => {
     if (amount == null || isNaN(amount) || !isFinite(amount)) {
       return "$0.00";
     }
@@ -421,18 +495,18 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
       style: "currency",
       currency: "USD"
     }).format(amount);
-  };
+  }, []);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString();
-  };
+  }, []);
 
-  const getMonthName = (month: number) => {
+  const getMonthName = useCallback((month: number) => {
     return new Date(2024, month - 1, 1).toLocaleDateString("en-US", { month: "long" });
-  };
+  }, []);
 
   // Format as DD-MM-YYYY HH:MM:SS AM/PM (match ReportGenerator CSV style)
-  const formatDateForCSV = (date: Date): string => {
+  const formatDateForCSV = useCallback((date: Date): string => {
     const day = date.getDate().toString().padStart(2, "0");
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const year = date.getFullYear();
@@ -446,9 +520,9 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
     const minutes = date.getMinutes().toString().padStart(2, "0");
     const seconds = date.getSeconds().toString().padStart(2, "0");
     return `${day}-${month}-${year} ${hoursStr}:${minutes}:${seconds} ${ampm}`;
-  };
+  }, []);
 
-  const exportSettlements = () => {
+  const exportSettlements = useCallback(() => {
     if (loading || (settlements?.length || 0) === 0) return;
     const headers = ["Employee", "Employee Number", "Department", "Period", "Base Salary", "Total Usage Cost", "Discount Amount", "Net Deduction", "Bonus", "Penalty", "Final Salary", "Status", "Settlement Date", "Usage Items Count"];
     const csvRows = settlements.map(s => {
@@ -490,11 +564,11 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
     link.href = url;
     link.click();
     window.URL.revokeObjectURL(url);
-  };
+  }, [loading, settlements, getMonthName, formatDateForCSV, internalSelectedEmployeeId, selectedYear, selectedMonth]);
 
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  const years = useMemo(() => Array.from({ length: 5 }, (_, i) => currentYear - i), [currentYear]);
+  const months = useMemo(() => Array.from({ length: 12 }, (_, i) => i + 1), []);
 
   // Visible, sorted, and paginated data
   const visibleSettlements = useMemo(() => {
@@ -827,7 +901,7 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
             </div>
 
             {/* Filters & buttons */}
-            <div className="flex-1 flex  items-stretch lg:items-center justify-end gap-2">
+            <div className="flex-1 flex items-stretch lg:items-center justify-end gap-2">
               <VirtualSelect
                 items={[
                   { id: "all", label: "All Employees" },
@@ -909,7 +983,7 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
 
           {/* Table */}
           <div className="w-full overflow-x-auto">
-            <TanStackTable table={table} loading={false} emptyMessage="No settlements found" maxHeight="calc(100vh - 170px)" />
+            <TanStackTable table={table} emptyMessage="No settlements found" maxHeight="calc(100vh - 170px)" />
           </div>
         </>
       )}
@@ -946,7 +1020,47 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
                     </div>
                     <div>
                       <div className="text-xs sm:text-sm text-muted-foreground">Status</div>
-                      <Badge className={`text-xs ${statusColors[selectedSettlement.status]}`}>{selectedSettlement.status}</Badge>
+                      <Select
+                        value={selectedSettlement.status}
+                        onValueChange={async (newStatus: SettlementStatus) => {
+                          if (!selectedSettlement) return;
+
+                          try {
+                            // Update the status locally first for immediate UI feedback
+                            const updatedSettlement = {
+                              ...selectedSettlement,
+                              status: newStatus as SettlementStatus
+                            };
+                            setSelectedSettlement(updatedSettlement);
+
+                            // Update in the backend
+                            await employeeAPI.updateSettlementStatus(selectedSettlement.id, newStatus);
+
+                            // Refresh the settlements list to reflect the change
+                            await fetchSettlements(filters);
+
+                            toast.success(`Status updated to ${newStatus}`);
+                          } catch (error) {
+                            console.error("Error changing status:", error);
+                            // Revert the local change if the API call fails
+                            setSelectedSettlement(selectedSettlement);
+                            toast.error("Failed to update status");
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-28 h-7 p-1 text-xs">
+                          <SelectValue>
+                            <Badge className={`text-xs ${statusColors[selectedSettlement.status]}`}>{selectedSettlement.status.charAt(0).toUpperCase() + selectedSettlement.status.slice(1)}</Badge>
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statuses.map(status => (
+                            <SelectItem key={status} value={status}>
+                              <Badge className={`text-xs ${statusColors[status]}`}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <div className="text-xs sm:text-sm text-muted-foreground">Settlement Date</div>
@@ -1086,7 +1200,9 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
             <DialogTitle>Create New Settlement</DialogTitle>
             <DialogDescription>Generate a monthly settlement for an employee based on their usage and salary</DialogDescription>
           </DialogHeader>
-          <EmployeeSettlementForm onSubmit={handleCreateSettlement} onCancel={handleCancelForm} isLoading={formLoading} employees={employees} />
+          <Suspense fallback={<div className="p-4 text-center">Loading form...</div>}>
+            <EmployeeSettlementForm onSubmit={handleCreateSettlement} onCancel={handleCancelForm} isLoading={formLoading} employees={employees} />
+          </Suspense>
         </DialogContent>
       </Dialog>
 

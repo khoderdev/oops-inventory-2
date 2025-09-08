@@ -757,6 +757,8 @@ export const deleteSettlement = async (req, res) => {
       await AuditLog.create({
         userId: req.user.id,
         action: isForceDelete ? "FORCE_DELETE" : "DELETE",
+        resource: "EmployeeSettlement",
+        resourceId: settlementInfo.id.toString(),
         tableName: "EmployeeSettlement",
         recordId: settlementInfo.id,
         oldValues: settlementInfo,

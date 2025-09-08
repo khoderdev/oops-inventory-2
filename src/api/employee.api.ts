@@ -1,5 +1,5 @@
 import api from "@/lib/http";
-import type { CreateEmployeeData, CreateSettlementData, Employee, EmployeeFilters, EmployeeResponse, EmployeeSettlement, EmployeeSettlementResponse, EmployeeSettlementsResponse, EmployeesResponse, EmployeeStats, EmployeeUsage, EmployeeUsageResponse, EmployeeUsagesResponse, MarkAsPaidData, MonthlyUsageSummary, RecordUsageData, SettlementFilters, SettlementPreview, SettlementStats, UpdateEmployeeData, UpdateSettlementData, UsageFilters, UsageStats } from "@/types/employee";
+import type { CreateEmployeeData, CreateSettlementData, Employee, EmployeeFilters, EmployeeResponse, EmployeeSettlement, EmployeeSettlementResponse, EmployeeSettlementsResponse, EmployeesResponse, EmployeeStats, EmployeeUsage, EmployeeUsageResponse, EmployeeUsagesResponse, MarkAsPaidData, MonthlyUsageSummary, RecordUsageData, SettlementFilters, SettlementPreview, SettlementStats, SettlementStatus, UpdateEmployeeData, UpdateSettlementData, UsageFilters, UsageStats } from "@/types/employee";
 
 // Employee Management API
 export const employeeAPI = {
@@ -190,6 +190,11 @@ export const employeeAPI = {
     }
 
     return { success: true, updated, failed: 0 };
+  },
+
+  async updateSettlementStatus(settlementId: number, status: SettlementStatus) {
+    const response = await api.patch(`/employees/settlements/${settlementId}/status`, { status });
+    return response.data;
   },
 
   // Utility functions

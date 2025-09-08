@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
-import { AuditLog, Employee, EmployeeUsage, Material, MenuItem, StockEntry, User } from "../models/index.js";
+import { AuditLog, Employee, EmployeeUsage, Material, MenuItem, StockEntry, User, EmployeeSettlement } from "../models/index.js";
 
 // Record employee usage
 export const recordUsage = async (req, res) => {
@@ -385,12 +385,8 @@ export const updateUsage = async (req, res) => {
 
     if (usage.isSettled && isSettled !== true) {
       const isDiscountUpdate = discountApplied !== undefined || finalCost !== undefined;
-      const isOnlyDiscountUpdate = isDiscountUpdate && 
-        quantity === undefined && 
-        unit === undefined && 
-        unitCost === undefined && 
-        notes === undefined;
-      
+      const isOnlyDiscountUpdate = isDiscountUpdate && quantity === undefined && unit === undefined && unitCost === undefined && notes === undefined;
+
       if (!isOnlyDiscountUpdate) {
         return res.status(400).json({
           success: false,
@@ -412,7 +408,7 @@ export const updateUsage = async (req, res) => {
       updateData.totalCost = (quantity !== undefined ? parseFloat(quantity) : usage.quantity) * parseFloat(unitCost);
     }
     if (notes !== undefined) updateData.notes = notes;
-    
+
     // Handle settlement fields
     if (isSettled !== undefined) updateData.isSettled = Boolean(isSettled);
     if (settlementId !== undefined) updateData.settlementId = settlementId;
@@ -424,7 +420,7 @@ export const updateUsage = async (req, res) => {
       updateData.discountAmount = totalCost * (parseFloat(discountApplied) / 100);
       updateData.finalCost = totalCost - updateData.discountAmount;
     }
-    
+
     // Handle direct final cost updates
     if (finalCost !== undefined && discountApplied === undefined) {
       updateData.finalCost = parseFloat(finalCost);
@@ -575,6 +571,120 @@ export const getUsageStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch usage statistics",
+      error: error.message
+    });
+  }
+};
+
+// Update settlement status
+export const updateSettlementStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate required fields
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: "Status is required"
+      });
+    }
+
+    // Validate status value
+    const validStatuses = ["pending", "approved", "paid", "disputed", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status. Must be one of: pending, approved, paid, disputed, cancelled"
+      });
+    }
+
+    // Find the settlement with minimal includes first to avoid eager loading issues
+    const settlement = await EmployeeSettlement.findByPk(id);
+
+    if (!settlement) {
+      return res.status(404).json({
+        success: false,
+        message: "Settlement not found"
+      });
+    }
+
+    const oldValues = settlement.toJSON();
+
+    // Update the settlement status
+    await settlement.update({ status });
+
+    // If status is being changed to paid, update payment date
+    if (status === "paid" && settlement.status !== "paid") {
+      await settlement.update({
+        paymentDate: new Date(),
+        paidBy: req.user.id
+      });
+    }
+
+    // If status is being changed from paid to something else, clear payment info
+    if (settlement.status === "paid" && status !== "paid") {
+      await settlement.update({
+        paymentDate: null,
+        paidBy: null,
+        paymentMethod: null,
+        paymentReference: null
+      });
+    }
+
+    // Fetch the updated settlement with minimal data to avoid eager loading issues
+    const updatedSettlement = await EmployeeSettlement.findByPk(id, {
+      include: [
+        {
+          model: Employee,
+          as: "employee",
+          attributes: ["id", "firstName", "lastName", "employeeNumber"],
+          required: false
+        }
+      ]
+    });
+    
+    // If you need user data, fetch it separately to avoid association conflicts
+    if (updatedSettlement) {
+      // Add user data manually if needed
+      if (updatedSettlement.processedBy) {
+        const processor = await User.findByPk(updatedSettlement.processedBy, {
+          attributes: ["id", "firstName", "lastName", "username"],
+          raw: true
+        });
+        updatedSettlement.dataValues.processor = processor;
+      }
+      
+      if (updatedSettlement.approvedBy) {
+        const approver = await User.findByPk(updatedSettlement.approvedBy, {
+          attributes: ["id", "firstName", "lastName", "username"],
+          raw: true
+        });
+        updatedSettlement.dataValues.approver = approver;
+      }
+      
+      if (updatedSettlement.paidBy) {
+        const paidByUser = await User.findByPk(updatedSettlement.paidBy, {
+          attributes: ["id", "firstName", "lastName", "username"],
+          raw: true
+        });
+        updatedSettlement.dataValues.paidByUser = paidByUser;
+      }
+    }
+
+    await AuditLog.logUserAction(req.user.id, "update", "employee_settlement", id, oldValues, updatedSettlement.toJSON(), req);
+
+    res.json({
+      success: true,
+      data: updatedSettlement,
+      message: `Settlement status updated to ${status} successfully`
+    });
+  } catch (error) {
+    console.error("Error updating settlement status:", error);
+    await AuditLog.logFailedAction(req.user.id, "update", "employee_settlement", error.message, req);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update settlement status",
       error: error.message
     });
   }

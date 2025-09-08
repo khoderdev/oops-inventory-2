@@ -1,7 +1,7 @@
 import express from "express";
 import { createEmployee, deleteEmployee, getAllEmployees, getEmployeeById, getEmployeeStats, updateEmployee } from "../controllers/employeeController.js";
 import { approveSettlement, createSettlement, deleteSettlement, getAllSettlements, getPendingSettlements, getSettlementById, getSettlementStats, markAsPaid, previewSettlement, updateSettlement } from "../controllers/employeeSettlementController.js";
-import { deleteUsage, getMonthlyUsageSummary, getUsageHistory, getUsageStats, recordUsage, updateUsage } from "../controllers/employeeUsageController.js";
+import { deleteUsage, getMonthlyUsageSummary, getUsageHistory, getUsageStats, recordUsage, updateUsage , updateSettlementStatus} from "../controllers/employeeUsageController.js";
 import { authenticate, requirePermission } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -24,6 +24,7 @@ router.post("/settlements", requirePermission("employee.settlementCreate"), crea
 router.post("/settlements/preview", requirePermission("employee.settlementCreate"), previewSettlement);
 router.get("/settlements/:id", requirePermission("employee.settlementView"), getSettlementById);
 router.put("/settlements/:id", requirePermission("employee.settlementProcess"), updateSettlement);
+router.patch("/settlements/:id/status", requirePermission("employee.settlementProcess"), updateSettlementStatus);
 router.put("/settlements/:id/approve", requirePermission("employee.settlementApprove"), approveSettlement);
 router.put("/settlements/:id/pay", requirePermission("employee.settlementProcess"), markAsPaid);
 router.delete("/settlements/:id", requirePermission("employee.settlementDelete"), deleteSettlement);
