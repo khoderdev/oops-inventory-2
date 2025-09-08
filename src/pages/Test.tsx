@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,7 +11,7 @@ import { approveSettlementAtom, createSettlementAtom, deleteSettlementAtom, empl
 import { employeeAPI } from "@/api/employee.api";
 import type { CreateSettlementData, EmployeeSettlement, SettlementStatus } from "@/types/employee";
 import { useAtom } from "jotai";
-import { CheckCircle, DollarSign, Download, Eye, Plus, Trash2 } from "lucide-react";
+import { CheckCircle, DollarSign, Download, Plus, Trash2, X } from "lucide-react";
 import React, { useEffect, useState, useMemo, useCallback, lazy, Suspense } from "react";
 import { createColumnHelper, getCoreRowModel, useReactTable, ColumnDef, SortingState } from "@tanstack/react-table";
 import { statusColors } from "@/constants/constants";
@@ -813,17 +813,6 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
           const settlement = row.original;
           return (
             <div className="flex w-full items-center justify-end">
-              <TooltipProvider>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" onClick={() => handleViewDetails(settlement)} className="h-8 w-8 p-0">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>View details</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
               {settlement.status === "pending" && (
                 <TooltipProvider>
                   <Tooltip delayDuration={0}>
@@ -983,224 +972,224 @@ const Test: React.FC<EmployeeSettlementsProps> = ({ selectedEmployeeId, onEmploy
 
           {/* Table */}
           <div className="w-full overflow-x-auto">
-            <TanStackTable 
-              table={table} 
-              emptyMessage="No settlements found" 
-              maxHeight="calc(100vh - 170px)" 
-              onRowClick={(row) => handleViewDetails(row.original)}
-            />
+            <TanStackTable table={table} emptyMessage="No settlements found" maxHeight="calc(100vh - 170px)" onRowClick={row => handleViewDetails(row.original)} />
           </div>
         </>
       )}
 
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-3xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle>Settlement Details</DialogTitle>
+        <DialogContent className="max-w-[95vw] sm:max-w-3xl lg:max-w-4xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+          {/* Sticky Header */}
+          <div className="sticky top-0 z-10 bg-background border-b p-1.5 px-4">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <DialogTitle className="text-lg sm:text-xl">Settlement Details</DialogTitle>
+                <DialogClose asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </DialogClose>
               </div>
-            </div>
-          </DialogHeader>
+            </DialogHeader>
+          </div>
 
-          {selectedSettlement && (
-            <div className="space-y-4 sm:space-y-6">
-              <Card>
-                <CardHeader className="p-4">
-                  <CardTitle className="text-base sm:text-lg">Settlement Summary</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                    <div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">Employee</div>
-                      <div className="font-medium text-sm sm:text-base">
-                        {selectedSettlement.employee?.firstName} {selectedSettlement.employee?.lastName}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">Period</div>
-                      <div className="font-medium text-sm sm:text-base">
-                        {getMonthName(selectedSettlement.settlementMonth)} {selectedSettlement.settlementYear}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">Status</div>
-                      <Select
-                        value={selectedSettlement.status}
-                        onValueChange={async (newStatus: SettlementStatus) => {
-                          if (!selectedSettlement) return;
-
-                          try {
-                            // Update the status locally first for immediate UI feedback
-                            const updatedSettlement = {
-                              ...selectedSettlement,
-                              status: newStatus as SettlementStatus
-                            };
-                            setSelectedSettlement(updatedSettlement);
-
-                            // Update in the backend
-                            await employeeAPI.updateSettlementStatus(selectedSettlement.id, newStatus);
-
-                            // Refresh the settlements list to reflect the change
-                            await fetchSettlements(filters);
-
-                            toast.success(`Status updated to ${newStatus}`);
-                          } catch (error) {
-                            console.error("Error changing status:", error);
-                            // Revert the local change if the API call fails
-                            setSelectedSettlement(selectedSettlement);
-                            toast.error("Failed to update status");
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="w-28 h-7 p-1 text-xs">
-                          <SelectValue>
-                            <Badge className={`text-xs ${statusColors[selectedSettlement.status]}`}>{selectedSettlement.status.charAt(0).toUpperCase() + selectedSettlement.status.slice(1)}</Badge>
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {statuses.map(status => (
-                            <SelectItem key={status} value={status}>
-                              <Badge className={`text-xs ${statusColors[status]}`}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <div className="text-xs sm:text-sm text-muted-foreground">Settlement Date</div>
-                      <div className="font-medium text-sm sm:text-base">{formatDate(selectedSettlement.settlementDate)}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="p-4">
-                  <CardTitle className="text-base sm:text-lg">Financial Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  <div className="space-y-2 sm:space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm sm:text-base">Base Salary</span>
-                      <span className="font-mono text-sm sm:text-base">{formatCurrency(selectedSettlement.baseSalary)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-red-600">
-                      <span className="text-sm sm:text-base">Total Usage Cost</span>
-                      <span className="font-mono text-sm sm:text-base">-{formatCurrency(selectedSettlement.totalUsageCost)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-green-600">
-                      <span className="text-sm sm:text-base">Discount Amount</span>
-                      <span className="font-mono text-sm sm:text-base">+{formatCurrency(selectedSettlement.totalDiscountAmount)}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between items-center text-red-600">
-                      <span className="text-sm sm:text-base">Net Deduction</span>
-                      <span className="font-mono text-sm sm:text-base">-{formatCurrency(selectedSettlement.totalDeduction)}</span>
-                    </div>
-                    {selectedSettlement.bonusAmount > 0 && (
-                      <div className="flex justify-between items-center text-green-600">
-                        <span className="text-sm sm:text-base">Bonus</span>
-                        <span className="font-mono text-sm sm:text-base">+{formatCurrency(selectedSettlement.bonusAmount)}</span>
-                      </div>
-                    )}
-                    {selectedSettlement.penaltyAmount > 0 && (
-                      <div className="flex justify-between items-center text-red-600">
-                        <span className="text-sm sm:text-base">Penalty</span>
-                        <span className="font-mono text-sm sm:text-base">-{formatCurrency(selectedSettlement.penaltyAmount)}</span>
-                      </div>
-                    )}
-                    <Separator />
-                    <div className="flex justify-between items-center font-bold text-base sm:text-lg">
-                      <span>Final Salary</span>
-                      <span className="font-mono">{formatCurrency(selectedSettlement.finalSalary)}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {selectedSettlement.settlementData?.usageBreakdown && (
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-3">
+            {selectedSettlement && (
+              <div className="space-y-4 sm:space-y-6">
                 <Card>
-                  <div className="flex justify-between items-center p-4 gap-2">
-                    <CardTitle className="text-base sm:text-lg">Usage Breakdown</CardTitle>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm font-medium">Discount type:</span>
-                      <Select value={discountInputMode} onValueChange={(value: "percentage" | "amount") => setDiscountInputMode(value)}>
-                        <SelectTrigger className="w-28 sm:w-32 h-8 text-xs">
-                          <SelectValue placeholder="Input mode" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="percentage">Percentage (%)</SelectItem>
-                          <SelectItem value="amount">Amount ($)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
                   <CardContent className="p-4 pt-0">
-                    <div className="rounded-md border overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="text-xs sm:text-sm">Date</TableHead>
-                            <TableHead className="text-xs sm:text-sm">Item</TableHead>
-                            <TableHead className="text-xs sm:text-sm">Quantity</TableHead>
-                            <TableHead className="text-xs sm:text-sm">Unit Cost</TableHead>
-                            <TableHead className="text-xs sm:text-sm">Total</TableHead>
-                            <TableHead className="text-xs sm:text-sm ">Discount</TableHead>
-                            <TableHead className="text-xs sm:text-sm">Final</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedSettlement.settlementData.usageBreakdown.map(usage => (
-                            <TableRow key={usage.id}>
-                              <TableCell className="text-xs sm:text-sm">{formatDate(usage.usageDate)}</TableCell>
-                              <TableCell className="text-xs sm:text-sm">{usage.itemName}</TableCell>
-                              <TableCell className="text-xs sm:text-sm">{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
-                              <TableCell className="font-mono text-xs sm:text-sm">{formatCurrency(usage.unitCost)}</TableCell>
-                              <TableCell className="font-mono text-xs sm:text-sm">{formatCurrency(usage.totalCost)}</TableCell>
-                              <TableCell className="font-mono text-green-600 text-xs sm:text-sm cursor-pointer hover:bg-green-400/25" onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied, usage.totalCost)} title="Double-click to edit discount">
-                                {editingDiscountId === usage.id ? (
-                                  <div className="flex items-center gap-1">
-                                    <input
-                                      type="number"
-                                      value={editingDiscountValue}
-                                      onChange={e => setEditingDiscountValue(e.target.value)}
-                                      onKeyDown={e => {
-                                        if (e.key === "Enter") {
-                                          handleDiscountSave(usage.id, usage.totalCost);
-                                        } else if (e.key === "Escape") {
-                                          handleDiscountCancel();
-                                        }
-                                      }}
-                                      onBlur={() => handleDiscountSave(usage.id, usage.totalCost)}
-                                      className="w-14 sm:w-16 px-1 py-1 text-xs rounded"
-                                      min="0"
-                                      max={discountInputMode === "percentage" ? "100" : usage.totalCost.toFixed(2)}
-                                      step={discountInputMode === "percentage" ? "0.1" : "0.01"}
-                                      autoFocus
-                                    />
-                                    <span className="text-xs font-bold ml-1">{discountInputMode === "percentage" ? "%" : "$"}</span>
-                                  </div>
-                                ) : (
-                                  <span className="font-semibold">{discountInputMode === "percentage" ? `-${usage.discountApplied}%` : `-${formatCurrency((usage.totalCost * usage.discountApplied) / 100)}`}</span>
-                                )}
-                              </TableCell>
-                              <TableCell className="font-mono font-medium text-xs sm:text-sm">{formatCurrency(usage.finalCost)}</TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                    <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                      <div>
+                        <div className="text-xs sm:text-sm">Employee</div>
+                        <div className="font-medium text-sm sm:text-base">
+                          {selectedSettlement.employee?.firstName} {selectedSettlement.employee?.lastName}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs sm:text-sm">Period</div>
+                        <div className="font-medium text-sm sm:text-base">
+                          {getMonthName(selectedSettlement.settlementMonth)} {selectedSettlement.settlementYear}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs sm:text-sm">Status</div>
+                        <Select
+                          value={selectedSettlement.status}
+                          onValueChange={async (newStatus: SettlementStatus) => {
+                            if (!selectedSettlement) return;
+                            try {
+                              const updatedSettlement = {
+                                ...selectedSettlement,
+                                status: newStatus as SettlementStatus
+                              };
+                              setSelectedSettlement(updatedSettlement);
+                              await employeeAPI.updateSettlementStatus(selectedSettlement.id, newStatus);
+                              await fetchSettlements(filters);
+                              toast.success(`Status updated to ${newStatus}`);
+                            } catch (error) {
+                              console.error("Error changing status:", error);
+                              setSelectedSettlement(selectedSettlement);
+                              toast.error("Failed to update status");
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-28 h-7 p-1 text-xs">
+                            <SelectValue>
+                              <Badge className={`text-xs ${statusColors[selectedSettlement.status]}`}>{selectedSettlement.status.charAt(0).toUpperCase() + selectedSettlement.status.slice(1)}</Badge>
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statuses.map(status => (
+                              <SelectItem key={status} value={status}>
+                                <Badge className={`text-xs ${statusColors[status]}`}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <div className="text-xs sm:text-sm">Settlement Date</div>
+                        <div className="font-medium text-sm sm:text-base">{formatDate(selectedSettlement.settlementDate)}</div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              )}
+
+                <Card>
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-base sm:text-lg">Financial Breakdown</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <div className="space-y-2 sm:space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm sm:text-base">Base Salary</span>
+                        <span className="font-mono text-sm sm:text-base">{formatCurrency(selectedSettlement.baseSalary)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-red-600">
+                        <span className="text-sm sm:text-base">Total Usage Cost</span>
+                        <span className="font-mono text-sm sm:text-base">-{formatCurrency(selectedSettlement.totalUsageCost)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-green-600">
+                        <span className="text-sm sm:text-base">Discount Amount</span>
+                        <span className="font-mono text-sm sm:text-base">+{formatCurrency(selectedSettlement.totalDiscountAmount)}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between items-center text-red-600">
+                        <span className="text-sm sm:text-base">Net Deduction</span>
+                        <span className="font-mono text-sm sm:text-base">-{formatCurrency(selectedSettlement.totalDeduction)}</span>
+                      </div>
+                      {selectedSettlement.bonusAmount > 0 && (
+                        <div className="flex justify-between items-center text-green-600">
+                          <span className="text-sm sm:text-base">Bonus</span>
+                          <span className="font-mono text-sm sm:text-base">+{formatCurrency(selectedSettlement.bonusAmount)}</span>
+                        </div>
+                      )}
+                      {selectedSettlement.penaltyAmount > 0 && (
+                        <div className="flex justify-between items-center text-red-600">
+                          <span className="text-sm sm:text-base">Penalty</span>
+                          <span className="font-mono text-sm sm:text-base">-{formatCurrency(selectedSettlement.penaltyAmount)}</span>
+                        </div>
+                      )}
+                      <Separator />
+                      <div className="flex justify-between items-center font-bold text-base sm:text-lg">
+                        <span>Final Salary</span>
+                        <span className="font-mono">{formatCurrency(selectedSettlement.finalSalary)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {selectedSettlement.settlementData?.usageBreakdown && (
+                  <Card>
+                    <div className="flex justify-between items-center p-4 gap-2">
+                      <CardTitle className="text-base sm:text-lg">Items Usage</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-medium">Discount type:</span>
+                        <Select value={discountInputMode} onValueChange={(value: "percentage" | "amount") => setDiscountInputMode(value)}>
+                          <SelectTrigger className="w-28 sm:w-32 h-8 text-xs">
+                            <SelectValue placeholder="Input mode" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="percentage">Percentage (%)</SelectItem>
+                            <SelectItem value="amount">Amount ($)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <CardContent className="p-4 pt-0">
+                      <div className="rounded-md border overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs sm:text-sm">Date</TableHead>
+                              <TableHead className="text-xs sm:text-sm">Item</TableHead>
+                              <TableHead className="text-xs sm:text-sm">Quantity</TableHead>
+                              <TableHead className="text-xs sm:text-sm">Unit Cost</TableHead>
+                              <TableHead className="text-xs sm:text-sm">Total</TableHead>
+                              <TableHead className="text-xs sm:text-sm ">Discount</TableHead>
+                              <TableHead className="text-xs sm:text-sm">Final</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedSettlement.settlementData.usageBreakdown.map(usage => (
+                              <TableRow key={usage.id}>
+                                <TableCell className="text-xs sm:text-sm">{formatDate(usage.usageDate)}</TableCell>
+                                <TableCell className="text-xs sm:text-sm">{usage.itemName}</TableCell>
+                                <TableCell className="text-xs sm:text-sm">{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
+                                <TableCell className="font-mono text-xs sm:text-sm">{formatCurrency(usage.unitCost)}</TableCell>
+                                <TableCell className="font-mono text-xs sm:text-sm">{formatCurrency(usage.totalCost)}</TableCell>
+                                <TableCell className="font-mono text-green-600 text-xs sm:text-sm cursor-pointer hover:bg-green-400/25" onDoubleClick={() => handleDiscountEdit(usage.id, usage.discountApplied, usage.totalCost)} title="Double-click to edit discount">
+                                  {editingDiscountId === usage.id ? (
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        type="number"
+                                        value={editingDiscountValue}
+                                        onChange={e => setEditingDiscountValue(e.target.value)}
+                                        onKeyDown={e => {
+                                          if (e.key === "Enter") {
+                                            handleDiscountSave(usage.id, usage.totalCost);
+                                          } else if (e.key === "Escape") {
+                                            handleDiscountCancel();
+                                          }
+                                        }}
+                                        onBlur={() => handleDiscountSave(usage.id, usage.totalCost)}
+                                        className="w-14 sm:w-16 px-1 py-1 text-xs rounded"
+                                        min="0"
+                                        max={discountInputMode === "percentage" ? "100" : usage.totalCost.toFixed(2)}
+                                        step={discountInputMode === "percentage" ? "0.1" : "0.01"}
+                                        autoFocus
+                                      />
+                                      <span className="text-xs font-bold ml-1">{discountInputMode === "percentage" ? "%" : "$"}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="font-semibold">{discountInputMode === "percentage" ? `-${usage.discountApplied}%` : `-${formatCurrency((usage.totalCost * usage.discountApplied) / 100)}`}</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="font-mono font-medium text-xs sm:text-sm">{formatCurrency(usage.finalCost)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Sticky Footer */}
+          <div className="sticky bottom-0 z-10 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-4">
+            <div className="flex justify-end">
+              <Button onClick={() => setDetailsOpen(false)}>Done</Button>
             </div>
-          )}
+          </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={settlementFormOpen} onOpenChange={setSettlementFormOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-5xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create New Settlement</DialogTitle>
             <DialogDescription>Generate a monthly settlement for an employee based on their usage and salary</DialogDescription>
