@@ -7,17 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Textarea } from "@/components/ui/textarea";
 import { months } from "@/constants/constants";
 import { employeesAtom, fetchEmployeesAtom, fetchSettlementsAtom, previewSettlementAtom, settlementFormLoadingAtom, settlementPreviewAtom, settlementPreviewLoadingAtom, settlementsAtom, settlementsErrorAtom } from "@/store/employeeAtoms";
 import type { CreateSettlementData, Employee, EmployeeUsageType, SettlementFormProps } from "@/types/employee";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtom } from "jotai";
-import { AlertCircle, Calculator, DollarSign, Eye, FileText, Loader2, Plus, TrendingDown, TrendingUp, User } from "lucide-react";
+import { AlertCircle, DollarSign, Eye, FileText, Loader2, Plus, TrendingDown, TrendingUp, User } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { settlementFormSchema } from "./settlementSchema";
+import Modal from "../ui/Modal";
 
 type SettlementFormData = z.infer<typeof settlementFormSchema>;
 
@@ -194,123 +194,56 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
     }
   };
 
+  const [settlementFormOpen, setSettlementFormOpen] = useState(false);
+
   return (
     <div className="space-y-6">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-red-600" />
-                <p className="text-sm text-red-800">{error}</p>
+      <Modal isOpen={settlementFormOpen} onClose={() => setSettlementFormOpen(false)} title="Create New Settlement">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="">
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="w-5 h-5 text-red-600" />
+                  <p className="text-sm text-red-800">{error}</p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-            <div className="flex flex-col space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <User className="w-5 h-5" />
-                    <span>Settlement Details</span>
-                  </CardTitle>
-                  <CardDescription>Select the employee and settlement period</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="employeeId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Employee</FormLabel>
-                        <Select onValueChange={value => field.onChange(parseInt(value))} value={field.value?.toString() || ""}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select an employee" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {employeeList.map(employee => (
-                              <SelectItem key={employee.id} value={employee.id.toString()}>
-                                <div className="flex items-center space-x-2">
-                                  <span className="font-medium">
-                                    {employee.firstName} {employee.lastName}
-                                  </span>
-                                  <span className="text-sm text-gray-500">({employee.employeeNumber})</span>
-                                  <Badge variant="outline" className="text-xs">
-                                    {employee.department?.name}
-                                  </Badge>
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {selectedEmployee && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-blue-900">
-                            {selectedEmployee.user?.firstName} {selectedEmployee.user?.lastName}
-                          </p>
-                          <p className="text-sm text-blue-700">
-                            {selectedEmployee.position} • {selectedEmployee.department?.name}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-blue-700">Base Salary</p>
-                          <p className="font-medium text-blue-900">{formatCurrency(selectedEmployee.baseSalary)}</p>
-                        </div>
-                      </div>
-                      <div className="mt-2 pt-2 border-t border-blue-200">
-                        <p className="text-sm text-blue-700">Discount: {selectedEmployee.discountPercentage}%</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedEmployee && watchedYear && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">Settlement Status for {watchedYear}</p>
-                          <p className="text-xs text-gray-600">
-                            Available months: {getAvailableMonthsCount()} of {months.length}
-                          </p>
-                        </div>
-                        {getAvailableMonthsCount() === 0 && (
-                          <div className="flex items-center space-x-1">
-                            <AlertCircle className="w-4 h-4 text-amber-500" />
-                            <span className="text-xs text-amber-700 font-medium">All months settled</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+              <div className="flex flex-col space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <User className="w-5 h-5" />
+                      <span>Settlement Details</span>
+                    </CardTitle>
+                    <CardDescription>Select the employee and settlement period</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <FormField
                       control={form.control}
-                      name="settlementMonth"
+                      name="employeeId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Month</FormLabel>
+                          <FormLabel>Employee</FormLabel>
                           <Select onValueChange={value => field.onChange(parseInt(value))} value={field.value?.toString() || ""}>
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select month" />
+                                <SelectValue placeholder="Select an employee" />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              {months.map(month => (
-                                <SelectItem key={month.value} value={month.value.toString()} disabled={isMonthDisabled(month.value)} className={isMonthDisabled(month.value) ? "opacity-50 cursor-not-allowed" : ""}>
-                                  <div className="flex items-center justify-between w-full">
-                                    <span>{month.label}</span>
-                                    {isMonthDisabled(month.value) && <span className="text-xs text-muted-foreground ml-2">(Has settlement)</span>}
+                              {employeeList.map(employee => (
+                                <SelectItem key={employee.id} value={employee.id.toString()}>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="font-medium">
+                                      {employee.firstName} {employee.lastName}
+                                    </span>
+                                    <span className="text-sm text-gray-500">({employee.employeeNumber})</span>
+                                    <Badge variant="outline" className="text-xs">
+                                      {employee.department?.name}
+                                    </Badge>
                                   </div>
                                 </SelectItem>
                               ))}
@@ -321,197 +254,268 @@ export const EmployeeSettlementForm: React.FC<SettlementFormProps> = ({ settleme
                       )}
                     />
 
-                    <FormField
-                      control={form.control}
-                      name="settlementYear"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Year</FormLabel>
-                          <Select onValueChange={value => field.onChange(parseInt(value))} value={field.value?.toString() || ""}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select year" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {years.map(year => (
-                                <SelectItem key={year} value={year.toString()}>
-                                  {year}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="bonusAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center space-x-2">
-                            <TrendingUp className="w-4 h-4 text-green-600" />
-                            <span>Bonus Amount</span>
-                          </FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
-                          </FormControl>
-                          <FormDescription>Additional bonus amount to add to the final salary</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="penaltyAmount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center space-x-2">
-                            <TrendingDown className="w-4 h-4 text-red-600" />
-                            <span>Penalty Amount</span>
-                          </FormLabel>
-                          <FormControl>
-                            <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
-                          </FormControl>
-                          <FormDescription>Penalty amount to deduct from the final salary</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="flex flex-col space-y-6 h-full">
-              {settlementPreview && showPreview && (
-                <Card className="flex-1 flex flex-col">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Eye className="w-5 h-5" />
-                      <span>Settlement Preview</span>
-                    </CardTitle>
-                    <CardDescription>Preview of the settlement calculation</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4 flex-1">
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{settlementPreview.employee.name}</p>
-                          <p className="text-sm text-gray-600">
-                            {settlementPreview.employee.employeeNumber} • {settlementPreview.employee.department?.name}
-                          </p>
+                    {selectedEmployee && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-blue-900">
+                              {selectedEmployee.user?.firstName} {selectedEmployee.user?.lastName}
+                            </p>
+                            <p className="text-sm text-blue-700">
+                              {selectedEmployee.position} • {selectedEmployee.department?.name}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-blue-700">Base Salary</p>
+                            <p className="font-medium text-blue-900">{formatCurrency(selectedEmployee.baseSalary)}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">
-                            {settlementPreview.period.monthName} {settlementPreview.period.year}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Base Salary</span>
-                        <span className="font-medium">{formatCurrency(settlementPreview.calculation.baseSalary)}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Total Usage Cost</span>
-                        <span className="text-red-600">-{formatCurrency(settlementPreview.calculation.totalUsageCost)}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Discount ({settlementPreview.employee.discountPercentage}%)</span>
-                        <span className="text-green-600">+{formatCurrency(settlementPreview.calculation.totalDiscountAmount)}</span>
-                      </div>
-
-                      {settlementPreview.calculation.bonusAmount > 0 && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Bonus</span>
-                          <span className="text-green-600">+{formatCurrency(settlementPreview.calculation.bonusAmount)}</span>
-                        </div>
-                      )}
-
-                      {settlementPreview.calculation.penaltyAmount > 0 && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">Penalty</span>
-                          <span className="text-red-600">-{formatCurrency(settlementPreview.calculation.penaltyAmount)}</span>
-                        </div>
-                      )}
-
-                      <Separator />
-
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-gray-900">Final Salary</span>
-                        <span className="font-bold text-lg text-green-600">{formatCurrency(settlementPreview.calculation.finalSalary)}</span>
-                      </div>
-                    </div>
-
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-sm text-blue-800">
-                        <strong>{settlementPreview.calculation.usageItemsCount}</strong> usage items included in this settlement
-                      </p>
-                    </div>
-
-                    {settlementPreview.usages.length > 0 && (
-                      <div>
-                        <Label className="text-sm font-medium text-gray-700 mb-2 block">Usage Items ({settlementPreview.usages.length})</Label>
-                        <div className="max-h-96 overflow-y-auto border rounded-lg">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="text-xs">Item</TableHead>
-                                <TableHead className="text-xs">Qty</TableHead>
-                                <TableHead className="text-xs">Cost</TableHead>
-                                <TableHead className="text-xs">Final</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {settlementPreview.usages.map(usage => (
-                                <TableRow key={usage.id}>
-                                  <TableCell className="py-2">
-                                    <div className="flex items-center space-x-2">
-                                      {getUsageTypeIcon(usage.usageType)}
-                                      <div>
-                                        <p className="text-xs font-medium">{usage.itemName}</p>
-                                        <Badge variant="outline" className={`text-xs ${usageTypeColors[usage.usageType]}`}>
-                                          {usage.usageType.replace("_", " ")}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  </TableCell>
-                                  <TableCell className="py-2 text-xs">{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
-                                  <TableCell className="py-2 text-xs">{formatCurrency(usage.totalCost)}</TableCell>
-                                  <TableCell className="py-2 text-xs font-medium">{formatCurrency(usage.finalCost)}</TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
+                        <div className="mt-2 pt-2 border-t border-blue-200">
+                          <p className="text-sm text-blue-700">Discount: {selectedEmployee.discountPercentage}%</p>
                         </div>
                       </div>
                     )}
+
+                    {selectedEmployee && watchedYear && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">Settlement Status for {watchedYear}</p>
+                            <p className="text-xs text-gray-600">
+                              Available months: {getAvailableMonthsCount()} of {months.length}
+                            </p>
+                          </div>
+                          {getAvailableMonthsCount() === 0 && (
+                            <div className="flex items-center space-x-1">
+                              <AlertCircle className="w-4 h-4 text-amber-500" />
+                              <span className="text-xs text-amber-700 font-medium">All months settled</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="settlementMonth"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Month</FormLabel>
+                            <Select onValueChange={value => field.onChange(parseInt(value))} value={field.value?.toString() || ""}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select month" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {months.map(month => (
+                                  <SelectItem key={month.value} value={month.value.toString()} disabled={isMonthDisabled(month.value)} className={isMonthDisabled(month.value) ? "opacity-50 cursor-not-allowed" : ""}>
+                                    <div className="flex items-center justify-between w-full">
+                                      <span>{month.label}</span>
+                                      {isMonthDisabled(month.value) && <span className="text-xs text-muted-foreground ml-2">(Has settlement)</span>}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="settlementYear"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Year</FormLabel>
+                            <Select onValueChange={value => field.onChange(parseInt(value))} value={field.value?.toString() || ""}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select year" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {years.map(year => (
+                                  <SelectItem key={year} value={year.toString()}>
+                                    {year}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="bonusAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center space-x-2">
+                              <TrendingUp className="w-4 h-4 text-green-600" />
+                              <span>Bonus Amount</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                            </FormControl>
+                            <FormDescription>Additional bonus amount to add to the final salary</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="penaltyAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center space-x-2">
+                              <TrendingDown className="w-4 h-4 text-red-600" />
+                              <span>Penalty Amount</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
+                            </FormControl>
+                            <FormDescription>Penalty amount to deduct from the final salary</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
-              )}
-            </div>
-          </div>
+              </div>
 
-          <div className="flex items-center justify-end space-x-4 pt-6 border-t">
-            <Button type="button" variant="outline" onClick={onCancel} disabled={formLoading}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={formLoading || previewLoading} className="flex items-center space-x-2">
-              {formLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              <span>{settlement ? "Update Settlement" : "Create Settlement"}</span>
-            </Button>
-          </div>
-        </form>
-      </Form>
+              <div className="flex flex-col space-y-6 h-full">
+                {settlementPreview && showPreview && (
+                  <Card className="flex-1 flex flex-col">
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Eye className="w-5 h-5" />
+                        <span>Settlement Preview</span>
+                      </CardTitle>
+                      <CardDescription>Preview of the settlement calculation</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 flex-1">
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{settlementPreview.employee.name}</p>
+                            <p className="text-sm text-gray-600">
+                              {settlementPreview.employee.employeeNumber} • {settlementPreview.employee.department?.name}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-gray-600">
+                              {settlementPreview.period.monthName} {settlementPreview.period.year}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Base Salary</span>
+                          <span className="font-medium">{formatCurrency(settlementPreview.calculation.baseSalary)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Total Usage Cost</span>
+                          <span className="text-red-600">-{formatCurrency(settlementPreview.calculation.totalUsageCost)}</span>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Discount ({settlementPreview.employee.discountPercentage}%)</span>
+                          <span className="text-green-600">+{formatCurrency(settlementPreview.calculation.totalDiscountAmount)}</span>
+                        </div>
+
+                        {settlementPreview.calculation.bonusAmount > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Bonus</span>
+                            <span className="text-green-600">+{formatCurrency(settlementPreview.calculation.bonusAmount)}</span>
+                          </div>
+                        )}
+
+                        {settlementPreview.calculation.penaltyAmount > 0 && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">Penalty</span>
+                            <span className="text-red-600">-{formatCurrency(settlementPreview.calculation.penaltyAmount)}</span>
+                          </div>
+                        )}
+
+                        <Separator />
+
+                        <div className="flex justify-between items-center">
+                          <span className="font-medium text-gray-900">Final Salary</span>
+                          <span className="font-bold text-lg text-green-600">{formatCurrency(settlementPreview.calculation.finalSalary)}</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-sm text-blue-800">
+                          <strong>{settlementPreview.calculation.usageItemsCount}</strong> usage items included in this settlement
+                        </p>
+                      </div>
+
+                      {settlementPreview.usages.length > 0 && (
+                        <div>
+                          <Label className="text-sm font-medium text-gray-700 mb-2 block">Usage Items ({settlementPreview.usages.length})</Label>
+                          <div className="max-h-96 overflow-y-auto border rounded-lg">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead className="text-xs">Item</TableHead>
+                                  <TableHead className="text-xs">Qty</TableHead>
+                                  <TableHead className="text-xs">Cost</TableHead>
+                                  <TableHead className="text-xs">Final</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {settlementPreview.usages.map(usage => (
+                                  <TableRow key={usage.id}>
+                                    <TableCell className="py-2">
+                                      <div className="flex items-center space-x-2">
+                                        {getUsageTypeIcon(usage.usageType)}
+                                        <div>
+                                          <p className="text-xs font-medium">{usage.itemName}</p>
+                                          <Badge variant="outline" className={`text-xs ${usageTypeColors[usage.usageType]}`}>
+                                            {usage.usageType.replace("_", " ")}
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="py-2 text-xs">{Number(usage.quantity) % 1 === 0 ? Math.floor(usage.quantity) : usage.quantity.toFixed(2)}</TableCell>
+                                    <TableCell className="py-2 text-xs">{formatCurrency(usage.totalCost)}</TableCell>
+                                    <TableCell className="py-2 text-xs font-medium">{formatCurrency(usage.finalCost)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-4 pt-6 border-t">
+              <Button type="button" variant="outline" onClick={onCancel} disabled={formLoading}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={formLoading || previewLoading} className="flex items-center space-x-2">
+                {formLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                <span>{settlement ? "Update Settlement" : "Create Settlement"}</span>
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </Modal>
     </div>
   );
 };
