@@ -13,6 +13,19 @@ export const OrderItemsList: React.FC<OrderItemsListProps> = ({ cart, updateCart
   const [selectedItemForNotes, setSelectedItemForNotes] = React.useState<string | null>(null);
   const shouldShowLabels = leftPanelPixelWidth > 430;
   
+
+  console.log("🧷 OrderItemsList rendering with cart:", cart);
+  console.log("🧷 OrderItemsList cart length:", cart?.length || 0);
+  console.log("🧷 OrderItemsList cart valid array?", Array.isArray(cart));
+  
+  // Force re-render if cart changes
+  React.useEffect(() => {
+    console.log("🧷 OrderItemsList cart changed:", cart?.length || 0, "items");
+    if (cart && cart.length > 0) {
+      console.log("🧷 OrderItemsList first item:", cart[0]);
+    }
+  }, [cart]);
+
   // Safely derive a department label from possible formats (object/string)
   const getDeptLabel = (dept: Employee["department"] | string | null | undefined) => {
     if (!dept) return "";

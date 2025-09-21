@@ -147,8 +147,8 @@ const initializeCategoryTypes = async () => {
   }
 };
 
-// Enhanced database connection with optimized sync process
-const connectToDatabase = async (retries = 2, delay = 5000) => {
+// Enhanced database connection with manual sync option
+const connectToDatabase = async (options = { sync: false, seedData: false }, retries = 2, delay = 5000) => {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       console.log(`🔄 Database connection attempt ${attempt}/${retries}...`);
@@ -177,120 +177,138 @@ const connectToDatabase = async (retries = 2, delay = 5000) => {
         console.warn("⚠️ Could not clean up orphaned data:", cleanupError.message);
       }
 
-      // 3. Optimized synchronization with parallel model sync where possible
-      console.log("🔄 Synchronizing database schema...");
-      try {
-        // Group models by dependency level for parallel processing
-        const syncGroups = [
-          // Level 0: No dependencies
-          ["User", "CategoryType", "Supplier", "Section", "PrinterChannel", "SystemLogs", "BackupSchedule"],
-          // Level 1: Depend on Level 0
-          ["Category", "Employee", "Material", "MenuItem", "Sauce", "Table", "Printer", "ScheduleExecution"],
-          // Level 2: Depend on Level 1
-          ["Department", "Variants", "StockEntry", "MenuItemIngredient", "MenuItemSauce", "SauceIngredient", "VariantIngredient", "PrintJob"],
-          // Level 3: Depend on Level 2
-          ["Assignment", "Sale", "Order", "Wasting", "EmployeeUsage", "EmployeeSettlement", "Session", "AuditLog", "DayOperation"],
-          // Level 4: Depend on Level 3
-          ["SaleMenuItem", "OrderItem", "DayOperationReport"]
+      // 3. Manual synchronization - only if explicitly requested
+      if (options.sync) {
+        console.log("🔄 Synchronizing database schema...");
+        try {
+          // Group models by dependency level for parallel processing
+          const syncGroups = [
+            // Level 0: No dependencies
+            ["User", "CategoryType", "Supplier", "Section", "PrinterChannel", "SystemLogs", "BackupSchedule"],
+            // Level 1: Depend on Level 0
+            ["Category", "Employee", "Material", "MenuItem", "Sauce", "Table", "Printer", "ScheduleExecution"],
+            // Level 2: Depend on Level 1
+            ["Department", "Variants", "StockEntry", "MenuItemIngredient", "MenuItemSauce", "SauceIngredient", "VariantIngredient", "PrintJob"],
+            // Level 3: Depend on Level 2
+            ["Assignment", "Sale", "Order", "Wasting", "EmployeeUsage", "EmployeeSettlement", "Session", "AuditLog", "DayOperation"],
+            // Level 4: Depend on Level 3
+            ["SaleMenuItem", "OrderItem", "DayOperationReport"]
+          ];
+
+          // Sync models in parallel within each group
+          for (const [index, group] of syncGroups.entries()) {
+            console.log(`📋 Syncing dependency level ${index} models...`);
+
+            const syncPromises = group
+              .filter(modelName => sequelize.models[modelName])
+              .map(modelName =>
+                sequelize.models[modelName]
+                  .sync({
+                    force: false,
+                    alter: { drop: false },
+                    hooks: false
+                  })
+                  .then(() => {
+                    console.log(`✅ ${modelName} synced`);
+                  })
+                  .catch(error => {
+                    console.warn(`⚠️ Could not sync ${modelName}:`, error.message);
+                  })
+              );
+
+            await Promise.all(syncPromises);
+          }
+
+          console.log("✅ Database schema synchronized successfully");
+        } catch (error) {
+          throw new DatabaseError("Failed to synchronize database schema", DatabaseErrorType.SYNC, error);
+        }
+      } else {
+        console.log("ℹ️ Database schema synchronization skipped (manual sync mode)");
+        console.log("ℹ️ To sync database schema, call connectToDatabase({ sync: true })");
+      }
+
+      // 4. Reset sequence (non-blocking) - only if sync is enabled
+      if (options.sync) {
+        try {
+          // Run sequence check in background without blocking
+          setTimeout(async () => {
+            try {
+              await checkAndFixSequences();
+              await resetAllSequences();
+            } catch (seqError) {
+              console.warn("⚠️ Sequence reset failed:", seqError.message);
+            }
+          }, 1000); // Delay to allow other operations to proceed
+        } catch (seqError) {
+          console.warn("⚠️ Sequence reset scheduling failed:", seqError.message);
+        }
+      } else {
+        console.log("ℹ️ Sequence reset skipped (manual sync mode)");
+      }
+
+      // 5. Initialize data in parallel where possible - only if seedData is enabled
+      if (options.seedData) {
+        console.log("🔧 Initializing essential data...");
+
+        // Run non-critical initializations in parallel
+        const initializationTasks = [
+          (async () => {
+            try {
+              console.log("🏷️ Initializing category types...");
+              const categoryTypesInitialized = await initializeCategoryTypes();
+              if (categoryTypesInitialized) {
+                console.log("✅ Category types initialized successfully");
+              } else {
+                console.log("⚠️ Category types initialization skipped or failed (non-critical)");
+              }
+            } catch (error) {
+              console.warn("⚠️ Category type initialization failed:", error.message);
+            }
+          })(),
+
+          (async () => {
+            try {
+              console.log("👤 Initializing users...");
+              const userResults = await initializeUsers();
+              console.log(`✅ Users initialized: Admin - ${userResults.admin.created} created, ${userResults.admin.existing} existing; Cashier - ${userResults.cashier.created} created, ${userResults.cashier.existing} existing`);
+            } catch (error) {
+              console.error("❌ User initialization failed:", error.message);
+            }
+          })(),
+
+          (async () => {
+            try {
+              await seedTables();
+              console.log("✅ Tables seeded successfully");
+            } catch (error) {
+              console.error("❌ Table seeding failed:", error.message);
+            }
+          })(),
+
+          (async () => {
+            try {
+              await seedPrinters();
+              console.log("✅ Printers seeded successfully");
+            } catch (error) {
+              console.error("❌ Printer seeding failed:", error.message);
+            }
+          })()
         ];
 
-        // Sync models in parallel within each group
-        for (const [index, group] of syncGroups.entries()) {
-          console.log(`📋 Syncing dependency level ${index} models...`);
+        // Wait for all initialization tasks to complete
+        await Promise.allSettled(initializationTasks);
 
-          const syncPromises = group
-            .filter(modelName => sequelize.models[modelName])
-            .map(modelName =>
-              sequelize.models[modelName]
-                .sync({
-                  force: false,
-                  alter: { drop: false },
-                  hooks: false
-                })
-                .then(() => {
-                  console.log(`✅ ${modelName} synced`);
-                })
-                .catch(error => {
-                  console.warn(`⚠️ Could not sync ${modelName}:`, error.message);
-                })
-            );
-
-          await Promise.all(syncPromises);
-        }
-
-        console.log("✅ Database schema synchronized successfully");
-      } catch (error) {
-        throw new DatabaseError("Failed to synchronize database schema", DatabaseErrorType.SYNC, error);
+        console.log("✅ Essential initialization completed");
+      } else {
+        console.log("ℹ️ Data initialization skipped (manual mode)");
       }
 
-      // 4. Reset sequence (non-blocking)
-      try {
-        // Run sequence check in background without blocking
-        setTimeout(async () => {
-          try {
-            await checkAndFixSequences();
-            await resetAllSequences();
-          } catch (seqError) {
-            console.warn("⚠️ Sequence reset failed:", seqError.message);
-          }
-        }, 1000); // Delay to allow other operations to proceed
-      } catch (seqError) {
-        console.warn("⚠️ Sequence reset scheduling failed:", seqError.message);
-      }
-
-      // 5. Initialize data in parallel where possible
-      console.log("🔧 Initializing essential data...");
-
-      // Run non-critical initializations in parallel
-      const initializationTasks = [
-        (async () => {
-          try {
-            console.log("🏷️ Initializing category types...");
-            const categoryTypesInitialized = await initializeCategoryTypes();
-            if (categoryTypesInitialized) {
-              console.log("✅ Category types initialized successfully");
-            } else {
-              console.log("⚠️ Category types initialization skipped or failed (non-critical)");
-            }
-          } catch (error) {
-            console.warn("⚠️ Category type initialization failed:", error.message);
-          }
-        })(),
-
-        (async () => {
-          try {
-            console.log("👤 Initializing users...");
-            const userResults = await initializeUsers();
-            console.log(`✅ Users initialized: Admin - ${userResults.admin.created} created, ${userResults.admin.existing} existing; Cashier - ${userResults.cashier.created} created, ${userResults.cashier.existing} existing`);
-          } catch (error) {
-            console.error("❌ User initialization failed:", error.message);
-          }
-        })(),
-
-        (async () => {
-          try {
-            await seedTables();
-            console.log("✅ Tables seeded successfully");
-          } catch (error) {
-            console.error("❌ Table seeding failed:", error.message);
-          }
-        })(),
-
-        (async () => {
-          try {
-            await seedPrinters();
-            console.log("✅ Printers seeded successfully");
-          } catch (error) {
-            console.error("❌ Printer seeding failed:", error.message);
-          }
-        })()
-      ];
-
-      // Wait for all initialization tasks to complete
-      await Promise.allSettled(initializationTasks);
-
-      console.log("✅ Essential initialization completed");
-      console.log("ℹ️  For comprehensive data seeding, run: npm run seed");
+      console.log("ℹ️ For manual database operations, use:");
+      console.log("ℹ️ - Sync schema: connectToDatabase({ sync: true })");
+      console.log("ℹ️ - Seed data: connectToDatabase({ seedData: true })");
+      console.log("ℹ️ - Both: connectToDatabase({ sync: true, seedData: true })");
+      console.log("ℹ️ - For comprehensive data seeding, run: npm run seed");
 
       return { connected: true, error: null };
     } catch (error) {

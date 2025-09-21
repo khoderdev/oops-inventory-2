@@ -9,7 +9,7 @@ import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { Employee } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
+import { Order, OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
@@ -589,34 +589,404 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const handleOrderSelect = useCallback(
     async (order: any) => {
       try {
+        console.log("🔄 handleOrderSelect called with order:", order);
         setIsLoading(true);
         setError(null);
+
+        // Reset cart and order state
         setCart([]);
         setHasUnsavedChanges(false);
         setAppliedDiscount(null);
         setDiscountAmount(0);
+
+        // Check if this is from sales history
+        const isFromSalesHistory = order.fromSalesHistory === true;
+        console.log("🏷️ Is from sales history:", isFromSalesHistory, "Order ID:", order.id);
+
+        // DIRECT APPROACH: If this is from sales history, we'll create cart items directly
+        // from the order without waiting for loadOrder
+        if (isFromSalesHistory && order.items) {
+          console.log("🚀 DIRECT APPROACH: Creating cart items directly from order");
+          console.log("📦 Order items:", order.items);
+          
+          // Create cart items directly from the order
+          const directCartItems: POSCartItem[] = [];
+          
+          // Process each item in the order
+          order.items.forEach((item: any, index: number) => {
+            console.log("🔍 Processing item directly:", item);
+            
+            if (item.menuItem) {
+              directCartItems.push({
+                id: `direct-${order.id}-menu-${item.menuItem.id}-${index}`,
+                name: item.menuItem.name,
+                price: item.unitPrice || item.menuItem.price,
+                quantity: item.quantity,
+                type: "menu_item" as const,
+                menuItemId: item.menuItem.id.toString(),
+                originalItem: item.menuItem,
+                stockEntryId: undefined,
+                orderItemId: item.id?.toString?.() || item.id,
+                notes: item.notes || undefined
+              });
+              console.log("📋 Created direct cart item for menu item:", item.menuItem.name);
+            } else if (item.material) {
+              directCartItems.push({
+                id: `direct-${order.id}-material-${item.material.id}-${index}`,
+                name: item.material.name,
+                price: parseFloat(item.unitPrice),
+                quantity: item.quantity,
+                type: "material" as const,
+                materialId: item.material.id.toString(),
+                stockEntryId: undefined,
+                originalItem: item.material,
+                orderItemId: item.id?.toString?.() || item.id,
+                notes: item.notes || undefined
+              });
+              console.log("📋 Created direct cart item for material:", item.material.name);
+            }
+          });
+          
+          // If we created any cart items, set them
+          if (directCartItems.length > 0) {
+            console.log("🛒 Setting cart with direct items:", directCartItems);
+            setCart(directCartItems);
+            setHasUnsavedChanges(true);
+            processedOrderRef.current = order.id.toString();
+            
+            // Also set order type, table, etc.
+            setOrderType(order.orderType);
+            if (order.orderType === "table" && order.tableId) {
+              setSelectedTable(tables.find(t => t.id === order.tableId));
+            }
+            if (order.discountAmount && parseFloat(order.discountAmount.toString()) > 0) {
+              setAppliedDiscount({
+                type: (order.discountType as "percentage" | "fixed") || "fixed",
+                value: parseFloat(order.discountValue?.toString() || "0"),
+                amount: parseFloat(order.discountAmount.toString()),
+                reason: order.discountReason || undefined
+              });
+            }
+          }
+        }
+        
+        // Still load the order through the API for consistency
         if (loadOrder) {
-          await loadOrder(order.id);
+          const loadedOrder = await loadOrder(order.id);
+          console.log("📥 Order loaded - FULL STRUCTURE:", JSON.stringify(loadedOrder, null, 2));
+          
+          // If we haven't already populated the cart directly, do it now
+          if (!processedOrderRef.current || processedOrderRef.current !== order.id.toString()) {
+            console.log("🛒 Populating cart from loaded order");
+            
+            // Normalize the order structure
+            let adaptedOrder = loadedOrder;
+            if (!Array.isArray(loadedOrder?.items)) {
+              if (loadedOrder && typeof loadedOrder === 'object' && 'data' in loadedOrder && 
+                  loadedOrder.data && typeof loadedOrder.data === 'object' && 'items' in loadedOrder.data && 
+                  Array.isArray(loadedOrder.data.items)) {
+                adaptedOrder = loadedOrder.data as Order;
+              }
+            }
+            
+            // Create cart items
+            const cartItems = mapOrderItemsToCart(adaptedOrder);
+            
+            if (cartItems.length > 0) {
+              console.log("🛒 Setting cart with API-loaded items:", cartItems);
+              setCart(cartItems);
+              setHasUnsavedChanges(true);
+              
+              // Set order properties
+              setOrderType(adaptedOrder.orderType);
+              if (adaptedOrder.orderType === "table" && adaptedOrder.tableId) {
+                setSelectedTable(tables.find(t => t.id === adaptedOrder.tableId));
+              }
+              if (adaptedOrder.discountAmount && parseFloat(adaptedOrder.discountAmount.toString()) > 0) {
+                setAppliedDiscount({
+                  type: (adaptedOrder.discountType as "percentage" | "fixed") || "fixed",
+                  value: parseFloat(adaptedOrder.discountValue?.toString() || "0"),
+                  amount: parseFloat(adaptedOrder.discountAmount.toString()),
+                  reason: adaptedOrder.discountReason || undefined
+                });
+              }
+              
+              // Mark as processed
+              processedOrderRef.current = order.id.toString();
+            }
+          }
+          
+          return loadedOrder;
         } else {
           console.error("❌ loadOrder function is not available!");
+          return null;
         }
-        setHasUnsavedChanges(false);
       } catch (error) {
         console.error("❌ Failed to load order:", error);
         showError("Failed to load order for editing. Please try again.");
+        throw error;
       } finally {
         setIsLoading(false);
       }
     },
-    [loadOrder, showError]
+    [loadOrder, showError, tables]
   );
+
+  // In the mapOrderItemsToCart function
+  const mapOrderItemsToCart = (order: Order | Record<string, any>): POSCartItem[] => {
+    // Handle case where order might have a nested data structure
+    const actualOrder = order && typeof order === 'object' && 'data' in order && order.data ? 
+      (order.data as Order) : (order as Order);
+    
+    if (!actualOrder || !actualOrder.items) {
+      console.error("❌ Order or order.items is missing:", actualOrder);
+      return [];
+    }
+
+    console.log("🔍 Mapping order items to cart. Order structure:", JSON.stringify(actualOrder, null, 2));
+    console.log("🔍 Order items length:", actualOrder.items?.length);
+
+    // Check if items is actually an array
+    if (!Array.isArray(actualOrder.items)) {
+      console.error("❌ order.items is not an array:", actualOrder.items);
+      return [];
+    }
+
+    return actualOrder.items
+      .map((item: any, index: number) => {
+        console.log("🔍 Processing item:", item);
+
+        if (item.menuItem) {
+          console.log("📋 Creating cart item for menu item:", item.menuItem.name);
+          return {
+            id: `current-${actualOrder.id}-menu-${item.menuItem.id}-${index}`,
+            name: item.menuItem.name,
+            price: item.unitPrice || item.menuItem.price,
+            quantity: item.quantity,
+            type: "menu_item" as const,
+            menuItemId: item.menuItem.id.toString(),
+            originalItem: item.menuItem,
+            stockEntryId: undefined,
+            orderItemId: item.id?.toString?.() || item.id,
+            notes: item.notes || undefined
+          };
+        } else if (item.material) {
+          console.log("📋 Creating cart item for material:", item.material.name);
+          return {
+            id: `current-${actualOrder.id}-material-${item.material.id}-${index}`,
+            name: item.material.name,
+            price: parseFloat(item.unitPrice),
+            quantity: item.quantity,
+            type: "material" as const,
+            materialId: item.material.id.toString(),
+            stockEntryId: undefined,
+            originalItem: item.material,
+            orderItemId: item.id?.toString?.() || item.id,
+            notes: item.notes || undefined
+          };
+        } else {
+          console.error("❌ Item has neither menuItem nor material:", item);
+          return null;
+        }
+      })
+      .filter(Boolean) as POSCartItem[];
+  };
+
+  // Check for orders from React Router state (from SalesHistoryPage)
+  useEffect(() => {
+    try {
+      // Try to access the router state safely
+      const routerState = window.history.state?.usr;
+      
+      if (routerState && routerState.selectedOrderForPOS && routerState.selectedOrderForPOS.fromSalesHistory) {
+        console.log("🚨 DETECTED ORDER FROM ROUTER STATE:", routerState.selectedOrderForPOS);
+        
+        // Process this order if it hasn't been processed yet
+        if (!processedOrderRef.current || processedOrderRef.current !== routerState.selectedOrderForPOS.id.toString()) {
+          console.log("🚨 PROCESSING ORDER FROM ROUTER STATE");
+          
+          // DIRECT CART POPULATION - Most aggressive approach
+          const order = routerState.selectedOrderForPOS;
+          if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+            console.log("🚒 DIRECT POPULATION FROM ROUTER STATE:", order.items.length, "items");
+            
+            const directCartItems: POSCartItem[] = [];
+            
+            // Process each item in the order
+            order.items.forEach((item: any, index: number) => {
+              if (item.menuItem) {
+                directCartItems.push({
+                  id: `router-${order.id}-menu-${item.menuItem.id}-${index}`,
+                  name: item.menuItem.name,
+                  price: item.unitPrice || item.menuItem.price,
+                  quantity: item.quantity,
+                  type: "menu_item" as const,
+                  menuItemId: item.menuItem.id.toString(),
+                  originalItem: item.menuItem,
+                  stockEntryId: undefined,
+                  orderItemId: item.id?.toString?.() || item.id,
+                  notes: item.notes || undefined
+                });
+              } else if (item.material) {
+                directCartItems.push({
+                  id: `router-${order.id}-material-${item.material.id}-${index}`,
+                  name: item.material.name,
+                  price: parseFloat(item.unitPrice),
+                  quantity: item.quantity,
+                  type: "material" as const,
+                  materialId: item.material.id.toString(),
+                  stockEntryId: undefined,
+                  originalItem: item.material,
+                  orderItemId: item.id?.toString?.() || item.id,
+                  notes: item.notes || undefined
+                });
+              }
+            });
+            
+            if (directCartItems.length > 0) {
+              console.log("🚒 DIRECT POPULATION: Setting cart with", directCartItems.length, "items");
+              setCart(directCartItems);
+              setHasUnsavedChanges(true);
+              processedOrderRef.current = order.id.toString();
+              
+              // Also set order type, table, etc.
+              setOrderType(order.orderType);
+              if (order.orderType === "table" && order.tableId) {
+                setSelectedTable(tables.find(t => t.id === order.tableId));
+              }
+              if (order.discountAmount && parseFloat(order.discountAmount.toString()) > 0) {
+                setAppliedDiscount({
+                  type: (order.discountType as "percentage" | "fixed") || "fixed",
+                  value: parseFloat(order.discountValue?.toString() || "0"),
+                  amount: parseFloat(order.discountAmount.toString()),
+                  reason: order.discountReason || undefined
+                });
+              }
+            }
+          }
+          
+          // Also call handleOrderSelect for backend state consistency
+          handleOrderSelect(routerState.selectedOrderForPOS);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error accessing router state:", error);
+    }
+  }, [handleOrderSelect, tables]);
 
   useEffect(() => {
     if (selectedOrderForPOS) {
+      console.log("🔄 selectedOrderForPOS effect triggered:", selectedOrderForPOS);
+      console.log("📊 Current state - cart length:", cart.length, "processedOrderRef:", processedOrderRef.current);
+
+      // Use a ref to track if we've already processed this order
+      if (processedOrderRef.current === selectedOrderForPOS.id.toString() && cart.length > 0) {
+        console.log("🛑 Already processed this order with items, skipping");
+        return;
+      }
+
+      // For sales history orders, we need special handling
+      const isFromSalesHistory = selectedOrderForPOS.fromSalesHistory === true;
+      
+      if (isFromSalesHistory) {
+        console.log("🚨 SALES HISTORY ORDER DETECTED:", selectedOrderForPOS.id);
+        console.log("📦 Order structure:", JSON.stringify(selectedOrderForPOS, null, 2));
+        
+        // EMERGENCY DIRECT POPULATION - If the order has items, populate cart directly
+        if (selectedOrderForPOS.items && Array.isArray(selectedOrderForPOS.items) && selectedOrderForPOS.items.length > 0) {
+          console.log("🚒 EMERGENCY: Directly populating cart from selectedOrderForPOS");
+          
+          const emergencyCartItems: POSCartItem[] = [];
+          
+          selectedOrderForPOS.items.forEach((item: any, index: number) => {
+            if (item.menuItem) {
+              emergencyCartItems.push({
+                id: `emergency-${selectedOrderForPOS.id}-menu-${item.menuItem.id}-${index}`,
+                name: item.menuItem.name,
+                price: item.unitPrice || item.menuItem.price,
+                quantity: item.quantity,
+                type: "menu_item" as const,
+                menuItemId: item.menuItem.id.toString(),
+                originalItem: item.menuItem,
+                stockEntryId: undefined,
+                orderItemId: item.id?.toString?.() || item.id,
+                notes: item.notes || undefined
+              });
+            } else if (item.material) {
+              emergencyCartItems.push({
+                id: `emergency-${selectedOrderForPOS.id}-material-${item.material.id}-${index}`,
+                name: item.material.name,
+                price: parseFloat(item.unitPrice),
+                quantity: item.quantity,
+                type: "material" as const,
+                materialId: item.material.id.toString(),
+                stockEntryId: undefined,
+                originalItem: item.material,
+                orderItemId: item.id?.toString?.() || item.id,
+                notes: item.notes || undefined
+              });
+            }
+          });
+          
+          if (emergencyCartItems.length > 0) {
+            console.log("🚒 EMERGENCY: Setting cart with", emergencyCartItems.length, "items");
+            setCart(emergencyCartItems);
+            setHasUnsavedChanges(true);
+            processedOrderRef.current = selectedOrderForPOS.id.toString();
+            
+            // Also set order type, table, etc.
+            setOrderType(selectedOrderForPOS.orderType);
+            if (selectedOrderForPOS.orderType === "table" && selectedOrderForPOS.tableId) {
+              setSelectedTable(tables.find(t => t.id === selectedOrderForPOS.tableId));
+            }
+            if (selectedOrderForPOS.discountAmount && parseFloat(selectedOrderForPOS.discountAmount.toString()) > 0) {
+              setAppliedDiscount({
+                type: (selectedOrderForPOS.discountType as "percentage" | "fixed") || "fixed",
+                value: parseFloat(selectedOrderForPOS.discountValue?.toString() || "0"),
+                amount: parseFloat(selectedOrderForPOS.discountAmount.toString()),
+                reason: selectedOrderForPOS.discountReason || undefined
+              });
+            }
+            
+            // Still call handleOrderSelect to ensure backend state is consistent
+            handleOrderSelect(selectedOrderForPOS)
+              .then(() => {
+                if (onOrderProcessed) onOrderProcessed();
+              })
+              .catch(error => {
+                console.error("❌ Failed to process order (but cart was populated):", error);
+                if (onOrderProcessed) onOrderProcessed();
+              });
+            
+            return;
+          }
+        }
+      }
+
+      // Standard flow if emergency population didn't happen
       handleOrderSelect(selectedOrderForPOS)
-        .then(() => {
+        .then((loadedOrder) => {
           if (onOrderProcessed) {
             onOrderProcessed();
+          }
+
+          // Final check - if cart is still empty, try one last approach
+          if (cart.length === 0 && loadedOrder) {
+            console.log("🆘 LAST RESORT: Cart still empty after all attempts, trying final approach");
+            
+            // Try to extract items from the loaded order or current order
+            const finalOrder = loadedOrder || currentOrder;
+            if (finalOrder && finalOrder.items && Array.isArray(finalOrder.items)) {
+              const lastResortItems = mapOrderItemsToCart(finalOrder);
+              if (lastResortItems.length > 0) {
+                console.log("🆘 LAST RESORT: Setting cart with", lastResortItems.length, "items");
+                setCart(lastResortItems);
+                setHasUnsavedChanges(true);
+              }
+            }
+            
+            // Always mark as processed to prevent infinite loops
+            processedOrderRef.current = selectedOrderForPOS.id.toString();
           }
         })
         .catch(error => {
@@ -626,7 +996,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }
         });
     }
-  }, [selectedOrderForPOS, handleOrderSelect, onOrderProcessed]);
+  }, [selectedOrderForPOS, handleOrderSelect, onOrderProcessed, currentOrder, cart.length, tables]);
+
 
   useEffect(() => {
     setOptimisticAssignments(sectionAssignments);
@@ -756,57 +1127,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     return [];
   };
-  // const memoizedPosItems = useMemo(() => {
-  //   if (categoriesMap.size === 0) return [];
-  //   const allMenuItems: MenuItem[] = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
-  //   if (allMenuItems.length === 0) return [];
-  //   const posItemsFromData: POSItem[] = [];
-
-  //   allMenuItems.forEach(menuItem => {
-  //     if (!menuItem?.isPOSItem) return;
-  //     let categoryId: number;
-  //     if (menuItem.category && typeof menuItem.category === "object" && "id" in menuItem.category) {
-  //       categoryId = (menuItem.category as any).id;
-  //     } else if (menuItem.category && typeof menuItem.category === "number") {
-  //       categoryId = menuItem.category;
-  //     } else {
-  //       console.warn("⚠️ Invalid category format for menu item:", menuItem?.name, menuItem?.category);
-  //       categoryId = 0;
-  //     }
-  //     const categoryName = categoriesMap.get(categoryId);
-  //     if (!categoryName) return;
-  //     posItemsFromData.push({
-  //       id: `menu-${menuItem.id}`,
-  //       name: menuItem.name,
-  //       // Ensure price is always a valid number, default to 0 if null or NaN
-  //       price: typeof menuItem.price === 'number' && !isNaN(menuItem.price) ? menuItem.price : 0,
-  //       category: categoryName,
-  //       type: "menu_item",
-  //       menuItemId: menuItem.id,
-  //       unit: menuItem.unit,
-  //       availableQuantity: menuItem.availableQuantity,
-  //       costPerUnit: menuItem.costPerUnit,
-  //       createdAt: menuItem.createdAt.toString(),
-  //       updatedAt: menuItem.updatedAt.toString(),
-  //       description: menuItem.description,
-  //       image: menuItem.image,
-  //       imageUrl: undefined,
-  //       // Transform variants to match expected array format if present
-  //       variants: menuItem.variants ?
-  //         (Array.isArray(menuItem.variants) ? menuItem.variants :
-  //           // Convert object format to array format
-  //           Object.keys(menuItem.variants.variantVolumes || {}).map(variantKey => ({
-  //             id: variantKey,
-  //             name: variantKey,
-  //             volume: menuItem.variants.variantVolumes[variantKey] || 0,
-  //             unit: menuItem.variants.variantVolumeUnits?.[variantKey] || 'cl',
-  //             price: menuItem.variants.variantPrices?.[variantKey] || 0
-  //           }))
-  //         ) : undefined
-  //     });
-  //   });
-  //   return posItemsFromData;
-  // }, [foodMenuItems, beverageMenuItems, categoriesMap]);
 
   // Update posItems state only when memoized items actually change and no POS action is in progress
   useEffect(() => {
@@ -908,6 +1228,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   }, [currentOrder, stockEntries, menuItems]);
 
   useEffect(() => {
+    console.log("🛒 CART CHANGED: New length:", cart.length, "Items:", cart);
     if (cart && cart.length > 0) {
       setHasUnsavedChanges(true);
     } else {
@@ -1606,8 +1927,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               discountReason: appliedDiscount?.reason,
               notes: orderNotes || undefined
             };
-            console.log('Applied discount:', appliedDiscount);
-
+            console.log("Applied discount:", appliedDiscount);
           } else {
             const createData = {
               orderType,
@@ -1632,7 +1952,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               discountAmount: appliedDiscount?.amount || 0,
               discountReason: appliedDiscount?.reason
             };
-            console.log('Applied discount:', appliedDiscount);
+            console.log("Applied discount:", appliedDiscount);
             savedOrder = await createOrder(createData);
           }
 
@@ -1761,7 +2081,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           // Create order if needed
           if (!currentOrder) {
-            console.log('Applied discount:', appliedDiscount);
+            console.log("Applied discount:", appliedDiscount);
             const orderData = {
               orderType,
               tableId: selectedTable?.id,

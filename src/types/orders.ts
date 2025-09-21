@@ -72,6 +72,7 @@ export interface Order {
   sectionId?: string;
   userId: string;
   userRole: string;
+  fromSalesHistory?: boolean; // Flag to indicate if the order is from sales history page
 }
 
 export interface CreateOrderData {

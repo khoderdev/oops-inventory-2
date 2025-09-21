@@ -627,6 +627,7 @@ export interface POSCartItem {
   posItem?: POSItem;
   stockEntryId?: string;
   menuItemId?: string;
+  materialId?: string; // Added for material items
   printerId?: number | null;
   assignedPrinter?: {
     id: number;
