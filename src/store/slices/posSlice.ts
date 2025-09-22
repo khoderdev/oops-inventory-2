@@ -13,6 +13,7 @@ interface POSState {
   cart: POSCartItem[];
   hasUnsavedChanges: boolean;
   isPaymentCompleted: boolean;
+  editingSaleId: string | null; // Track the ID of the sale being edited
 
   // Order details
   currentOrder: Order | null;
@@ -115,6 +116,7 @@ const initialState: POSState = {
   cart: [],
   hasUnsavedChanges: false,
   isPaymentCompleted: false,
+  editingSaleId: null,
 
   // Order details
   currentOrder: null,
@@ -329,6 +331,11 @@ const posSlice = createSlice({
       state.hasUnsavedChanges = true;
       state.isPOSActionInProgress = false;
     },
+    
+    removeFromCart: (state, action: PayloadAction<string>) => {
+      state.cart = state.cart.filter(item => item.id !== action.payload);
+      state.hasUnsavedChanges = true;
+    },
 
     clearCart: state => {
       state.cart = [];
@@ -526,13 +533,42 @@ const posSlice = createSlice({
         orderType: state.orderType,
         tableNumber: state.selectedTable?.number || null
       };
-
       state.lastSaleData = receiptData;
     },
 
     // Sales history actions
-    setSelectedSaleForEdit: (state, action: PayloadAction<SaleRecord | null>) => {
+    setSelectedSaleForEdit: (state, action) => {
+      // Skip update if the reference is the same (both null or both same object)
+      if (state.selectedSaleForEdit === action.payload) {
+        console.log("🚫 Redux: Skipping selectedSaleForEdit update - same reference");
+        return;
+      }
+      
+      console.log("💾 Redux: Setting selectedSaleForEdit in posSlice:", action.payload);
+      console.log("📍 Caller:", new Error().stack); // Log the call stack to see where this is triggered
+      
+      // Update selectedSaleForEdit
       state.selectedSaleForEdit = action.payload;
+      
+      // If setting a sale for edit, also set the editingSaleId
+      if (action.payload && action.payload.id) {
+        state.editingSaleId = action.payload.id.toString();
+        console.log("🔑 Redux: Setting editingSaleId in posSlice:", state.editingSaleId);
+      }
+      // Note: We don't clear editingSaleId when setting selectedSaleForEdit to null
+      // This allows us to keep track of which sale we're editing even after clearing the object
+    },
+    
+    // Set the editing sale ID directly
+    setEditingSaleId: (state, action: PayloadAction<string | null>) => {
+      console.log("🔑 Redux: Setting editingSaleId directly:", action.payload);
+      state.editingSaleId = action.payload;
+    },
+    
+    // Clear editing sale ID
+    clearEditingSaleId: (state) => {
+      console.log("🧹 Redux: Clearing editingSaleId");
+      state.editingSaleId = null;
     },
 
     resetState: () => initialState,
@@ -895,11 +931,10 @@ const posSlice = createSlice({
     });
   }
 });
-
-// Export actions
 export const {
   addToCart,
   updateCartQuantity,
+  removeFromCart,
   clearCart,
   clearCartWithAnimation,
   setOrderType,
@@ -930,6 +965,8 @@ export const {
   setLastSaleData,
   generateReceiptData,
   setSelectedSaleForEdit,
+  setEditingSaleId,
+  clearEditingSaleId,
   resetState,
   // Sales history actions
   setSelectedItemFilter,

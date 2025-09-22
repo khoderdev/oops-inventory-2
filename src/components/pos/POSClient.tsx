@@ -9,7 +9,7 @@ import { useOrderManagement } from "@/hooks/useOrderManagement";
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { Employee } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { Order, OrderSummary as OrderSummaryType, OrderType } from "@/types/orders";
+import { Order, OrderSummary as OrderSummaryType, OrderType, UpdateOrderData } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
@@ -33,6 +33,7 @@ import { VoidOrderDialog } from "./VoidOrderDialog";
 import { Category } from "@/types/categories";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import * as posActions from "@/store/slices/posSlice";
 import {
   addToCart as addToCartAction,
   updateCartQuantity as updateCartQuantityAction,
@@ -64,15 +65,15 @@ import {
   setIsTableManuallySelected as setIsTableManuallySelectedAction,
   setIsPaymentCompleted as setIsPaymentCompletedAction,
   setLastSaleData as setLastSaleDataAction,
-  generateReceiptData as generateReceiptDataAction
+  generateReceiptData as generateReceiptDataAction,
+  setShowPrinterSelector
 } from "@/store/slices/posSlice";
 
 export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   // Redux
   const dispatch = useAppDispatch();
-  const { cart, orderType, selectedTable, selectedEmployee, currentOrder, hasUnsavedChanges, isPaymentCompleted, isLoading, error, successMessage, showSuccessCheckmark, showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showReportsDialog, showPrinterSelector, selectedItemForNotes, orderNotes, appliedDiscount, lastSaleData, isTableManuallySelected, isPOSActionInProgress } = useAppSelector(
-    state => state.pos
-  );
+  const { cart, orderType, selectedTable, selectedEmployee, currentOrder, hasUnsavedChanges, isPaymentCompleted, isLoading, error, successMessage, showSuccessCheckmark, showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showReportsDialog, showPrinterSelector, selectedItemForNotes, orderNotes, appliedDiscount, lastSaleData, isTableManuallySelected, isPOSActionInProgress, selectedSaleForEdit, editingSaleId } =
+    useAppSelector(state => state.pos);
 
   // Context and local state
   const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems } = useMenuItems();
@@ -102,6 +103,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [rightPanelPixelWidth, setRightPanelPixelWidth] = React.useState(0);
   const [isResizing, setIsResizing] = React.useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = React.useState<"payment" | "manual_print" | null>(null);
+  
 
   // Filter posItems based on activeCategory
   const filteredPosItems = React.useMemo(() => {
@@ -182,6 +184,117 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     },
     [dispatch]
   );
+
+    // Keep local menuItems in sync with context for legacy lookups in this component
+    useEffect(() => {
+      const combined = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+      setMenuItems(combined);
+    }, [foodMenuItems, beverageMenuItems]);
+  
+    // Build categories map from context categories
+    useEffect(() => {
+      const categoryMap = new Map<number, string>();
+      if (menuItemCategories && menuItemCategories.length > 0) {
+        menuItemCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
+      }
+      if (beverageCategories && beverageCategories.length > 0) {
+        beverageCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
+      }
+      setCategoriesMap(categoryMap);
+    }, [menuItemCategories, beverageCategories]);
+  
+    // Memoized POS items to prevent unnecessary re-renders during POS operations
+    // Remove the memoizedPosItems and replace with this useEffect:
+    useEffect(() => {
+      if (menuItemsLoading) {
+        setIsItemsGridLoading(true);
+        return;
+      }
+  
+      // Only proceed if we have menu items
+      const allMenuItems = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+      if (allMenuItems.length === 0) {
+        setIsItemsGridLoading(false);
+        return;
+      }
+  
+      const transformedItems: POSItem[] = allMenuItems
+        .filter(menuItem => menuItem?.isPOSItem)
+        .map(menuItem => {
+          // Handle category transformation with fallbacks
+          let categoryName = "Uncategorized";
+  
+          if (menuItem.category) {
+            if (typeof menuItem.category === "object" && "id" in menuItem.category) {
+              categoryName = categoriesMap.get(menuItem.category.id) || (menuItem.category as any).name || (menuItem.category as any).value || "Uncategorized";
+            } else if (typeof menuItem.category === "number") {
+              categoryName = categoriesMap.get(menuItem.category) || "Uncategorized";
+            } else if (typeof menuItem.category === "string") {
+              categoryName = menuItem.category;
+            }
+          }
+  
+          // Transform variants if they exist
+          const variants = menuItem.variants ? transformVariants(menuItem.variants) : undefined;
+  
+          return {
+            id: `menu-${menuItem.id}`,
+            name: menuItem.name,
+            price: typeof menuItem.price === "number" && !isNaN(menuItem.price) ? menuItem.price : 0,
+            category: categoryName,
+            type: "menu_item",
+            menuItemId: menuItem.id,
+            unit: menuItem.unit || "unit",
+            availableQuantity: menuItem.availableQuantity || 0,
+            costPerUnit: menuItem.costPerUnit || 0,
+            createdAt: menuItem.createdAt?.toString() || new Date().toISOString(),
+            updatedAt: menuItem.updatedAt?.toString() || new Date().toISOString(),
+            description: menuItem.description,
+            image: menuItem.image,
+            imageUrl: undefined,
+            variants: variants
+          };
+        });
+  
+      setPosItems(transformedItems);
+      setIsItemsGridLoading(false);
+    }, [foodMenuItems, beverageMenuItems, categoriesMap, menuItemsLoading]);
+
+     // Helper function for variants transformation
+  const transformVariants = (
+    variants: any
+  ): Array<{
+    id: string | number;
+    name: string;
+    volume: number;
+    unit: string;
+    price: string | number;
+  }> => {
+    if (Array.isArray(variants)) return variants;
+
+    if (variants && typeof variants === "object") {
+      if (variants.variantVolumes) {
+        return Object.keys(variants.variantVolumes).map(variantKey => ({
+          id: variantKey,
+          name: variantKey,
+          volume: variants.variantVolumes[variantKey] || 0,
+          unit: variants.variantVolumeUnits?.[variantKey] || "cl",
+          price: variants.variantPrices?.[variantKey] || 0
+        }));
+      }
+
+      // Handle other possible variant formats
+      return Object.entries(variants).map(([key, value]: [string, any]) => ({
+        id: key,
+        name: key,
+        volume: value.volume || value.size || 0,
+        unit: value.unit || "cl",
+        price: value.price || 0
+      }));
+    }
+
+    return [];
+  };
 
   // Calculate derived values
   const subtotal = (cart || []).filter(Boolean).reduce((sum, item) => {
@@ -570,33 +683,71 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         try {
           let orderToComplete = currentOrder;
 
-          // Create order if needed
+          // Determine if we're editing a sale
+          const isEditingSale = !!selectedSaleForEdit;
+          
+          // Create or update order if needed
           if (!currentOrder) {
-            console.log("Applied discount:", appliedDiscount);
-            const orderData = {
-              orderType,
-              tableId: selectedTable?.id,
-              employeeId: selectedEmployee?.id,
-              items: cart.map(item => ({
-                materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
-                menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
-                assignmentId: undefined,
-                name: item.name,
-                quantity: item.quantity,
-                unitPrice: item.price,
-                totalPrice: item.price * item.quantity,
-                type: item.type as "material" | "menu_item",
-                notes: item.notes || undefined,
-                menuItem: item.type === "menu_item"
-              })),
-              notes: orderNotes || undefined,
-              discountType: appliedDiscount?.type,
-              discountValue: appliedDiscount?.value,
-              discountAmount: appliedDiscount?.amount || 0,
-              discountReason: appliedDiscount?.reason
-            };
-            const createOrderResponse = await createOrder(orderData);
-            orderToComplete = createOrderResponse && typeof createOrderResponse === "object" && "order" in createOrderResponse ? (createOrderResponse as any).order : createOrderResponse;
+            // Check if we're editing an existing sale
+            if (isEditingSale && selectedSaleForEdit) {
+              console.log("🔄 Updating existing sale for payment:", selectedSaleForEdit.id);
+              
+              // Prepare update data
+              const updateData = {
+                orderType: (selectedSaleForEdit as any).orderType || orderType, // Handle potential missing orderType in SaleRecord
+                tableId: selectedTable?.id,
+                employeeId: selectedEmployee?.id,
+                items: cart.map(item => ({
+                  materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+                  menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
+                  assignmentId: undefined,
+                  name: item.name,
+                  quantity: item.quantity,
+                  unitPrice: item.price,
+                  totalPrice: item.price * item.quantity,
+                  type: item.type as "material" | "menu_item",
+                  notes: item.notes || undefined,
+                  menuItem: item.type === "menu_item"
+                })),
+                notes: orderNotes || undefined,
+                discountType: appliedDiscount?.type,
+                discountValue: appliedDiscount?.value,
+                discountAmount: appliedDiscount?.amount || 0,
+                discountReason: appliedDiscount?.reason
+              };
+              
+              // Update the existing sale/order
+              const updateResponse = await updateOrder(selectedSaleForEdit.id.toString(), updateData);
+              orderToComplete = updateResponse && typeof updateResponse === "object" && "order" in updateResponse ? (updateResponse as any).order : updateResponse;
+              console.log("✅ Successfully updated existing sale before payment");
+            } else {
+              console.log("🆕 Creating new order for payment");
+              console.log("Applied discount:", appliedDiscount);
+              const orderData = {
+                orderType,
+                tableId: selectedTable?.id,
+                employeeId: selectedEmployee?.id,
+                items: cart.map(item => ({
+                  materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+                  menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
+                  assignmentId: undefined,
+                  name: item.name,
+                  quantity: item.quantity,
+                  unitPrice: item.price,
+                  totalPrice: item.price * item.quantity,
+                  type: item.type as "material" | "menu_item",
+                  notes: item.notes || undefined,
+                  menuItem: item.type === "menu_item"
+                })),
+                notes: orderNotes || undefined,
+                discountType: appliedDiscount?.type,
+                discountValue: appliedDiscount?.value,
+                discountAmount: appliedDiscount?.amount || 0,
+                discountReason: appliedDiscount?.reason
+              };
+              const createOrderResponse = await createOrder(orderData);
+              orderToComplete = createOrderResponse && typeof createOrderResponse === "object" && "order" in createOrderResponse ? (createOrderResponse as any).order : createOrderResponse;
+            }
           }
 
           if (!orderToComplete) {
@@ -617,6 +768,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           // Complete order with timeout protection
           const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Order completion timeout")), 10000));
 
+          console.log(`📝 Completing order ${orderToComplete.id} with payment data:`, optimisticPaymentData);
           const response = (await Promise.race([ordersAPI.completeOrder(orderToComplete.id, optimisticPaymentData), timeoutPromise])) as any;
 
           // Extract order and sale ID from response
@@ -647,6 +799,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           }
 
           completedOrdersRef.current.add(orderToComplete.id.toString());
+          
+          // Clear the selected sale for edit to prevent reloading
+          // The editingSaleId will be preserved by our updated reducer
+          if (selectedSaleForEdit) {
+            console.log("🔑 Before clearing selectedSaleForEdit, editingSaleId:", editingSaleId);
+            dispatch(posActions.setSelectedSaleForEdit(null));
+            console.log("🔑 After clearing selectedSaleForEdit, editingSaleId is still:", editingSaleId);
+          }
 
           // Execute background operations
           await refreshAllCounts();
@@ -691,7 +851,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                     quantity: item.quantity || 0,
                     unitPrice: item.price || 0,
                     totalPrice: (item.price || 0) * (item.quantity || 0),
-                    ingredients: [] // Would need actual ingredients data
+                    ingredients: [], // Would need actual ingredients data
+                    // Add missing fields to satisfy TypeScript
+                    notes: item.notes || undefined,
+                    id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}` // Generate a temporary ID
                   };
                 } catch (e) {
                   console.error("Error mapping menu item sale:", e, item);
@@ -701,7 +864,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                     quantity: 0,
                     unitPrice: 0,
                     totalPrice: 0,
-                    ingredients: []
+                    ingredients: [],
+                    notes: undefined,
+                    id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}` // Generate a temporary ID
                   };
                 }
               });
@@ -724,7 +889,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 updatedAt: new Date()
               },
               totalAmount: total,
-              message: `Sale completed successfully for order #${orderToComplete.orderNumber || order.orderNumber}`
+              message: `Sale ${isEditingSale ? 'updated' : 'completed'} successfully for order #${orderToComplete.orderNumber || order.orderNumber || 'N/A'}`
             });
           }
         } catch (error) {
@@ -744,7 +909,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       dispatch(setIsLoadingAction(false));
       dispatch(setIsPOSActionInProgressAction(false));
     }
-  }, [cart, currentOrder, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, paymentAmount, subtotal, tax, total, showError, showSuccess, dispatch, clearOrder, clearCartWithAnimation, hasSavedPrinter, createOrder, refreshAllCounts, onSaleComplete]);
+  }, [cart, currentOrder, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, paymentAmount, subtotal, tax, total, selectedSaleForEdit, showError, showSuccess, dispatch, clearOrder, clearCartWithAnimation, hasSavedPrinter, createOrder, updateOrder, refreshAllCounts, onSaleComplete]);
 
   // Handle manual save function
   const handleManualSave = useCallback(async () => {
@@ -753,6 +918,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       return;
     }
 
+    // Log the selected sale for edit state before saving
+    console.log("🔍 Selected sale for edit before saving:", selectedSaleForEdit);
+    console.log("🔑 Current editingSaleId before saving:", editingSaleId);
+    
     dispatch(setIsPOSActionInProgressAction(true));
     dispatch(setIsLoadingAction(true));
 
@@ -783,13 +952,45 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       const backgroundSaving = async () => {
         try {
           let savedOrder;
-          if (currentOrder?.id) {
+          // Check if we're editing an existing order or sale
+          if (currentOrder?.id || editingSaleId) {
             // Update existing order logic
-            console.log("Updating existing order");
-            // This would be a complex update operation similar to the original code
-            // For brevity, we're simplifying this part
+            console.log("🔄 Updating existing order/sale", currentOrder?.id || editingSaleId);
+            console.log("📝 Using editingSaleId:", editingSaleId);
+            
+            // Prepare update data
+            const updateData: UpdateOrderData = {
+              orderType,
+              tableId: selectedTable?.id,
+              employeeId: selectedEmployee?.id,
+              items: cart.map(item => {
+                return {
+                  materialId: item.type === "material" ? String((item.originalItem as StockEntryWithMaterial).materialId) : undefined,
+                  menuItemId: item.type === "menu_item" ? String((item.originalItem as MenuItem).id) : undefined,
+                  assignmentId: undefined,
+                  name: item.name,
+                  quantity: item.quantity,
+                  unitPrice: item.price,
+                  totalPrice: item.price * item.quantity,
+                  type: item.type as "material" | "menu_item",
+                  notes: item.notes || undefined
+                };
+              }),
+              notes: orderNotes || undefined,
+              discountType: appliedDiscount?.type,
+              discountValue: appliedDiscount?.value,
+              discountAmount: appliedDiscount?.amount || 0,
+              discountReason: appliedDiscount?.reason
+            };
+
+            // Determine which ID to use for the update
+            const orderId = currentOrder?.id || editingSaleId;
+            console.log(`📝 Using updateOrder API for ${orderId}`);
+            savedOrder = await updateOrder(orderId, updateData);
+            showSuccess("Order updated successfully");
           } else {
             // Create new order
+            console.log("🆕 Creating new order");
             const createData = {
               orderType,
               tableId: selectedTable?.id,
@@ -815,11 +1016,18 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             };
 
             savedOrder = await createOrder(createData);
+            showSuccess("New order created successfully");
           }
 
           // Background operations
           if (onOrderProcessed) onOrderProcessed();
           await refreshAllCounts();
+          
+          // Clear the selected sale for edit to prevent reloading
+          // Note: We don't need to explicitly preserve editingSaleId here anymore
+          // because we've updated the setSelectedSaleForEdit reducer to preserve it
+          dispatch(posActions.setSelectedSaleForEdit(null));
+          console.log("🔑 After clearing selectedSaleForEdit, editingSaleId is still:", editingSaleId);
         } catch (error: unknown) {
           console.error("❌ Background save processing failed:", error);
         }
@@ -835,40 +1043,170 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       dispatch(setIsLoadingAction(false));
       dispatch(setIsPOSActionInProgressAction(false));
     }
-  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, dispatch, refreshAllCounts, onOrderProcessed]);
+  }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, selectedSaleForEdit, editingSaleId, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, dispatch, refreshAllCounts, onOrderProcessed]);
 
   // Handle selectedOrderForPOS prop with protection for table selection
   useEffect(() => {
     // Skip if table was manually selected - this prevents the selectedOrderForPOS from overriding
     // the user's manual table selection
     if (isTableManuallySelected) {
-      console.log("🛡️ Blocking selectedOrderForPOS effect - table was manually selected");
+      console.log("🔝️ Blocking selectedOrderForPOS effect - table was manually selected");
       return;
     }
-    
+
     // Skip if there's a POS action in progress
     if (isPOSActionInProgress) {
-      console.log("🛡️ Blocking selectedOrderForPOS effect - POS action in progress");
+      console.log("🔝️ Blocking selectedOrderForPOS effect - POS action in progress");
       return;
     }
-    
-    // Process selectedOrderForPOS if it exists and hasn't been processed yet
-    if (selectedOrderForPOS && (!processedOrderRef.current || processedOrderRef.current !== selectedOrderForPOS.id.toString())) {
-      console.log("📥 Processing selectedOrderForPOS:", selectedOrderForPOS.id);
-      
-      // Load the order
-      if (loadOrder) {
-        loadOrder(selectedOrderForPOS.id);
+
+    // Load selected order when selectedOrderForPOS changes
+    if (selectedOrderForPOS && !isTableManuallySelected) {
+      const orderId = selectedOrderForPOS.id;
+      if (completedOrdersRef.current.has(orderId.toString())) {
+        console.log("🚫 Blocking order load - order already completed", orderId);
+        return;
       }
-      
-      // Mark as processed to prevent reprocessing
-      processedOrderRef.current = selectedOrderForPOS.id.toString();
+
+      if (processedOrderRef.current === orderId) {
+        console.log("🚫 Blocking order load - order already processed", orderId);
+        return;
+      }
+
+      // Load the order
+      loadOrder(orderId);
+      processedOrderRef.current = orderId;
     }
-  }, [selectedOrderForPOS, isTableManuallySelected, isPOSActionInProgress, loadOrder]);
-  
+  }, [selectedOrderForPOS, loadOrder, isTableManuallySelected, isPOSActionInProgress]);
+
+  // Handle loading a sale from Sales history
+  useEffect(() => {
+    console.log("🔄 useEffect for loading sale triggered with selectedSaleForEdit:", selectedSaleForEdit);
+    const loadSaleFromHistory = async () => {
+      if (selectedSaleForEdit) {
+        console.log("🔄 Loading sale from history:", selectedSaleForEdit);
+        
+        // Store the sale ID for later use when saving
+        if (selectedSaleForEdit.id) {
+          dispatch(posActions.setEditingSaleId(selectedSaleForEdit.id.toString()));
+          console.log("🔑 Setting editingSaleId for later use:", selectedSaleForEdit.id.toString());
+        }
+
+        // Clear current cart and state
+        dispatch(clearCartAction());
+        dispatch(removeDiscountAction());
+        dispatch(setOrderNotesAction(""));
+
+        if (clearOrder) {
+          clearOrder();
+        }
+
+        // Set order type and related info
+        if (selectedSaleForEdit.orderType === "table" && selectedSaleForEdit.tableId) {
+          try {
+            // Try to fetch the table info
+            const tableResponse = await tablesAPI.getTable(selectedSaleForEdit.tableId);
+            const table = tableResponse.data;
+            if (table) {
+              dispatch(setSelectedTableAction(table));
+              dispatch(setOrderTypeAction("table"));
+            }
+          } catch (error) {
+            console.error("Failed to load table for sale:", error);
+            dispatch(setOrderTypeAction(selectedSaleForEdit.orderType || "takeaway"));
+          }
+        } else if (selectedSaleForEdit.orderType === "employees" && selectedSaleForEdit.employeeId) {
+          try {
+            // Try to fetch employee info
+            const employeeResponse = await fetch(`/api/employees/${selectedSaleForEdit.employeeId}`).then(res => res.json());
+            if (employeeResponse.data) {
+              dispatch(setSelectedEmployeeAction(employeeResponse.data));
+              dispatch(setOrderTypeAction("employees"));
+            }
+          } catch (error) {
+            console.error("Failed to load employee for sale:", error);
+            dispatch(setOrderTypeAction(selectedSaleForEdit.orderType || "takeaway"));
+          }
+        } else {
+          dispatch(setOrderTypeAction(selectedSaleForEdit.orderType || "takeaway"));
+        }
+
+        // Add items to cart
+        const cartItems: POSCartItem[] = [];
+
+        // Add menu items
+        if (selectedSaleForEdit.menuItems && selectedSaleForEdit.menuItems.length > 0) {
+          selectedSaleForEdit.menuItems.forEach(item => {
+            const menuItem = menuItems.find(mi => String(mi.id) === String(item.menuItemId));
+
+            cartItems.push({
+              id: `history-${item.id || Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              name: item.menuItemName || "Unknown Item",
+              price: parseFloat(item.unitPrice?.toString() || "0"),
+              quantity: item.quantity || 1,
+              type: "menu_item",
+              originalItem: menuItem || ({ id: item.menuItemId, name: item.menuItemName } as any),
+              menuItemId: String(item.menuItemId),
+              notes: item.notes
+            });
+          });
+        }
+
+        // Add material items
+        if (selectedSaleForEdit.items && selectedSaleForEdit.items.length > 0) {
+          selectedSaleForEdit.items.forEach(item => {
+            const stockEntry = stockEntries.find(se => String(se.materialId) === String(item.materialId));
+
+            cartItems.push({
+              id: `history-${item.id || Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+              name: item.materialName || "Unknown Material",
+              price: parseFloat(item.unitPrice?.toString() || "0"),
+              quantity: item.quantity || 1,
+              type: "material",
+              originalItem: stockEntry || ({ materialId: item.materialId, material: { name: item.materialName } } as any),
+              materialId: String(item.materialId),
+              notes: item.notes
+            });
+          });
+        }
+
+        // Add items to cart
+        cartItems.forEach(item => {
+          dispatch(addToCartAction(item));
+        });
+
+        // Apply discount if present
+        if (selectedSaleForEdit.discountAmount && parseFloat(selectedSaleForEdit.discountAmount.toString()) > 0) {
+          dispatch(
+            applyDiscountAction({
+              type: (selectedSaleForEdit.discountType as "percentage" | "fixed") || "fixed",
+              value: parseFloat(selectedSaleForEdit.discountValue?.toString() || "0"),
+              reason: selectedSaleForEdit.discountReason || "From history"
+            })
+          );
+        }
+
+        // Set notes if present
+        if (selectedSaleForEdit.notes) {
+          dispatch(setOrderNotesAction(selectedSaleForEdit.notes));
+        }
+
+        // Clear the selected sale to prevent reloading
+        // The editingSaleId will be preserved by our updated reducer
+        console.log("🔑 Before clearing selectedSaleForEdit, editingSaleId:", editingSaleId);
+        console.log("🧹 Clearing selectedSaleForEdit after loading");
+        dispatch(posActions.setSelectedSaleForEdit(null));
+        console.log("🔑 After clearing selectedSaleForEdit, editingSaleId is still:", editingSaleId);
+
+        console.log("✅ Sale loaded from history successfully");
+      }
+    };
+
+    loadSaleFromHistory();
+  }, [dispatch, menuItems, stockEntries, clearOrder, selectedSaleForEdit, editingSaleId]);
+
   // Add this effect to handle router state with orders from SalesHistoryPage
   useEffect(() => {
-    // Skip if already processed
     if (routerStateProcessedRef.current) {
       return;
     }
@@ -1053,6 +1391,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     },
     [selectPrinter, printerSelectionContext, handlePrintReceiptWithPrinter, dispatch]
   );
+
+  const handleShowPrinterSettings = useCallback(() => {
+    setPrinterSelectionContext("manual_print");
+    setShowPrinterSelector(true);
+  }, []);
 
   const handleClosePrinterSelector = useCallback(() => {
     dispatch(setShowPrinterSelectorAction(false));
@@ -1258,17 +1601,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           {/* Order Summary - Fixed Height */}
           <div className="hidden lg:block flex-none border-t border-gray-200 bg-gray-50">
-            <OrderSummary
-              cart={stableCart}
-              subtotal={subtotal}
-              total={total}
-              appliedDiscount={appliedDiscount}
-              onRemoveDiscount={handleRemoveDiscount}
-              onSaveClick={handleManualSave}
-              onPaymentClick={() => dispatch(setShowPaymentDialogAction(true))}
-              orderStatus={currentOrder?.status}
-              isOrderCompleted={isPaymentCompleted}
-            />
+            <OrderSummary cart={stableCart} subtotal={subtotal} total={total} appliedDiscount={appliedDiscount} onRemoveDiscount={handleRemoveDiscount} onSaveClick={handleManualSave} onPaymentClick={() => dispatch(setShowPaymentDialogAction(true))} orderStatus={currentOrder?.status} isOrderCompleted={isPaymentCompleted} />
           </div>
 
           {/* Mobile View Tabs */}
@@ -1310,17 +1643,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
             {/* Order Summary - Mobile */}
             <div className="flex-none border-t border-gray-200 bg-gray-50">
-              <OrderSummary
-                cart={stableCart}
-                subtotal={subtotal}
-                total={total}
-                appliedDiscount={appliedDiscount}
-                onRemoveDiscount={handleRemoveDiscount}
-                onSaveClick={handleManualSave}
-                onPaymentClick={() => dispatch(setShowPaymentDialogAction(true))}
-                orderStatus={currentOrder?.status}
-                isOrderCompleted={isPaymentCompleted}
-              />
+              <OrderSummary cart={stableCart} subtotal={subtotal} total={total} appliedDiscount={appliedDiscount} onRemoveDiscount={handleRemoveDiscount} onSaveClick={handleManualSave} onPaymentClick={() => dispatch(setShowPaymentDialogAction(true))} orderStatus={currentOrder?.status} isOrderCompleted={isPaymentCompleted} />
             </div>
           </div>
         </div>
@@ -1338,6 +1661,29 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           {/* Products Grid */}
           <div className="flex-1 overflow-y-auto bg-gray-50 p-2">
             <ItemsGrid posItems={filteredPosItems} onAddToCart={addToCart} isLoading={isItemsGridLoading} rightPanelPixelWidth={rightPanelPixelWidth} />
+          </div>
+
+          {/* Bottom Action Bar - Fixed Footer */}
+          <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
+            <ActionBar
+              onSaveOrder={handleManualSave}
+              onPrintReceipt={handlePrintReceipt}
+              onVoidOrder={handleVoidOrder}
+              onShowOrders={handleShowOrders}
+              onShowReports={handleShowReports}
+              onCancelOrder={handleCancelOrder}
+              onDiscount={handleShowDiscount}
+              hasUnsavedChanges={hasUnsavedChanges}
+              isOrderLoading={orderLoading}
+              canPrintReceipt={cart && cart.length > 0}
+              canVoidOrder={!!currentOrder}
+              incompleteOrdersCount={incompleteOrdersCount}
+              incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount}
+              onShowPrinterSettings={handleShowPrinterSettings}
+              hasSavedPrinter={hasSavedPrinter()}
+              savedPrinterName={getSavedPrinter()?.name}
+              isDayOpen={isDayOpen}
+            />
           </div>
 
           {/* Mobile Action Bar */}

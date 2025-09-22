@@ -2,14 +2,18 @@ import React, { useEffect, useMemo, useState } from "react";
 import { usePOSRedux } from "@/hooks/usePOSRedux";
 import { SaleRecord } from "@/types/inventory";
 import { format } from "date-fns";
-import { ArrowUpDown, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 interface SalesProps {
   // Add any additional props if needed
 }
 
 const Sales: React.FC<SalesProps> = () => {
-  const { salesHistory, fetchSalesHistory, isLoading, error, selectedItemFilter, selectedSectionFilter, dateFrom, dateTo, setSelectedItemFilter, setSelectedSectionFilter, setDateFrom, setDateTo, uniqueItemNames, uniqueSectionNames, setUniqueItemNames, setUniqueSectionNames, filteredSalesHistory, salesTotal } = usePOSRedux();
+  const { salesHistory, fetchSalesHistory, isLoading, error, selectedItemFilter, selectedSectionFilter, dateFrom, dateTo, setSelectedItemFilter, setSelectedSectionFilter, setDateFrom, setDateTo, uniqueItemNames, uniqueSectionNames, setUniqueItemNames, setUniqueSectionNames, filteredSalesHistory, salesTotal, setSelectedSaleForEdit } = usePOSRedux();
+
+  const navigate = useNavigate();
 
   const [sortField, setSortField] = useState<keyof SaleRecord | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -68,6 +72,16 @@ const Sales: React.FC<SalesProps> = () => {
   // Toggle expanded sale details
   const toggleSaleDetails = (saleId: string) => {
     setExpandedSale(expandedSale === saleId ? null : saleId);
+  };
+
+  // Handle click on a sale row to navigate to POS screen
+  const handleSaleClick = (sale: SaleRecord) => {
+    // Set the selected sale for editing
+    console.log("🔍 Setting selected sale for edit in Sales component:", sale);
+    setSelectedSaleForEdit(sale);
+
+    // Navigate to the POS screen
+    navigate("/pos");
   };
 
   // Format currency
@@ -149,16 +163,26 @@ const Sales: React.FC<SalesProps> = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {sortedSales.map(sale => (
                 <React.Fragment key={sale.id}>
-                  <tr>
-                    <td className="px-6 py-4 whitespace-nowrap">{formatDate(sale.saleDate)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{sale.orderNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{formatCurrency(sale.totalAmount)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{(sale.items?.length || 0) + (sale.menuItems?.length || 0)} items</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{sale.section?.name || "N/A"}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button onClick={() => toggleSaleDetails(sale.id)} className="text-indigo-600 hover:text-indigo-900">
-                        {expandedSale === sale.id ? "Hide Details" : "Show Details"}
-                      </button>
+                  <tr className="hover:bg-gray-50 cursor-pointer">
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={() => toggleSaleDetails(sale.id)}>
+                      {formatDate(sale.saleDate)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={() => toggleSaleDetails(sale.id)}>
+                      {sale.orderNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={() => toggleSaleDetails(sale.id)}>
+                      {formatCurrency(sale.totalAmount)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={() => toggleSaleDetails(sale.id)}>
+                      {(sale.items?.length || 0) + (sale.menuItems?.length || 0)} items
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={() => toggleSaleDetails(sale.id)}>
+                      {sale.section?.name || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleSaleClick(sale)} className="flex items-center gap-1 ml-2">
+                        <ExternalLink className="h-4 w-4" /> Open in POS
+                      </Button>
                     </td>
                   </tr>
                   {expandedSale === sale.id && (

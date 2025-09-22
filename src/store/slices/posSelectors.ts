@@ -18,6 +18,7 @@ export const selectShowSuccessCheckmark = (state: RootState) => state.pos.showSu
 export const selectLastSaleData = (state: RootState) => state.pos.lastSaleData;
 export const selectSalesHistory = (state: RootState) => state.pos.salesHistory;
 export const selectSelectedSaleForEdit = (state: RootState) => state.pos.selectedSaleForEdit;
+export const selectEditingSaleId = (state: RootState) => state.pos.editingSaleId;
 
 // Dialog selectors
 export const selectShowPaymentDialog = (state: RootState) => state.pos.showPaymentDialog;
