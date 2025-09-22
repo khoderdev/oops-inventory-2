@@ -80,33 +80,46 @@ const Sales: React.FC<SalesProps> = () => {
   };
 
   // Handle click on a sale row to navigate to POS screen - memoized to prevent unnecessary re-renders
-  const handleSaleClick = useCallback((sale: SaleRecord) => {
-    // Set the selected sale for editing
-    console.log("🔍 Setting selected sale for edit in Sales component:", sale);
-    
-    // IMPORTANT: We need to find the corresponding order ID for this sale
-    // The sale ID is not the same as the order ID
-    // The order ID is stored in the order.id property of the sale record
+  const handleSaleClick = useCallback(async (sale: SaleRecord) => {
     let orderId: string | null = null;
     
+    // First check if the sale already has an associated order
     if (sale.order && sale.order.id) {
-      // Get the order ID from the sale.order object
       orderId = sale.order.id.toString();
-      console.log(`📋 Found order ID ${orderId} for sale ID ${sale.id}`);
-    } else if (sale.id === "105") {
-      // Special case for sale ID 105 -> order ID 123
-      orderId = "123";
-      console.log(`🔧 Applied manual fix: Using order ID 123 for sale ID 105`);
+      console.log(`📋 Using existing order ID ${orderId} from sale ${sale.id}`);
     } else {
-      console.warn(`⚠️ No order ID found for sale ID ${sale.id}. Editing may fail.`);
+      // If no order is associated, we need to handle this properly
+      console.log(`🔍 Sale ${sale.id} has no associated order, checking backend...`);
+      
+      try {
+        // Try to fetch the order ID from the backend using the sale ID
+        const response = await fetch(`/api/sales/${sale.id}/order`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.orderId) {
+            orderId = data.orderId.toString();
+            console.log(`✅ Found order ID ${orderId} for sale ${sale.id} from backend`);
+          } else {
+            console.warn(`⚠️ Backend returned no order ID for sale ${sale.id}`);
+          }
+        } else {
+          console.warn(`⚠️ Failed to fetch order ID for sale ${sale.id} from backend`);
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching order ID for sale ${sale.id}:`, error);
+      }
+      
+      // If we still don't have an order ID, we'll use the sale ID as a fallback
+      if (!orderId) {
+        orderId = sale.id.toString();
+        console.warn(`⚠️ Using sale ID ${sale.id} as fallback order ID. This may cause issues.`);
+      }
     }
     
-    // CRITICAL: Set the editingSaleId directly to the order ID, not the sale ID
-    if (orderId) {
-      // This ensures the correct order ID is used for API calls
-      setEditingSaleId(orderId);
-      console.log(`🔑 Explicitly set editingSaleId to order ID: ${orderId}`);
-    }
+    // Set the editingSaleId to the order ID for API calls
+    setEditingSaleId(orderId);
+    console.log(`🔑 Set editingSaleId to order ID: ${orderId}`);
     
     // Set the selected sale with the correct order ID reference
     const saleWithOrderId = {
