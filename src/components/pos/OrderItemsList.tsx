@@ -110,10 +110,15 @@ const OrderItemsListBase: React.FC<OrderItemsListProps> = ({ cart: propCart, upd
     [isCompleted, dispatch, onShowItemNotes]
   );
 
+  // Create ref outside of useEffect to track previous cart length
+  const prevLengthRef = React.useRef<number | null>(null);
+
   // Debug logging in useEffect to avoid render phase issues
   React.useEffect(() => {
-    if (stableCart.length > 0) {
+    // Only log when cart length actually changes
+    if (stableCart.length > 0 && prevLengthRef.current !== stableCart.length) {
       console.log("🔍 OrderItemsList has items:", stableCart.length);
+      prevLengthRef.current = stableCart.length;
     }
   }, [stableCart.length]);
 

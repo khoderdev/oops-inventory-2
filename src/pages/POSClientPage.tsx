@@ -3,6 +3,7 @@ import { salesAPI } from "@/api/sales.api.ts.tsx";
 import POSLayout from "@/components/layout/POSLayout";
 import { POSClient } from "@/components/pos/POSClient";
 import { useAuth } from "@/contexts/AuthContext";
+import { MenuItemsProvider } from "@/contexts/MenuItemsContext";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { PERMISSIONS } from "@/types/auth";
 import { SaleResponse } from "@/types/inventory";
@@ -147,14 +148,16 @@ const POSClientPage: React.FC<POSClientPageProps> = ({ isDayOpen = true }) => {
       onOrderSelect={handleOrderSelect}
       onRefreshCounts={handleRefreshCounts}
     >
-      <POSClient 
-        sectionAssignments={sectionAssignments} 
-        onSaleComplete={handleSaleComplete}
-        selectedOrderForPOS={selectedOrderForPOS}
-        onOrderProcessed={undefined}
-        refreshCountsRef={refreshCountsRef}
-        isDayOpen={isDayOpen}
-      />
+      <MenuItemsProvider>
+        <POSClient 
+          sectionAssignments={sectionAssignments} 
+          onSaleComplete={handleSaleComplete}
+          selectedOrderForPOS={selectedOrderForPOS}
+          onOrderProcessed={undefined}
+          refreshCountsRef={refreshCountsRef}
+          isDayOpen={isDayOpen}
+        />
+      </MenuItemsProvider>
     </POSLayout>
   );
 };

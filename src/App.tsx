@@ -19,7 +19,6 @@ import { Employee } from "./components/employees";
 import UnitConverterDemo from "./components/common/UnitConverterDemo";
 import SuppliersPage from "@/pages/SuppliersPage";
 import { SalesProvider } from "@/contexts/SalesContext";
-import { POSClient } from "./components/pos/POSClient.redux";
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -123,14 +122,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                           element={
                             <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
                               <POSClientPage />
-                            </ProtectedRoute>
-                          }
-                        />
-                        <Route
-                          path="/pos2"
-                          element={
-                            <ProtectedRoute requiredPermission={PERMISSIONS.POS_ACCESS}>
-                              <POSClient />
                             </ProtectedRoute>
                           }
                         />

@@ -837,6 +837,35 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [cart, orderType, selectedTable, selectedEmployee, appliedDiscount, orderNotes, currentOrder, createOrder, updateOrder, clearOrder, clearCartWithAnimation, showSuccess, showError, dispatch, refreshAllCounts, onOrderProcessed]);
 
+  // Handle selectedOrderForPOS prop with protection for table selection
+  useEffect(() => {
+    // Skip if table was manually selected - this prevents the selectedOrderForPOS from overriding
+    // the user's manual table selection
+    if (isTableManuallySelected) {
+      console.log("🛡️ Blocking selectedOrderForPOS effect - table was manually selected");
+      return;
+    }
+    
+    // Skip if there's a POS action in progress
+    if (isPOSActionInProgress) {
+      console.log("🛡️ Blocking selectedOrderForPOS effect - POS action in progress");
+      return;
+    }
+    
+    // Process selectedOrderForPOS if it exists and hasn't been processed yet
+    if (selectedOrderForPOS && (!processedOrderRef.current || processedOrderRef.current !== selectedOrderForPOS.id.toString())) {
+      console.log("📥 Processing selectedOrderForPOS:", selectedOrderForPOS.id);
+      
+      // Load the order
+      if (loadOrder) {
+        loadOrder(selectedOrderForPOS.id);
+      }
+      
+      // Mark as processed to prevent reprocessing
+      processedOrderRef.current = selectedOrderForPOS.id.toString();
+    }
+  }, [selectedOrderForPOS, isTableManuallySelected, isPOSActionInProgress, loadOrder]);
+  
   // Add this effect to handle router state with orders from SalesHistoryPage
   useEffect(() => {
     // Skip if already processed
@@ -1207,7 +1236,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className="hidden lg:block flex-1 h-full relative overflow-hidden">
             <div className="h-full overflow-y-auto">
               <OrderItemsList
-                key={`desktop-order-items-${cart.length}-${Date.now()}`} // Add key to force re-render
+                key={`desktop-order-items-${cart.length}`} // Only re-render when cart length changes
                 cart={stableCart}
                 updateCartQuantity={updateCartQuantity}
                 orderType={orderType}
@@ -1232,25 +1261,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             <OrderSummary
               cart={stableCart}
               subtotal={subtotal}
-              tax={tax}
               total={total}
-              discount={appliedDiscount}
-              onShowDiscount={handleShowDiscount}
+              appliedDiscount={appliedDiscount}
               onRemoveDiscount={handleRemoveDiscount}
-              onSave={handleManualSave}
-              onPay={() => dispatch(setShowPaymentDialogAction(true))}
-              onCancel={handleCancelOrder}
-              onVoid={handleVoidOrder}
-              onPrint={handlePrintReceipt}
-              onShowOrders={handleShowOrders}
-              onShowReports={handleShowReports}
-              isLoading={isLoading}
-              hasUnsavedChanges={hasUnsavedChanges}
+              onSaveClick={handleManualSave}
+              onPaymentClick={() => dispatch(setShowPaymentDialogAction(true))}
+              orderStatus={currentOrder?.status}
               isOrderCompleted={isPaymentCompleted}
-              currentOrder={currentOrder}
-              orderType={orderType}
-              selectedTable={selectedTable}
-              selectedEmployee={selectedEmployee}
             />
           </div>
 
@@ -1272,7 +1289,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             {/* Order Items List - Mobile */}
             <div className="flex-1 overflow-y-auto">
               <OrderItemsList
-                key={`mobile-order-items-${cart.length}-${Date.now()}`} // Add key to force re-render
+                key={`mobile-order-items-${cart.length}`} // Only re-render when cart length changes
                 cart={stableCart}
                 updateCartQuantity={updateCartQuantity}
                 orderType={orderType}
@@ -1296,25 +1313,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               <OrderSummary
                 cart={stableCart}
                 subtotal={subtotal}
-                tax={tax}
                 total={total}
-                discount={appliedDiscount}
-                onShowDiscount={handleShowDiscount}
+                appliedDiscount={appliedDiscount}
                 onRemoveDiscount={handleRemoveDiscount}
-                onSave={handleManualSave}
-                onPay={() => dispatch(setShowPaymentDialogAction(true))}
-                onCancel={handleCancelOrder}
-                onVoid={handleVoidOrder}
-                onPrint={handlePrintReceipt}
-                onShowOrders={handleShowOrders}
-                onShowReports={handleShowReports}
-                isLoading={isLoading}
-                hasUnsavedChanges={hasUnsavedChanges}
+                onSaveClick={handleManualSave}
+                onPaymentClick={() => dispatch(setShowPaymentDialogAction(true))}
+                orderStatus={currentOrder?.status}
                 isOrderCompleted={isPaymentCompleted}
-                currentOrder={currentOrder}
-                orderType={orderType}
-                selectedTable={selectedTable}
-                selectedEmployee={selectedEmployee}
               />
             </div>
           </div>
