@@ -517,6 +517,7 @@ export interface SaleRecord {
     orderType: string;
     customerName?: string;
   };
+  orderId?: string; // Added for compatibility with Sales.tsx
   isActive?: boolean;
   createdAt: Date;
   updatedAt: Date;

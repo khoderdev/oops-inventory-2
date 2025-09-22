@@ -1,7 +1,7 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { auditSalesOperation } from "../middleware/auditMiddleware.js";
-import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, Section, StockEntry, User, Order } from "../models/index.js";
+import { Assignment, Material, MenuItem, MenuItemIngredient, Sale, SaleMenuItem, Section, StockEntry, User, Order } from "../models/index.js";
 
 const salesController = {
   getNegativeStockReport: async (req, res, next) => {
@@ -888,7 +888,10 @@ const salesController = {
     const transaction = await sequelize.transaction();
     try {
       const { id } = req.params;
-      const { menuItemId, saleDate, totalAmount } = req.body;
+      const { menuItemId, saleDate, totalAmount, menuItems } = req.body;
+
+      console.log('📝 Updating sale with ID:', id);
+      console.log('📦 Request body:', req.body);
 
       const sale = await Sale.findByPk(id, { transaction });
       if (!sale) {
@@ -920,27 +923,66 @@ const salesController = {
         return res.status(400).json({ error: "Invalid sale date" });
       }
 
-      // Update sale
+      // Update sale basic properties
       await sale.update(
         {
           menuItemId: menuItemId !== undefined ? menuItemId : sale.menuItemId,
           saleDate: saleDate !== undefined ? new Date(saleDate) : sale.saleDate,
-          totalAmount: totalAmount !== undefined ? totalAmount : sale.totalAmount
+          totalAmount: totalAmount !== undefined ? totalAmount : sale.totalAmount,
+          // Store menuItems as JSON if provided
+          menuItems: menuItems !== undefined ? menuItems : sale.menuItems
         },
         { transaction }
       );
+      
+      // Handle menu items if provided
+      if (menuItems && Array.isArray(menuItems)) {
+        console.log(`🍽️ Processing ${menuItems.length} menu items for sale ${id}`);
+        
+        // First, delete existing SaleMenuItem records for this sale
+        await SaleMenuItem.destroy({
+          where: { saleId: id },
+          transaction
+        });
+        
+        // Then create new SaleMenuItem records
+        for (const item of menuItems) {
+          // Validate the menu item exists
+          const menuItem = await MenuItem.findByPk(item.menuItemId, { transaction });
+          if (!menuItem) {
+            console.warn(`⚠️ Menu item ${item.menuItemId} not found, skipping`);
+            continue;
+          }
+          
+          await SaleMenuItem.create({
+            saleId: id,
+            menuItemId: item.menuItemId,
+            quantity: item.quantity || 1,
+            unitPrice: item.unitPrice || 0,
+            totalPrice: item.totalPrice || 0
+          }, { transaction });
+          
+          console.log(`✅ Added menu item ${item.menuItemId} to sale ${id}`);
+        }
+      }
 
-      // Fetch the updated sale with associated menu item
+      // Fetch the updated sale with associated data
       const updatedSale = await Sale.findByPk(id, {
         include: [
           {
-            model: MenuItem,
+            model: SaleMenuItem,
             as: "menuItem",
             include: [
               {
-                model: MenuItemIngredient,
-                as: "menuItemIngredients",
-                include: [{ model: Material, as: "material" }]
+                model: MenuItem,
+                as: "menuItem",
+                include: [
+                  {
+                    model: MenuItemIngredient,
+                    as: "menuItemIngredients",
+                    include: [{ model: Material, as: "material" }]
+                  }
+                ]
               }
             ]
           }
@@ -949,18 +991,55 @@ const salesController = {
       });
 
       // Format response to match Sale interface
+      // Convert SaleMenuItem records to the expected format
+      const saleMenuItems = updatedSale.menuItem ? updatedSale.menuItem.map(saleMenuItem => {
+        // Get the menu item data if available
+        const menuItemData = saleMenuItem.menuItem ? {
+          ...saleMenuItem.menuItem.get(),
+          ingredients: saleMenuItem.menuItem.menuItemIngredients ? 
+            saleMenuItem.menuItem.menuItemIngredients.map(ingredient => ({
+              materialId: ingredient.materialId,
+              quantity: ingredient.quantity,
+              unit: ingredient.unit,
+              cost: ingredient.cost
+            })) : []
+        } : null;
+        
+        // Format each SaleMenuItem
+        return {
+          menuItemId: saleMenuItem.menuItemId,
+          menuItemName: menuItemData?.name || 'Unknown Item',
+          quantity: saleMenuItem.quantity,
+          unitPrice: saleMenuItem.unitPrice,
+          totalPrice: saleMenuItem.totalPrice,
+          menuItem: menuItemData
+        };
+      }) : [];
+      
+      // Combine the existing JSON menuItems with the SaleMenuItem records
+      const combinedMenuItems = [...(updatedSale.menuItems || []), ...saleMenuItems];
+      
+      // Remove duplicates based on menuItemId
+      const uniqueMenuItems = [];
+      const menuItemIds = new Set();
+      
+      for (const item of combinedMenuItems) {
+        if (!menuItemIds.has(item.menuItemId)) {
+          uniqueMenuItems.push(item);
+          menuItemIds.add(item.menuItemId);
+        }
+      }
+      
       const formattedSale = {
         ...updatedSale.get(),
-        menuItem: {
-          ...updatedSale.menuItem.get(),
-          ingredients: updatedSale.menuItem.menuItemIngredients.map(ingredient => ({
-            materialId: ingredient.materialId,
-            quantity: ingredient.quantity,
-            unit: ingredient.unit,
-            cost: ingredient.cost
-          }))
-        }
+        menuItems: uniqueMenuItems
       };
+      
+      console.log('🔄 Formatted sale response:', {
+        id: formattedSale.id,
+        totalAmount: formattedSale.totalAmount,
+        menuItemsCount: formattedSale.menuItems.length
+      });
 
       await transaction.commit();
 

@@ -1,4 +1,5 @@
 import { ordersAPI } from "@/api/orders.api";
+import { salesAPI } from "@/api/sales.api.ts.tsx";
 import { printerAPI } from "@/api/printer.api";
 import { tablesAPI } from "@/api/tables.api";
 import PrinterSelector from "@/components/common/PrinterSelector";
@@ -994,18 +995,81 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               discountReason: appliedDiscount?.reason
             };
 
-            // Determine which ID to use for the update
-            const orderId = currentOrder?.id || currentEditingSaleId;
-            console.log(`📝 Using updateOrder API for ${orderId}`);
+            // Determine if we're dealing with a sale or an order
+            let isSaleUpdate = false;
+            let orderId;
+            let saleId;
+            
+            // If we have a current order loaded, use its ID
+            if (currentOrder?.id) {
+              orderId = currentOrder.id;
+              console.log(`📋 Using current order ID: ${orderId}`);
+            } 
+            // If we're editing a sale and the selectedSaleForEdit has an orderId property
+            else if (selectedSaleForEdit?.orderId) {
+              // We have both the sale ID and order ID
+              orderId = selectedSaleForEdit.orderId;
+              saleId = selectedSaleForEdit.id;
+              isSaleUpdate = true;
+              console.log(`📋 Using orderId ${orderId} from selectedSaleForEdit with saleId: ${saleId}`);
+            }
+            // If we have an editingSaleId but no orderId mapping
+            else if (currentEditingSaleId) {
+              // This is likely a sale ID, not an order ID
+              saleId = currentEditingSaleId;
+              isSaleUpdate = true;
+              console.log(`📋 Using currentEditingSaleId as saleId: ${saleId}`);
+            }
+            // No valid ID found
+            else {
+              console.error(`❌ No valid ID found for update operation`);
+              throw new Error('No valid ID found for update operation');
+            }
+            if (isSaleUpdate) {
+              console.log(`📝 Using updateSale API for saleId: ${saleId}`);
+            } else {
+              console.log(`📝 Using updateOrder API for orderId: ${orderId}`);
+            }
             console.log(`🔄 Is this an edited sale? ${!!currentEditingSaleId}`);
             
             try {
-              // For sales editing, use ordersAPI directly to ensure the request is made
+              // For sales editing, use the appropriate API based on whether it's a sale or order
               if (currentEditingSaleId && !currentOrder?.id) {
-                console.log(`💾 Direct API call for sale editing with ID: ${currentEditingSaleId}`);
-                const response = await ordersAPI.updateOrder(currentEditingSaleId, updateData);
-                savedOrder = response.data;
-                console.log(`✅ Sale updated successfully via direct API call:`, savedOrder);
+                if (isSaleUpdate) {
+                  console.log(`💾 Direct API call for sale editing with saleId: ${saleId}`);
+                  // Convert updateData to SaleRecord format
+                  const saleData = {
+                    id: saleId,
+                    items: updateData.items.filter(item => item.type === 'material').map(item => ({
+                      materialId: item.materialId,
+                      materialName: item.name,
+                      quantity: item.quantity,
+                      unitPrice: item.unitPrice,
+                      totalPrice: item.totalPrice
+                    })),
+                    menuItems: updateData.items.filter(item => item.type === 'menu_item').map(item => ({
+                      menuItemId: item.menuItemId,
+                      menuItemName: item.name,
+                      quantity: item.quantity,
+                      unitPrice: item.unitPrice,
+                      totalPrice: item.totalPrice
+                    })),
+                    section: selectedTable ? { id: selectedTable.id, name: selectedTable.name } : undefined,
+                    notes: updateData.notes,
+                    discountType: updateData.discountType,
+                    discountValue: updateData.discountValue,
+                    discountAmount: updateData.discountAmount,
+                    totalAmount: total
+                  };
+                  const response = await salesAPI.updateSale(saleId, saleData as any);
+                  savedOrder = response.data || response;
+                  console.log(`✅ Sale updated successfully via salesAPI:`, savedOrder);
+                } else {
+                  console.log(`💾 Direct API call for order editing with orderId: ${orderId}`);
+                  const response = await ordersAPI.updateOrder(orderId, updateData);
+                  savedOrder = response.data;
+                  console.log(`✅ Order updated successfully via direct API call:`, savedOrder);
+                }
               } else {
                 // Use the hook's updateOrder for regular orders
                 console.log(`💾 Using hook's updateOrder for ID: ${orderId}`);

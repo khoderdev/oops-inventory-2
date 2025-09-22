@@ -1595,8 +1595,66 @@ export const ordersController = {
           const discountAmountValue = parseFloat(order.discountAmount) || 0;
           const total = Math.max(0, subtotal - discountAmountValue);
           await order.update({ subtotal, tax, total }, { transaction });
+
+          // Check if this order is linked to a sale and update the sale record
+          if (order.saleId) {
+            console.log(`🔄 Order ${orderId} is linked to Sale ${order.saleId} - updating sale record`);
+            const sale = await Sale.findByPk(order.saleId, { transaction });
+            
+            if (sale) {
+              // Extract menu items for the sale record
+              const menuItems = orderItems
+                .filter(item => item.type === "menu_item" && item.menuItemId)
+                .map(item => ({
+                  menuItemId: item.menuItemId,
+                  quantity: item.quantity,
+                  unitPrice: parseFloat(item.unitPrice),
+                  totalPrice: parseFloat(item.totalPrice),
+                  menuItemName: item.name
+                }));
+              
+              // Extract material items for the sale record
+              const materialItems = orderItems
+                .filter(item => item.type === "material" && item.materialId)
+                .map(item => ({
+                  materialId: item.materialId,
+                  assignmentId: item.assignmentId,
+                  quantity: item.quantity,
+                  unitPrice: parseFloat(item.unitPrice),
+                  totalPrice: parseFloat(item.totalPrice),
+                  materialName: item.name
+                }));
+              
+              // Update the sale record with new items and total
+              await sale.update({
+                totalAmount: total,
+                menuItems: menuItems,
+                items: materialItems,
+                updatedAt: new Date()
+              }, { transaction });
+              
+              console.log(`✅ Updated Sale ${sale.id} with new total: ${total} and ${menuItems.length} menu items`);
+            } else {
+              console.warn(`⚠️ Sale record with ID ${order.saleId} not found for order ${orderId}`);
+            }
+          }
         } else {
           await order.update({ subtotal: 0, tax: 0, total: 0 }, { transaction });
+          
+          // If order has no items and is linked to a sale, update the sale or mark it inactive
+          if (order.saleId) {
+            const sale = await Sale.findByPk(order.saleId, { transaction });
+            if (sale) {
+              await sale.update({
+                totalAmount: 0,
+                menuItems: [],
+                items: [],
+                isActive: false, // Mark sale as inactive since order has no items
+                updatedAt: new Date()
+              }, { transaction });
+              console.log(`⚠️ Sale ${sale.id} marked as inactive because order ${orderId} has no items`);
+            }
+          }
         }
         if (removedItems.length > 0) {
           // Restore stock for removed items
