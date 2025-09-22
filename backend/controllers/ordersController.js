@@ -6,6 +6,327 @@ import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 import { convertVolumeWithMaterial } from "../utils/volumeConversionUtils.js";
 
+// Helper function to restore stock for menu item ingredients
+async function restoreIngredientStock(menuItemId, quantity, transaction) {
+  try {
+    // Find the menu item with its ingredients
+    const menuItem = await MenuItem.findByPk(menuItemId, {
+      include: [
+        {
+          model: MenuItemIngredient,
+          as: "menuItemIngredients",
+          include: [{ model: Material, as: "material" }]
+        }
+      ],
+      transaction
+    });
+
+    if (!menuItem) {
+      console.warn(`Menu item ${menuItemId} not found during stock restoration`);
+      return [];
+    }
+
+    console.log(`🔄 Restoring stock for menu item "${menuItem.name}" with ${menuItem.menuItemIngredients?.length || 0} ingredients`);
+    const stockRestorations = [];
+
+    if (menuItem.menuItemIngredients && menuItem.menuItemIngredients.length > 0) {
+      for (const ingredient of menuItem.menuItemIngredients) {
+        const material = ingredient.material;
+        if (!material) {
+          console.warn(`Material not found for ingredient in menu item ${menuItem.name}`);
+          continue;
+        }
+
+        const totalIngredientQuantity = ingredient.quantity * quantity;
+        let restorationQuantityInBaseUnits = totalIngredientQuantity;
+
+        // Convert units if necessary
+        if (ingredient.unit !== material.baseUnit) {
+          if (material.unitType === "mass") {
+            if (ingredient.unit === "kg" && material.baseUnit === "g") {
+              restorationQuantityInBaseUnits = totalIngredientQuantity * 1000;
+            } else if (ingredient.unit === "g" && material.baseUnit === "kg") {
+              restorationQuantityInBaseUnits = totalIngredientQuantity / 1000;
+            }
+          }
+        }
+
+        // Find the most recent stock entry for this material
+        const stockEntries = await StockEntry.findAll({
+          where: { materialId: material.id },
+          order: [["createdAt", "DESC"]],
+          transaction
+        });
+
+        if (stockEntries.length === 0) {
+          // Create a new stock entry if none exists
+          const newStockEntry = await StockEntry.create(
+            {
+              materialId: material.id,
+              supplier: "RESTORED - From Order Update",
+              purchasedQuantity: 0,
+              purchasedUnit: material.baseUnit,
+              purchasedIndividualQuantity: restorationQuantityInBaseUnits,
+              purchasedIndividualUnit: material.baseUnit,
+              costPerPurchasedUnit: 0,
+              totalCost: 0,
+              purchaseDate: new Date(),
+              expiryDate: null
+            },
+            { transaction }
+          );
+
+          stockRestorations.push({
+            type: "menu_item_ingredient",
+            materialId: material.id,
+            materialName: material.name,
+            menuItemId: menuItem.id,
+            menuItemName: menuItem.name,
+            stockEntryId: newStockEntry.id,
+            quantityRestored: restorationQuantityInBaseUnits,
+            unit: material.baseUnit,
+            action: "Created new stock entry",
+            oldStockQuantity: 0,
+            newStockQuantity: restorationQuantityInBaseUnits
+          });
+        } else {
+          // Update the existing stock entry
+          const stockEntry = stockEntries[0];
+          const oldQuantity = stockEntry.purchasedIndividualQuantity || 0;
+          const newQuantity = Math.round(oldQuantity + restorationQuantityInBaseUnits);
+
+          await stockEntry.update(
+            {
+              purchasedIndividualQuantity: newQuantity
+            },
+            { transaction }
+          );
+
+          stockRestorations.push({
+            type: "menu_item_ingredient",
+            materialId: material.id,
+            materialName: material.name,
+            menuItemId: menuItem.id,
+            menuItemName: menuItem.name,
+            stockEntryId: stockEntry.id,
+            quantityRestored: restorationQuantityInBaseUnits,
+            unit: material.baseUnit,
+            oldStockQuantity: oldQuantity,
+            newStockQuantity: newQuantity
+          });
+        }
+
+        console.log(`✅ Restored ${restorationQuantityInBaseUnits} ${material.baseUnit} of ${material.name} for ${menuItem.name}`);
+      }
+    }
+
+    return stockRestorations;
+  } catch (error) {
+    console.error(`❌ Error in restoreIngredientStock for menuItemId ${menuItemId}:`, error);
+    throw error;
+  }
+}
+
+// Helper function to restore stock for a material
+async function restoreStockFromMaterial(materialId, quantity, itemName, transaction) {
+  try {
+    const material = await Material.findByPk(materialId, { transaction });
+    if (!material) {
+      console.warn(`Material ${materialId} not found during stock restoration`);
+      return [];
+    }
+
+    // Find the most recent stock entry for this material
+    const stockEntries = await StockEntry.findAll({
+      where: { materialId },
+      order: [["createdAt", "DESC"]],
+      transaction
+    });
+
+    const stockRestorations = [];
+
+    if (stockEntries.length === 0) {
+      // Create a new stock entry if none exists
+      const newStockEntry = await StockEntry.create(
+        {
+          materialId,
+          supplier: "RESTORED - From Order Update",
+          purchasedQuantity: 0,
+          purchasedUnit: material.baseUnit,
+          purchasedIndividualQuantity: quantity,
+          purchasedIndividualUnit: material.baseUnit,
+          costPerPurchasedUnit: 0,
+          totalCost: 0,
+          purchaseDate: new Date(),
+          expiryDate: null
+        },
+        { transaction }
+      );
+
+      stockRestorations.push({
+        type: "material",
+        materialId,
+        materialName: material.name,
+        stockEntryId: newStockEntry.id,
+        quantityRestored: quantity,
+        unit: material.baseUnit,
+        action: "Created new stock entry",
+        oldStockQuantity: 0,
+        newStockQuantity: quantity
+      });
+    } else {
+      // Update the existing stock entry
+      const stockEntry = stockEntries[0];
+      const oldQuantity = stockEntry.purchasedIndividualQuantity || 0;
+      const newQuantity = oldQuantity + quantity;
+
+      await stockEntry.update(
+        {
+          purchasedIndividualQuantity: newQuantity
+        },
+        { transaction }
+      );
+
+      stockRestorations.push({
+        type: "material",
+        materialId,
+        materialName: material.name,
+        stockEntryId: stockEntry.id,
+        quantityRestored: quantity,
+        unit: material.baseUnit,
+        oldStockQuantity: oldQuantity,
+        newStockQuantity: newQuantity
+      });
+    }
+
+    console.log(`✅ Restored ${quantity} units of ${material.name}`);
+    return stockRestorations;
+  } catch (error) {
+    console.error(`❌ Error in restoreStockFromMaterial for materialId ${materialId}:`, error);
+    throw error;
+  }
+}
+
+// Helper function to restore stock for a sauce
+async function restoreStockFromSauce(sauceId, quantity, itemName, transaction) {
+  try {
+    const sauce = await Sauce.findByPk(sauceId, {
+      include: [
+        {
+          model: SauceIngredient,
+          as: "ingredients",
+          include: [{ model: Material, as: "material" }]
+        }
+      ],
+      transaction
+    });
+
+    if (!sauce) {
+      console.warn(`Sauce ${sauceId} not found during stock restoration`);
+      return [];
+    }
+
+    console.log(`🔄 Restoring stock for sauce "${sauce.name}" with ${sauce.ingredients?.length || 0} ingredients`);
+    const stockRestorations = [];
+
+    if (sauce.ingredients && sauce.ingredients.length > 0) {
+      for (const ingredient of sauce.ingredients) {
+        const material = ingredient.material;
+        if (!material) {
+          console.warn(`Material not found for ingredient in sauce ${sauce.name}`);
+          continue;
+        }
+
+        const totalIngredientQuantity = ingredient.quantity * quantity;
+        let restorationQuantityInBaseUnits = totalIngredientQuantity;
+
+        // Convert units if necessary
+        if (ingredient.unit !== material.baseUnit) {
+          if (material.unitType === "mass") {
+            if (ingredient.unit === "kg" && material.baseUnit === "g") {
+              restorationQuantityInBaseUnits = totalIngredientQuantity * 1000;
+            } else if (ingredient.unit === "g" && material.baseUnit === "kg") {
+              restorationQuantityInBaseUnits = totalIngredientQuantity / 1000;
+            }
+          }
+        }
+
+        // Find the most recent stock entry for this material
+        const stockEntries = await StockEntry.findAll({
+          where: { materialId: material.id },
+          order: [["createdAt", "DESC"]],
+          transaction
+        });
+
+        if (stockEntries.length === 0) {
+          // Create a new stock entry if none exists
+          const newStockEntry = await StockEntry.create(
+            {
+              materialId: material.id,
+              supplier: "RESTORED - From Order Update",
+              purchasedQuantity: 0,
+              purchasedUnit: material.baseUnit,
+              purchasedIndividualQuantity: restorationQuantityInBaseUnits,
+              purchasedIndividualUnit: material.baseUnit,
+              costPerPurchasedUnit: 0,
+              totalCost: 0,
+              purchaseDate: new Date(),
+              expiryDate: null
+            },
+            { transaction }
+          );
+
+          stockRestorations.push({
+            type: "sauce_ingredient",
+            materialId: material.id,
+            materialName: material.name,
+            sauceId: sauce.id,
+            sauceName: sauce.name,
+            stockEntryId: newStockEntry.id,
+            quantityRestored: restorationQuantityInBaseUnits,
+            unit: material.baseUnit,
+            action: "Created new stock entry",
+            oldStockQuantity: 0,
+            newStockQuantity: restorationQuantityInBaseUnits
+          });
+        } else {
+          // Update the existing stock entry
+          const stockEntry = stockEntries[0];
+          const oldQuantity = stockEntry.purchasedIndividualQuantity || 0;
+          const newQuantity = Math.round(oldQuantity + restorationQuantityInBaseUnits);
+
+          await stockEntry.update(
+            {
+              purchasedIndividualQuantity: newQuantity
+            },
+            { transaction }
+          );
+
+          stockRestorations.push({
+            type: "sauce_ingredient",
+            materialId: material.id,
+            materialName: material.name,
+            sauceId: sauce.id,
+            sauceName: sauce.name,
+            stockEntryId: stockEntry.id,
+            quantityRestored: restorationQuantityInBaseUnits,
+            unit: material.baseUnit,
+            oldStockQuantity: oldQuantity,
+            newStockQuantity: newQuantity
+          });
+        }
+
+        console.log(`✅ Restored ${restorationQuantityInBaseUnits} ${material.baseUnit} of ${material.name} for sauce ${sauce.name}`);
+      }
+    }
+
+    return stockRestorations;
+  } catch (error) {
+    console.error(`❌ Error in restoreStockFromSauce for sauceId ${sauceId}:`, error);
+    throw error;
+  }
+}
+
 const deductVariantIngredientStock = async (menuItem, selectedVariant, orderQuantity, fullItemName, transaction) => {
   const deductionId = Math.random().toString(36).substring(2, 8);
   console.log(`🍹 [${deductionId}] Starting variant ingredient stock deduction for: ${menuItem.name}`);
@@ -806,7 +1127,7 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
         }
 
         console.log(`      - Updating ${fieldToUpdate} from ${availableQuantity} to ${updateData[fieldToUpdate]}`);
-        
+
         // CRITICAL FIX: Update the stock entry with the calculated values
         await stockEntry.update(updateData, { transaction });
 
@@ -827,10 +1148,7 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
           };
 
           // Only update purchasedIndividualQuantity if we didn't already update it above
-          if (fieldToUpdate !== "purchasedIndividualQuantity" && 
-              stockEntry.purchasedIndividualQuantity !== null && 
-              stockEntry.purchasedIndividualQuantity !== undefined) {
-            
+          if (fieldToUpdate !== "purchasedIndividualQuantity" && stockEntry.purchasedIndividualQuantity !== null && stockEntry.purchasedIndividualQuantity !== undefined) {
             // Convert to proper integer
             const rawValue = stockEntry.purchasedIndividualQuantity;
             let numValue;
@@ -874,7 +1192,6 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 };
 
 export const ordersController = {
-
   createOrder: async (req, res) => {
     console.log(`🔄 Starting order creation with new transaction`);
     const transaction = await sequelize.transaction();
@@ -1190,8 +1507,8 @@ export const ordersController = {
           include: [
             { model: Material, as: "material" },
             { model: MenuItem, as: "menuItem" },
-            { model: Assignment, as: "assignment" },
-            { model: Sauce, as: "sauce" }
+            { model: Assignment, as: "assignment" }
+            // Removed Sauce include as it's not associated with OrderItem
           ],
           transaction
         });
@@ -1505,7 +1822,7 @@ export const ordersController = {
     }
   },
 
-  // Complete order (convert to sale) 
+  // Complete order (convert to sale)
   completeOrder: async (req, res) => {
     const transaction = await sequelize.transaction();
     try {

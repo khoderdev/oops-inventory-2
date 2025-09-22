@@ -217,6 +217,8 @@ export const fetchSalesHistory = createAsyncThunk("pos/fetchSalesHistory", async
   }
 });
 
+
+
 export const loadOrder = createAsyncThunk("pos/loadOrder", async (orderId: string, { rejectWithValue }) => {
   try {
     const response = await ordersAPI.getOrder(orderId);
@@ -557,6 +559,11 @@ const posSlice = createSlice({
       }
       // Note: We don't clear editingSaleId when setting selectedSaleForEdit to null
       // This allows us to keep track of which sale we're editing even after clearing the object
+      
+      // Log the current state for debugging
+      if (action.payload === null) {
+        console.log("🧹 Redux: selectedSaleForEdit cleared, but editingSaleId preserved:", state.editingSaleId);
+      }
     },
     
     // Set the editing sale ID directly

@@ -15,7 +15,7 @@ import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
 import { useVoidPrinter } from "./VoidPrinter";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Printer, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
 import { CategoryTabs } from "./CategoryTabs";
@@ -800,12 +800,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
           completedOrdersRef.current.add(orderToComplete.id.toString());
           
-          // Clear the selected sale for edit to prevent reloading
-          // The editingSaleId will be preserved by our updated reducer
+          // Clear both selectedSaleForEdit and editingSaleId after successful payment
+          // Since the sale is now complete, we don't need to track it anymore
           if (selectedSaleForEdit) {
-            console.log("🔑 Before clearing selectedSaleForEdit, editingSaleId:", editingSaleId);
+            console.log("🔑 Before clearing selectedSaleForEdit and editingSaleId:", editingSaleId);
             dispatch(posActions.setSelectedSaleForEdit(null));
-            console.log("🔑 After clearing selectedSaleForEdit, editingSaleId is still:", editingSaleId);
+            dispatch(posActions.clearEditingSaleId());
+            console.log("🔑 After payment, cleared both selectedSaleForEdit and editingSaleId");
           }
 
           // Execute background operations
@@ -922,6 +923,16 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     console.log("🔍 Selected sale for edit before saving:", selectedSaleForEdit);
     console.log("🔑 Current editingSaleId before saving:", editingSaleId);
     
+    // Determine if we're in edit mode
+    const isEditMode = !!editingSaleId;
+    console.log(`📝 Save operation mode: ${isEditMode ? 'EDIT existing sale' : 'CREATE new sale'}`);
+    if (isEditMode) {
+      console.log(`🔄 Will update sale with ID: ${editingSaleId}`);
+    }
+    
+    // Store the current editingSaleId in a local variable to ensure it's not lost
+    const currentEditingSaleId = editingSaleId;
+    
     dispatch(setIsPOSActionInProgressAction(true));
     dispatch(setIsLoadingAction(true));
 
@@ -953,10 +964,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         try {
           let savedOrder;
           // Check if we're editing an existing order or sale
-          if (currentOrder?.id || editingSaleId) {
+          if (currentOrder?.id || currentEditingSaleId) {
             // Update existing order logic
-            console.log("🔄 Updating existing order/sale", currentOrder?.id || editingSaleId);
-            console.log("📝 Using editingSaleId:", editingSaleId);
+            console.log("🔄 Updating existing order/sale", currentOrder?.id || currentEditingSaleId);
+            console.log("📝 Using editingSaleId:", currentEditingSaleId);
             
             // Prepare update data
             const updateData: UpdateOrderData = {
@@ -984,9 +995,27 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             };
 
             // Determine which ID to use for the update
-            const orderId = currentOrder?.id || editingSaleId;
+            const orderId = currentOrder?.id || currentEditingSaleId;
             console.log(`📝 Using updateOrder API for ${orderId}`);
-            savedOrder = await updateOrder(orderId, updateData);
+            console.log(`🔄 Is this an edited sale? ${!!currentEditingSaleId}`);
+            
+            try {
+              // For sales editing, use ordersAPI directly to ensure the request is made
+              if (currentEditingSaleId && !currentOrder?.id) {
+                console.log(`💾 Direct API call for sale editing with ID: ${currentEditingSaleId}`);
+                const response = await ordersAPI.updateOrder(currentEditingSaleId, updateData);
+                savedOrder = response.data;
+                console.log(`✅ Sale updated successfully via direct API call:`, savedOrder);
+              } else {
+                // Use the hook's updateOrder for regular orders
+                console.log(`💾 Using hook's updateOrder for ID: ${orderId}`);
+                savedOrder = await updateOrder(orderId, updateData);
+                console.log(`✅ Order updated successfully via hook:`, savedOrder);
+              }
+            } catch (error) {
+              console.error(`❌ Error updating order/sale:`, error);
+              throw error;
+            }
             showSuccess("Order updated successfully");
           } else {
             // Create new order
@@ -1024,10 +1053,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           await refreshAllCounts();
           
           // Clear the selected sale for edit to prevent reloading
-          // Note: We don't need to explicitly preserve editingSaleId here anymore
-          // because we've updated the setSelectedSaleForEdit reducer to preserve it
+          // We'll explicitly clear the editingSaleId after a successful save
           dispatch(posActions.setSelectedSaleForEdit(null));
-          console.log("🔑 After clearing selectedSaleForEdit, editingSaleId is still:", editingSaleId);
+          dispatch(posActions.clearEditingSaleId());
+          console.log("🔑 After successful save, cleared both selectedSaleForEdit and editingSaleId");
         } catch (error: unknown) {
           console.error("❌ Background save processing failed:", error);
         }
@@ -1079,12 +1108,26 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [selectedOrderForPOS, loadOrder, isTableManuallySelected, isPOSActionInProgress]);
 
+  // Reference to track processed sales to prevent duplicate loading
+  const processedSaleIdRef = useRef<string | null>(null);
+  
   // Handle loading a sale from Sales history
   useEffect(() => {
+    // Skip if no sale is selected
+    if (!selectedSaleForEdit) {
+      return;
+    }
+    
+    // Log that the effect was triggered
     console.log("🔄 useEffect for loading sale triggered with selectedSaleForEdit:", selectedSaleForEdit);
+    
     const loadSaleFromHistory = async () => {
-      if (selectedSaleForEdit) {
+      // Only proceed if we have a sale to edit and it's different from the last one we processed
+      if (selectedSaleForEdit && (!processedSaleIdRef.current || processedSaleIdRef.current !== selectedSaleForEdit.id.toString())) {
         console.log("🔄 Loading sale from history:", selectedSaleForEdit);
+        
+        // Store the current sale ID to prevent duplicate processing
+        processedSaleIdRef.current = selectedSaleForEdit.id.toString();
         
         // Store the sale ID for later use when saving
         if (selectedSaleForEdit.id) {
@@ -1202,8 +1245,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }
     };
 
-    loadSaleFromHistory();
-  }, [dispatch, menuItems, stockEntries, clearOrder, selectedSaleForEdit, editingSaleId]);
+    // Call the async function and handle any errors
+    loadSaleFromHistory().catch(error => {
+      console.error("❌ Error loading sale from history:", error);
+    });
+    
+    // Only depend on selectedSaleForEdit, not on editingSaleId
+    // This prevents the effect from running again when only editingSaleId changes
+  }, [dispatch, menuItems, stockEntries, clearOrder, selectedSaleForEdit]);
 
   // Add this effect to handle router state with orders from SalesHistoryPage
   useEffect(() => {

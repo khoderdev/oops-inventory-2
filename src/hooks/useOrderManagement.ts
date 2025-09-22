@@ -57,25 +57,43 @@ export const useOrderManagement = () => {
     }
   }, []);
 
-  // Update current order
+  // Update current order - accepts either just data (using currentOrder.id) or both orderId and data
   const updateOrder = useCallback(
-    async (data: UpdateOrderData): Promise<Order> => {
-      if (!currentOrder) {
-        throw new Error("No current order to update");
-      }
-      setIsLoading(true);
-      setError(null);
-      try {
-        const orderId = currentOrder.id || (currentOrder as any)?.data?.id;
+    async (orderIdOrData: string | UpdateOrderData, maybeData?: UpdateOrderData): Promise<Order> => {
+      // Determine if we're using (orderId, data) or just (data)
+      let orderId: string;
+      let data: UpdateOrderData;
+      
+      if (typeof orderIdOrData === 'string') {
+        // Called with (orderId, data)
+        orderId = orderIdOrData;
+        data = maybeData as UpdateOrderData;
+        console.log(`🔄 updateOrder called with explicit orderId: ${orderId}`);
+      } else {
+        // Called with just (data)
+        if (!currentOrder) {
+          throw new Error("No current order to update");
+        }
+        data = orderIdOrData;
+        orderId = currentOrder.id || (currentOrder as any)?.data?.id;
         if (!orderId) {
           throw new Error("No valid order ID found in currentOrder");
         }
+        console.log(`🔄 updateOrder using currentOrder.id: ${orderId}`);
+      }
+      
+      setIsLoading(true);
+      setError(null);
+      try {
+        console.log(`📝 Calling ordersAPI.updateOrder with ID: ${orderId}`);
         const response = await ordersAPI.updateOrder(orderId, data);
         const responseData = response.data as { data?: any } | any;
         const updatedOrder = responseData.data || responseData;
         setCurrentOrder(updatedOrder);
+        console.log(`✅ Order updated successfully:`, updatedOrder);
         return updatedOrder;
       } catch (error: unknown) {
+        console.error(`❌ Order update failed:`, error);
         const errorMessage = (error as any)?.response?.data?.message || "Failed to update order";
         setError(errorMessage);
         throw error;

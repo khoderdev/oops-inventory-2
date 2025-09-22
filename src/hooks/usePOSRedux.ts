@@ -108,7 +108,13 @@ export const usePOSRedux = () => {
       return;
     }
     
-    console.log("💾 usePOSRedux: Setting selectedSaleForEdit:", sale);
+    // If we're setting to null but we already have an editingSaleId, log this special case
+    if (sale === null && editingSaleId) {
+      console.log("💾 usePOSRedux: Setting selectedSaleForEdit to null while preserving editingSaleId:", editingSaleId);
+    } else {
+      console.log("💾 usePOSRedux: Setting selectedSaleForEdit:", sale);
+    }
+    
     return dispatch(posActions.setSelectedSaleForEdit(sale));
   };
   const setEditingSaleId = (id: string | null) => dispatch(posActions.setEditingSaleId(id));
