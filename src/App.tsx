@@ -19,6 +19,7 @@ import { Employee } from "./components/employees";
 import UnitConverterDemo from "./components/common/UnitConverterDemo";
 import SuppliersPage from "@/pages/SuppliersPage";
 import { SalesProvider } from "@/contexts/SalesContext";
+import Sales from "./components/sales/Sales";
 
 // Lazy load components for better performance
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -152,7 +153,8 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                           element={
                             <ProtectedRoute requiredPermission={PERMISSIONS.SALES_READ}>
                               <AuthenticatedLayout pageTitle="Sales" showSearch={true} showNotifications={true}>
-                                <SalesHistoryPage isOpen={false} onClose={() => {}} />
+                                {/* <SalesHistoryPage isOpen={false} onClose={() => {}} /> */}
+                                <Sales />
                               </AuthenticatedLayout>
                             </ProtectedRoute>
                           }

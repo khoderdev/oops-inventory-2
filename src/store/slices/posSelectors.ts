@@ -1,5 +1,5 @@
 import { createSelector } from "@reduxjs/toolkit";
-import { RootState } from "../store";
+import { RootState } from "@/store";
 
 // Basic selectors
 export const selectPOSState = (state: RootState) => state.pos;
@@ -143,3 +143,9 @@ export const selectUniqueItemNames = createSelector([selectSalesHistory], sales 
   });
   return Array.from(items);
 });
+
+// Additional selectors for Sales component
+export const selectSelectedItemFilter = (state: RootState) => state.pos.selectedItemFilter || null;
+export const selectSelectedSectionFilter = (state: RootState) => state.pos.selectedSectionFilter || null;
+export const selectDateFrom = (state: RootState) => state.pos.dateFrom || null;
+export const selectDateTo = (state: RootState) => state.pos.dateTo || null;
