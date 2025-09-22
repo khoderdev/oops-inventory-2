@@ -91,6 +91,7 @@ export interface LegacyActionBarProps {
   canVoidOrder?: boolean;
   onCancelOrder?: () => void;
   incompleteOrdersCount?: number;
+  incompleteTableOrdersCount?: number;
   incompleteDeliveryTakeawayCount?: number;
   onDiscount?: () => void;
   onShowPrinterSettings?: () => void;
