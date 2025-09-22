@@ -650,8 +650,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           // If we created any cart items, set them
           if (directCartItems.length > 0) {
             console.log("🛒 Setting cart with direct items:", directCartItems);
-            setCart(directCartItems);
+            
+            // Simple direct update
+            console.log("🔁 DIRECT UPDATE: Setting cart with", directCartItems.length, "items");
+            setCart([...directCartItems]);
             setHasUnsavedChanges(true);
+            
             processedOrderRef.current = order.id.toString();
             
             // Also set order type, table, etc.
@@ -793,13 +797,22 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   };
 
   // Check for orders from React Router state (from SalesHistoryPage)
+  // Use a ref to ensure this effect only runs once
+  const routerStateProcessedRef = useRef(false);
+  
   useEffect(() => {
+    // Skip if already processed
+    if (routerStateProcessedRef.current) {
+      return;
+    }
+    
     try {
       // Try to access the router state safely
       const routerState = window.history.state?.usr;
       
       if (routerState && routerState.selectedOrderForPOS && routerState.selectedOrderForPOS.fromSalesHistory) {
         console.log("🚨 DETECTED ORDER FROM ROUTER STATE:", routerState.selectedOrderForPOS);
+        routerStateProcessedRef.current = true; // Mark as processed
         
         // Process this order if it hasn't been processed yet
         if (!processedOrderRef.current || processedOrderRef.current !== routerState.selectedOrderForPOS.id.toString()) {
@@ -845,8 +858,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             
             if (directCartItems.length > 0) {
               console.log("🚒 DIRECT POPULATION: Setting cart with", directCartItems.length, "items");
-              setCart(directCartItems);
+              
+              // Simple direct update
+              console.log("🔁 DIRECT UPDATE in router effect: Setting cart with", directCartItems.length, "items");
+              setCart([...directCartItems]);
               setHasUnsavedChanges(true);
+              
               processedOrderRef.current = order.id.toString();
               
               // Also set order type, table, etc.
@@ -865,14 +882,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             }
           }
           
-          // Also call handleOrderSelect for backend state consistency
-          handleOrderSelect(routerState.selectedOrderForPOS);
+          // Instead of calling handleOrderSelect directly, just set the selectedOrderForPOS state
+          // This will trigger the selectedOrderForPOS effect which will handle the backend state
+          if (onOrderSelect) {
+            onOrderSelect(routerState.selectedOrderForPOS);
+          }
         }
       }
     } catch (error) {
       console.error("❌ Error accessing router state:", error);
     }
-  }, [handleOrderSelect, tables]);
+  }, [onOrderSelect]);  // Only depend on onOrderSelect
 
   useEffect(() => {
     if (selectedOrderForPOS) {
@@ -1227,8 +1247,14 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
   }, [currentOrder, stockEntries, menuItems]);
 
+  // Create a stable cart for rendering
+  const stableCart = useMemo(() => {
+    return cart.length > 0 ? [...cart] : [];
+  }, [cart]);
+
+  // Simple effect to track cart changes
   useEffect(() => {
-    console.log("🛒 CART CHANGED: New length:", cart.length, "Items:", cart);
+    console.log("🛒 CART CHANGED: New length:", cart.length);
     if (cart && cart.length > 0) {
       setHasUnsavedChanges(true);
     } else {
@@ -2355,7 +2381,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className="hidden lg:block flex-1 h-full relative overflow-hidden">
             <div className="h-full overflow-y-auto">
               <OrderItemsList
-                cart={cart}
+                key={`desktop-order-items-${cart.length}-${Date.now()}`} // Add key to force re-render
+                cart={stableCart}
                 updateCartQuantity={updateCartQuantity}
                 orderType={orderType}
                 selectedTable={selectedTable}
@@ -2398,7 +2425,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           {!showSuccessCheckmark && (
             <div className="hidden lg:block border-t border-gray-200 bg-white">
               <OrderSummary
-                cart={cart}
+                cart={stableCart}
                 subtotal={subtotal}
                 total={total}
                 orderStatus={currentOrder?.status}
@@ -2454,7 +2481,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             {/* Order Items List - Mobile */}
             <div className="flex-1 overflow-y-auto">
               <OrderItemsList
-                cart={cart}
+                key={`mobile-order-items-${cart.length}-${Date.now()}`} // Add key to force re-render
+                cart={stableCart}
                 updateCartQuantity={updateCartQuantity}
                 orderType={orderType}
                 selectedTable={selectedTable}
@@ -2476,7 +2504,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             {!showSuccessCheckmark && (
               <div className="flex-shrink-0 border-t border-gray-200 bg-white safe-area-bottom">
                 <OrderSummary
-                  cart={cart}
+                  cart={stableCart}
                   subtotal={subtotal}
                   total={total}
                   orderStatus={currentOrder?.status}

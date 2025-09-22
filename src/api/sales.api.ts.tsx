@@ -13,7 +13,7 @@ export const salesAPI = {
   updateSale: (id: string, saleData: SaleRecord) => api.put<SaleRecord, SaleRecord>(`/sales/${id}`, saleData),
 
   deleteSale: (id: string) => api.delete<null>(`/sales/${id}`),
-  
+
   deleteSaleItems: (saleId: string, itemIds: string[], itemType: "material" | "menu") =>
     api.delete<{ message: string }>(`/sales/${saleId}/items/bulk`, {
       data: { itemIds, type: itemType }
