@@ -16,7 +16,7 @@ import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
 import { useVoidPrinter } from "./VoidPrinter";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Printer, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
 import { CategoryTabs } from "./CategoryTabs";
@@ -123,8 +123,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
   const [tables, setTables] = React.useState<Table[]>([]);
   const [showUnsavedDialog, setShowUnsavedDialog] = React.useState(false);
-  const [shouldAutoPrint, setShouldAutoPrint] = React.useState(false);
-  const [activeView, setActiveView] = React.useState<"cart" | "products">("products");
+  const [printedTables, setPrintedTables] = React.useState<string[]>([]);
   const [incompleteOrdersCount, setIncompleteOrdersCount] = React.useState<number>(0);
   const [tableOrders, setTableOrders] = React.useState<{ [tableId: string]: number }>({});
   const [incompleteTableOrdersCount, setIncompleteTableOrdersCount] = React.useState<number>(0);
@@ -135,8 +134,9 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [rightPanelPixelWidth, setRightPanelPixelWidth] = React.useState(0);
   const [isResizing, setIsResizing] = React.useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = React.useState<"payment" | "manual_print" | null>(null);
+  const [activeView, setActiveView] = React.useState<"cart" | "products">("products");
   // These local state setters have been replaced with Redux actions
-  
+
   // Filter posItems based on activeCategory
   const filteredPosItems = React.useMemo(() => {
     return activeCategory === "all"
@@ -596,11 +596,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               dispatch(setSelectedTableAction(tables.find(t => t.id === order.tableId)));
             }
             if (order.discountAmount && parseFloat(order.discountAmount.toString()) > 0) {
-              dispatch(applyDiscountAction({
-                type: (order.discountType as "percentage" | "fixed") || "fixed",
-                value: parseFloat(order.discountValue?.toString() || "0"),
-                reason: order.discountReason || undefined
-              }));
+              dispatch(
+                applyDiscountAction({
+                  type: (order.discountType as "percentage" | "fixed") || "fixed",
+                  value: parseFloat(order.discountValue?.toString() || "0"),
+                  reason: order.discountReason || undefined
+                })
+              );
             }
           }
         }
@@ -636,11 +638,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
                 dispatch(setSelectedTableAction(tables.find(t => t.id === adaptedOrder.tableId)));
               }
               if (adaptedOrder.discountAmount && parseFloat(adaptedOrder.discountAmount.toString()) > 0) {
-                dispatch(applyDiscountAction({
-                  type: (adaptedOrder.discountType as "percentage" | "fixed") || "fixed",
-                  value: parseFloat(adaptedOrder.discountValue?.toString() || "0"),
-                  reason: adaptedOrder.discountReason || undefined
-                }));
+                dispatch(
+                  applyDiscountAction({
+                    type: (adaptedOrder.discountType as "percentage" | "fixed") || "fixed",
+                    value: parseFloat(adaptedOrder.discountValue?.toString() || "0"),
+                    reason: adaptedOrder.discountReason || undefined
+                  })
+                );
               }
 
               // Mark as processed
@@ -730,11 +734,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               dispatch(setSelectedTableAction(tables.find(t => t.id === selectedOrderForPOS.tableId)));
             }
             if (selectedOrderForPOS.discountAmount && parseFloat(selectedOrderForPOS.discountAmount.toString()) > 0) {
-              dispatch(applyDiscountAction({
-                type: (selectedOrderForPOS.discountType as "percentage" | "fixed") || "fixed",
-                value: parseFloat(selectedOrderForPOS.discountValue?.toString() || "0"),
-                reason: selectedOrderForPOS.discountReason || undefined
-              }));
+              dispatch(
+                applyDiscountAction({
+                  type: (selectedOrderForPOS.discountType as "percentage" | "fixed") || "fixed",
+                  value: parseFloat(selectedOrderForPOS.discountValue?.toString() || "0"),
+                  reason: selectedOrderForPOS.discountReason || undefined
+                })
+              );
             }
 
             // Still call handleOrderSelect to ensure backend state is consistent
@@ -1829,6 +1835,17 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
     dispatch(setLastSaleDataAction(receiptData));
 
+    // Add table to printed tables if this is a table order
+    if (selectedTable && orderType === "table") {
+      setPrintedTables(prev => {
+        const tableId = selectedTable.id.toString();
+        if (!prev.includes(tableId)) {
+          return [...prev, tableId];
+        }
+        return prev;
+      });
+    }
+
     if (hasSavedPrinter()) {
       const savedPrinter = getSavedPrinter();
       handlePrintReceiptWithPrinter(savedPrinter);
@@ -2361,7 +2378,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       {showTablesLayout && <TablesLayout tables={Array.isArray(tables) ? tables : []} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} />}
 
       {/* Receipt Printer Dialog */}
-      {showReceiptDialog && lastSaleData && <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => dispatch(setShowReceiptDialogAction(false))} receiptData={lastSaleData} autoPrint={shouldAutoPrint} />}
+      {showReceiptDialog && lastSaleData && <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => dispatch(setShowReceiptDialogAction(false))} receiptData={lastSaleData} autoPrint={false} />}
 
       {/* Discount Dialog */}
       <DiscountDialog isOpen={showDiscountDialog} onClose={() => dispatch(setShowDiscountDialogAction(false))} onDiscountAmountChange={handleDiscountAmountChange} onDiscount={() => {}} orderSubtotal={subtotal} onApplyDiscount={handleApplyDiscount} />
@@ -2484,7 +2501,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
             <DialogTitle className="sr-only">Tables Layout</DialogTitle>
             <DialogDescription className="sr-only">Manage restaurant table layout and assignments</DialogDescription>
             <div className="w-full h-full flex flex-col overflow-hidden">
-              <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} />
+              <TablesLayout tables={tables} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} tableOrders={tableOrders} printedTables={printedTables} />
             </div>
           </DialogContent>
         </Dialog>

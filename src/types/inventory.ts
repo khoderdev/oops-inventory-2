@@ -876,6 +876,7 @@ export interface TablesLayoutProps {
   onTableSelect: (table: Table) => void;
   onClose: () => void;
   tableOrders?: { [tableId: string]: number }; // For notification badges
+  printedTables?: string[]; // Track tables with printed receipts
 }
 
 export interface CategoryTabsProps {

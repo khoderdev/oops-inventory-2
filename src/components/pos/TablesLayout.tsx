@@ -5,7 +5,7 @@ import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { tablesAPI } from "@/api/tables.api";
 import { ordersAPI } from "@/api/orders.api";
-import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Settings } from "lucide-react";
+import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Settings, Printer } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
@@ -13,7 +13,7 @@ import { RenameTableModal, TransferTableModal, InactiveTablesModal, DeleteTableM
 import { TableContextMenu } from "../ui/TableContextMenu";
 import ClearTableModal from "../tables/ClearTableModal";
 
-export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {} }) => {
+export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {}, printedTables = [] }) => {
   const safeTablesList = useMemo(() => (Array.isArray(tables) ? tables : []), [tables]);
   const [updatedTables, setUpdatedTables] = useState<Table[]>(safeTablesList);
   const [hoveredTable, setHoveredTable] = useState<Table | null>(null);
@@ -533,6 +533,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                                   </div>
                                 )}
                               </div>
+                              {table.id && printedTables.includes(table.id.toString()) && (
+                                <div className="absolute -bottom-1 -left-1 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-20">
+                                  <Printer className="w-3 h-3" />
+                                </div>
+                              )}
                               {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
                             </div>
                           );
