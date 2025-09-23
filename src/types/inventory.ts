@@ -487,6 +487,7 @@ export interface AssignmentFormProps {
 //-----------------------------------------------------------------------------
 
 export interface SoldItem {
+  id?: string | number; // Add optional id property
   quantity: number;
   unitPrice: number;
   materialId: string;
@@ -494,6 +495,7 @@ export interface SoldItem {
   assignmentId?: string | null;
   materialName?: string;
   unit?: string;
+  notes?: string; // Added notes property to match POSCartItem
 }
 
 export interface SaleRecord {
@@ -516,20 +518,33 @@ export interface SaleRecord {
     orderNumber: string;
     orderType: string;
     customerName?: string;
+    discountType?: "percentage" | "fixed";
+    discountValue?: number;
+    discountAmount?: number;
+    discountReason?: string;
+    notes?: string;
   };
   orderId?: string; // Added for compatibility with Sales.tsx
   isActive?: boolean;
   createdAt: Date;
   updatedAt: Date;
+  // Additional properties that might be present in the API response
+  discountType?: "percentage" | "fixed";
+  discountValue?: number;
+  discountAmount?: number;
+  discountReason?: string;
+  notes?: string;
 }
 
 export interface MenuItemSale { 
+  id?: string | number; // Add optional id property
   menuItemId: string;
   menuItemName?: string;
   menuItemDescription?: string;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  notes?: string; // Added notes property to match POSCartItem
   ingredients: Array<{
     materialId: string;
     materialName?: string;

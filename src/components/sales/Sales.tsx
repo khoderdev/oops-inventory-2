@@ -12,28 +12,19 @@ interface SalesProps {
 
 const Sales: React.FC<SalesProps> = () => {
   const { salesHistory, fetchSalesHistory, isLoading, error, selectedItemFilter, selectedSectionFilter, dateFrom, dateTo, setSelectedItemFilter, setSelectedSectionFilter, setDateFrom, setDateTo, uniqueItemNames, uniqueSectionNames, setUniqueItemNames, setUniqueSectionNames, filteredSalesHistory, salesTotal, setSelectedSaleForEdit, setEditingSaleId } = usePOSRedux();
-
   const navigate = useNavigate();
-
   const [sortField, setSortField] = useState<keyof SaleRecord | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [expandedSale, setExpandedSale] = useState<string | null>(null);
-
-  // Add a ref to track if we've already fetched data
   const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    // Only fetch sales history if it's empty and we haven't fetched yet
     if (salesHistory.length === 0 && !isLoading && !hasFetchedRef.current) {
-      console.log('🔄 Fetching sales history data');
       hasFetchedRef.current = true;
       fetchSalesHistory();
     }
   }, [fetchSalesHistory, salesHistory.length, isLoading]);
-
-  // Update unique item and section names when sales history changes
   useEffect(() => {
-    // Only update if salesHistory has items and the unique arrays are empty
     if (salesHistory.length > 0 && (uniqueItemNames.length === 0 || uniqueSectionNames.length === 0)) {
       const items = new Set<string>();
       const sections = new Set<string>();
@@ -72,9 +63,6 @@ const Sales: React.FC<SalesProps> = () => {
     });
   }, [filteredSalesHistory, sortField, sortDirection]);
 
-  // Use the pre-selected sales total directly
-
-  // Toggle expanded sale details
   const toggleSaleDetails = (saleId: string) => {
     setExpandedSale(expandedSale === saleId ? null : saleId);
   };
@@ -83,23 +71,16 @@ const Sales: React.FC<SalesProps> = () => {
   const handleSaleClick = useCallback(async (sale: SaleRecord) => {
     let orderId: string | null = null;
     
-    // First check if the sale already has an associated order
     if (sale.order && sale.order.id) {
       orderId = sale.order.id.toString();
-      console.log(`📋 Using existing order ID ${orderId} from sale ${sale.id}`);
     } else {
-      // If no order is associated, we need to handle this properly
-      console.log(`🔍 Sale ${sale.id} has no associated order, checking backend...`);
-      
       try {
-        // Try to fetch the order ID from the backend using the sale ID
         const response = await fetch(`/api/sales/${sale.id}/order`);
         
         if (response.ok) {
           const data = await response.json();
           if (data.orderId) {
             orderId = data.orderId.toString();
-            console.log(`✅ Found order ID ${orderId} for sale ${sale.id} from backend`);
           } else {
             console.warn(`⚠️ Backend returned no order ID for sale ${sale.id}`);
           }
@@ -110,25 +91,17 @@ const Sales: React.FC<SalesProps> = () => {
         console.error(`❌ Error fetching order ID for sale ${sale.id}:`, error);
       }
       
-      // If we still don't have an order ID, we'll use the sale ID as a fallback
       if (!orderId) {
         orderId = sale.id.toString();
-        console.warn(`⚠️ Using sale ID ${sale.id} as fallback order ID. This may cause issues.`);
       }
     }
     
-    // Set the editingSaleId to the order ID for API calls
     setEditingSaleId(orderId);
-    console.log(`🔑 Set editingSaleId to order ID: ${orderId}`);
-    
-    // Set the selected sale with the correct order ID reference
     const saleWithOrderId = {
       ...sale,
-      orderId: orderId // Add explicit orderId property
+      orderId: orderId
     };
     setSelectedSaleForEdit(saleWithOrderId);
-
-    // Navigate to the POS screen
     navigate("/pos");
   }, [setSelectedSaleForEdit, setEditingSaleId, navigate]);
 

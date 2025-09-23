@@ -22,7 +22,7 @@ export interface ExtendedDiscountDialogProps extends DiscountDialogProps {
 export const DiscountDialog: React.FC<ExtendedDiscountDialogProps> = ({ 
   isOpen, 
   onClose, 
-  discountAmount, 
+  discountAmount = 0, 
   onDiscountAmountChange, 
   onDiscount,
   orderSubtotal,

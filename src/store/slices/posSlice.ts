@@ -298,6 +298,14 @@ const posSlice = createSlice({
   initialState,
   reducers: {
     // Cart actions
+    setCart: (state, action: PayloadAction<POSCartItem[]>) => {
+      state.cart = action.payload;
+      // Only set hasUnsavedChanges to true if there are items in the cart
+      if (action.payload.length > 0) {
+        state.hasUnsavedChanges = true;
+      }
+    },
+
     addToCart: (state, action: PayloadAction<POSCartItem>) => {
       state.isPOSActionInProgress = true;
       const newItem = action.payload;
@@ -640,6 +648,11 @@ const posSlice = createSlice({
       state.uniqueSectionNames = action.payload;
     },
 
+    // Unsaved changes action
+    setHasUnsavedChanges: (state, action: PayloadAction<boolean>) => {
+      state.hasUnsavedChanges = action.payload;
+    },
+    
     // Sales operations actions
     setIsDeleting: (state, action: PayloadAction<boolean>) => {
       state.isDeleting = action.payload;
@@ -938,8 +951,10 @@ const posSlice = createSlice({
     });
   }
 });
+
 export const {
   addToCart,
+  setCart,
   updateCartQuantity,
   removeFromCart,
   clearCart,
@@ -1012,7 +1027,8 @@ export const {
   setStockRestorationModalOpen,
   setBulkStockRestorationReport,
   setDeleteConfirmationModalOpen,
-  setSelectedItemForDelete
+  setSelectedItemForDelete,
+  setHasUnsavedChanges
 } = posSlice.actions;
 
 // Export reducer

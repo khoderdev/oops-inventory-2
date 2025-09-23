@@ -104,6 +104,9 @@ export interface CreateOrderData {
 
 export interface UpdateOrderData {
   status?: OrderStatus;
+  orderType?: OrderType;
+  tableId?: string;
+  employeeId?: string;
   items?: OrderItem[];
   customerName?: string;
   customerPhone?: string;
@@ -134,7 +137,7 @@ export interface OrderSummary {
 export interface DiscountDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  discountAmount: number;
+  discountAmount?: number;
   onDiscountAmountChange: (amount: number) => void;
   onDiscount: () => void;
 }
