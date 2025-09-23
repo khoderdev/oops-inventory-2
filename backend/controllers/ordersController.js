@@ -1600,7 +1600,7 @@ export const ordersController = {
           if (order.saleId) {
             console.log(`🔄 Order ${orderId} is linked to Sale ${order.saleId} - updating sale record`);
             const sale = await Sale.findByPk(order.saleId, { transaction });
-            
+
             if (sale) {
               // Extract menu items for the sale record
               const menuItems = orderItems
@@ -1612,7 +1612,7 @@ export const ordersController = {
                   totalPrice: parseFloat(item.totalPrice),
                   menuItemName: item.name
                 }));
-              
+
               // Extract material items for the sale record
               const materialItems = orderItems
                 .filter(item => item.type === "material" && item.materialId)
@@ -1624,15 +1624,18 @@ export const ordersController = {
                   totalPrice: parseFloat(item.totalPrice),
                   materialName: item.name
                 }));
-              
+
               // Update the sale record with new items and total
-              await sale.update({
-                totalAmount: total,
-                menuItems: menuItems,
-                items: materialItems,
-                updatedAt: new Date()
-              }, { transaction });
-              
+              await sale.update(
+                {
+                  totalAmount: total,
+                  menuItems: menuItems,
+                  items: materialItems,
+                  updatedAt: new Date()
+                },
+                { transaction }
+              );
+
               console.log(`✅ Updated Sale ${sale.id} with new total: ${total} and ${menuItems.length} menu items`);
             } else {
               console.warn(`⚠️ Sale record with ID ${order.saleId} not found for order ${orderId}`);
@@ -1640,18 +1643,21 @@ export const ordersController = {
           }
         } else {
           await order.update({ subtotal: 0, tax: 0, total: 0 }, { transaction });
-          
+
           // If order has no items and is linked to a sale, update the sale or mark it inactive
           if (order.saleId) {
             const sale = await Sale.findByPk(order.saleId, { transaction });
             if (sale) {
-              await sale.update({
-                totalAmount: 0,
-                menuItems: [],
-                items: [],
-                isActive: false, // Mark sale as inactive since order has no items
-                updatedAt: new Date()
-              }, { transaction });
+              await sale.update(
+                {
+                  totalAmount: 0,
+                  menuItems: [],
+                  items: [],
+                  isActive: false, // Mark sale as inactive since order has no items
+                  updatedAt: new Date()
+                },
+                { transaction }
+              );
               console.log(`⚠️ Sale ${sale.id} marked as inactive because order ${orderId} has no items`);
             }
           }
@@ -1880,23 +1886,41 @@ export const ordersController = {
     }
   },
 
-  // Complete order (convert to sale)
+  // Complete order (convert to sale) with enhanced error logging and debugging information for payment failures
   completeOrder: async (req, res) => {
     const transaction = await sequelize.transaction();
+    console.log(`🔄 [PAYMENT_DEBUG] Starting order completion for orderId: ${req.params.orderId}`);
+
     try {
       const { orderId } = req.params;
       const { paymentData } = req.body;
       const userId = req.user?.id;
+
+      console.log(`🔄 [PAYMENT_DEBUG] Payment data received:`, JSON.stringify(paymentData, null, 2));
+      console.log(`🔄 [PAYMENT_DEBUG] User ID: ${userId}`);
+
+      // Step 1: Find and validate order
+      console.log(`🔍 [PAYMENT_DEBUG] Step 1: Finding order ${orderId}`);
       const order = await Order.findByPk(orderId, {
         include: [{ model: OrderItem, as: "items" }],
         transaction
       });
 
       if (!order) {
+        console.error(`❌ [PAYMENT_DEBUG] Order ${orderId} not found`);
         await transaction.rollback();
         return res.status(404).json({ message: "Order not found" });
       }
+
+      console.log(`✅ [PAYMENT_DEBUG] Order found:`, {
+        id: order.id,
+        status: order.status,
+        total: order.total,
+        itemCount: order.items?.length || 0
+      });
+
       if (order.status === "paid") {
+        console.error(`❌ [PAYMENT_DEBUG] Order ${orderId} already completed, status: ${order.status}`);
         await transaction.rollback();
         return res.status(400).json({
           message: "Order already completed",
@@ -1905,8 +1929,10 @@ export const ordersController = {
           saleId: order.saleId
         });
       }
+
       const completableStatuses = ["draft", "confirmed", "preparing", "ready", "served"];
       if (!completableStatuses.includes(order.status)) {
+        console.error(`❌ [PAYMENT_DEBUG] Order ${orderId} cannot be completed from status: ${order.status}`);
         await transaction.rollback();
         return res.status(400).json({
           message: `Order cannot be completed from status: ${order.status}`,
@@ -1914,8 +1940,16 @@ export const ordersController = {
           allowedStatuses: completableStatuses
         });
       }
+
+      console.log(`✅ [PAYMENT_DEBUG] Order validation passed`);
+
+      // Step 2: Prepare sale data
+      console.log(`🔄 [PAYMENT_DEBUG] Step 2: Preparing sale data`);
       const saleData = {
         saleDate: new Date().toISOString(),
+        totalAmount: parseFloat(order.total),
+        paymentAmount: paymentData.paymentAmount,
+        paymentMethod: paymentData.paymentMethod || "cash",
         items: order.items
           .filter(item => item.type === "material")
           .map(item => ({
@@ -1934,29 +1968,78 @@ export const ordersController = {
             unitPrice: parseFloat(item.unitPrice),
             totalPrice: parseFloat(item.totalPrice),
             menuItemName: item.name
-          })),
-        totalAmount: parseFloat(order.total),
-        paymentAmount: paymentData.paymentAmount,
-        paymentMethod: paymentData.paymentMethod || "cash"
+          }))
       };
-      saleData.fromExistingOrder = true;
-      const mockReq = { body: saleData, user: { id: userId } };
-      const mockRes = {
-        status: code => mockRes,
-        json: data => data
-      };
-      const saleResult = await new Promise((resolve, reject) => {
-        mockRes.json = data => {
-          if (data.error || data.message?.includes("failed")) {
-            reject(new Error(`Sale creation failed: ${data.error || data.message}`));
-          } else {
-            resolve(data);
-          }
-        };
-        salesController.createSales(mockReq, mockRes).catch(error => {
-          reject(error);
-        });
+
+      console.log(`✅ [PAYMENT_DEBUG] Sale data prepared:`, {
+        totalAmount: saleData.totalAmount,
+        paymentAmount: saleData.paymentAmount,
+        paymentMethod: saleData.paymentMethod,
+        materialItems: saleData.items.length,
+        menuItems: saleData.menuItems.length
       });
+
+      // Step 3: Create sale record with increased timeout
+      console.log(`🔄 [PAYMENT_DEBUG] Step 3: Creating sale record with increased timeout`);
+      const mockReq = {
+        body: {
+          ...saleData,
+          fromExistingOrder: true
+        },
+        user: { id: userId }
+      };
+
+      let saleResult;
+      try {
+        const salePromise = new Promise((resolve, reject) => {
+          const mockRes = {
+            status: code => ({
+              json: data => {
+                if (code >= 400) {
+                  console.error(`❌ [PAYMENT_DEBUG] Sale creation failed with status ${code}:`, data);
+                  reject(new Error(`Sale creation failed with status ${code}: ${data.error || data.message}`));
+                } else {
+                  console.log(`✅ [PAYMENT_DEBUG] Sale created successfully:`, data);
+                  resolve(data);
+                }
+              }
+            }),
+            json: data => {
+              if (data.error || data.message?.includes("failed")) {
+                console.error(`❌ [PAYMENT_DEBUG] Sale creation failed:`, data);
+                reject(new Error(`Sale creation failed: ${data.error || data.message}`));
+              } else {
+                console.log(`✅ [PAYMENT_DEBUG] Sale created successfully:`, data);
+                resolve(data);
+              }
+            }
+          };
+
+          salesController.createSales(mockReq, mockRes).catch(error => {
+            console.error(`❌ [PAYMENT_DEBUG] Sale creation threw error:`, error);
+            reject(error);
+          });
+        });
+
+        // Increase timeout to 2 minutes (120000ms)
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Sale creation timeout after 2 minutes")), 120000));
+
+        console.log(`⏳ [PAYMENT_DEBUG] Waiting for sale creation to complete...`);
+        saleResult = await Promise.race([salePromise, timeoutPromise]);
+        console.log(`✅ [PAYMENT_DEBUG] Sale creation completed with result:`, saleResult);
+      } catch (saleError) {
+        console.error(`❌ [PAYMENT_DEBUG] Sale creation failed:`, saleError);
+        await transaction.rollback();
+        return res.status(500).json({
+          message: "Failed to create sale record",
+          error: saleError.message,
+          step: "sale_creation",
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Step 4: Update order status
+      console.log(`🔄 [PAYMENT_DEBUG] Step 4: Updating order status to paid`);
       const updateResult = await Order.update(
         {
           status: "paid",
@@ -1979,13 +2062,20 @@ export const ordersController = {
           transaction
         }
       );
+
       if (updateResult[0] === 0) {
+        console.error(`❌ [PAYMENT_DEBUG] Order update failed - order was already completed by another request`);
         await transaction.rollback();
         return res.status(400).json({
           message: "Order was already completed by another request",
           note: "This can happen if multiple completion requests are made simultaneously"
         });
       }
+
+      console.log(`✅ [PAYMENT_DEBUG] Order status updated successfully`);
+
+      // Step 5: Handle table clearing
+      console.log(`🔄 [PAYMENT_DEBUG] Step 5: Handling table operations`);
       if (order.tableId) {
         const table = await Table.findByPk(order.tableId, { transaction });
         if (table) {
@@ -2000,22 +2090,40 @@ export const ordersController = {
 
           if (otherActiveOrders === 0) {
             await table.update({ status: "available" }, { transaction });
+            console.log(`✅ [PAYMENT_DEBUG] Table ${order.tableId} set to available`);
+          } else {
+            console.log(`ℹ️ [PAYMENT_DEBUG] Table ${order.tableId} still has ${otherActiveOrders} active orders`);
           }
         }
       }
+
+      // Step 6: Commit transaction
+      console.log(`🔄 [PAYMENT_DEBUG] Step 6: Committing transaction`);
       await transaction.commit();
+      console.log(`✅ [PAYMENT_DEBUG] Transaction committed successfully`);
+
       const completedOrder = await Order.findByPk(orderId, {
         include: [{ model: OrderItem, as: "items" }]
       });
+
+      console.log(`🎉 [PAYMENT_DEBUG] Order completion successful for order ${orderId}`);
       res.json({
         message: "Order completed successfully",
         order: completedOrder,
         saleId: saleResult.sale?.id
       });
     } catch (error) {
+      console.error(`❌ [PAYMENT_DEBUG] Order completion failed:`, error);
+      console.error(`❌ [PAYMENT_DEBUG] Error stack:`, error.stack);
       await transaction.rollback();
-      console.error("Complete order error:", error);
-      res.status(500).json({ message: "Failed to complete order", error: error.message });
+
+      res.status(500).json({
+        message: "Failed to complete order",
+        error: error.message,
+        step: "unknown",
+        orderId: req.params.orderId,
+        timestamp: new Date().toISOString()
+      });
     }
   },
 

@@ -54,10 +54,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     try {
       const response = await tablesAPI.getTables();
       let allTables = [];
-      if (response.data && Array.isArray(response.data.data)) {
-        allTables = response.data.data;
-      } else if (Array.isArray(response.data)) {
-        allTables = response.data;
+      if (Array.isArray(response)) {
+        allTables = response;
       } else {
         console.error("Unexpected API response structure:", response);
         setInactiveTablesCount(0);
@@ -75,10 +73,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     try {
       const response = await tablesAPI.getTables({ includeOrders: true });
       let freshTables = [];
-      if (response.data && Array.isArray(response.data.data)) {
-        freshTables = response.data.data;
-      } else if (Array.isArray(response.data)) {
-        freshTables = response.data;
+      if (Array.isArray(response)) {
+        freshTables = response;
       } else {
         console.error("Unexpected API response structure:", response);
         return;

@@ -1043,6 +1043,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
 
   // Handle payment function
   const handlePayment = useCallback(async () => {
+    console.log("🚀 [PAYMENT_DEBUG] handlePayment function called!");
+    console.log("🚀 [PAYMENT_DEBUG] cart.length:", cart.length);
+    console.log("🚀 [PAYMENT_DEBUG] currentOrder:", currentOrder);
+
     if (cart.length === 0) {
       showError("Cart is empty");
       return;
@@ -1102,7 +1106,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       dispatch(setIsPaymentCompletedAction(true));
       dispatch(setLastSaleDataAction(optimisticReceiptData));
       dispatch(setShowReceiptDialogAction(true));
-      setShouldAutoPrint(hasSavedPrinter());
+      // setShouldAutoPrint(hasSavedPrinter()); // FIXME: This function doesn't exist
       dispatch(setShowSuccessCheckmarkAction(true));
 
       // CRITICAL: Mark order as completed immediately to prevent reloading
@@ -1124,13 +1128,25 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
       }, 100);
 
       // BACKGROUND PROCESSING - Handle actual API calls without blocking UI
+      console.log("🚀 [PAYMENT_DEBUG] About to start background processing");
+
       const backgroundProcessing = async () => {
         try {
+          console.log("🔄 [PAYMENT_DEBUG] Background processing started");
+          console.log("🔄 [PAYMENT_DEBUG] currentOrder exists:", !!currentOrder);
+          if (currentOrder) {
+            console.log("🔄 [PAYMENT_DEBUG] currentOrder details:", {
+              id: currentOrder.id,
+              status: currentOrder.status,
+              orderNumber: currentOrder.orderNumber
+            });
+          }
+
           let orderToComplete = currentOrder;
 
           // Create order if needed
           if (!currentOrder) {
-            console.log("Applied discount:", appliedDiscount);
+            console.log("🔄 [PAYMENT_DEBUG] No currentOrder found, creating new order");
             const orderData = {
               orderType,
               tableId: selectedTable?.id,
@@ -1153,8 +1169,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
               discountAmount: appliedDiscount?.amount || 0,
               discountReason: appliedDiscount?.reason
             };
+            console.log("🔄 [PAYMENT_DEBUG] Calling createOrder with data:", orderData);
             const createOrderResponse = await createOrder(orderData);
+            console.log("✅ [PAYMENT_DEBUG] createOrder response:", createOrderResponse);
             orderToComplete = createOrderResponse && typeof createOrderResponse === "object" && "order" in createOrderResponse ? (createOrderResponse as any).order : createOrderResponse;
+            console.log("✅ [PAYMENT_DEBUG] orderToComplete after createOrder:", orderToComplete);
+          } else {
+            console.log("🔄 [PAYMENT_DEBUG] Using existing currentOrder, skipping createOrder");
           }
 
           if (!orderToComplete) {
