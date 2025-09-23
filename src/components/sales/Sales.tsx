@@ -2,16 +2,14 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from "react"
 import { usePOSRedux } from "@/hooks/usePOSRedux";
 import { SaleRecord } from "@/types/inventory";
 import { format } from "date-fns";
-import { ArrowUpDown, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-interface SalesProps {
-  // Add any additional props if needed
-}
+interface SalesProps {}
 
 const Sales: React.FC<SalesProps> = () => {
-  const { salesHistory, fetchSalesHistory, isLoading, error, selectedItemFilter, selectedSectionFilter, dateFrom, dateTo, setSelectedItemFilter, setSelectedSectionFilter, setDateFrom, setDateTo, uniqueItemNames, uniqueSectionNames, setUniqueItemNames, setUniqueSectionNames, filteredSalesHistory, salesTotal, setSelectedSaleForEdit, setEditingSaleId } = usePOSRedux();
+  const { salesHistory, fetchSalesHistory, isLoading, error, selectedItemFilter, selectedSectionFilter, dateFrom, dateTo, setSelectedItemFilter, setSelectedSectionFilter, setDateFrom, setDateTo, uniqueItemNames, uniqueSectionNames, setUniqueItemNames, setUniqueSectionNames, filteredSalesHistory, salesTotal, setSelectedSaleForEdit, setEditingSaleId, lastSaleData, showSuccessCheckmark, successMessage } = usePOSRedux();
   const navigate = useNavigate();
   const [sortField, setSortField] = useState<keyof SaleRecord | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -24,6 +22,15 @@ const Sales: React.FC<SalesProps> = () => {
       fetchSalesHistory();
     }
   }, [fetchSalesHistory, salesHistory.length, isLoading]);
+
+  // Auto-refresh sales when relevant POS events occur (payment completed, successful actions)
+  useEffect(() => {
+    // If a new receipt was generated or we showed the success checkmark / success message, refresh sales in background
+    if (lastSaleData || showSuccessCheckmark || (successMessage && successMessage.toLowerCase().includes("success"))) {
+      fetchSalesHistory();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastSaleData, showSuccessCheckmark, successMessage]);
   useEffect(() => {
     if (salesHistory.length > 0 && (uniqueItemNames.length === 0 || uniqueSectionNames.length === 0)) {
       const items = new Set<string>();
@@ -68,43 +75,51 @@ const Sales: React.FC<SalesProps> = () => {
   };
 
   // Handle click on a sale row to navigate to POS screen - memoized to prevent unnecessary re-renders
-  const handleSaleClick = useCallback(async (sale: SaleRecord) => {
-    let orderId: string | null = null;
-    
-    if (sale.order && sale.order.id) {
-      orderId = sale.order.id.toString();
-    } else {
-      try {
-        const response = await fetch(`/api/sales/${sale.id}/order`);
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.orderId) {
-            orderId = data.orderId.toString();
-          } else {
-            console.warn(`⚠️ Backend returned no order ID for sale ${sale.id}`);
-          }
-        } else {
-          console.warn(`⚠️ Failed to fetch order ID for sale ${sale.id} from backend`);
-        }
-      } catch (error) {
-        console.error(`❌ Error fetching order ID for sale ${sale.id}:`, error);
-      }
-      
-      if (!orderId) {
-        orderId = sale.id.toString();
-      }
-    }
-    
-    setEditingSaleId(orderId);
-    const saleWithOrderId = {
-      ...sale,
-      orderId: orderId
-    };
-    setSelectedSaleForEdit(saleWithOrderId);
-    navigate("/pos");
-  }, [setSelectedSaleForEdit, setEditingSaleId, navigate]);
+  const handleSaleClick = useCallback(
+    async (sale: SaleRecord) => {
+      let orderId: string | null = null;
 
+      // If we already have the order ID in the sale object, use it
+      if (sale.order && sale.order.id) {
+        orderId = sale.order.id.toString();
+      } else if (sale.orderId) {
+        // If orderId is directly on the sale object
+        orderId = sale.orderId.toString();
+      } else {
+        // Fallback to using the sale ID as the order ID
+        orderId = sale.id.toString();
+
+        // Try to fetch the sale details to get the order ID
+        try {
+          const response = await fetch(`/api/sales/${sale.id}`);
+
+          if (response.ok) {
+            const saleData = await response.json();
+            if (saleData.orderId) {
+              orderId = saleData.orderId.toString();
+            } else if (saleData.order && saleData.order.id) {
+              orderId = saleData.order.id.toString();
+            } else {
+              console.warn(`⚠️ No order ID found in sale data for sale ${sale.id}`);
+            }
+          } else {
+            console.warn(`⚠️ Failed to fetch sale details for sale ${sale.id}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error fetching sale details for sale ${sale.id}:`, error);
+        }
+      }
+
+      setEditingSaleId(orderId);
+      const saleWithOrderId = {
+        ...sale,
+        orderId: orderId
+      };
+      setSelectedSaleForEdit(saleWithOrderId);
+      navigate("/pos");
+    },
+    [setSelectedSaleForEdit, setEditingSaleId, navigate]
+  );
 
   // Format currency
   const formatCurrency = (amount: number | string) => {
@@ -156,12 +171,10 @@ const Sales: React.FC<SalesProps> = () => {
       </div>
 
       {/* Loading and Error States */}
-      {isLoading && <div className="text-center">Loading...</div>}
       {error && <div className="text-red-500 mb-4">{error}</div>}
 
-      {/* Sales Table */}
-      {!isLoading && !error && (
-        <div className="overflow-x-auto">
+      {/* Sales Table - always render current data for instant UI; load happens in background */}
+      <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -251,11 +264,11 @@ const Sales: React.FC<SalesProps> = () => {
               ))}
             </tbody>
           </table>
-          <div className="mt-4 text-right">
+          <div className="mt-4 flex items-center justify-between">
             <p className="text-lg font-semibold">Total Sales: {formatCurrency(salesTotal)}</p>
+            {isLoading && <span className="text-sm text-gray-500">Refreshing…</span>}
           </div>
         </div>
-      )}
     </div>
   );
 };

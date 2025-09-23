@@ -250,29 +250,45 @@ export const updateOrder = createAsyncThunk("pos/updateOrder", async ({ orderId,
   }
 });
 
-export const completeOrder = createAsyncThunk("pos/completeOrder", async ({ orderId, paymentData }: { orderId: string; paymentData: { paymentMethod: string; paymentAmount: number; change?: number } }, { rejectWithValue }) => {
-  try {
-    const response = await ordersAPI.completeOrder(orderId, paymentData);
-    return response.data;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.message || "Failed to complete order");
+export const completeOrder = createAsyncThunk(
+  "pos/completeOrder",
+  async (
+    { orderId, paymentData }: { orderId: string; paymentData: { paymentMethod: string; paymentAmount: number; change?: number } },
+    { rejectWithValue, dispatch }
+  ) => {
+    try {
+      const response = await ordersAPI.completeOrder(orderId, paymentData);
+      // Immediately refresh sales history so UI updates instantly
+      dispatch(fetchSalesHistory());
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || "Failed to complete order");
+    }
   }
-});
+);
 
-export const voidOrder = createAsyncThunk("pos/voidOrder", async ({ orderId, reason, restoreStock = true }: { orderId: string; reason?: string; restoreStock?: boolean }, { rejectWithValue }) => {
-  try {
-    const response = await ordersAPI.voidOrder(orderId, {
-      reason: reason || "Order voided by user",
-      restoreStock
-    });
-    const responseData = response.data as { order?: any; stockRestorations?: any[] } | any;
-    const voidedOrder = responseData.order || responseData;
-    const stockRestorations = responseData.stockRestorations;
-    return { order: voidedOrder, stockRestorations };
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.message || "Failed to void order");
+export const voidOrder = createAsyncThunk(
+  "pos/voidOrder",
+  async (
+    { orderId, reason, restoreStock = true }: { orderId: string; reason?: string; restoreStock?: boolean },
+    { rejectWithValue, dispatch }
+  ) => {
+    try {
+      const response = await ordersAPI.voidOrder(orderId, {
+        reason: reason || "Order voided by user",
+        restoreStock
+      });
+      const responseData = response.data as { order?: any; stockRestorations?: any[] } | any;
+      const voidedOrder = responseData.order || responseData;
+      const stockRestorations = responseData.stockRestorations;
+      // Refresh sales history after voiding to reflect changes instantly
+      dispatch(fetchSalesHistory());
+      return { order: voidedOrder, stockRestorations };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || "Failed to void order");
+    }
   }
-});
+);
 
 export const addOrderItems = createAsyncThunk("pos/addOrderItems", async ({ orderId, items }: { orderId: string; items: Omit<any, "id">[] }, { rejectWithValue }) => {
   try {

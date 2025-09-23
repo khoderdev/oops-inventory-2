@@ -135,7 +135,6 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [isResizing, setIsResizing] = React.useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = React.useState<"payment" | "manual_print" | null>(null);
   const [activeView, setActiveView] = React.useState<"cart" | "products">("products");
-  // These local state setters have been replaced with Redux actions
 
   // Filter posItems based on activeCategory
   const filteredPosItems = React.useMemo(() => {

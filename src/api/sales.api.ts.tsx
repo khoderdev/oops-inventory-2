@@ -2,7 +2,9 @@ import api from "@/lib/http";
 import { NegativeStockReport, RevertSaleResponse, SaleRecord, SaleResponse } from "@/types/inventory";
 
 export const salesAPI = {
-  getSales: () => api.get<SaleRecord[]>("/sales"),
+  getSales: () =>
+    // Add cache-busting param to always fetch the freshest sales
+    api.get<SaleRecord[]>("/sales", { params: { _t: Date.now() } }),
 
   getStaffSales: () => api.get<SaleRecord[]>("/sales/staff"),
 

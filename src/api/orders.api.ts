@@ -27,14 +27,7 @@ export const ordersAPI = {
   updateOrderStatus: (orderId: string, status: OrderStatus) => api.patch<Order, { status: OrderStatus }>(`/orders/${orderId}/status`, { status }),
 
   // Complete order (convert to sale)
-  completeOrder: (
-    orderId: string,
-    paymentData: {
-      paymentMethod: string;
-      paymentAmount: number;
-      change?: number;
-    }
-  ) => api.post<{ order: Order; saleId: string }, { paymentData: { paymentMethod: string; paymentAmount: number; change?: number } }>(`/orders/${orderId}/complete`, { paymentData }),
+  completeOrder: (orderId: string, paymentData: { paymentMethod: string; paymentAmount: number; change?: number }) => api.post<{ order: Order; saleId: string }, { paymentData: { paymentMethod: string; paymentAmount: number; change?: number } }>(`/orders/${orderId}/complete`, { paymentData }),
 
   // Cancel an order
   cancelOrder: (orderId: string, reason?: string) => api.patch<Order, { reason?: string }>(`/orders/${orderId}/cancel`, { reason }),
