@@ -79,35 +79,22 @@ const Sales: React.FC<SalesProps> = () => {
     async (sale: SaleRecord) => {
       let orderId: string | null = null;
 
-      // If we already have the order ID in the sale object, use it
-      if (sale.order && sale.order.id) {
-        orderId = sale.order.id.toString();
-      } else if (sale.orderId) {
-        // If orderId is directly on the sale object
-        orderId = sale.orderId.toString();
-      } else {
-        // Fallback to using the sale ID as the order ID
-        orderId = sale.id.toString();
+      // Try to find the complete sale data from Redux store first
+      const completeSale = salesHistory.find(s => s.id === sale.id);
 
-        // Try to fetch the sale details to get the order ID
-        try {
-          const response = await fetch(`/api/sales/${sale.id}`);
-
-          if (response.ok) {
-            const saleData = await response.json();
-            if (saleData.orderId) {
-              orderId = saleData.orderId.toString();
-            } else if (saleData.order && saleData.order.id) {
-              orderId = saleData.order.id.toString();
-            } else {
-              console.warn(`⚠️ No order ID found in sale data for sale ${sale.id}`);
-            }
-          } else {
-            console.warn(`⚠️ Failed to fetch sale details for sale ${sale.id}`);
-          }
-        } catch (error) {
-          console.error(`❌ Error fetching sale details for sale ${sale.id}:`, error);
+      if (completeSale) {
+        // Use the data from Redux store
+        if (completeSale.order && completeSale.order.id) {
+          orderId = completeSale.order.id.toString();
+        } else if (completeSale.orderId) {
+          orderId = completeSale.orderId.toString();
         }
+      }
+
+      // If still no orderId, use sale ID as fallback
+      if (!orderId) {
+        orderId = sale.id.toString();
+        console.warn(`⚠️ Using sale ID as order ID fallback for sale ${sale.id}`);
       }
 
       setEditingSaleId(orderId);
@@ -118,9 +105,8 @@ const Sales: React.FC<SalesProps> = () => {
       setSelectedSaleForEdit(saleWithOrderId);
       navigate("/pos");
     },
-    [setSelectedSaleForEdit, setEditingSaleId, navigate]
+    [salesHistory, setSelectedSaleForEdit, setEditingSaleId, navigate]
   );
-
   // Format currency
   const formatCurrency = (amount: number | string) => {
     const num = typeof amount === "string" ? parseFloat(amount) : amount;
