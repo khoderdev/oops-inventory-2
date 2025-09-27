@@ -34,6 +34,7 @@ import { VoidOrderDialog } from "./VoidOrderDialog";
 import { Category } from "@/types/categories";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { shallowEqual } from "react-redux";
 import * as posActions from "@/store/slices/posSlice";
 import { setCart } from "@/store/slices/posSlice";
 import {
@@ -77,11 +78,10 @@ import PerformanceValidator from "./PerformanceValidator";
 const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   // Redux - FINAL OPTIMIZATION: Single selector with proper memoization
   const dispatch = useAppDispatch();
-  
-  // Use React.useMemo to create stable selector
-  const posSelector = useMemo(() => (state: any) => state.pos, []);
-  const posState = useAppSelector(posSelector);
-  
+
+  // Use shallowEqual for comparison to prevent unnecessary re-renders
+  const posState = useAppSelector(state => state.pos, shallowEqual);
+
   // Destructure with stable references
   const {
     cart,
@@ -116,57 +116,66 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   } = posState;
 
   const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems } = useMenuItems();
-  
+
   // Cache menu items to prevent unnecessary recalculations
   const cachedFoodMenuItems = useRef(foodMenuItems);
   const cachedBeverageMenuItems = useRef(beverageMenuItems);
   const cachedMenuItemCategories = useRef(menuItemCategories);
   const cachedBeverageCategories = useRef(beverageCategories);
+
+  // FINAL: Only update cache on mount and when data length changes
+  const cacheInitialized = useRef(false);
   
-  // BALANCED: Update cache when data actually changes but throttled
-  const lastCacheUpdate = useRef(0);
-  
+  // Initialize cache on mount
   useEffect(() => {
-    const now = Date.now();
-    // Throttle to max once every 3 seconds
-    if (now - lastCacheUpdate.current > 3000) {
-      if (foodMenuItems && foodMenuItems !== cachedFoodMenuItems.current) {
-        cachedFoodMenuItems.current = foodMenuItems;
-        lastCacheUpdate.current = now;
-      }
-      if (beverageMenuItems && beverageMenuItems !== cachedBeverageMenuItems.current) {
-        cachedBeverageMenuItems.current = beverageMenuItems;
-        lastCacheUpdate.current = now;
-      }
-      if (menuItemCategories && menuItemCategories !== cachedMenuItemCategories.current) {
-        cachedMenuItemCategories.current = menuItemCategories;
-        lastCacheUpdate.current = now;
-      }
-      if (beverageCategories && beverageCategories !== cachedBeverageCategories.current) {
-        cachedBeverageCategories.current = beverageCategories;
-        lastCacheUpdate.current = now;
-      }
+    // Initialize on mount
+    if (!cacheInitialized.current) {
+      cachedFoodMenuItems.current = foodMenuItems;
+      cachedBeverageMenuItems.current = beverageMenuItems;
+      cachedMenuItemCategories.current = menuItemCategories;
+      cachedBeverageCategories.current = beverageCategories;
+      cacheInitialized.current = true;
     }
-  }, [foodMenuItems, beverageMenuItems, menuItemCategories, beverageCategories]);
-  const [searchTerm] = React.useState("");
-  const [menuItems, setMenuItems] = React.useState<MenuItem[]>([]);
-  const [stockEntries, setStockEntries] = React.useState<StockEntryWithMaterial[]>([]);
-  const [isItemsGridStable, setIsItemsGridStable] = React.useState(false);
-  const [isItemsGridLoading, setIsItemsGridLoading] = React.useState(true);
-  // Simplified performance monitoring
-  const renderCount = useRef(0);
+  }, []);
   
-  // Loading state will be managed after posItems is defined
-  const [optimisticAssignments, setOptimisticAssignments] = React.useState<SectionAssignment[]>(sectionAssignments);
+  // Separate effect for food menu items - only update when length changes
+  useEffect(() => {
+    if (foodMenuItems?.length !== cachedFoodMenuItems.current?.length) {
+      cachedFoodMenuItems.current = foodMenuItems;
+    }
+  }, [foodMenuItems?.length]);
+  
+  // Separate effect for beverage menu items - only update when length changes
+  useEffect(() => {
+    if (beverageMenuItems?.length !== cachedBeverageMenuItems.current?.length) {
+      cachedBeverageMenuItems.current = beverageMenuItems;
+    }
+  }, [beverageMenuItems?.length]);
+  
+  // Separate effect for menu item categories - only update when length changes
+  useEffect(() => {
+    if (menuItemCategories?.length !== cachedMenuItemCategories.current?.length) {
+      cachedMenuItemCategories.current = menuItemCategories;
+    }
+  }, [menuItemCategories?.length]);
+  
+  // Separate effect for beverage categories - only update when length changes
+  useEffect(() => {
+    if (beverageCategories?.length !== cachedBeverageCategories.current?.length) {
+      cachedBeverageCategories.current = beverageCategories;
+    }
+  }, [beverageCategories?.length]);
   const [negativeStockWarnings] = React.useState<NegativeStockWarning[]>([]);
   const [showNegativeStockDialog, setShowNegativeStockDialog] = React.useState(false);
   const [paymentAmount, setPaymentAmount] = React.useState<string>("");
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
+  const [isItemsGridLoading, setIsItemsGridLoading] = React.useState<boolean>(false);
+  const renderCount = useRef(0);
 
   // FINAL: Minimal performance tracking
   if (process.env.NODE_ENV === "development") {
     renderCount.current += 1;
-    
+
     // Only log at critical thresholds
     if (renderCount.current === 5) {
       console.log(`✅ POSClient: ${renderCount.current} renders - EXCELLENT`);
@@ -216,10 +225,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     }
 
     return categoryMap;
-  }, [
-    cachedMenuItemCategories.current?.length || 0,
-    cachedBeverageCategories.current?.length || 0
-  ]);
+  }, [cachedMenuItemCategories.current?.length || 0, cachedBeverageCategories.current?.length || 0]);
 
   // Memoized helper function for variants transformation to prevent recreation
   const transformVariants = useCallback(
@@ -269,7 +275,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     const stableFoodItems = cachedFoodMenuItems.current || foodMenuItems;
     const stableBeverageItems = cachedBeverageMenuItems.current || beverageMenuItems;
     const allMenuItems = [...(stableFoodItems || []), ...(stableBeverageItems || [])];
-    
+
     if (allMenuItems.length === 0) {
       return [];
     }
@@ -311,12 +317,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       });
 
     return transformedItems;
-  }, [
-    menuItemsLoading,
-    cachedFoodMenuItems.current?.length || 0,
-    cachedBeverageMenuItems.current?.length || 0,
-    categoriesMap.size
-  ]);
+  }, [menuItemsLoading, cachedFoodMenuItems.current?.length || 0, cachedBeverageMenuItems.current?.length || 0, categoriesMap.size]);
 
   // BALANCED: Filtered items with proper dependencies
   const filteredPosItems = useMemo(() => {
@@ -331,21 +332,21 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   // BALANCED: Categories array with proper reactivity
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>(["all"]);
-    
+
     for (let i = 0; i < posItems.length; i++) {
       const item = posItems[i];
       if (item?.category && typeof item.category === "string") {
         uniqueCategories.add(item.category);
       }
     }
-    
+
     const categoriesArray = Array.from(uniqueCategories);
     categoriesArray.sort((a, b) => {
       if (a === "all") return -1;
       if (b === "all") return 1;
       return a.localeCompare(b);
     });
-    
+
     return categoriesArray;
   }, [posItems.length]);
 
@@ -361,7 +362,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       return () => clearTimeout(timer);
     }
   }, [menuItemsLoading]);
-  
+
   // EMERGENCY: Remove stablePosItems completely - use posItems directly
 
   // Refs
@@ -1745,7 +1746,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         // Add menu items
         if (selectedSaleForEdit.menuItems && selectedSaleForEdit.menuItems.length > 0) {
           selectedSaleForEdit.menuItems.forEach(item => {
-            const menuItem = menuItems.find(mi => String(mi.id) === String(item.menuItemId));
+            // Combine food and beverage menu items to search through all available menu items
+            const allMenuItems = [...(cachedFoodMenuItems.current || []), ...(cachedBeverageMenuItems.current || [])]; 
+            const menuItem = allMenuItems.find(mi => String(mi.id) === String(item.menuItemId));
             cartItems.push({
               id: `history-${item.id || Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
               name: item.menuItemName || "Unknown Item",
@@ -1762,7 +1765,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         // Add material items
         if (selectedSaleForEdit.items && selectedSaleForEdit.items.length > 0) {
           selectedSaleForEdit.items.forEach(item => {
-            const stockEntry = stockEntries.find(se => String(se.materialId) === String(item.materialId));
+            // Stock entries are not available in this context, so we'll use a fallback
+            const stockEntry = null; // We'll use the fallback in the originalItem assignment below
             cartItems.push({
               id: `history-${item.id || Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
               name: item.materialName || "Unknown Material",
@@ -1816,7 +1820,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     });
     // Only depend on selectedSaleForEdit, not on editingSaleId
     // This prevents the effect from running again when only editingSaleId changes
-  }, [dispatch, menuItems, stockEntries, clearOrder, selectedSaleForEdit]);
+  }, [dispatch, cachedFoodMenuItems, cachedBeverageMenuItems, clearOrder, selectedSaleForEdit]);
 
   // Add this effect to handle router state with orders from SalesHistoryPage
   useEffect(() => {
@@ -2123,9 +2127,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                 let originalItem: StockEntryWithMaterial | MenuItem;
 
                 if (item.type === "material" && item.materialId) {
-                  originalItem = stockEntries.find(se => String(se.materialId) === String(item.materialId));
+                  // Stock entries are not available in this context, so we'll use a fallback
+                  originalItem = { materialId: item.materialId, material: { name: item.name || "Unknown Material" } } as StockEntryWithMaterial;
                 } else if (item.type === "menu_item" && item.menuItemId) {
-                  originalItem = menuItems.find(m => String(m.id) === String(item.menuItemId));
+                  // Combine food and beverage menu items to search through all available menu items
+                  const allMenuItems = [...(cachedFoodMenuItems.current || []), ...(cachedBeverageMenuItems.current || [])];
+                  originalItem = allMenuItems.find(m => String(m.id) === String(item.menuItemId)) || 
+                    { id: item.menuItemId, name: item.name || "Unknown Item" } as MenuItem;
                 }
 
                 const cartItem = {
@@ -2189,7 +2197,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         dispatch(setIsPOSActionInProgressAction(false));
       }, 5000);
     },
-    [loadOrder, menuItems, stockEntries, showError, clearOrder, dispatch, onOrderProcessed]
+    [loadOrder, cachedFoodMenuItems, cachedBeverageMenuItems, showError, clearOrder, dispatch, onOrderProcessed]
   );
 
   // Return the component JSX
