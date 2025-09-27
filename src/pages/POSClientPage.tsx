@@ -1,14 +1,20 @@
 import { ordersAPI } from "@/api/orders.api.ts";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
 import POSLayout from "@/components/layout/POSLayout";
-import { POSClient } from "@/components/pos/POSClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { MenuItemsProvider } from "@/contexts/MenuItemsContext";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
 import { PERMISSIONS } from "@/types/auth";
 import { SaleResponse } from "@/types/inventory";
 import { Order, OrderSummary } from "@/types/orders";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+
+// Lazy load the POSClient component to improve initial page load
+const POSClient = lazy(() => 
+  import("@/components/pos/POSClient").then(module => ({
+    default: module.POSClient
+  }))
+);
 import { useNavigate } from "react-router-dom";
 
 interface POSClientPageProps {
@@ -149,14 +155,23 @@ const POSClientPage: React.FC<POSClientPageProps> = ({ isDayOpen = true }) => {
       onRefreshCounts={handleRefreshCounts}
     >
       <MenuItemsProvider>
-        <POSClient 
-          sectionAssignments={sectionAssignments} 
-          onSaleComplete={handleSaleComplete}
-          selectedOrderForPOS={selectedOrderForPOS}
-          onOrderProcessed={undefined}
-          refreshCountsRef={refreshCountsRef}
-          isDayOpen={isDayOpen}
-        />
+        <Suspense fallback={
+          <div className="h-full w-full flex items-center justify-center">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <p className="text-gray-600 font-medium">Loading POS System...</p>
+            </div>
+          </div>
+        }>
+          <POSClient 
+            sectionAssignments={sectionAssignments} 
+            onSaleComplete={handleSaleComplete}
+            selectedOrderForPOS={selectedOrderForPOS}
+            onOrderProcessed={undefined}
+            refreshCountsRef={refreshCountsRef}
+            isDayOpen={isDayOpen}
+          />
+        </Suspense>
       </MenuItemsProvider>
     </POSLayout>
   );

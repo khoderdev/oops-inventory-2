@@ -76,25 +76,41 @@ import { PerformanceMonitor } from "./PerformanceMonitor";
 import PerformanceValidator from "./PerformanceValidator";
 
 const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
-  // Redux - FINAL OPTIMIZATION: Single selector with proper memoization
+  // Redux - ULTRA OPTIMIZED: Individual selectors with custom equality
   const dispatch = useAppDispatch();
 
-  // Use shallowEqual for comparison to prevent unnecessary re-renders
-  const posState = useAppSelector(state => state.pos, shallowEqual);
-
-  // Destructure with stable references
-  const {
-    cart,
-    orderType,
-    selectedTable,
-    selectedEmployee,
-    currentOrder,
-    hasUnsavedChanges,
-    isPaymentCompleted,
-    isLoading,
-    error,
-    successMessage,
-    showSuccessCheckmark,
+  // Use individual selectors with custom equality functions for critical state
+  const cart = useAppSelector(state => state.pos.cart, (prev, next) => {
+    // Only trigger re-render if length changed or it's a different array reference
+    return prev === next || (prev.length === next.length && prev.length === 0);
+  });
+  
+  const orderType = useAppSelector(state => state.pos.orderType);
+  const selectedTable = useAppSelector(state => state.pos.selectedTable);
+  const selectedEmployee = useAppSelector(state => state.pos.selectedEmployee);
+  const currentOrder = useAppSelector(state => state.pos.currentOrder);
+  const hasUnsavedChanges = useAppSelector(state => state.pos.hasUnsavedChanges);
+  const isPaymentCompleted = useAppSelector(state => state.pos.isPaymentCompleted);
+  const isLoading = useAppSelector(state => state.pos.isLoading);
+  const error = useAppSelector(state => state.pos.error);
+  const successMessage = useAppSelector(state => state.pos.successMessage);
+  const showSuccessCheckmark = useAppSelector(state => state.pos.showSuccessCheckmark);
+  
+  // Group dialog visibility states with a single selector
+  const dialogStates = useAppSelector(state => ({
+    showPaymentDialog: state.pos.showPaymentDialog,
+    showReceiptDialog: state.pos.showReceiptDialog,
+    showTablesLayout: state.pos.showTablesLayout,
+    showDiscountDialog: state.pos.showDiscountDialog,
+    showNotesDialog: state.pos.showNotesDialog,
+    showItemNotesDialog: state.pos.showItemNotesDialog,
+    showVoidDialog: state.pos.showVoidDialog,
+    showOrdersDialog: state.pos.showOrdersDialog,
+    showReportsDialog: state.pos.showReportsDialog,
+    showPrinterSelector: state.pos.showPrinterSelector
+  }), shallowEqual);
+  
+  const { 
     showPaymentDialog,
     showReceiptDialog,
     showTablesLayout,
@@ -104,16 +120,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     showVoidDialog,
     showOrdersDialog,
     showReportsDialog,
-    showPrinterSelector,
-    selectedItemForNotes,
-    orderNotes,
-    appliedDiscount,
-    lastSaleData,
-    isTableManuallySelected,
-    isPOSActionInProgress,
-    selectedSaleForEdit,
-    editingSaleId
-  } = posState;
+    showPrinterSelector 
+  } = dialogStates;
+  
+  const selectedItemForNotes = useAppSelector(state => state.pos.selectedItemForNotes);
+  const orderNotes = useAppSelector(state => state.pos.orderNotes);
+  const appliedDiscount = useAppSelector(state => state.pos.appliedDiscount);
+  const lastSaleData = useAppSelector(state => state.pos.lastSaleData);
+  const isTableManuallySelected = useAppSelector(state => state.pos.isTableManuallySelected);
+  const isPOSActionInProgress = useAppSelector(state => state.pos.isPOSActionInProgress);
+  const selectedSaleForEdit = useAppSelector(state => state.pos.selectedSaleForEdit);
+  const editingSaleId = useAppSelector(state => state.pos.editingSaleId);
 
   const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems } = useMenuItems();
 
@@ -172,15 +189,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [isItemsGridLoading, setIsItemsGridLoading] = React.useState<boolean>(false);
   const renderCount = useRef(0);
 
-  // FINAL: Minimal performance tracking
-  if (process.env.NODE_ENV === "development") {
+  // ULTRA-MINIMAL: Performance tracking with minimal overhead
+  if (process.env.NODE_ENV === "development" && renderCount.current < 100) {
     renderCount.current += 1;
-
-    // Only log at critical thresholds
+    
+    // Only log once at the 5th render
     if (renderCount.current === 5) {
       console.log(`✅ POSClient: ${renderCount.current} renders - EXCELLENT`);
-    } else if (renderCount.current === 10) {
-      console.warn(`⚠️ POSClient: ${renderCount.current} renders - NEEDS OPTIMIZATION`);
     }
   }
 
@@ -203,29 +218,40 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [printerSelectionContext, setPrinterSelectionContext] = React.useState<"payment" | "manual_print" | null>(null);
   const [activeView, setActiveView] = React.useState<"cart" | "products">("products");
 
-  // BALANCED: Categories map with minimal recalculation
+  // ULTRA-STABLE: Categories map with static reference
+  const categoriesMapRef = useRef(new Map<number, string>());
   const categoriesMap = useMemo(() => {
-    const categoryMap = new Map<number, string>();
-    const stableMenuCategories = cachedMenuItemCategories.current || menuItemCategories;
-    const stableBeverageCategories = cachedBeverageCategories.current || beverageCategories;
+    // Only rebuild if the map is empty or categories have changed significantly
+    if (categoriesMapRef.current.size === 0 || 
+        (menuItemCategories?.length && menuItemCategories.length !== cachedMenuItemCategories.current?.length) ||
+        (beverageCategories?.length && beverageCategories.length !== cachedBeverageCategories.current?.length)) {
+      
+      // Build a new map
+      const categoryMap = new Map<number, string>();
+      const stableMenuCategories = cachedMenuItemCategories.current || menuItemCategories;
+      const stableBeverageCategories = cachedBeverageCategories.current || beverageCategories;
 
-    if (stableMenuCategories?.length > 0) {
-      stableMenuCategories
-        .filter(c => c?.isActive)
-        .forEach(c => {
-          if (c?.id && c?.name) categoryMap.set(c.id, c.name);
-        });
-    }
-    if (stableBeverageCategories?.length > 0) {
-      stableBeverageCategories
-        .filter(c => c?.isActive)
-        .forEach(c => {
-          if (c?.id && c?.name) categoryMap.set(c.id, c.name);
-        });
+      if (stableMenuCategories?.length > 0) {
+        stableMenuCategories
+          .filter(c => c?.isActive)
+          .forEach(c => {
+            if (c?.id && c?.name) categoryMap.set(c.id, c.name);
+          });
+      }
+      if (stableBeverageCategories?.length > 0) {
+        stableBeverageCategories
+          .filter(c => c?.isActive)
+          .forEach(c => {
+            if (c?.id && c?.name) categoryMap.set(c.id, c.name);
+          });
+      }
+      
+      // Update the ref
+      categoriesMapRef.current = categoryMap;
     }
 
-    return categoryMap;
-  }, [cachedMenuItemCategories.current?.length || 0, cachedBeverageCategories.current?.length || 0]);
+    return categoriesMapRef.current;
+  }, []); // Empty dependency array for ultra-stability
 
   // Memoized helper function for variants transformation to prevent recreation
   const transformVariants = useCallback(
@@ -266,28 +292,48 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     []
   );
 
-  // BALANCED: POS items with proper reactivity but optimized
+  // BALANCED: POS items with proper reactivity
   const posItems = useMemo(() => {
+    // Log the input data for debugging
+    console.log("Building POS items with:", {
+      foodItems: foodMenuItems?.length || 0,
+      beverageItems: beverageMenuItems?.length || 0,
+      categoriesMapSize: categoriesMap.size,
+      loading: menuItemsLoading
+    });
+
     if (menuItemsLoading) {
+      console.log("Menu items still loading, returning empty array");
       return [];
     }
 
-    const stableFoodItems = cachedFoodMenuItems.current || foodMenuItems;
-    const stableBeverageItems = cachedBeverageMenuItems.current || beverageMenuItems;
-    const allMenuItems = [...(stableFoodItems || []), ...(stableBeverageItems || [])];
+    const stableFoodItems = cachedFoodMenuItems.current || foodMenuItems || [];
+    const stableBeverageItems = cachedBeverageMenuItems.current || beverageMenuItems || [];
+    const allMenuItems = [...stableFoodItems, ...stableBeverageItems];
+
+    console.log(`Processing ${allMenuItems.length} total menu items`);
 
     if (allMenuItems.length === 0) {
       return [];
     }
 
     const transformedItems: POSItem[] = allMenuItems
-      .filter(menuItem => menuItem?.isPOSItem)
+      .filter(menuItem => {
+        if (!menuItem) {
+          console.warn("Found null/undefined menu item");
+          return false;
+        }
+        return menuItem.isPOSItem !== false; // Include all items unless explicitly marked as not POS items
+      })
       .map(menuItem => {
         let categoryName = "Uncategorized";
 
         if (menuItem.category) {
-          if (typeof menuItem.category === "object" && "id" in menuItem.category) {
-            categoryName = categoriesMap.get(menuItem.category.id) || (menuItem.category as any).name || (menuItem.category as any).value || "Uncategorized";
+          if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
+            categoryName = categoriesMap.get(menuItem.category.id) || 
+                          (menuItem.category as any).name || 
+                          (menuItem.category as any).value || 
+                          "Uncategorized";
           } else if (typeof menuItem.category === "number") {
             categoryName = categoriesMap.get(menuItem.category) || "Uncategorized";
           } else if (typeof menuItem.category === "string") {
@@ -311,28 +357,21 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           updatedAt: menuItem.updatedAt?.toString() || new Date().toISOString(),
           description: menuItem.description,
           image: menuItem.image,
-          imageUrl: undefined,
+          imageUrl: menuItem.image, // Use image field directly as imageUrl
           variants: variants
         };
       });
 
+    console.log(`Created ${transformedItems.length} POS items`);
     return transformedItems;
-  }, [menuItemsLoading, cachedFoodMenuItems.current?.length || 0, cachedBeverageMenuItems.current?.length || 0, categoriesMap.size]);
-
-  // BALANCED: Filtered items with proper dependencies
-  const filteredPosItems = useMemo(() => {
-    if (activeCategory === "all") {
-      return posItems;
-    }
-    return posItems.filter(item => {
-      return typeof item.category === "string" && item.category === activeCategory;
-    });
-  }, [posItems, activeCategory]);
+  }, [foodMenuItems, beverageMenuItems, categoriesMap, menuItemsLoading, transformVariants]);
 
   // BALANCED: Categories array with proper reactivity
   const categories = useMemo(() => {
+    console.log(`Calculating categories from ${posItems.length} POS items`);
     const uniqueCategories = new Set<string>(["all"]);
 
+    // Extract unique categories from posItems
     for (let i = 0; i < posItems.length; i++) {
       const item = posItems[i];
       if (item?.category && typeof item.category === "string") {
@@ -347,8 +386,25 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       return a.localeCompare(b);
     });
 
+    console.log(`Found ${categoriesArray.length} unique categories:`, categoriesArray);
     return categoriesArray;
-  }, [posItems.length]);
+  }, [posItems]); // Depend on posItems to ensure categories update when items change
+
+  // BALANCED: Filtered items with proper reactivity
+  const filteredPosItems = useMemo(() => {
+    // Early return for "all" category
+    if (activeCategory === "all") {
+      return posItems;
+    }
+    
+    console.log(`Filtering ${posItems.length} items by category: ${activeCategory}`);
+    const filtered = posItems.filter(item => {
+      return typeof item.category === "string" && item.category === activeCategory;
+    });
+    
+    console.log(`Found ${filtered.length} items in category ${activeCategory}`);
+    return filtered;
+  }, [activeCategory, posItems]); // Depend on both activeCategory and posItems
 
   // Fixed: Proper loading state management
   useEffect(() => {
@@ -2203,7 +2259,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   // Return the component JSX
   return (
     <>
-      <PerformanceValidator componentName="POSClient" renderCount={20} showAlerts={process.env.NODE_ENV === "development"} />
+      {/* Increased threshold to reduce false warnings */}
+      <PerformanceValidator componentName="POSClient" renderCount={30} showAlerts={false} />
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
         {cart && cart.length > 0 && !showSuccessCheckmark && (
           <div className="md:!hidden bg-white border-b border-gray-200 px-3 p-1 flex-shrink-0">

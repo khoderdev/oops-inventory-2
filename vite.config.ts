@@ -19,7 +19,10 @@ export default defineConfig({
             console.error('Proxy error:', err);
           });
           proxy.on('proxyReq', (proxyReq) => {
-            console.debug('Proxying:', proxyReq.method, proxyReq.path);
+            // Only log in development and with debug flag
+            if (process.env.DEBUG) {
+              console.debug('Proxying:', proxyReq.method, proxyReq.path);
+            }
           });
         }
       }
@@ -33,6 +36,46 @@ export default defineConfig({
     }
   },
   build: {
-    sourcemap: true
-  }
+    // Generate sourcemaps only in development
+    sourcemap: process.env.NODE_ENV !== 'production',
+    // Optimize chunk size
+    chunkSizeWarningLimit: 1000,
+    // Enable aggressive code splitting
+    rollupOptions: {
+      output: {
+        // Separate vendor chunks
+        manualChunks: {
+          // Split React into a separate chunk
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          // Split UI components into a separate chunk
+          'ui-components': [
+            '@/components/ui/alert',
+            '@/components/ui/button',
+            '@/components/ui/dialog',
+            '@/components/ui/input',
+            '@/components/ui/select',
+            '@/components/ui/table',
+          ],
+          // Split Redux into a separate chunk
+          'redux-vendor': ['react-redux', '@reduxjs/toolkit'],
+        },
+        // Optimize chunk naming for better caching
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+      },
+    },
+    // Minify output
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: process.env.NODE_ENV === 'production',
+        drop_debugger: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
+  // Optimize dependencies pre-bundling
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', '@reduxjs/toolkit', 'react-redux'],
+  },
 });
