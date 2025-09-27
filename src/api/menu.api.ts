@@ -194,9 +194,26 @@ export const menuAPI = {
       isActive: isActive.toString(),
       _t: Date.now().toString()
     });
-    // console.log('🍹 Fetching beverage menu items with params:', Object.fromEntries(params));
-    const response = await api.get<MenuItem[]>(`/menu-items/type/beverage?${params.toString()}`);
-    return response.data;
+    console.log('🍹 Fetching beverage menu items with params:', Object.fromEntries(params));
+    try {
+      const response = await api.get<MenuItem[]>(`/menu-items/type/beverage?${params.toString()}`);
+      console.log(`✅ Received ${response.data?.length || 0} beverage menu items`);
+      
+      // Log first item for debugging
+      if (response.data?.length > 0) {
+        console.log('🍹 First beverage item sample:', {
+          id: response.data[0].id,
+          name: response.data[0].name,
+          isPOSItem: response.data[0].isPOSItem,
+          image: response.data[0].image ? 'has image' : 'no image'
+        });
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching beverage menu items:', error);
+      throw error;
+    }
   },
   
   // Get food menu items
@@ -205,8 +222,25 @@ export const menuAPI = {
       isActive: isActive.toString(),
       _t: Date.now().toString()
     });
-    // console.log('🍔 Fetching food menu items with params:', Object.fromEntries(params));
-    const response = await api.get<MenuItem[]>(`/menu-items/type/food?${params.toString()}`);
-    return response.data;
+    console.log('🍔 Fetching food menu items with params:', Object.fromEntries(params));
+    try {
+      const response = await api.get<MenuItem[]>(`/menu-items/type/food?${params.toString()}`);
+      console.log(`✅ Received ${response.data?.length || 0} food menu items`);
+      
+      // Log first item for debugging
+      if (response.data?.length > 0) {
+        console.log('🍔 First food item sample:', {
+          id: response.data[0].id,
+          name: response.data[0].name,
+          isPOSItem: response.data[0].isPOSItem,
+          image: response.data[0].image ? 'has image' : 'no image'
+        });
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching food menu items:', error);
+      throw error;
+    }
   }
 };

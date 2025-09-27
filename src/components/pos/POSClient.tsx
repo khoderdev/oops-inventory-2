@@ -357,7 +357,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           updatedAt: menuItem.updatedAt?.toString() || new Date().toISOString(),
           description: menuItem.description,
           image: menuItem.image,
-          imageUrl: menuItem.image, // Use image field directly as imageUrl
+          // Generate proper image URL if image path exists
+          imageUrl: menuItem.image ? `/uploads/${menuItem.image}` : undefined,
           variants: variants
         };
       });
@@ -405,6 +406,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     console.log(`Found ${filtered.length} items in category ${activeCategory}`);
     return filtered;
   }, [activeCategory, posItems]); // Depend on both activeCategory and posItems
+
+  // Ensure menu items are loaded
+  useEffect(() => {
+    // Force fetch menu items if they're not already loaded
+    if (!foodMenuItems || foodMenuItems.length === 0 || !beverageMenuItems || beverageMenuItems.length === 0) {
+      console.log('🔄 Forcing menu items fetch');
+      fetchMenuItems();
+    } else {
+      console.log(`✅ Menu items already loaded: ${foodMenuItems.length} food items, ${beverageMenuItems.length} beverage items`);
+    }
+  }, [fetchMenuItems, foodMenuItems, beverageMenuItems]);
 
   // Fixed: Proper loading state management
   useEffect(() => {
@@ -2130,6 +2142,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       if (process.env.NODE_ENV === "development" && renderCount.current > 15) {
         console.warn("⚠️ handleAddToCart called during high render count:", renderCount.current);
       }
+      console.log("🛒 Adding to cart:", posItem.name);
       addToCart(posItem);
     },
     [addToCart]

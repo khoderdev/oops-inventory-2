@@ -39,31 +39,38 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
   // Fetch menu items function (supports explicit mode)
   const fetchMenuItems = useCallback(
     async (mode?: 'food' | 'beverages' | 'both') => {
+      console.log(`🔍 Fetching menu items (mode: ${mode || 'default'})`);
       try {
         setMenuItemsLoading(true);
         setMenuItemsError(null);
 
         if (mode === 'both') {
+          console.log('🔍 Fetching both food and beverage items');
           const [foodItems, beverageItems] = await Promise.all([
             menuAPI.getFoodMenuItems(true),
             menuAPI.getBeverageMenuItems(true)
           ]);
+          console.log(`✅ Fetched ${foodItems.length} food items and ${beverageItems.length} beverage items`);
           setFoodMenuItems(foodItems);
           setBeverageMenuItems(beverageItems);
           return;
         }
 
         // Always fetch food menu items (backward compatible default)
+        console.log('🔍 Fetching food menu items');
         const foodItems = await menuAPI.getFoodMenuItems(true);
+        console.log(`✅ Fetched ${foodItems.length} food items`);
         setFoodMenuItems(foodItems);
 
         // Fetch beverages explicitly or when activeTab is beverages (legacy behavior)
         if (mode === 'beverages' || (!mode && activeTab === 'beverages')) {
+          console.log('🔍 Fetching beverage menu items');
           const beverageItems = await menuAPI.getBeverageMenuItems(true);
+          console.log(`✅ Fetched ${beverageItems.length} beverage items`);
           setBeverageMenuItems(beverageItems);
         }
       } catch (error) {
-        console.error("Failed to fetch menu items:", error);
+        console.error("❌ Failed to fetch menu items:", error);
         setMenuItemsError("Failed to load menu items");
       } finally {
         setMenuItemsLoading(false);
@@ -128,9 +135,13 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
     }
   }, []);
   useEffect(() => {
-    fetchMenuItems();
+    // Always fetch both food and beverage items on initial load
+    fetchMenuItems('both');
     fetchCategories();
     fetchMaterials();
+    
+    // Log for debugging
+    console.log('🍽️ MenuItemsContext: Initial data fetch started');
   }, [fetchCategories, fetchMenuItems, fetchMaterials]);
   const handleCreateMenuItem = useCallback(
     async (menuItem: any, imageFile?: File) => {

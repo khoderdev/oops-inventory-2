@@ -38,6 +38,11 @@ const itemsGridPropsAreEqual = (prevProps: ProductGridProps, nextProps: ProductG
 };
 
 export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems, onAddToCart, rightPanelPixelWidth = 0, isLoading = false }) => {
+  // Debug logging to verify data
+  console.log(`🧩 ItemsGrid received ${posItems?.length || 0} items, loading: ${isLoading}`);
+  if (posItems?.length > 0) {
+    console.log('🧩 First item sample:', posItems[0]);
+  }
   // Wrap onAddToCart in useCallback to maintain stable reference
   const stableOnAddToCart = useCallback(
     (item: POSItem) => {
@@ -202,7 +207,15 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems, onA
           <div className="relative flex-1 group">
             {item.imageUrl ? (
               <div className="relative w-full h-full">
-                <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" onError={e => handleImageError(e, item.type)} />
+                <img 
+                  src={item.imageUrl} 
+                  alt={item.name} 
+                  className="w-full h-full object-cover" 
+                  onError={e => {
+                    console.log(`📷 Image error for ${item.name}:`, item.imageUrl);
+                    handleImageError(e, item.type);
+                  }} 
+                />
               </div>
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
@@ -295,18 +308,28 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems, onA
     );
   }
 
-  if (posItems.length === 0 && !isLoading) {
+  if (!posItems || posItems.length === 0) {
+    // Different message based on loading state
     return (
       <div className="flex-1 p-3 overflow-y-auto safe-area-padding">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">You don't have any menu items yet</h3>
-            <p className="text-gray-600 mb-6">Start by adding menu items to your inventory</p>
-            <Button onClick={() => navigate("/menu")} className="bg-primary hover:bg-primary/90 text-white">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Menu Items
-            </Button>
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading menu items...</p>
+              </>
+            ) : (
+              <>
+                <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No menu items available</h3>
+                <p className="text-gray-600 mb-6">Check if items are marked as POS items in your inventory</p>
+                <Button onClick={() => navigate("/menu")} className="bg-primary hover:bg-primary/90 text-white">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Manage Menu Items
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
