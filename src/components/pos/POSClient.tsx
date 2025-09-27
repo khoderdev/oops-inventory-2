@@ -75,41 +75,70 @@ import { PerformanceMonitor } from "./PerformanceMonitor";
 import PerformanceValidator from "./PerformanceValidator";
 
 const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
-  // Redux
+  // Redux - Ultra-aggressive optimization with individual selectors
   const dispatch = useAppDispatch();
-  const {
-    cart,
-    orderType,
-    selectedTable,
-    selectedEmployee,
-    currentOrder,
-    hasUnsavedChanges,
-    isPaymentCompleted,
-    isLoading,
-    error,
-    successMessage,
-    showSuccessCheckmark,
-    showPaymentDialog,
-    showReceiptDialog,
-    showTablesLayout,
-    showDiscountDialog,
-    showNotesDialog,
-    showItemNotesDialog,
-    showVoidDialog,
-    showOrdersDialog,
-    showReportsDialog,
-    showPrinterSelector,
-    selectedItemForNotes,
-    orderNotes,
-    appliedDiscount,
-    lastSaleData,
-    isTableManuallySelected,
-    isPOSActionInProgress,
-    selectedSaleForEdit,
-    editingSaleId
-  } = useAppSelector(state => state.pos);
+  
+  // Split into individual selectors to minimize re-renders
+  const cart = useAppSelector(state => state.pos.cart, (left, right) => left.length === right.length && left === right);
+  const orderType = useAppSelector(state => state.pos.orderType);
+  const selectedTable = useAppSelector(state => state.pos.selectedTable);
+  const selectedEmployee = useAppSelector(state => state.pos.selectedEmployee);
+  const currentOrder = useAppSelector(state => state.pos.currentOrder);
+  const hasUnsavedChanges = useAppSelector(state => state.pos.hasUnsavedChanges);
+  const isPaymentCompleted = useAppSelector(state => state.pos.isPaymentCompleted);
+  const isLoading = useAppSelector(state => state.pos.isLoading);
+  const error = useAppSelector(state => state.pos.error);
+  const successMessage = useAppSelector(state => state.pos.successMessage);
+  const showSuccessCheckmark = useAppSelector(state => state.pos.showSuccessCheckmark);
+  const showPaymentDialog = useAppSelector(state => state.pos.showPaymentDialog);
+  const showReceiptDialog = useAppSelector(state => state.pos.showReceiptDialog);
+  const showTablesLayout = useAppSelector(state => state.pos.showTablesLayout);
+  const showDiscountDialog = useAppSelector(state => state.pos.showDiscountDialog);
+  const showNotesDialog = useAppSelector(state => state.pos.showNotesDialog);
+  const showItemNotesDialog = useAppSelector(state => state.pos.showItemNotesDialog);
+  const showVoidDialog = useAppSelector(state => state.pos.showVoidDialog);
+  const showOrdersDialog = useAppSelector(state => state.pos.showOrdersDialog);
+  const showReportsDialog = useAppSelector(state => state.pos.showReportsDialog);
+  const showPrinterSelector = useAppSelector(state => state.pos.showPrinterSelector);
+  const selectedItemForNotes = useAppSelector(state => state.pos.selectedItemForNotes);
+  const orderNotes = useAppSelector(state => state.pos.orderNotes);
+  const appliedDiscount = useAppSelector(state => state.pos.appliedDiscount);
+  const lastSaleData = useAppSelector(state => state.pos.lastSaleData);
+  const isTableManuallySelected = useAppSelector(state => state.pos.isTableManuallySelected);
+  const isPOSActionInProgress = useAppSelector(state => state.pos.isPOSActionInProgress);
+  const selectedSaleForEdit = useAppSelector(state => state.pos.selectedSaleForEdit);
+  const editingSaleId = useAppSelector(state => state.pos.editingSaleId);
 
   const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems } = useMenuItems();
+  
+  // Cache menu items to prevent unnecessary recalculations
+  const cachedFoodMenuItems = useRef(foodMenuItems);
+  const cachedBeverageMenuItems = useRef(beverageMenuItems);
+  const cachedMenuItemCategories = useRef(menuItemCategories);
+  const cachedBeverageCategories = useRef(beverageCategories);
+  
+  // Fixed: Update cache when data actually changes (but prevent frequent updates)
+  const lastUpdateRef = useRef(0);
+  
+  useEffect(() => {
+    const now = Date.now();
+    // Throttle updates to max once per second
+    if (now - lastUpdateRef.current > 1000) {
+      if (foodMenuItems && foodMenuItems !== cachedFoodMenuItems.current) {
+        cachedFoodMenuItems.current = foodMenuItems;
+      }
+      if (beverageMenuItems && beverageMenuItems !== cachedBeverageMenuItems.current) {
+        cachedBeverageMenuItems.current = beverageMenuItems;
+      }
+      if (menuItemCategories && menuItemCategories !== cachedMenuItemCategories.current) {
+        cachedMenuItemCategories.current = menuItemCategories;
+      }
+      if (beverageCategories && beverageCategories !== cachedBeverageCategories.current) {
+        cachedBeverageCategories.current = beverageCategories;
+      }
+      lastUpdateRef.current = now;
+    }
+  }, [foodMenuItems, beverageMenuItems, menuItemCategories, beverageCategories]);
   const [searchTerm] = React.useState("");
   const [menuItems, setMenuItems] = React.useState<MenuItem[]>([]);
   const [stockEntries, setStockEntries] = React.useState<StockEntryWithMaterial[]>([]);
@@ -125,9 +154,19 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [paymentAmount, setPaymentAmount] = React.useState<string>("");
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
 
-  // Minimal performance tracking
+  // Balanced performance tracking
   if (process.env.NODE_ENV === "development") {
     renderCount.current += 1;
+    
+    // Log every 10th render to monitor performance
+    if (renderCount.current % 10 === 0) {
+      console.log(`🔄 POSClient render #${renderCount.current}`);
+    }
+    
+    // Alert at 20 renders
+    if (renderCount.current === 20) {
+      console.warn(`⚠️ POSClient: ${renderCount.current} renders - monitoring performance`);
+    }
   }
 
   // Stable callback references to prevent unnecessary re-renders
@@ -149,20 +188,21 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [printerSelectionContext, setPrinterSelectionContext] = React.useState<"payment" | "manual_print" | null>(null);
   const [activeView, setActiveView] = React.useState<"cart" | "products">("products");
 
-  // Build categories map from context categories with ultra-stable memoization
+  // Fixed: Build categories map with proper reactivity but stable dependencies
   const categoriesMap = useMemo(() => {
     const categoryMap = new Map<number, string>();
+    const stableMenuCategories = cachedMenuItemCategories.current || menuItemCategories;
+    const stableBeverageCategories = cachedBeverageCategories.current || beverageCategories;
 
-    // Only process if we have actual categories data
-    if (menuItemCategories?.length > 0) {
-      menuItemCategories
+    if (stableMenuCategories?.length > 0) {
+      stableMenuCategories
         .filter(c => c?.isActive)
         .forEach(c => {
           if (c?.id && c?.name) categoryMap.set(c.id, c.name);
         });
     }
-    if (beverageCategories?.length > 0) {
-      beverageCategories
+    if (stableBeverageCategories?.length > 0) {
+      stableBeverageCategories
         .filter(c => c?.isActive)
         .forEach(c => {
           if (c?.id && c?.name) categoryMap.set(c.id, c.name);
@@ -171,8 +211,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
     return categoryMap;
   }, [
-    menuItemCategories,
-    beverageCategories
+    cachedMenuItemCategories.current?.length || 0,
+    cachedBeverageCategories.current?.length || 0
   ]);
 
   // Memoized helper function for variants transformation to prevent recreation
@@ -214,15 +254,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     []
   );
 
-  // Memoized POS items with ultra-optimized dependencies to prevent cascade re-renders
+  // Fixed: POS items with proper reactivity but optimized dependencies
   const posItems = useMemo(() => {
-    // Early return for loading state without side effects
+    // Early return for loading state
     if (menuItemsLoading) {
       return [];
     }
 
-    // Only proceed if we have menu items and categories are ready
-    const allMenuItems = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+    const stableFoodItems = cachedFoodMenuItems.current || foodMenuItems;
+    const stableBeverageItems = cachedBeverageMenuItems.current || beverageMenuItems;
+    const allMenuItems = [...(stableFoodItems || []), ...(stableBeverageItems || [])];
+    
     if (allMenuItems.length === 0) {
       return [];
     }
@@ -230,7 +272,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     const transformedItems: POSItem[] = allMenuItems
       .filter(menuItem => menuItem?.isPOSItem)
       .map(menuItem => {
-        // Handle category transformation with fallbacks
         let categoryName = "Uncategorized";
 
         if (menuItem.category) {
@@ -243,7 +284,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           }
         }
 
-        // Transform variants if they exist
         const variants = menuItem.variants ? transformVariants(menuItem.variants) : undefined;
 
         return {
@@ -267,79 +307,60 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
     return transformedItems;
   }, [
-    foodMenuItems,
-    beverageMenuItems,
-    categoriesMap,
-    transformVariants
+    menuItemsLoading,
+    cachedFoodMenuItems.current?.length || 0,
+    cachedBeverageMenuItems.current?.length || 0,
+    categoriesMap.size
   ]);
 
-  // Filter posItems based on activeCategory with ultra-stable reference
+  // Fixed: Filtered items with proper dependencies
   const filteredPosItems = useMemo(() => {
-    // Early return for "all" category to prevent unnecessary filtering
     if (activeCategory === "all") {
       return posItems;
     }
-
     return posItems.filter(item => {
       if (typeof item.category === "string") {
         return item.category === activeCategory;
-      } else if (typeof item.category === "object" && item.category?.name) {
-        return item.category.name === activeCategory;
-      } else if (typeof item.category === "number") {
-        // Find category by ID and compare names
-        const categoryObj = categoriesMap.get(item.category);
-        return categoryObj === activeCategory;
       }
       return false;
     });
-  }, [posItems, activeCategory, categoriesMap]);
+  }, [posItems, activeCategory]);
 
-  // Create categories array from posItems with ultra-stable reference
+  // Fixed: Categories array with proper reactivity
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>(["all"]);
-
-    // Use for-loop for better performance than forEach
+    
     for (let i = 0; i < posItems.length; i++) {
       const item = posItems[i];
-      if (!item?.category) continue;
-
-      if (typeof item.category === "string") {
+      if (item?.category && typeof item.category === "string") {
         uniqueCategories.add(item.category);
-      } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
-        // Handle Category object format
-        uniqueCategories.add(item.category.name);
-      } else if (typeof item.category === "number") {
-        // Handle category ID format - use the categoriesMap to get the name
-        const categoryName = categoriesMap.get(item.category);
-        if (categoryName) {
-          uniqueCategories.add(categoryName);
-        }
       }
     }
-
-    // Convert to sorted array with consistent ordering
+    
     const categoriesArray = Array.from(uniqueCategories);
     categoriesArray.sort((a, b) => {
       if (a === "all") return -1;
       if (b === "all") return 1;
       return a.localeCompare(b);
     });
-
+    
     return categoriesArray;
-  }, [posItems, categoriesMap]);
+  }, [posItems.length]);
 
-  // Manage loading state with minimal dependencies to prevent render loops
+  // Fixed: Proper loading state management
   useEffect(() => {
     if (menuItemsLoading) {
       setIsItemsGridLoading(true);
     } else {
-      // Use a small delay to ensure smooth transition without blocking
+      // Small delay for smooth transition
       const timer = setTimeout(() => {
         setIsItemsGridLoading(false);
-      }, 50);
+      }, 100);
       return () => clearTimeout(timer);
     }
-  }, [menuItemsLoading]); // Only depend on loading state, not data
+  }, [menuItemsLoading]);
+  
+  // EMERGENCY: Remove stablePosItems completely - use posItems directly
 
   // Refs
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -379,11 +400,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     [dispatch]
   );
 
-  // Keep local menuItems in sync with context for legacy lookups in this component
-  useEffect(() => {
-    const combined = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
-    setMenuItems(combined);
-  }, [foodMenuItems, beverageMenuItems]);
+  // EMERGENCY: Remove menuItems sync useEffect to prevent re-renders
+  // Use cached items directly when needed
 
   // Calculate derived values
   const subtotal = (cart || []).filter(Boolean).reduce((sum, item) => {
@@ -397,10 +415,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
   const total = Math.max(0, subtotal - discountAmountCalculated);
 
-  // Create a stable cart for rendering with minimal dependencies
-  const stableCart = useMemo(() => {
-    return cart.length > 0 ? [...cart] : [];
-  }, [cart]);
+  // EMERGENCY: Remove stableCart memoization - use cart directly
+  const stableCart = cart;
 
   // Fetch tables data
   const fetchTablesData = useCallback(async () => {
