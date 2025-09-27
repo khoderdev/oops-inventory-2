@@ -71,8 +71,9 @@ import {
   setSelectedTable as setSelectedTableAction,
   applyDiscount as applyDiscountAction
 } from "@/store/slices/posSlice";
+import { PerformanceMonitor } from "./PerformanceMonitor";
 
-export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
+const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   // Redux
   const dispatch = useAppDispatch();
   const {
@@ -107,15 +108,50 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     editingSaleId
   } = useAppSelector(state => state.pos);
 
-  // Context and local state
   const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems } = useMenuItems();
   const [searchTerm] = React.useState("");
   const [menuItems, setMenuItems] = React.useState<MenuItem[]>([]);
   const [stockEntries, setStockEntries] = React.useState<StockEntryWithMaterial[]>([]);
-  // Removed posItems state - now using useMemo instead
-  // Removed categoriesMap state - now using useMemo instead
   const [isItemsGridStable, setIsItemsGridStable] = React.useState(false);
   const [isItemsGridLoading, setIsItemsGridLoading] = React.useState(true);
+  const renderCount = useRef(0);
+  const prevPropsRef = useRef<any>({});
+  
+  if (process.env.NODE_ENV === 'development') {
+    renderCount.current += 1;
+    
+    // Only log every 10th render to reduce console spam
+    if (renderCount.current % 10 === 1 || renderCount.current <= 5) {
+      console.log(`🔄 POSClient render #${renderCount.current}`);
+    }
+    
+    // Simplified props tracking to prevent performance impact
+    const currentProps = { 
+      menuItemsLoading,
+      foodMenuItemsLength: foodMenuItems?.length || 0,
+      beverageMenuItemsLength: beverageMenuItems?.length || 0,
+      menuItemCategoriesLength: menuItemCategories?.length || 0,
+      beverageCategoriesLength: beverageCategories?.length || 0
+    };
+    
+    // Only check for changes on significant renders
+    if (renderCount.current > 1 && renderCount.current <= 50) {
+      const prev = prevPropsRef.current;
+      const changed = Object.keys(currentProps).filter(key => 
+        prev[key] !== currentProps[key]
+      );
+      if (changed.length > 0 && renderCount.current % 5 === 0) {
+        console.log('🔍 Props/State changed:', changed, {
+          prev: changed.reduce((acc, key) => ({ ...acc, [key]: prev[key] }), {}),
+          current: changed.reduce((acc, key) => ({ ...acc, [key]: currentProps[key] }), {})
+        });
+      }
+    }
+    
+    prevPropsRef.current = currentProps;
+  }
+
+  // Loading state will be managed after posItems is defined
   const [optimisticAssignments, setOptimisticAssignments] = React.useState<SectionAssignment[]>(sectionAssignments);
   const [negativeStockWarnings] = React.useState<NegativeStockWarning[]>([]);
   const [showNegativeStockDialog, setShowNegativeStockDialog] = React.useState(false);
@@ -142,21 +178,35 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [activeView, setActiveView] = React.useState<"cart" | "products">("products");
 
 
-    // Build categories map from context categories with memoization
-    const categoriesMap = useMemo(() => {
-      const categoryMap = new Map<number, string>();
-      if (menuItemCategories && menuItemCategories.length > 0) {
-        menuItemCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
-      }
-      if (beverageCategories && beverageCategories.length > 0) {
-        beverageCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
-      }
-      return categoryMap;
-    }, [menuItemCategories, beverageCategories]);
-
+  // Build categories map from context categories with ultra-stable memoization
+  const categoriesMap = useMemo(() => {
+    const categoryMap = new Map<number, string>();
     
-  // Helper function for variants transformation
-  const transformVariants = (
+    // Only process if we have actual categories data
+    if (menuItemCategories?.length > 0) {
+      menuItemCategories.filter(c => c?.isActive).forEach(c => {
+        if (c?.id && c?.name) categoryMap.set(c.id, c.name);
+      });
+    }
+    if (beverageCategories?.length > 0) {
+      beverageCategories.filter(c => c?.isActive).forEach(c => {
+        if (c?.id && c?.name) categoryMap.set(c.id, c.name);
+      });
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🗺️ categoriesMap rebuilt with', categoryMap.size, 'categories');
+    }
+    
+    return categoryMap;
+  }, [
+    menuItemCategories?.length,
+    beverageCategories?.length
+    // Removed JSON.stringify for better performance - using length is sufficient
+  ]);
+
+  // Memoized helper function for variants transformation to prevent recreation
+  const transformVariants = useCallback((
     variants: any
   ): Array<{
     id: string | number;
@@ -189,110 +239,140 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     }
 
     return [];
-  };
+  }, []);
   
-    // Memoized POS items to prevent unnecessary re-renders during POS operations
-    const posItems = useMemo(() => {
-      if (menuItemsLoading) {
-        setIsItemsGridLoading(true);
-        return [];
-      }
-  
-      // Only proceed if we have menu items
-      const allMenuItems = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
-      if (allMenuItems.length === 0) {
-        setIsItemsGridLoading(false);
-        return [];
-      }
-  
-      const transformedItems: POSItem[] = allMenuItems
-        .filter(menuItem => menuItem?.isPOSItem)
-        .map(menuItem => {
-          // Handle category transformation with fallbacks
-          let categoryName = "Uncategorized";
-  
-          if (menuItem.category) {
-            if (typeof menuItem.category === "object" && "id" in menuItem.category) {
-              categoryName = categoriesMap.get(menuItem.category.id) || (menuItem.category as any).name || (menuItem.category as any).value || "Uncategorized";
-            } else if (typeof menuItem.category === "number") {
-              categoryName = categoriesMap.get(menuItem.category) || "Uncategorized";
-            } else if (typeof menuItem.category === "string") {
-              categoryName = menuItem.category;
-            }
-          }
-  
-          // Transform variants if they exist
-          const variants = menuItem.variants ? transformVariants(menuItem.variants) : undefined;
-  
-          return {
-            id: `menu-${menuItem.id}`,
-            name: menuItem.name,
-            price: typeof menuItem.price === "number" && !isNaN(menuItem.price) ? menuItem.price : 0,
-            category: categoryName,
-            type: "menu_item",
-            menuItemId: menuItem.id,
-            unit: menuItem.unit || "unit",
-            availableQuantity: menuItem.availableQuantity || 0,
-            costPerUnit: menuItem.costPerUnit || 0,
-            createdAt: menuItem.createdAt?.toString() || new Date().toISOString(),
-            updatedAt: menuItem.updatedAt?.toString() || new Date().toISOString(),
-            description: menuItem.description,
-            image: menuItem.image,
-            imageUrl: undefined,
-            variants: variants
-          };
-        });
-  
-      // Update loading state when items are ready
-      if (isItemsGridLoading) {
-        setTimeout(() => setIsItemsGridLoading(false), 0);
-      }
-  
-      return transformedItems;
-    }, [foodMenuItems, beverageMenuItems, categoriesMap, menuItemsLoading, isItemsGridLoading]);
-  
+  // Memoized POS items with ultra-optimized dependencies to prevent cascade re-renders
+  const posItems = useMemo(() => {
+    if (process.env.NODE_ENV === 'development' && renderCount.current <= 5) {
+      console.log('🔄 posItems recalculating... Categories map size:', categoriesMap.size);
+    }
+    
+    // Early return for loading state without side effects
+    if (menuItemsLoading) {
+      return [];
+    }
 
-  // Filter posItems based on activeCategory with stable reference
-  const filteredPosItems = useMemo(() => {
-    return activeCategory === "all"
-      ? posItems
-      : posItems.filter(item => {
-          if (typeof item.category === "string") {
-            return item.category === activeCategory;
-          } else if (typeof item.category === "object" && item.category?.name) {
-            return item.category.name === activeCategory;
-          } else if (typeof item.category === "number") {
-            // Find category by ID and compare names
-            const categoryObj = categoriesMap.get(item.category);
-            return categoryObj === activeCategory;
-          }
-          return false;
-        });
-  }, [posItems, activeCategory, categoriesMap]);
+    // Only proceed if we have menu items and categories are ready
+    const allMenuItems = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+    if (allMenuItems.length === 0) {
+      return [];
+    }
 
-  // Create categories array from posItems with stable reference
-  const categories = useMemo(() => {
-    const uniqueCategories = new Set<string>();
-    uniqueCategories.add("all");
-    posItems.forEach(item => {
-      if (item.category) {
-        if (typeof item.category === "string") {
-          uniqueCategories.add(item.category);
-        } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
-          // Handle Category object format
-          uniqueCategories.add(item.category.name);
-        } else if (typeof item.category === "number") {
-          // Handle category ID format - use the categoriesMap to get the name
-          const categoryName = categoriesMap.get(item.category);
-          if (categoryName) {
-            uniqueCategories.add(categoryName);
+    const transformedItems: POSItem[] = allMenuItems
+      .filter(menuItem => menuItem?.isPOSItem)
+      .map(menuItem => {
+        // Handle category transformation with fallbacks
+        let categoryName = "Uncategorized";
+
+        if (menuItem.category) {
+          if (typeof menuItem.category === "object" && "id" in menuItem.category) {
+            categoryName = categoriesMap.get(menuItem.category.id) || (menuItem.category as any).name || (menuItem.category as any).value || "Uncategorized";
+          } else if (typeof menuItem.category === "number") {
+            categoryName = categoriesMap.get(menuItem.category) || "Uncategorized";
+          } else if (typeof menuItem.category === "string") {
+            categoryName = menuItem.category;
           }
         }
-      }
-    });
 
-    return Array.from(uniqueCategories);
-  }, [posItems, categoriesMap]);
+        // Transform variants if they exist
+        const variants = menuItem.variants ? transformVariants(menuItem.variants) : undefined;
+
+        return {
+          id: `menu-${menuItem.id}`,
+          name: menuItem.name,
+          price: typeof menuItem.price === "number" && !isNaN(menuItem.price) ? menuItem.price : 0,
+          category: categoryName,
+          type: "menu_item",
+          menuItemId: menuItem.id,
+          unit: menuItem.unit || "unit",
+          availableQuantity: menuItem.availableQuantity || 0,
+          costPerUnit: menuItem.costPerUnit || 0,
+          createdAt: menuItem.createdAt?.toString() || new Date().toISOString(),
+          updatedAt: menuItem.updatedAt?.toString() || new Date().toISOString(),
+          description: menuItem.description,
+          image: menuItem.image,
+          imageUrl: undefined,
+          variants: variants
+        };
+      });
+
+    return transformedItems;
+  }, [
+    foodMenuItems?.length,
+    beverageMenuItems?.length,
+    categoriesMap.size, // Use size instead of the map itself for stability
+    transformVariants
+    // Removed JSON.stringify for performance - length comparison is sufficient for stability
+  ]); // Ultra-optimized dependencies for maximum performance
+  
+
+  // Filter posItems based on activeCategory with ultra-stable reference
+  const filteredPosItems = useMemo(() => {
+    // Early return for "all" category to prevent unnecessary filtering
+    if (activeCategory === "all") {
+      return posItems;
+    }
+    
+    return posItems.filter(item => {
+      if (typeof item.category === "string") {
+        return item.category === activeCategory;
+      } else if (typeof item.category === "object" && item.category?.name) {
+        return item.category.name === activeCategory;
+      } else if (typeof item.category === "number") {
+        // Find category by ID and compare names
+        const categoryObj = categoriesMap.get(item.category);
+        return categoryObj === activeCategory;
+      }
+      return false;
+    });
+  }, [posItems.length, activeCategory, categoriesMap.size]); // Use length and size for stability
+
+  // Create categories array from posItems with ultra-stable reference
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set<string>(["all"]);
+    
+    // Use for-loop for better performance than forEach
+    for (let i = 0; i < posItems.length; i++) {
+      const item = posItems[i];
+      if (!item?.category) continue;
+      
+      if (typeof item.category === "string") {
+        uniqueCategories.add(item.category);
+      } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
+        // Handle Category object format
+        uniqueCategories.add(item.category.name);
+      } else if (typeof item.category === "number") {
+        // Handle category ID format - use the categoriesMap to get the name
+        const categoryName = categoriesMap.get(item.category);
+        if (categoryName) {
+          uniqueCategories.add(categoryName);
+        }
+      }
+    }
+
+    // Convert to sorted array with consistent ordering
+    const categoriesArray = Array.from(uniqueCategories);
+    categoriesArray.sort((a, b) => {
+      if (a === "all") return -1;
+      if (b === "all") return 1;
+      return a.localeCompare(b);
+    });
+    
+    return categoriesArray;
+  }, [posItems.length, categoriesMap.size]); // Use length and size for ultra-stability
+
+  // Manage loading state with minimal dependencies to prevent render loops
+  useEffect(() => {
+    if (menuItemsLoading) {
+      setIsItemsGridLoading(true);
+    } else {
+      // Use a small delay to ensure smooth transition without blocking
+      const timer = setTimeout(() => {
+        setIsItemsGridLoading(false);
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [menuItemsLoading]); // Only depend on loading state, not data
 
   // Refs
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -352,10 +432,10 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
   const total = Math.max(0, subtotal - discountAmountCalculated);
 
-  // Create a stable cart for rendering
+  // Create a stable cart for rendering with minimal dependencies
   const stableCart = useMemo(() => {
     return cart.length > 0 ? [...cart] : [];
-  }, [cart]);
+  }, [cart.length]); // Use only length for ultra-stability
 
   // Fetch tables data
   const fetchTablesData = useCallback(async () => {
@@ -2115,6 +2195,12 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   // Return the component JSX
   return (
     <>
+    <PerformanceMonitor
+      componentName="POSClient"
+      enabled={process.env.NODE_ENV === "development"}
+      maxRenders={20}
+      onExcessiveRenders={(count) => console.warn(`⚠️ Performance Warning: POSClient has rendered ${count} times`)}
+    />
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
         {cart && cart.length > 0 && !showSuccessCheckmark && (
           <div className="md:!hidden bg-white border-b border-gray-200 px-3 p-1 flex-shrink-0">
@@ -2569,3 +2655,15 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     </>
   );
 };
+
+export const POSClient = React.memo(POSClientComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.isDayOpen === nextProps.isDayOpen &&
+    prevProps.sectionAssignments === nextProps.sectionAssignments &&
+    prevProps.selectedOrderForPOS === nextProps.selectedOrderForPOS &&
+    prevProps.onSaleComplete === nextProps.onSaleComplete &&
+    prevProps.onOrderSelect === nextProps.onOrderSelect &&
+    prevProps.onOrderProcessed === nextProps.onOrderProcessed &&
+    prevProps.refreshCountsRef === nextProps.refreshCountsRef
+  );
+});
