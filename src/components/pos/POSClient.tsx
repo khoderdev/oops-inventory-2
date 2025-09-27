@@ -75,39 +75,89 @@ import { PerformanceMonitor } from "./PerformanceMonitor";
 import PerformanceValidator from "./PerformanceValidator";
 
 const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
-  // Redux - Ultra-aggressive optimization with individual selectors
+  // Redux - Optimized single selector with memoization
   const dispatch = useAppDispatch();
   
-  // Split into individual selectors to minimize re-renders
-  const cart = useAppSelector(state => state.pos.cart, (left, right) => left.length === right.length && left === right);
-  const orderType = useAppSelector(state => state.pos.orderType);
-  const selectedTable = useAppSelector(state => state.pos.selectedTable);
-  const selectedEmployee = useAppSelector(state => state.pos.selectedEmployee);
-  const currentOrder = useAppSelector(state => state.pos.currentOrder);
-  const hasUnsavedChanges = useAppSelector(state => state.pos.hasUnsavedChanges);
-  const isPaymentCompleted = useAppSelector(state => state.pos.isPaymentCompleted);
-  const isLoading = useAppSelector(state => state.pos.isLoading);
-  const error = useAppSelector(state => state.pos.error);
-  const successMessage = useAppSelector(state => state.pos.successMessage);
-  const showSuccessCheckmark = useAppSelector(state => state.pos.showSuccessCheckmark);
-  const showPaymentDialog = useAppSelector(state => state.pos.showPaymentDialog);
-  const showReceiptDialog = useAppSelector(state => state.pos.showReceiptDialog);
-  const showTablesLayout = useAppSelector(state => state.pos.showTablesLayout);
-  const showDiscountDialog = useAppSelector(state => state.pos.showDiscountDialog);
-  const showNotesDialog = useAppSelector(state => state.pos.showNotesDialog);
-  const showItemNotesDialog = useAppSelector(state => state.pos.showItemNotesDialog);
-  const showVoidDialog = useAppSelector(state => state.pos.showVoidDialog);
-  const showOrdersDialog = useAppSelector(state => state.pos.showOrdersDialog);
-  const showReportsDialog = useAppSelector(state => state.pos.showReportsDialog);
-  const showPrinterSelector = useAppSelector(state => state.pos.showPrinterSelector);
-  const selectedItemForNotes = useAppSelector(state => state.pos.selectedItemForNotes);
-  const orderNotes = useAppSelector(state => state.pos.orderNotes);
-  const appliedDiscount = useAppSelector(state => state.pos.appliedDiscount);
-  const lastSaleData = useAppSelector(state => state.pos.lastSaleData);
-  const isTableManuallySelected = useAppSelector(state => state.pos.isTableManuallySelected);
-  const isPOSActionInProgress = useAppSelector(state => state.pos.isPOSActionInProgress);
-  const selectedSaleForEdit = useAppSelector(state => state.pos.selectedSaleForEdit);
-  const editingSaleId = useAppSelector(state => state.pos.editingSaleId);
+  // Use single selector with shallow equality for better performance
+  const posState = useAppSelector(state => ({
+    cart: state.pos.cart,
+    orderType: state.pos.orderType,
+    selectedTable: state.pos.selectedTable,
+    selectedEmployee: state.pos.selectedEmployee,
+    currentOrder: state.pos.currentOrder,
+    hasUnsavedChanges: state.pos.hasUnsavedChanges,
+    isPaymentCompleted: state.pos.isPaymentCompleted,
+    isLoading: state.pos.isLoading,
+    error: state.pos.error,
+    successMessage: state.pos.successMessage,
+    showSuccessCheckmark: state.pos.showSuccessCheckmark,
+    showPaymentDialog: state.pos.showPaymentDialog,
+    showReceiptDialog: state.pos.showReceiptDialog,
+    showTablesLayout: state.pos.showTablesLayout,
+    showDiscountDialog: state.pos.showDiscountDialog,
+    showNotesDialog: state.pos.showNotesDialog,
+    showItemNotesDialog: state.pos.showItemNotesDialog,
+    showVoidDialog: state.pos.showVoidDialog,
+    showOrdersDialog: state.pos.showOrdersDialog,
+    showReportsDialog: state.pos.showReportsDialog,
+    showPrinterSelector: state.pos.showPrinterSelector,
+    selectedItemForNotes: state.pos.selectedItemForNotes,
+    orderNotes: state.pos.orderNotes,
+    appliedDiscount: state.pos.appliedDiscount,
+    lastSaleData: state.pos.lastSaleData,
+    isTableManuallySelected: state.pos.isTableManuallySelected,
+    isPOSActionInProgress: state.pos.isPOSActionInProgress,
+    selectedSaleForEdit: state.pos.selectedSaleForEdit,
+    editingSaleId: state.pos.editingSaleId
+  }), (left, right) => {
+    // Custom shallow equality - only re-render on actual changes
+    return (
+      left.cart === right.cart &&
+      left.orderType === right.orderType &&
+      left.selectedTable === right.selectedTable &&
+      left.selectedEmployee === right.selectedEmployee &&
+      left.showPaymentDialog === right.showPaymentDialog &&
+      left.showReceiptDialog === right.showReceiptDialog &&
+      left.showTablesLayout === right.showTablesLayout &&
+      left.appliedDiscount === right.appliedDiscount &&
+      left.isPOSActionInProgress === right.isPOSActionInProgress &&
+      left.error === right.error &&
+      left.successMessage === right.successMessage
+    );
+  });
+  
+  // Destructure from optimized state
+  const {
+    cart,
+    orderType,
+    selectedTable,
+    selectedEmployee,
+    currentOrder,
+    hasUnsavedChanges,
+    isPaymentCompleted,
+    isLoading,
+    error,
+    successMessage,
+    showSuccessCheckmark,
+    showPaymentDialog,
+    showReceiptDialog,
+    showTablesLayout,
+    showDiscountDialog,
+    showNotesDialog,
+    showItemNotesDialog,
+    showVoidDialog,
+    showOrdersDialog,
+    showReportsDialog,
+    showPrinterSelector,
+    selectedItemForNotes,
+    orderNotes,
+    appliedDiscount,
+    lastSaleData,
+    isTableManuallySelected,
+    isPOSActionInProgress,
+    selectedSaleForEdit,
+    editingSaleId
+  } = posState;
 
   const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems } = useMenuItems();
   
@@ -117,28 +167,42 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const cachedMenuItemCategories = useRef(menuItemCategories);
   const cachedBeverageCategories = useRef(beverageCategories);
   
-  // Fixed: Update cache when data actually changes (but prevent frequent updates)
+  // Optimized: Update cache only when data length changes (more stable)
   const lastUpdateRef = useRef(0);
   
   useEffect(() => {
     const now = Date.now();
-    // Throttle updates to max once per second
-    if (now - lastUpdateRef.current > 1000) {
-      if (foodMenuItems && foodMenuItems !== cachedFoodMenuItems.current) {
+    // Throttle updates to max once every 2 seconds for better stability
+    if (now - lastUpdateRef.current > 2000) {
+      let updated = false;
+      
+      if (foodMenuItems && foodMenuItems.length !== cachedFoodMenuItems.current?.length) {
         cachedFoodMenuItems.current = foodMenuItems;
+        updated = true;
       }
-      if (beverageMenuItems && beverageMenuItems !== cachedBeverageMenuItems.current) {
+      if (beverageMenuItems && beverageMenuItems.length !== cachedBeverageMenuItems.current?.length) {
         cachedBeverageMenuItems.current = beverageMenuItems;
+        updated = true;
       }
-      if (menuItemCategories && menuItemCategories !== cachedMenuItemCategories.current) {
+      if (menuItemCategories && menuItemCategories.length !== cachedMenuItemCategories.current?.length) {
         cachedMenuItemCategories.current = menuItemCategories;
+        updated = true;
       }
-      if (beverageCategories && beverageCategories !== cachedBeverageCategories.current) {
+      if (beverageCategories && beverageCategories.length !== cachedBeverageCategories.current?.length) {
         cachedBeverageCategories.current = beverageCategories;
+        updated = true;
       }
-      lastUpdateRef.current = now;
+      
+      if (updated) {
+        lastUpdateRef.current = now;
+      }
     }
-  }, [foodMenuItems, beverageMenuItems, menuItemCategories, beverageCategories]);
+  }, [
+    foodMenuItems?.length,
+    beverageMenuItems?.length,
+    menuItemCategories?.length,
+    beverageCategories?.length
+  ]);
   const [searchTerm] = React.useState("");
   const [menuItems, setMenuItems] = React.useState<MenuItem[]>([]);
   const [stockEntries, setStockEntries] = React.useState<StockEntryWithMaterial[]>([]);
@@ -154,18 +218,15 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [paymentAmount, setPaymentAmount] = React.useState<string>("");
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
 
-  // Balanced performance tracking
+  // Minimal performance tracking
   if (process.env.NODE_ENV === "development") {
     renderCount.current += 1;
     
-    // Log every 10th render to monitor performance
-    if (renderCount.current % 10 === 0) {
-      console.log(`🔄 POSClient render #${renderCount.current}`);
-    }
-    
-    // Alert at 20 renders
-    if (renderCount.current === 20) {
-      console.warn(`⚠️ POSClient: ${renderCount.current} renders - monitoring performance`);
+    // Only log at key milestones
+    if (renderCount.current === 10) {
+      console.log(`🔄 POSClient: ${renderCount.current} renders - GOOD`);
+    } else if (renderCount.current === 15) {
+      console.warn(`⚠️ POSClient: ${renderCount.current} renders - needs optimization`);
     }
   }
 
