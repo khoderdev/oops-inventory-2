@@ -112,8 +112,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [searchTerm] = React.useState("");
   const [menuItems, setMenuItems] = React.useState<MenuItem[]>([]);
   const [stockEntries, setStockEntries] = React.useState<StockEntryWithMaterial[]>([]);
-  const [posItems, setPosItems] = React.useState<POSItem[]>([]);
-  const [categoriesMap, setCategoriesMap] = React.useState<Map<number, string>>(new Map());
+  // Removed posItems state - now using useMemo instead
+  // Removed categoriesMap state - now using useMemo instead
   const [isItemsGridStable, setIsItemsGridStable] = React.useState(false);
   const [isItemsGridLoading, setIsItemsGridLoading] = React.useState(true);
   const [optimisticAssignments, setOptimisticAssignments] = React.useState<SectionAssignment[]>(sectionAssignments);
@@ -121,6 +121,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [showNegativeStockDialog, setShowNegativeStockDialog] = React.useState(false);
   const [paymentAmount, setPaymentAmount] = React.useState<string>("");
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
+
+  // Stable callback references to prevent unnecessary re-renders
+  const handleCategoryChange = useCallback((category: string) => {
+    setActiveCategory(category);
+  }, []);
   const [tables, setTables] = React.useState<Table[]>([]);
   const [showUnsavedDialog, setShowUnsavedDialog] = React.useState(false);
   const [printedTables, setPrintedTables] = React.useState<string[]>([]);
@@ -136,8 +141,119 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
   const [printerSelectionContext, setPrinterSelectionContext] = React.useState<"payment" | "manual_print" | null>(null);
   const [activeView, setActiveView] = React.useState<"cart" | "products">("products");
 
-  // Filter posItems based on activeCategory
-  const filteredPosItems = React.useMemo(() => {
+
+    // Build categories map from context categories with memoization
+    const categoriesMap = useMemo(() => {
+      const categoryMap = new Map<number, string>();
+      if (menuItemCategories && menuItemCategories.length > 0) {
+        menuItemCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
+      }
+      if (beverageCategories && beverageCategories.length > 0) {
+        beverageCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
+      }
+      return categoryMap;
+    }, [menuItemCategories, beverageCategories]);
+
+    
+  // Helper function for variants transformation
+  const transformVariants = (
+    variants: any
+  ): Array<{
+    id: string | number;
+    name: string;
+    volume: number;
+    unit: string;
+    price: string | number;
+  }> => {
+    if (Array.isArray(variants)) return variants;
+
+    if (variants && typeof variants === "object") {
+      if (variants.variantVolumes) {
+        return Object.keys(variants.variantVolumes).map(variantKey => ({
+          id: variantKey,
+          name: variantKey,
+          volume: variants.variantVolumes[variantKey] || 0,
+          unit: variants.variantVolumeUnits?.[variantKey] || "cl",
+          price: variants.variantPrices?.[variantKey] || 0
+        }));
+      }
+
+      // Handle other possible variant formats
+      return Object.entries(variants).map(([key, value]: [string, any]) => ({
+        id: key,
+        name: key,
+        volume: value.volume || value.size || 0,
+        unit: value.unit || "cl",
+        price: value.price || 0
+      }));
+    }
+
+    return [];
+  };
+  
+    // Memoized POS items to prevent unnecessary re-renders during POS operations
+    const posItems = useMemo(() => {
+      if (menuItemsLoading) {
+        setIsItemsGridLoading(true);
+        return [];
+      }
+  
+      // Only proceed if we have menu items
+      const allMenuItems = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
+      if (allMenuItems.length === 0) {
+        setIsItemsGridLoading(false);
+        return [];
+      }
+  
+      const transformedItems: POSItem[] = allMenuItems
+        .filter(menuItem => menuItem?.isPOSItem)
+        .map(menuItem => {
+          // Handle category transformation with fallbacks
+          let categoryName = "Uncategorized";
+  
+          if (menuItem.category) {
+            if (typeof menuItem.category === "object" && "id" in menuItem.category) {
+              categoryName = categoriesMap.get(menuItem.category.id) || (menuItem.category as any).name || (menuItem.category as any).value || "Uncategorized";
+            } else if (typeof menuItem.category === "number") {
+              categoryName = categoriesMap.get(menuItem.category) || "Uncategorized";
+            } else if (typeof menuItem.category === "string") {
+              categoryName = menuItem.category;
+            }
+          }
+  
+          // Transform variants if they exist
+          const variants = menuItem.variants ? transformVariants(menuItem.variants) : undefined;
+  
+          return {
+            id: `menu-${menuItem.id}`,
+            name: menuItem.name,
+            price: typeof menuItem.price === "number" && !isNaN(menuItem.price) ? menuItem.price : 0,
+            category: categoryName,
+            type: "menu_item",
+            menuItemId: menuItem.id,
+            unit: menuItem.unit || "unit",
+            availableQuantity: menuItem.availableQuantity || 0,
+            costPerUnit: menuItem.costPerUnit || 0,
+            createdAt: menuItem.createdAt?.toString() || new Date().toISOString(),
+            updatedAt: menuItem.updatedAt?.toString() || new Date().toISOString(),
+            description: menuItem.description,
+            image: menuItem.image,
+            imageUrl: undefined,
+            variants: variants
+          };
+        });
+  
+      // Update loading state when items are ready
+      if (isItemsGridLoading) {
+        setTimeout(() => setIsItemsGridLoading(false), 0);
+      }
+  
+      return transformedItems;
+    }, [foodMenuItems, beverageMenuItems, categoriesMap, menuItemsLoading, isItemsGridLoading]);
+  
+
+  // Filter posItems based on activeCategory with stable reference
+  const filteredPosItems = useMemo(() => {
     return activeCategory === "all"
       ? posItems
       : posItems.filter(item => {
@@ -154,8 +270,8 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
         });
   }, [posItems, activeCategory, categoriesMap]);
 
-  // Create categories array from posItems
-  const categories = React.useMemo(() => {
+  // Create categories array from posItems with stable reference
+  const categories = useMemo(() => {
     const uniqueCategories = new Set<string>();
     uniqueCategories.add("all");
     posItems.forEach(item => {
@@ -222,110 +338,7 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     setMenuItems(combined);
   }, [foodMenuItems, beverageMenuItems]);
 
-  // Build categories map from context categories
-  useEffect(() => {
-    const categoryMap = new Map<number, string>();
-    if (menuItemCategories && menuItemCategories.length > 0) {
-      menuItemCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
-    }
-    if (beverageCategories && beverageCategories.length > 0) {
-      beverageCategories.filter(c => c.isActive).forEach(c => categoryMap.set(c.id, c.name));
-    }
-    setCategoriesMap(categoryMap);
-  }, [menuItemCategories, beverageCategories]);
 
-  // Memoized POS items to prevent unnecessary re-renders during POS operations
-  // Remove the memoizedPosItems and replace with this useEffect:
-  useEffect(() => {
-    if (menuItemsLoading) {
-      setIsItemsGridLoading(true);
-      return;
-    }
-
-    // Only proceed if we have menu items
-    const allMenuItems = [...(foodMenuItems || []), ...(beverageMenuItems || [])];
-    if (allMenuItems.length === 0) {
-      setIsItemsGridLoading(false);
-      return;
-    }
-
-    const transformedItems: POSItem[] = allMenuItems
-      .filter(menuItem => menuItem?.isPOSItem)
-      .map(menuItem => {
-        // Handle category transformation with fallbacks
-        let categoryName = "Uncategorized";
-
-        if (menuItem.category) {
-          if (typeof menuItem.category === "object" && "id" in menuItem.category) {
-            categoryName = categoriesMap.get(menuItem.category.id) || (menuItem.category as any).name || (menuItem.category as any).value || "Uncategorized";
-          } else if (typeof menuItem.category === "number") {
-            categoryName = categoriesMap.get(menuItem.category) || "Uncategorized";
-          } else if (typeof menuItem.category === "string") {
-            categoryName = menuItem.category;
-          }
-        }
-
-        // Transform variants if they exist
-        const variants = menuItem.variants ? transformVariants(menuItem.variants) : undefined;
-
-        return {
-          id: `menu-${menuItem.id}`,
-          name: menuItem.name,
-          price: typeof menuItem.price === "number" && !isNaN(menuItem.price) ? menuItem.price : 0,
-          category: categoryName,
-          type: "menu_item",
-          menuItemId: menuItem.id,
-          unit: menuItem.unit || "unit",
-          availableQuantity: menuItem.availableQuantity || 0,
-          costPerUnit: menuItem.costPerUnit || 0,
-          createdAt: menuItem.createdAt?.toString() || new Date().toISOString(),
-          updatedAt: menuItem.updatedAt?.toString() || new Date().toISOString(),
-          description: menuItem.description,
-          image: menuItem.image,
-          imageUrl: undefined,
-          variants: variants
-        };
-      });
-
-    setPosItems(transformedItems);
-    setIsItemsGridLoading(false);
-  }, [foodMenuItems, beverageMenuItems, categoriesMap, menuItemsLoading]);
-
-  // Helper function for variants transformation
-  const transformVariants = (
-    variants: any
-  ): Array<{
-    id: string | number;
-    name: string;
-    volume: number;
-    unit: string;
-    price: string | number;
-  }> => {
-    if (Array.isArray(variants)) return variants;
-
-    if (variants && typeof variants === "object") {
-      if (variants.variantVolumes) {
-        return Object.keys(variants.variantVolumes).map(variantKey => ({
-          id: variantKey,
-          name: variantKey,
-          volume: variants.variantVolumes[variantKey] || 0,
-          unit: variants.variantVolumeUnits?.[variantKey] || "cl",
-          price: variants.variantPrices?.[variantKey] || 0
-        }));
-      }
-
-      // Handle other possible variant formats
-      return Object.entries(variants).map(([key, value]: [string, any]) => ({
-        id: key,
-        name: key,
-        volume: value.volume || value.size || 0,
-        unit: value.unit || "cl",
-        price: value.price || 0
-      }));
-    }
-
-    return [];
-  };
 
   // Calculate derived values
   const subtotal = (cart || []).filter(Boolean).reduce((sum, item) => {
@@ -1982,6 +1995,11 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
     [dispatch]
   );
 
+  // Stable callback wrapper for addToCart to prevent unnecessary re-renders
+  const handleAddToCart = useCallback((posItem: POSItem) => {
+    addToCart(posItem);
+  }, [addToCart]);
+
   // Update cart quantity handler
   const updateCartQuantity = useCallback(
     (cartId: string, newQuantity: number) => {
@@ -2324,13 +2342,13 @@ export const POSClient: React.FC<POSClientProps> = ({ sectionAssignments, onSale
           <div className={`${activeView === "products" || (typeof window !== "undefined" && window.innerWidth >= 1024) ? "flex" : "hidden"} lg:flex flex-col h-full`}>
             {/* Top Controls - Fixed Header */}
             <div className="flex-shrink-0 border-b border-gray-200 bg-white">
-              <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
+              <CategoryTabs categories={categories} activeCategory={activeCategory} onCategoryChange={handleCategoryChange} />
             </div>
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 min-h-0 !bg-gray-50 p-2">
-              {/* Remount ItemsGrid when switching views or when panel width changes to force re-measure */}
-              <ItemsGrid key={`${activeView}-${rightPanelPixelWidth}`} posItems={filteredPosItems} onAddToCart={addToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={isItemsGridLoading} />
+              {/* ItemsGrid with stable props to prevent unnecessary re-renders */}
+              <ItemsGrid posItems={filteredPosItems} onAddToCart={handleAddToCart} rightPanelPixelWidth={rightPanelPixelWidth} isLoading={isItemsGridLoading} />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}

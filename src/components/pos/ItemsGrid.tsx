@@ -45,10 +45,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems, onA
     },
     [onAddToCart]
   );
-  // Render counter to track unnecessary re-renders
-  const renderCount = useRef(0);
-  renderCount.current += 1;
-  console.log(`🔄 ItemsGrid render #${renderCount.current}`);
+  // Render counter removed - component should now have stable renders
   const parentRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 

@@ -23,10 +23,7 @@ export const CategoryTabs: React.FC<CategoryTabsProps> = React.memo(({ categorie
   const handleCategoryChange = useCallback((category: string) => {
     onCategoryChange(category);
   }, [onCategoryChange]);
-  // Render counter to track unnecessary re-renders
-  const renderCount = useRef(0);
-  renderCount.current += 1;
-  console.log(`🔄 CategoryTabs render #${renderCount.current}`);
+  // Render counter removed - component should now have stable renders
   // Split categories into two rows for better distribution
   const midpoint = Math.ceil(categories.length / 2);
   const firstRow = categories.slice(0, midpoint);
