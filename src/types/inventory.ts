@@ -688,7 +688,7 @@ export interface PaymentDialogProps {
 export interface POSItem {
   imageUrl: any;
   id: string;
-  type: "menu_item" | "stock_entry";
+  type: "menu_item" | "stock_entry" | "material";
   name: string;
   description?: string;
   price: number;

@@ -80,14 +80,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const dispatch = useAppDispatch();
 
   // Use individual selectors with custom equality functions for critical state
-  const cart = useAppSelector(
-    state => state.pos.cart,
-    (prev, next) => {
-      // Only trigger re-render if length changed or it's a different array reference
-      return prev === next || (prev.length === next.length && prev.length === 0);
-    }
-  );
-
+  const cart = useAppSelector(state => state.pos.cart, (prev, next) => {
+    // Only trigger re-render if length changed or it's a different array reference
+    return prev === next || (prev.length === next.length && prev.length === 0);
+  });
+  
   const orderType = useAppSelector(state => state.pos.orderType);
   const selectedTable = useAppSelector(state => state.pos.selectedTable);
   const selectedEmployee = useAppSelector(state => state.pos.selectedEmployee);
@@ -98,33 +95,40 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const error = useAppSelector(state => state.pos.error);
   const successMessage = useAppSelector(state => state.pos.successMessage);
   const showSuccessCheckmark = useAppSelector(state => state.pos.showSuccessCheckmark);
-
+  
   // Group dialog visibility states with a single selector
-  const dialogStates = useAppSelector(
-    state => ({
-      showPaymentDialog: state.pos.showPaymentDialog,
-      showReceiptDialog: state.pos.showReceiptDialog,
-      showTablesLayout: state.pos.showTablesLayout,
-      showDiscountDialog: state.pos.showDiscountDialog,
-      showNotesDialog: state.pos.showNotesDialog,
-      showItemNotesDialog: state.pos.showItemNotesDialog,
-      showVoidDialog: state.pos.showVoidDialog,
-      showOrdersDialog: state.pos.showOrdersDialog,
-      showReportsDialog: state.pos.showReportsDialog,
-      showPrinterSelector: state.pos.showPrinterSelector
-    }),
-    shallowEqual
-  );
-
-  const { showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showReportsDialog, showPrinterSelector } = dialogStates;
-
+  const dialogStates = useAppSelector(state => ({
+    showPaymentDialog: state.pos.showPaymentDialog,
+    showReceiptDialog: state.pos.showReceiptDialog,
+    showTablesLayout: state.pos.showTablesLayout,
+    showDiscountDialog: state.pos.showDiscountDialog,
+    showNotesDialog: state.pos.showNotesDialog,
+    showItemNotesDialog: state.pos.showItemNotesDialog,
+    showVoidDialog: state.pos.showVoidDialog,
+    showOrdersDialog: state.pos.showOrdersDialog,
+    showReportsDialog: state.pos.showReportsDialog,
+    showPrinterSelector: state.pos.showPrinterSelector
+  }), shallowEqual);
+  
+  const { 
+    showPaymentDialog,
+    showReceiptDialog,
+    showTablesLayout,
+    showDiscountDialog,
+    showNotesDialog,
+    showItemNotesDialog,
+    showVoidDialog,
+    showOrdersDialog,
+    showReportsDialog,
+    showPrinterSelector 
+  } = dialogStates;
+  
   const selectedItemForNotes = useAppSelector(state => state.pos.selectedItemForNotes);
   const orderNotes = useAppSelector(state => state.pos.orderNotes);
   const appliedDiscount = useAppSelector(state => state.pos.appliedDiscount);
   const lastSaleData = useAppSelector(state => state.pos.lastSaleData);
   const isTableManuallySelected = useAppSelector(state => state.pos.isTableManuallySelected);
   const editingSaleId = useAppSelector(state => state.pos.editingSaleId);
-  const selectedSaleForEdit = useAppSelector(state => state.pos.selectedSaleForEdit);
   const isPOSActionInProgress = useAppSelector(state => state.pos.isPOSActionInProgress);
 
   const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems } = useMenuItems();
@@ -135,16 +139,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const lastFoodItemsLengthRef = useRef<number>(0);
   const lastBeverageItemsLengthRef = useRef<number>(0);
   const lastCategoriesMapSizeRef = useRef<number>(0);
-  // Refs for cached menu items to prevent unnecessary recalculations
-  const cachedFoodMenuItems = useRef<MenuItem[]>([]);
-  const cachedBeverageMenuItems = useRef<MenuItem[]>([]);
-  const cachedMenuItemCategories = useRef<Category[]>([]);
-  const cachedBeverageCategories = useRef<Category[]>([]);
-  // Track if posItems has been initialized to prevent unnecessary recalculations
-  const posItemsInitializedRef = useRef(false);
   // FINAL: Only update cache on mount and when data length changes
   const cacheInitialized = useRef(false);
-
+  
   // Initialize cache on mount
   useEffect(() => {
     // Initialize on mount
@@ -156,28 +153,28 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       cacheInitialized.current = true;
     }
   }, []);
-
+  
   // Separate effect for food menu items - only update when length changes
   useEffect(() => {
     if (foodMenuItems?.length !== cachedFoodMenuItems.current?.length) {
       cachedFoodMenuItems.current = foodMenuItems;
     }
   }, [foodMenuItems?.length]);
-
+  
   // Separate effect for beverage menu items - only update when length changes
   useEffect(() => {
     if (beverageMenuItems?.length !== cachedBeverageMenuItems.current?.length) {
       cachedBeverageMenuItems.current = beverageMenuItems;
     }
   }, [beverageMenuItems?.length]);
-
+  
   // Separate effect for menu item categories - only update when length changes
   useEffect(() => {
     if (menuItemCategories?.length !== cachedMenuItemCategories.current?.length) {
       cachedMenuItemCategories.current = menuItemCategories;
     }
   }, [menuItemCategories?.length]);
-
+  
   // Separate effect for beverage categories - only update when length changes
   useEffect(() => {
     if (beverageCategories?.length !== cachedBeverageCategories.current?.length) {
@@ -194,30 +191,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   // ULTRA-MINIMAL: Performance tracking with minimal overhead
   if (process.env.NODE_ENV === "development" && renderCount.current < 100) {
     renderCount.current += 1;
-
+    
     // Only log once at the 5th render
     if (renderCount.current === 5) {
       console.log(`✅ POSClient: ${renderCount.current} renders - EXCELLENT`);
     }
   }
 
-  // PERMANENT REFERENCE: Category change handler that never changes reference
-  const handleCategoryChangeRef = useRef((category: string) => {
-    // Implementation will be set in useEffect
-  });
-  
-  // Set the implementation once on mount
-  useEffect(() => {
-    handleCategoryChangeRef.current = (category: string) => {
-      if (category !== activeCategory) {
-        console.log(`🔄 Changing category from ${activeCategory} to ${category}`);
-        setActiveCategory(category);
-      }
-    };
-  }, [activeCategory]);
-  
-  // Use the stable reference as our handler
-  const handleCategoryChange = handleCategoryChangeRef.current;
+  // Stable callback references to prevent unnecessary re-renders
+  const handleCategoryChange = useCallback((category: string) => {
+    setActiveCategory(category);
+  }, []);
   const [tables, setTables] = React.useState<Table[]>([]);
   const [showUnsavedDialog, setShowUnsavedDialog] = React.useState(false);
   const [printedTables, setPrintedTables] = React.useState<string[]>([]);
@@ -237,7 +221,10 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const categoriesMapRef = useRef(new Map<number, string>());
   const categoriesMap = useMemo(() => {
     // Only rebuild if the map is empty or categories have changed significantly
-    if (categoriesMapRef.current.size === 0 || (menuItemCategories?.length && menuItemCategories.length !== cachedMenuItemCategories.current?.length) || (beverageCategories?.length && beverageCategories.length !== cachedBeverageCategories.current?.length)) {
+    if (categoriesMapRef.current.size === 0 || 
+        (menuItemCategories?.length && menuItemCategories.length !== cachedMenuItemCategories.current?.length) ||
+        (beverageCategories?.length && beverageCategories.length !== cachedBeverageCategories.current?.length)) {
+      
       // Build a new map
       const categoryMap = new Map<number, string>();
       const stableMenuCategories = cachedMenuItemCategories.current || menuItemCategories;
@@ -257,13 +244,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             if (c?.id && c?.name) categoryMap.set(c.id, c.name);
           });
       }
-
+      
       // Update the ref
       categoriesMapRef.current = categoryMap;
     }
 
     return categoriesMapRef.current;
-  }, [menuItemCategories, beverageCategories, cachedMenuItemCategories, cachedBeverageCategories]); // Include necessary dependencies
+  }, []); // Empty dependency array for ultra-stability
 
   // Memoized helper function for variants transformation to prevent recreation
   const transformVariants = useCallback(
@@ -335,25 +322,27 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       return [];
     }
 
-    // CRITICAL: If already initialized, check if anything significant changed
-    if (posItemsInitializedRef.current && cachedPosItemsRef.current.length > 0) {
-      const foodItemsLength = foodMenuItems?.length || 0;
-      const beverageItemsLength = beverageMenuItems?.length || 0;
-      const categoriesSize = categoriesMap.size;
-      
-      // If nothing has changed, return the cached items
-      if (lastFoodItemsLengthRef.current === foodItemsLength && 
-          lastBeverageItemsLengthRef.current === beverageItemsLength && 
-          lastCategoriesMapSizeRef.current === categoriesSize) {
-        console.log("✅ Menu items unchanged, using cached POS items");
-        return cachedPosItemsRef.current;
-      }
-      
-      // Update the reference values for next comparison
-      lastFoodItemsLengthRef.current = foodItemsLength;
-      lastBeverageItemsLengthRef.current = beverageItemsLength;
-      lastCategoriesMapSizeRef.current = categoriesSize;
+    // Check if the menu items have actually changed
+    const foodItemsLength = foodMenuItems?.length || 0;
+    const beverageItemsLength = beverageMenuItems?.length || 0;
+    const categoriesSize = categoriesMap.size;
+    
+    // If nothing has changed, return the cached items
+    if (
+      cachedPosItemsRef.current && 
+      cachedPosItemsRef.current.length > 0 &&
+      lastFoodItemsLengthRef.current === foodItemsLength &&
+      lastBeverageItemsLengthRef.current === beverageItemsLength &&
+      lastCategoriesMapSizeRef.current === categoriesSize
+    ) {
+      console.log("✅ Menu items unchanged, using cached POS items");
+      return cachedPosItemsRef.current;
     }
+
+    // Update the reference values
+    lastFoodItemsLengthRef.current = foodItemsLength;
+    lastBeverageItemsLengthRef.current = beverageItemsLength;
+    lastCategoriesMapSizeRef.current = categoriesSize;
 
     // Use cached items if available, otherwise use fresh data
     const stableFoodItems = foodMenuItems || [];
@@ -368,29 +357,34 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
     // Create a map for faster category lookup
     const categoryLookup = new Map();
-
+    
     // Process items in batches for better performance
     const batchSize = 100;
     const totalBatches = Math.ceil(allMenuItems.length / batchSize);
     let transformedItems: POSItem[] = [];
-
+    
     for (let batch = 0; batch < totalBatches; batch++) {
       const start = batch * batchSize;
       const end = Math.min(start + batchSize, allMenuItems.length);
       const batchItems = allMenuItems.slice(start, end);
-
+      
       const batchTransformed = batchItems
         .filter(menuItem => menuItem && menuItem.isPOSItem !== false)
         .map(menuItem => {
           // Fast category lookup with caching
           let categoryName = "Uncategorized";
-          const categoryKey = typeof menuItem.category === "object" ? `obj-${(menuItem.category as any)?.id}` : `${typeof menuItem.category}-${menuItem.category}`;
-
+          const categoryKey = typeof menuItem.category === 'object' ? 
+            `obj-${(menuItem.category as any)?.id}` : 
+            `${typeof menuItem.category}-${menuItem.category}`;
+            
           if (categoryLookup.has(categoryKey)) {
             categoryName = categoryLookup.get(categoryKey);
           } else if (menuItem.category) {
             if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
-              categoryName = categoriesMap.get(menuItem.category.id) || (menuItem.category as any).name || (menuItem.category as any).value || "Uncategorized";
+              categoryName = categoriesMap.get(menuItem.category.id) || 
+                            (menuItem.category as any).name || 
+                            (menuItem.category as any).value || 
+                            "Uncategorized";
             } else if (typeof menuItem.category === "number") {
               categoryName = categoriesMap.get(menuItem.category) || "Uncategorized";
             } else if (typeof menuItem.category === "string") {
@@ -403,7 +397,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
           // Ensure type is always one of the allowed values in the POSItem union type
           const itemType: "menu_item" | "stock_entry" = "menu_item";
-
+          
           return {
             id: `menu-${menuItem.id}`,
             name: menuItem.name,
@@ -423,43 +417,24 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             variants: variants
           };
         });
-
+        
       transformedItems = [...transformedItems, ...batchTransformed];
     }
 
     // Cache the result for future use
     cachedPosItemsRef.current = transformedItems;
     
-    // Mark as initialized to prevent unnecessary rebuilds
-    posItemsInitializedRef.current = true;
-    
-    // Update reference values for next comparison
-    lastFoodItemsLengthRef.current = foodMenuItems?.length || 0;
-    lastBeverageItemsLengthRef.current = beverageMenuItems?.length || 0;
-    lastCategoriesMapSizeRef.current = categoriesMap.size;
-
     const processingTime = performance.now() - startTime;
     console.log(`Created ${transformedItems.length} POS items in ${processingTime.toFixed(1)}ms`);
     return transformedItems;
-  }, [foodMenuItems, beverageMenuItems, categoriesMap, menuItemsLoading, isPOSActionInProgress, transformVariants]);
+  }, [foodMenuItems?.length, beverageMenuItems?.length, categoriesMap.size, menuItemsLoading, isPOSActionInProgress]);
 
-  // ULTRA-STABLE: Categories array with reference tracking and minimal recalculation
-  const lastPosItemsForCategoriesRef = useRef<POSItem[]>([]);
-  const categoriesRef = useRef<string[]>(["all"]);
-  
+  // BALANCED: Categories array with proper reactivity
   const categories = useMemo(() => {
-    // If posItems reference hasn't changed, return cached categories
-    if (posItems === lastPosItemsForCategoriesRef.current && categoriesRef.current.length > 1) {
-      return categoriesRef.current;
-    }
-    
-    // Update reference for next comparison
-    lastPosItemsForCategoriesRef.current = posItems;
-    
     console.log(`Calculating categories from ${posItems.length} POS items`);
     const uniqueCategories = new Set<string>(["all"]);
 
-    // Extract unique categories from posItems - optimized loop
+    // Extract unique categories from posItems
     for (let i = 0; i < posItems.length; i++) {
       const item = posItems[i];
       if (item?.category && typeof item.category === "string") {
@@ -474,17 +449,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       return a.localeCompare(b);
     });
 
-    // Cache the result for future use
-    categoriesRef.current = categoriesArray;
-    
     console.log(`Found ${categoriesArray.length} unique categories:`, categoriesArray);
     return categoriesArray;
-  }, [posItems]); // Depend on posItems reference only
+  }, [posItems]); // Depend on posItems to ensure categories update when items change
 
   // ULTRA-OPTIMIZED: Filtered items with stable references and smart caching
   const filteredPosItemsRef = useRef<Record<string, POSItem[]>>({});
   const lastPosItemsRefForCategory = useRef<POSItem[]>([]);
-
+  
   const filteredPosItems = useMemo(() => {
     // Block updates during POS operations
     if (isPOSActionInProgress) {
@@ -495,33 +467,33 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         return cachedFiltered;
       }
     }
-
+    
     // Early return for "all" category
     if (activeCategory === "all") {
       filteredPosItemsRef.current["all"] = posItems;
       return posItems;
     }
-
+    
     // Check if we have a cached version for this category with the same posItems reference
     const cachedFiltered = filteredPosItemsRef.current[activeCategory];
     if (cachedFiltered && lastPosItemsRefForCategory.current === posItems) {
       console.log(`✅ Using ${cachedFiltered.length} cached filtered items for ${activeCategory}`);
       return cachedFiltered;
     }
-
+    
     // Update the reference tracking
     lastPosItemsRefForCategory.current = posItems;
-
+    
     console.log(`Filtering ${posItems.length} items by category: ${activeCategory}`);
     const filtered = posItems.filter(item => {
       return typeof item.category === "string" && item.category === activeCategory;
     });
-
+    
     console.log(`Found ${filtered.length} items in category ${activeCategory}`);
-
+    
     // Cache the result for this category
     filteredPosItemsRef.current[activeCategory] = filtered;
-
+    
     return filtered;
   }, [activeCategory, posItems, isPOSActionInProgress]); // Add isPOSActionInProgress to dependencies
 
@@ -529,50 +501,24 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   useEffect(() => {
     // Force fetch menu items if they're not already loaded
     if (!foodMenuItems || foodMenuItems.length === 0 || !beverageMenuItems || beverageMenuItems.length === 0) {
-      console.log("🔄 Forcing menu items fetch");
+      console.log('🔄 Forcing menu items fetch');
       fetchMenuItems();
     } else {
       console.log(`✅ Menu items already loaded: ${foodMenuItems.length} food items, ${beverageMenuItems.length} beverage items`);
     }
   }, [fetchMenuItems, foodMenuItems, beverageMenuItems]);
 
-  // ULTRA-OPTIMIZED: Loading state management with debounce and reference tracking
-  const loadingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const lastLoadingStateRef = useRef<boolean>(false);
-  
+  // Fixed: Proper loading state management
   useEffect(() => {
-    // Skip if the loading state hasn't actually changed
-    if (lastLoadingStateRef.current === menuItemsLoading) {
-      return;
-    }
-    
-    // Update reference for next comparison
-    lastLoadingStateRef.current = menuItemsLoading;
-    
-    // Clear any existing timer
-    if (loadingTimerRef.current) {
-      clearTimeout(loadingTimerRef.current);
-      loadingTimerRef.current = null;
-    }
-    
     if (menuItemsLoading) {
-      // Immediate update for loading true (no delay needed)
       setIsItemsGridLoading(true);
     } else {
-      // Debounce loading false to prevent flickering
-      loadingTimerRef.current = setTimeout(() => {
+      // Small delay for smooth transition
+      const timer = setTimeout(() => {
         setIsItemsGridLoading(false);
-        loadingTimerRef.current = null;
-      }, 200); // Slightly longer delay for smoother transition
+      }, 100);
+      return () => clearTimeout(timer);
     }
-    
-    // Cleanup
-    return () => {
-      if (loadingTimerRef.current) {
-        clearTimeout(loadingTimerRef.current);
-        loadingTimerRef.current = null;
-      }
-    };
   }, [menuItemsLoading]);
 
   // EMERGENCY: Remove stablePosItems completely - use posItems directly
@@ -1959,7 +1905,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         if (selectedSaleForEdit.menuItems && selectedSaleForEdit.menuItems.length > 0) {
           selectedSaleForEdit.menuItems.forEach(item => {
             // Combine food and beverage menu items to search through all available menu items
-            const allMenuItems = [...(cachedFoodMenuItems.current || []), ...(cachedBeverageMenuItems.current || [])];
+            const allMenuItems = [...(cachedFoodMenuItems.current || []), ...(cachedBeverageMenuItems.current || [])]; 
             const menuItem = allMenuItems.find(mi => String(mi.id) === String(item.menuItemId));
             cartItems.push({
               id: `history-${item.id || Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -2279,23 +2225,18 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     [dispatch]
   );
 
-  // ULTRA-STABLE: Permanent reference callback for addToCart
-  // This function will NEVER change reference during component lifecycle
-  const handleAddToCartRef = useRef((posItem: POSItem) => {
-    // Implementation will be set in useEffect
-  });
-  
-  // Set the implementation once on mount
-  useEffect(() => {
-    // Set the actual implementation
-    handleAddToCartRef.current = (posItem: POSItem) => {
+  // Ultra-stable callback wrapper for addToCart to prevent unnecessary re-renders
+  const handleAddToCart = useCallback(
+    (posItem: POSItem) => {
+      // Performance validation - ensure we're not re-rendering excessively
+      if (process.env.NODE_ENV === "development" && renderCount.current > 15) {
+        console.warn("⚠️ handleAddToCart called during high render count:", renderCount.current);
+      }
       console.log("🛒 Adding to cart:", posItem.name);
       addToCart(posItem);
-    };
-  }, [addToCart]);
-  
-  // Use the stable reference as our handler
-  const handleAddToCart = handleAddToCartRef.current;
+    },
+    [addToCart]
+  );
 
   // Update cart quantity handler - performance optimized
   const updateCartQuantity = useCallback(
@@ -2350,7 +2291,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                 } else if (item.type === "menu_item" && item.menuItemId) {
                   // Combine food and beverage menu items to search through all available menu items
                   const allMenuItems = [...(cachedFoodMenuItems.current || []), ...(cachedBeverageMenuItems.current || [])];
-                  originalItem = allMenuItems.find(m => String(m.id) === String(item.menuItemId)) || ({ id: item.menuItemId, name: item.name || "Unknown Item" } as MenuItem);
+                  originalItem = allMenuItems.find(m => String(m.id) === String(item.menuItemId)) || 
+                    { id: item.menuItemId, name: item.name || "Unknown Item" } as MenuItem;
                 }
 
                 const cartItem = {
@@ -2654,25 +2596,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
             {/* Product Grid - Scrollable */}
             <div className="flex-1 min-h-0 !bg-gray-50 p-2">
-              {/* ULTRA-STABLE ItemsGrid with memoized props to prevent unnecessary re-renders */}
-              {useMemo(() => {
-                // Log when we're actually re-creating the ItemsGrid component
-                console.log('🔄 Re-creating ItemsGrid component with:', {
-                  itemsCount: filteredPosItems.length,
-                  category: activeCategory,
-                  loading: isItemsGridLoading,
-                  width: Math.round(rightPanelPixelWidth / 50) * 50
-                });
-                
-                return (
-                  <ItemsGrid
-                    posItems={filteredPosItems}
-                    onAddToCart={handleAddToCart}
-                    rightPanelPixelWidth={Math.round(rightPanelPixelWidth / 50) * 50} // Round to nearest 50px for stability
-                    isLoading={isItemsGridLoading}
-                  />
-                );
-              }, [filteredPosItems, handleAddToCart, rightPanelPixelWidth, isItemsGridLoading])}
+              {/* ItemsGrid with stable props to prevent unnecessary re-renders */}
+              <ItemsGrid 
+                posItems={filteredPosItems} 
+                onAddToCart={handleAddToCart} 
+                rightPanelPixelWidth={Math.round(rightPanelPixelWidth / 50) * 50} // Round to nearest 50px for stability
+                isLoading={isItemsGridLoading} 
+              />
             </div>
 
             {/* Bottom Action Bar - Fixed Footer */}

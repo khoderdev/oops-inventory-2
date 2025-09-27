@@ -36,39 +36,41 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
   // Active tab state
   const [activeTab, setActiveTab] = useState<string>("food");
 
-  // Fetch menu items function (supports explicit mode)
+  // Track if initial data has been loaded
+  const [initialDataLoaded, setInitialDataLoaded] = useState<boolean>(false);
+  
+  // Optimized fetch menu items function with caching
   const fetchMenuItems = useCallback(
-    async (mode?: 'food' | 'beverages' | 'both') => {
-      console.log(`🔍 Fetching menu items (mode: ${mode || 'default'})`);
-      try {
-        setMenuItemsLoading(true);
-        setMenuItemsError(null);
-
-        if (mode === 'both') {
-          console.log('🔍 Fetching both food and beverage items');
-          const [foodItems, beverageItems] = await Promise.all([
-            menuAPI.getFoodMenuItems(true),
-            menuAPI.getBeverageMenuItems(true)
-          ]);
-          console.log(`✅ Fetched ${foodItems.length} food items and ${beverageItems.length} beverage items`);
-          setFoodMenuItems(foodItems);
-          setBeverageMenuItems(beverageItems);
+    async (mode?: 'food' | 'beverages' | 'both' | 'force') => {
+      // Skip redundant fetches if data is already loaded
+      if (initialDataLoaded && mode !== 'force') {
+        if (foodMenuItems.length > 0 && beverageMenuItems.length > 0) {
+          console.log(`💾 Using cached menu items: ${foodMenuItems.length} food, ${beverageMenuItems.length} beverage items`);
           return;
         }
-
-        // Always fetch food menu items (backward compatible default)
-        console.log('🔍 Fetching food menu items');
-        const foodItems = await menuAPI.getFoodMenuItems(true);
-        console.log(`✅ Fetched ${foodItems.length} food items`);
-        setFoodMenuItems(foodItems);
-
-        // Fetch beverages explicitly or when activeTab is beverages (legacy behavior)
-        if (mode === 'beverages' || (!mode && activeTab === 'beverages')) {
-          console.log('🔍 Fetching beverage menu items');
-          const beverageItems = await menuAPI.getBeverageMenuItems(true);
-          console.log(`✅ Fetched ${beverageItems.length} beverage items`);
-          setBeverageMenuItems(beverageItems);
+      }
+      
+      console.log(`🔍 Fetching menu items (mode: ${mode || 'default'})`);
+      try {
+        // Only set loading true if we don't have data yet
+        if (!initialDataLoaded || foodMenuItems.length === 0) {
+          setMenuItemsLoading(true);
         }
+        setMenuItemsError(null);
+
+        // Use a single Promise.all for all data to improve performance
+        const startTime = performance.now();
+        const [foodItems, beverageItems] = await Promise.all([
+          menuAPI.getFoodMenuItems(true),
+          menuAPI.getBeverageMenuItems(true)
+        ]);
+        const fetchTime = performance.now() - startTime;
+        console.log(`✅ Fetched all menu items in ${fetchTime.toFixed(0)}ms: ${foodItems.length} food, ${beverageItems.length} beverage items`);
+        
+        // Batch state updates
+        setFoodMenuItems(foodItems);
+        setBeverageMenuItems(beverageItems);
+        setInitialDataLoaded(true);
       } catch (error) {
         console.error("❌ Failed to fetch menu items:", error);
         setMenuItemsError("Failed to load menu items");
@@ -76,7 +78,7 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
         setMenuItemsLoading(false);
       }
     },
-    [activeTab]
+    [foodMenuItems.length, beverageMenuItems.length, initialDataLoaded]
   );
 
   // Handle tab change to fetch data only when needed
@@ -134,14 +136,24 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
       setMaterialsLoading(false);
     }
   }, []);
+  // Optimized initial data loading with performance tracking
   useEffect(() => {
-    // Always fetch both food and beverage items on initial load
-    fetchMenuItems('both');
-    fetchCategories();
-    fetchMaterials();
+    const startTime = performance.now();
+    console.log('💾 MenuItemsContext: Starting optimized initial data load');
     
-    // Log for debugging
-    console.log('🍽️ MenuItemsContext: Initial data fetch started');
+    // Use Promise.all to load everything in parallel
+    Promise.all([
+      fetchMenuItems('both'),
+      fetchCategories(),
+      fetchMaterials()
+    ])
+    .then(() => {
+      const loadTime = performance.now() - startTime;
+      console.log(`✅ MenuItemsContext: All initial data loaded in ${loadTime.toFixed(0)}ms`);
+    })
+    .catch(err => {
+      console.error('❌ MenuItemsContext: Error during initial data load:', err);
+    });
   }, [fetchCategories, fetchMenuItems, fetchMaterials]);
   const handleCreateMenuItem = useCallback(
     async (menuItem: any, imageFile?: File) => {
