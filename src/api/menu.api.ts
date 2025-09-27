@@ -194,7 +194,7 @@ export const menuAPI = {
       isActive: isActive.toString(),
       _t: Date.now().toString()
     });
-    console.log('🍹 Fetching beverage menu items with params:', Object.fromEntries(params));
+    // console.log('🍹 Fetching beverage menu items with params:', Object.fromEntries(params));
     const response = await api.get<MenuItem[]>(`/menu-items/type/beverage?${params.toString()}`);
     return response.data;
   },
@@ -205,7 +205,7 @@ export const menuAPI = {
       isActive: isActive.toString(),
       _t: Date.now().toString()
     });
-    console.log('🍔 Fetching food menu items with params:', Object.fromEntries(params));
+    // console.log('🍔 Fetching food menu items with params:', Object.fromEntries(params));
     const response = await api.get<MenuItem[]>(`/menu-items/type/food?${params.toString()}`);
     return response.data;
   }

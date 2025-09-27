@@ -9,8 +9,46 @@ import { useNavigate } from "react-router-dom";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VariantSelectionModal } from "./VariantSelectionModal";
+import { PerformanceMonitor } from "../common/PerformanceMonitor";
 
-export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, rightPanelPixelWidth = 0, isLoading = false }) => {
+// Custom equality function to prevent unnecessary re-renders
+const itemsGridPropsAreEqual = (prevProps: ProductGridProps, nextProps: ProductGridProps) => {
+  // Only re-render if items array length changes or loading state changes
+  // We don't compare individual items because that would be expensive
+
+  // First, check simple props
+  if (prevProps.isLoading !== nextProps.isLoading) return false;
+  if (prevProps.rightPanelPixelWidth !== nextProps.rightPanelPixelWidth) return false;
+
+  // Check items array length
+  if (prevProps.posItems.length !== nextProps.posItems.length) return false;
+
+  // Check if the items array reference is the same
+  if (prevProps.posItems === nextProps.posItems) return true;
+
+  // For large arrays, just check a few item IDs as a heuristic
+  // This is much faster than comparing all items
+  const sampleSize = Math.min(5, prevProps.posItems.length);
+  for (let i = 0; i < sampleSize; i++) {
+    if (prevProps.posItems[i]?.id !== nextProps.posItems[i]?.id) return false;
+  }
+
+  // If we got here, the props are likely equal
+  return true;
+};
+
+export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems, onAddToCart, rightPanelPixelWidth = 0, isLoading = false }) => {
+  // Wrap onAddToCart in useCallback to maintain stable reference
+  const stableOnAddToCart = useCallback(
+    (item: POSItem) => {
+      onAddToCart(item);
+    },
+    [onAddToCart]
+  );
+  // Render counter to track unnecessary re-renders
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  console.log(`🔄 ItemsGrid render #${renderCount.current}`);
   const parentRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -19,18 +57,22 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
   const [selectedItem, setSelectedItem] = useState<POSItem | null>(null);
 
   // Calculate grid configuration based on panel width
-  const gridConfig = useMemo(() => {
-    const getColumnsCount = (width: number) => {
-      if (width <= 300) return 2;
-      if (width <= 450) return 3;
-      if (width <= 650) return 4;
-      if (width <= 850) return 4;
-      if (width <= 1100) return 5;
-      if (width <= 1400) return 6;
-      return 7;
-    };
+  // Round rightPanelPixelWidth to nearest 10px to reduce recalculations
+  const roundedWidth = Math.round(rightPanelPixelWidth / 10) * 10;
 
-    const columns = getColumnsCount(rightPanelPixelWidth);
+  // Stable function for calculating columns
+  const getColumnsCount = useCallback((width: number) => {
+    if (width <= 300) return 2;
+    if (width <= 450) return 3;
+    if (width <= 650) return 4;
+    if (width <= 850) return 4;
+    if (width <= 1100) return 5;
+    if (width <= 1400) return 6;
+    return 7;
+  }, []);
+
+  const gridConfig = useMemo(() => {
+    const columns = getColumnsCount(roundedWidth);
     const itemHeight = 160;
 
     return {
@@ -38,7 +80,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
       itemHeight,
       gap: 12
     };
-  }, [rightPanelPixelWidth]);
+  }, [roundedWidth, getColumnsCount]);
 
   // Calculate virtual rows (group items by columns)
   const virtualRows = useMemo(() => {
@@ -51,49 +93,48 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
   }, [posItems, gridConfig.columns]);
 
   // Dynamic text sizes based on panel width
+  // Use the rounded width for more stable calculations
   const textSizes = useMemo(() => {
-    if (rightPanelPixelWidth <= 300)
-      return {
-        itemName: "text-xs",
-        price: "text-sm",
-        quantity: "text-xs"
-      };
-    if (rightPanelPixelWidth <= 450)
-      return {
-        itemName: "text-xs",
-        price: "text-sm",
-        quantity: "text-xs"
-      };
-    if (rightPanelPixelWidth <= 650)
-      return {
-        itemName: "text-sm",
-        price: "text-base",
-        quantity: "text-xs"
-      };
-    if (rightPanelPixelWidth <= 850)
-      return {
-        itemName: "text-base",
-        price: "text-lg",
-        quantity: "text-sm"
-      };
-    if (rightPanelPixelWidth <= 1100)
-      return {
-        itemName: "text-lg",
-        price: "text-xl",
-        quantity: "text-sm"
-      };
-    if (rightPanelPixelWidth <= 1400)
-      return {
-        itemName: "text-lg",
-        price: "text-xl",
-        quantity: "text-base"
-      };
-    return {
+    // Define text size configurations once
+    const smallConfig = {
+      itemName: "text-xs",
+      price: "text-sm",
+      quantity: "text-xs"
+    };
+
+    const mediumConfig = {
+      itemName: "text-sm",
+      price: "text-base",
+      quantity: "text-xs"
+    };
+
+    const largeConfig = {
+      itemName: "text-base",
+      price: "text-lg",
+      quantity: "text-sm"
+    };
+
+    const xlargeConfig = {
+      itemName: "text-lg",
+      price: "text-xl",
+      quantity: "text-sm"
+    };
+
+    const xxlargeConfig = {
       itemName: "text-lg",
       price: "text-xl",
       quantity: "text-base"
     };
-  }, [rightPanelPixelWidth]);
+
+    // Return the appropriate config based on width
+    if (roundedWidth <= 300) return smallConfig;
+    if (roundedWidth <= 450) return smallConfig;
+    if (roundedWidth <= 650) return mediumConfig;
+    if (roundedWidth <= 850) return largeConfig;
+    if (roundedWidth <= 1100) return xlargeConfig;
+    if (roundedWidth <= 1400) return xxlargeConfig;
+    return xxlargeConfig;
+  }, [roundedWidth]);
 
   // Setup virtualizer for rows
   const virtualizer = useVirtualizer({
@@ -122,7 +163,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
     }
   }, []);
 
-  // Handle modal close
+  // Handle modal close with stable reference
   const handleModalClose = useCallback(() => {
     setVariantModalOpen(false);
     setSelectedItem(null);
@@ -146,7 +187,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
       }
 
       if (!hasVariants) {
-        onAddToCart(item);
+        stableOnAddToCart(item);
       }
       // For other items with variants, the click is handled by the popover
     };
@@ -222,7 +263,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
                                 // Add variant info to the name for cart display
                                 displayName: `${item.name} (${variant.name} - ${variant.volume}${variant.unit})`
                               };
-                              onAddToCart(itemWithVariant);
+                              stableOnAddToCart(itemWithVariant);
                             }}
                           >
                             <span>
@@ -276,22 +317,21 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
   }
 
   return (
-    <div className="h-full p-1 sm:p-2 lg:p-3 safe-area-padding">
+    <div className="relative h-full w-full overflow-hidden">
+      <PerformanceMonitor componentName="ItemsGrid" maxRenders={5} />
       {/* Variant Selection Modal */}
-      <VariantSelectionModal isOpen={variantModalOpen} selectedItem={selectedItem} onClose={handleModalClose} onAddToCart={onAddToCart} />
+      <VariantSelectionModal isOpen={variantModalOpen} selectedItem={selectedItem} onClose={handleModalClose} onAddToCart={stableOnAddToCart} />
 
       <div ref={parentRef} className="h-full overflow-auto hide-scrollbar">
         <div
           style={{
-            height: virtualizer.getTotalSize(),
+            height: `${virtualizer.getTotalSize()}px`,
             width: "100%",
             position: "relative"
           }}
         >
           {virtualizer.getVirtualItems().map(virtualRow => {
             const rowItems = virtualRows[virtualRow.index];
-            if (!rowItems || rowItems.length === 0) return null;
-
             return (
               <div
                 key={virtualRow.index}
@@ -318,4 +358,4 @@ export const ItemsGrid: React.FC<ProductGridProps> = ({ posItems, onAddToCart, r
       </div>
     </div>
   );
-};
+}, itemsGridPropsAreEqual);

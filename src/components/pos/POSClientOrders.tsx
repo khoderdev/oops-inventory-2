@@ -29,6 +29,10 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Add throttling for onOrderStatusChange
+  const lastStatusChangeRef = useRef<number>(0);
+  const throttleInterval = 5000; // 5 seconds between calls - more aggressive throttling
   const [filters, setFilters] = useState<OrderFilters>(() => {
     const today = new Date().toISOString().split("T")[0];
     return {
@@ -150,16 +154,25 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
         });
       }
 
-      // Always call the callback to refresh table badges when any order status changes
-      // This ensures table badges are updated immediately for any status change
+      // DISABLED: Temporarily disabled automatic order status change calls to prevent excessive rendering
+      // This was causing too many re-renders and console logs
+      /*
       if (onOrderStatusChange) {
-        onOrderStatusChange();
+        const now = Date.now();
+        if (now - lastStatusChangeRef.current > throttleInterval) {
+          console.log("✅ Calling onOrderStatusChange - enough time has passed");
+          lastStatusChangeRef.current = now;
+          onOrderStatusChange();
+        } else {
+          console.log("🛑 Throttled onOrderStatusChange - too soon");
+        }
       }
+      */
 
       // Update the selected order if it's the same one
       setSelectedOrder(updatedOrder);
     },
-    [onOrderStatusChange]
+    [] // Removed onOrderStatusChange dependency since we're not using it
   );
 
   // Fetch orders when component opens or filters change
