@@ -72,6 +72,7 @@ import {
   applyDiscount as applyDiscountAction
 } from "@/store/slices/posSlice";
 import { PerformanceMonitor } from "./PerformanceMonitor";
+import PerformanceValidator from "./PerformanceValidator";
 
 const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   // Redux
@@ -114,49 +115,20 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [stockEntries, setStockEntries] = React.useState<StockEntryWithMaterial[]>([]);
   const [isItemsGridStable, setIsItemsGridStable] = React.useState(false);
   const [isItemsGridLoading, setIsItemsGridLoading] = React.useState(true);
+  // Simplified performance monitoring
   const renderCount = useRef(0);
-  const prevPropsRef = useRef<any>({});
   
-  if (process.env.NODE_ENV === 'development') {
-    renderCount.current += 1;
-    
-    // Only log every 10th render to reduce console spam
-    if (renderCount.current % 10 === 1 || renderCount.current <= 5) {
-      console.log(`🔄 POSClient render #${renderCount.current}`);
-    }
-    
-    // Simplified props tracking to prevent performance impact
-    const currentProps = { 
-      menuItemsLoading,
-      foodMenuItemsLength: foodMenuItems?.length || 0,
-      beverageMenuItemsLength: beverageMenuItems?.length || 0,
-      menuItemCategoriesLength: menuItemCategories?.length || 0,
-      beverageCategoriesLength: beverageCategories?.length || 0
-    };
-    
-    // Only check for changes on significant renders
-    if (renderCount.current > 1 && renderCount.current <= 50) {
-      const prev = prevPropsRef.current;
-      const changed = Object.keys(currentProps).filter(key => 
-        prev[key] !== currentProps[key]
-      );
-      if (changed.length > 0 && renderCount.current % 5 === 0) {
-        console.log('🔍 Props/State changed:', changed, {
-          prev: changed.reduce((acc, key) => ({ ...acc, [key]: prev[key] }), {}),
-          current: changed.reduce((acc, key) => ({ ...acc, [key]: currentProps[key] }), {})
-        });
-      }
-    }
-    
-    prevPropsRef.current = currentProps;
-  }
-
   // Loading state will be managed after posItems is defined
   const [optimisticAssignments, setOptimisticAssignments] = React.useState<SectionAssignment[]>(sectionAssignments);
   const [negativeStockWarnings] = React.useState<NegativeStockWarning[]>([]);
   const [showNegativeStockDialog, setShowNegativeStockDialog] = React.useState(false);
   const [paymentAmount, setPaymentAmount] = React.useState<string>("");
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
+
+  // Minimal performance tracking
+  if (process.env.NODE_ENV === "development") {
+    renderCount.current += 1;
+  }
 
   // Stable callback references to prevent unnecessary re-renders
   const handleCategoryChange = useCallback((category: string) => {
@@ -177,76 +149,73 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [printerSelectionContext, setPrinterSelectionContext] = React.useState<"payment" | "manual_print" | null>(null);
   const [activeView, setActiveView] = React.useState<"cart" | "products">("products");
 
-
   // Build categories map from context categories with ultra-stable memoization
   const categoriesMap = useMemo(() => {
     const categoryMap = new Map<number, string>();
-    
+
     // Only process if we have actual categories data
     if (menuItemCategories?.length > 0) {
-      menuItemCategories.filter(c => c?.isActive).forEach(c => {
-        if (c?.id && c?.name) categoryMap.set(c.id, c.name);
-      });
+      menuItemCategories
+        .filter(c => c?.isActive)
+        .forEach(c => {
+          if (c?.id && c?.name) categoryMap.set(c.id, c.name);
+        });
     }
     if (beverageCategories?.length > 0) {
-      beverageCategories.filter(c => c?.isActive).forEach(c => {
-        if (c?.id && c?.name) categoryMap.set(c.id, c.name);
-      });
+      beverageCategories
+        .filter(c => c?.isActive)
+        .forEach(c => {
+          if (c?.id && c?.name) categoryMap.set(c.id, c.name);
+        });
     }
-    
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🗺️ categoriesMap rebuilt with', categoryMap.size, 'categories');
-    }
-    
+
     return categoryMap;
   }, [
-    menuItemCategories?.length,
-    beverageCategories?.length
-    // Removed JSON.stringify for better performance - using length is sufficient
+    menuItemCategories,
+    beverageCategories
   ]);
 
   // Memoized helper function for variants transformation to prevent recreation
-  const transformVariants = useCallback((
-    variants: any
-  ): Array<{
-    id: string | number;
-    name: string;
-    volume: number;
-    unit: string;
-    price: string | number;
-  }> => {
-    if (Array.isArray(variants)) return variants;
+  const transformVariants = useCallback(
+    (
+      variants: any
+    ): Array<{
+      id: string | number;
+      name: string;
+      volume: number;
+      unit: string;
+      price: string | number;
+    }> => {
+      if (Array.isArray(variants)) return variants;
 
-    if (variants && typeof variants === "object") {
-      if (variants.variantVolumes) {
-        return Object.keys(variants.variantVolumes).map(variantKey => ({
-          id: variantKey,
-          name: variantKey,
-          volume: variants.variantVolumes[variantKey] || 0,
-          unit: variants.variantVolumeUnits?.[variantKey] || "cl",
-          price: variants.variantPrices?.[variantKey] || 0
+      if (variants && typeof variants === "object") {
+        if (variants.variantVolumes) {
+          return Object.keys(variants.variantVolumes).map(variantKey => ({
+            id: variantKey,
+            name: variantKey,
+            volume: variants.variantVolumes[variantKey] || 0,
+            unit: variants.variantVolumeUnits?.[variantKey] || "cl",
+            price: variants.variantPrices?.[variantKey] || 0
+          }));
+        }
+
+        // Handle other possible variant formats
+        return Object.entries(variants).map(([key, value]: [string, any]) => ({
+          id: key,
+          name: key,
+          volume: value.volume || value.size || 0,
+          unit: value.unit || "cl",
+          price: value.price || 0
         }));
       }
 
-      // Handle other possible variant formats
-      return Object.entries(variants).map(([key, value]: [string, any]) => ({
-        id: key,
-        name: key,
-        volume: value.volume || value.size || 0,
-        unit: value.unit || "cl",
-        price: value.price || 0
-      }));
-    }
+      return [];
+    },
+    []
+  );
 
-    return [];
-  }, []);
-  
   // Memoized POS items with ultra-optimized dependencies to prevent cascade re-renders
   const posItems = useMemo(() => {
-    if (process.env.NODE_ENV === 'development' && renderCount.current <= 5) {
-      console.log('🔄 posItems recalculating... Categories map size:', categoriesMap.size);
-    }
-    
     // Early return for loading state without side effects
     if (menuItemsLoading) {
       return [];
@@ -298,13 +267,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
     return transformedItems;
   }, [
-    foodMenuItems?.length,
-    beverageMenuItems?.length,
-    categoriesMap.size, // Use size instead of the map itself for stability
+    foodMenuItems,
+    beverageMenuItems,
+    categoriesMap,
     transformVariants
-    // Removed JSON.stringify for performance - length comparison is sufficient for stability
-  ]); // Ultra-optimized dependencies for maximum performance
-  
+  ]);
 
   // Filter posItems based on activeCategory with ultra-stable reference
   const filteredPosItems = useMemo(() => {
@@ -312,7 +279,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     if (activeCategory === "all") {
       return posItems;
     }
-    
+
     return posItems.filter(item => {
       if (typeof item.category === "string") {
         return item.category === activeCategory;
@@ -325,17 +292,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       }
       return false;
     });
-  }, [posItems.length, activeCategory, categoriesMap.size]); // Use length and size for stability
+  }, [posItems, activeCategory, categoriesMap]);
 
   // Create categories array from posItems with ultra-stable reference
   const categories = useMemo(() => {
     const uniqueCategories = new Set<string>(["all"]);
-    
+
     // Use for-loop for better performance than forEach
     for (let i = 0; i < posItems.length; i++) {
       const item = posItems[i];
       if (!item?.category) continue;
-      
+
       if (typeof item.category === "string") {
         uniqueCategories.add(item.category);
       } else if (typeof item.category === "object" && item.category !== null && "name" in item.category) {
@@ -357,9 +324,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       if (b === "all") return 1;
       return a.localeCompare(b);
     });
-    
+
     return categoriesArray;
-  }, [posItems.length, categoriesMap.size]); // Use length and size for ultra-stability
+  }, [posItems, categoriesMap]);
 
   // Manage loading state with minimal dependencies to prevent render loops
   useEffect(() => {
@@ -418,8 +385,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     setMenuItems(combined);
   }, [foodMenuItems, beverageMenuItems]);
 
-
-
   // Calculate derived values
   const subtotal = (cart || []).filter(Boolean).reduce((sum, item) => {
     if (!item || typeof item.price !== "number" || typeof item.quantity !== "number") {
@@ -435,7 +400,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   // Create a stable cart for rendering with minimal dependencies
   const stableCart = useMemo(() => {
     return cart.length > 0 ? [...cart] : [];
-  }, [cart.length]); // Use only length for ultra-stability
+  }, [cart]);
 
   // Fetch tables data
   const fetchTablesData = useCallback(async () => {
@@ -2036,9 +2001,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     setPrinterSelectionContext(null);
   }, [dispatch]);
 
-  // Add to cart handler
+  // Add to cart handler - optimized for performance
   const addToCart = useCallback(
     (posItem: POSItem) => {
+      // Performance tracking for cart operations
+      if (process.env.NODE_ENV === "development") {
+        console.log("🛒 addToCart called - tracking performance");
+      }
+
       dispatch(setIsPOSActionInProgressAction(true));
 
       // Create a unique cart ID that includes variant information if present
@@ -2075,14 +2045,26 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     [dispatch]
   );
 
-  // Stable callback wrapper for addToCart to prevent unnecessary re-renders
-  const handleAddToCart = useCallback((posItem: POSItem) => {
-    addToCart(posItem);
-  }, [addToCart]);
+  // Ultra-stable callback wrapper for addToCart to prevent unnecessary re-renders
+  const handleAddToCart = useCallback(
+    (posItem: POSItem) => {
+      // Performance validation - ensure we're not re-rendering excessively
+      if (process.env.NODE_ENV === "development" && renderCount.current > 15) {
+        console.warn("⚠️ handleAddToCart called during high render count:", renderCount.current);
+      }
+      addToCart(posItem);
+    },
+    [addToCart]
+  );
 
-  // Update cart quantity handler
+  // Update cart quantity handler - performance optimized
   const updateCartQuantity = useCallback(
     (cartId: string, newQuantity: number) => {
+      // Performance tracking
+      if (process.env.NODE_ENV === "development") {
+        console.log("🔢 updateCartQuantity called - performance tracking");
+      }
+
       dispatch(setIsPOSActionInProgressAction(true));
       dispatch(updateCartQuantityAction({ cartId, newQuantity }));
 
@@ -2195,12 +2177,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   // Return the component JSX
   return (
     <>
-    <PerformanceMonitor
-      componentName="POSClient"
-      enabled={process.env.NODE_ENV === "development"}
-      maxRenders={20}
-      onExcessiveRenders={(count) => console.warn(`⚠️ Performance Warning: POSClient has rendered ${count} times`)}
-    />
+      <PerformanceValidator componentName="POSClient" renderCount={20} showAlerts={process.env.NODE_ENV === "development"} />
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
         {cart && cart.length > 0 && !showSuccessCheckmark && (
           <div className="md:!hidden bg-white border-b border-gray-200 px-3 p-1 flex-shrink-0">
@@ -2657,13 +2634,5 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 };
 
 export const POSClient = React.memo(POSClientComponent, (prevProps, nextProps) => {
-  return (
-    prevProps.isDayOpen === nextProps.isDayOpen &&
-    prevProps.sectionAssignments === nextProps.sectionAssignments &&
-    prevProps.selectedOrderForPOS === nextProps.selectedOrderForPOS &&
-    prevProps.onSaleComplete === nextProps.onSaleComplete &&
-    prevProps.onOrderSelect === nextProps.onOrderSelect &&
-    prevProps.onOrderProcessed === nextProps.onOrderProcessed &&
-    prevProps.refreshCountsRef === nextProps.refreshCountsRef
-  );
+  return prevProps.isDayOpen === nextProps.isDayOpen && prevProps.sectionAssignments === nextProps.sectionAssignments && prevProps.selectedOrderForPOS === nextProps.selectedOrderForPOS && prevProps.onSaleComplete === nextProps.onSaleComplete && prevProps.onOrderSelect === nextProps.onOrderSelect && prevProps.onOrderProcessed === nextProps.onOrderProcessed && prevProps.refreshCountsRef === nextProps.refreshCountsRef;
 });
