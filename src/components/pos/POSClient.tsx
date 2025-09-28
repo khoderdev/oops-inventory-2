@@ -315,6 +315,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           logDevOnly(`🗺️ POSClient: Categories map built from localStorage with ${categoryMap.size} categories`);
         }
       }
+      
+      // Initialize filteredPosItemsCache for "all" category to ensure it's available on first render
+      if (filteredPosItemsCache.current && Object.keys(filteredPosItemsCache.current).length === 0) {
+        logDevOnly(`🧩 POSClient: Initializing filteredPosItemsCache for 'all' category`);
+        // We'll populate this once posItems are available
+        filteredPosItemsCache.current = { "all": createExtendedArray([], 0) };
+      }
+      
       cacheInitialized.current = true;
       const initTime = performance.now() - startTime;
       logDevOnly(`✅ POSClient: Static cache initialized in ${initTime.toFixed(1)}ms ${hasLocalStorageData ? "using localStorage data" : ""}`);
@@ -517,6 +525,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           logDevOnly(`⚡ POSClient: INSTANT RENDER using ${parsedItems.length} pre-transformed POSItems from localStorage (${ageMinutes} minutes old)`);
           cachedPosItemsRef.current = parsedItems;
           posItemsInitializedRef.current = true;
+          
+          // Initialize filteredPosItemsCache for "all" category with these items
+          if (!filteredPosItemsCache.current["all"]) {
+            logDevOnly(`🔄 POSClient: Initializing filteredPosItemsCache for 'all' category with ${parsedItems.length} items`);
+            filteredPosItemsCache.current["all"] = createExtendedArray(parsedItems, parsedItems.length);
+          }
+          
           return parsedItems;
         }
       } else if (cachedPosItems) {
@@ -575,6 +590,12 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       cachedPosItemsRef.current = transformedItems;
       posItemsInitializedRef.current = true;
 
+      // Initialize filteredPosItemsCache for "all" category with these items
+      if (transformedItems.length > 0) {
+        logDevOnly(`🔄 POSClient: Initializing filteredPosItemsCache for 'all' category with ${transformedItems.length} items`);
+        filteredPosItemsCache.current["all"] = createExtendedArray(transformedItems, transformedItems.length);
+      }
+
       try {
         localStorage.setItem("oops_pos_items", JSON.stringify(transformedItems));
         localStorage.setItem("oops_pos_items_timestamp", Date.now().toString());
@@ -623,9 +644,27 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     if (isPOSActionInProgress) {
       return filteredPosItemsCache.current[activeCategory] || posItems;
     }
+    
+    // For "all" category, make sure we cache it too for consistent behavior
     if (activeCategory === "all") {
-      return posItems;
+      // Check if we already have a valid cached version
+      const cachedAll = filteredPosItemsCache.current["all"];
+      if (
+        cachedAll &&
+        posItems.length > 0 &&
+        cachedAll.length > 0 &&
+        cachedAll._sourceLength === posItems.length
+      ) {
+        return cachedAll;
+      }
+      
+      // Create and cache the "all" items array
+      const allItems = createExtendedArray(posItems, posItems.length);
+      filteredPosItemsCache.current["all"] = allItems;
+      return allItems;
     }
+    
+    // For other categories, check cache first
     const cachedFiltered = filteredPosItemsCache.current[activeCategory];
     if (
       cachedFiltered &&
@@ -636,6 +675,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       return cachedFiltered;
     }
 
+    // Filter and cache items for the specific category
     const filteredItems = posItems.filter(item => typeof item.category === "string" && item.category === activeCategory);
     const filtered = createExtendedArray(filteredItems, posItems.length);
     filteredPosItemsCache.current[activeCategory] = filtered;
