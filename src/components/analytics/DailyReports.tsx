@@ -39,6 +39,9 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
 
   // Normalize per-item sales data for display (prefer topSellingItems, fallback to salesSummary.topItems)
   type ItemSales = { name: string; quantity: number; revenue: number };
+  
+  // Check if the error is about the day being open
+  const isDayOpenError = error?.includes('day is still open');
   const itemSales: ItemSales[] = React.useMemo(() => {
     const items: ItemSales[] =
       selectedReport?.topSellingItems && selectedReport.topSellingItems.length > 0
@@ -55,11 +58,28 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
     <div className={className}>
       {/* Error Display */}
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-          <span className="text-red-700">{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700 float-right">
-            ×
-          </button>
+        <div className={`mb-4 rounded-lg p-4 ${isDayOpenError ? 'bg-amber-50 border border-amber-200' : 'bg-red-50 border border-red-200'}`}>
+          <div className="flex items-start">
+            <div className="flex-1">
+              <h4 className="font-medium mb-1">
+                {isDayOpenError ? 'Day Still Open' : 'Error Loading Report'}
+              </h4>
+              <p className={`text-sm ${isDayOpenError ? 'text-amber-800' : 'text-red-700'}`}>
+                {error}
+              </p>
+              {isDayOpenError && (
+                <p className="mt-2 text-sm text-amber-700">
+                  You can view reports for previous days or wait until the day is closed to generate a final report.
+                </p>
+              )}
+            </div>
+            <button 
+              onClick={() => setError(null)} 
+              className={`ml-4 text-lg ${isDayOpenError ? 'text-amber-500 hover:text-amber-700' : 'text-red-500 hover:text-red-700'}`}
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
 
