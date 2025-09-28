@@ -1738,11 +1738,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
   const handleManualSave = useCallback(() => {
     const startTime = performance.now();
-    logDevOnly("💾 Starting order save operation");
-    if (cart.length === 0) {
-      showError("Cannot save empty order");
-      return;
-    }
     const isEditMode = !!editingSaleId;
     const currentEditingSaleId = editingSaleId;
     dispatch(setIsPOSActionInProgressAction(true));
@@ -2334,6 +2329,71 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     },
     [loadOrder, cachedFoodMenuItems, cachedBeverageMenuItems, showError, clearOrder, dispatch, onOrderProcessed]
   );
+
+  const handleDayClose = useCallback(() => {
+    if (!currentDay || !currentDay.id) {
+      showError("No active day to close");
+      return;
+    }
+    
+    // Validate closing cash
+    if (!closingCash || isNaN(parseFloat(closingCash))) {
+      showError("Please enter a valid closing cash amount");
+      return;
+    }
+    
+    // Prepare close day data
+    const closeDayData = {
+      closingCash: parseFloat(closingCash),
+      closedBy: "POS User", // You might want to use the actual user name here
+      notes: dayCloseNotes || "",
+      userId: 1 // Use actual user ID
+    };
+    
+    // Start the closing process
+    dispatch(setIsPOSActionInProgressAction(true));
+    
+    // Close the dialog immediately for better UX
+    setShowDayCloseDialog(false);
+    
+    // Show optimistic success message
+    showSuccess("Day closed successfully");
+    
+    // Reset the report shown flag
+    dayReportShownRef.current = false;
+    
+    // Process in background
+    const backgroundProcessing = async () => {
+      try {
+        // Close the day
+        await closeDay(closeDayData);
+        
+        // Refresh the current day data
+        await refreshCurrentDay();
+        
+        // If we have a date, show the report
+        if (currentDay?.date && !dayReportShownRef.current) {
+          // Mark that we're showing the report to prevent loops
+          dayReportShownRef.current = true;
+          
+          // Format date string properly for the API
+          const dateString = new Date(currentDay.date).toISOString().split("T")[0];
+          
+          // Generate and show the report
+          handleViewReport(dateString);
+          setShowReportModal(true);
+        }
+      } catch (error) {
+        console.error("Error closing day:", error);
+        showError("Failed to close day. Please try again.");
+      } finally {
+        dispatch(setIsPOSActionInProgressAction(false));
+      }
+    };
+    
+    // Start background processing
+    backgroundProcessing();
+  }, [currentDay, closingCash, dayCloseNotes, closeDay, refreshCurrentDay, handleViewReport, setShowReportModal, showSuccess, showError, dispatch]);
 
   return (
     <>
