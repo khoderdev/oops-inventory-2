@@ -456,6 +456,18 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
     categoriesMapRef.current = categoryMap;
     logDevOnly(`🗂️ POSClient: Categories map updated with ${categoryMap.size} categories`);
+    
+    // Invalidate POSItems localStorage cache when categories change
+    // This is necessary because category names in POSItems might be outdated
+    try {
+      localStorage.removeItem('oops_pos_items');
+      logDevOnly('🗑️ POSClient: Invalidated POSItems localStorage cache due to category changes');
+    } catch (err) {
+      logDevOnly(`💥 POSClient: Error invalidating POSItems cache: ${err}`);
+    }
+    
+    // Clear filtered cache when categories change
+    filteredPosItemsCache.current = {};
   }, []);
 
   // Optimized performance tracking - only runs every 5th render to reduce overhead
@@ -493,12 +505,24 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   useEffect(() => {
     handleCategoryChangeRef.current = (category: string) => {
       if (category !== activeCategory) {
+        // Log category change for debugging
+        logDevOnly(`🔄 POSClient: Changing category from ${activeCategory} to ${category}`);
+        
+        // Update active category state
         setActiveCategory(category);
+        
+        // Clear any stale filtered items cache for the new category
+        if (filteredPosItemsCache.current[category]) {
+          delete filteredPosItemsCache.current[category];
+        }
       }
     };
   }, [activeCategory]);
 
-  const handleCategoryChange = handleCategoryChangeRef.current;
+  // Ensure this is always the latest function reference
+  const handleCategoryChange = useCallback((category: string) => {
+    handleCategoryChangeRef.current(category);
+  }, []);
   const [tables, setTables] = React.useState<Table[]>([]);
   const [showUnsavedDialog, setShowUnsavedDialog] = React.useState(false);
   const [printedTables, setPrintedTables] = React.useState<string[]>([]);
@@ -579,14 +603,29 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     // INSTANT RENDERING PATH: Check for pre-transformed POSItems in localStorage
     try {
       const cachedPosItems = localStorage.getItem('oops_pos_items');
-      if (cachedPosItems) {
+      const cachedTimestamp = localStorage.getItem('oops_pos_items_timestamp');
+      
+      // Only use cached items if they exist and aren't too old (max 24 hours)
+      const now = Date.now();
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      const isValid = cachedTimestamp && (now - parseInt(cachedTimestamp)) < maxAge;
+      
+      if (cachedPosItems && isValid) {
         const parsedItems = JSON.parse(cachedPosItems) as POSItem[];
         if (parsedItems && Array.isArray(parsedItems) && parsedItems.length > 0) {
-          logDevOnly(`⚡ POSClient: INSTANT RENDER using ${parsedItems.length} pre-transformed POSItems from localStorage`);
+          const cacheAge = now - parseInt(cachedTimestamp || '0');
+          const ageMinutes = Math.round(cacheAge / 60000);
+          
+          logDevOnly(`⚡ POSClient: INSTANT RENDER using ${parsedItems.length} pre-transformed POSItems from localStorage (${ageMinutes} minutes old)`);
           cachedPosItemsRef.current = parsedItems;
           posItemsInitializedRef.current = true;
           return parsedItems;
         }
+      } else if (cachedPosItems) {
+        // Cache exists but is too old, invalidate it
+        logDevOnly('🕒 POSClient: POSItems cache is too old, invalidating');
+        localStorage.removeItem('oops_pos_items');
+        localStorage.removeItem('oops_pos_items_timestamp');
       }
     } catch (err) {
       logDevOnly(`💥 POSClient: Error loading pre-transformed POSItems from localStorage: ${err}`);
