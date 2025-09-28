@@ -345,6 +345,8 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = EM
     initialOffset: 0,
     getItemKey: index => `row-${index}-${gridConfig.columns}`, // Include columns in key for proper re-rendering
     // Use stable references for callbacks to prevent re-renders
+    scrollToAlignment: "start", // Optimize scroll alignment
+    // Performance optimizations
     scrollToFn: (offset, { behavior }) => {
       // Use smooth scrolling only for small distances
       const element = parentRef.current;
