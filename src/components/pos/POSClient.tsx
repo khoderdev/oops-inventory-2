@@ -32,7 +32,6 @@ import { VoidOrderDialog } from "./VoidOrderDialog";
 import { Category } from "@/types/categories";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { shallowEqual } from "react-redux";
 import * as posActions from "@/store/slices/posSlice";
 import { setCart } from "@/store/slices/posSlice";
 import {
@@ -294,9 +293,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   // These refs maintain stable references to prevent unnecessary recalculations
   const cachedPosItemsRef = useRef<POSItem[]>([]);
   const categoriesMapRef = useRef(new Map<number, string>());
-  const lastFoodItemsLengthRef = useRef<number>(0);
-  const lastBeverageItemsLengthRef = useRef<number>(0);
-  const lastCategoriesMapSizeRef = useRef<number>(0);
   const cachedFoodMenuItems = useRef<MenuItem[]>([]);
   const cachedBeverageMenuItems = useRef<MenuItem[]>([]);
   const cachedMenuItemCategories = useRef<Category[]>([]);
@@ -310,14 +306,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const lastRenderTimeRef = useRef(Date.now());
   const renderTimesRef = useRef<number[]>([]);
 
-  // Static initialization of cache on first render only
+  // Static initialization of cache on first render only - prioritizing localStorage data
   useEffect(() => {
     const startTime = performance.now();
 
     if (!cacheInitialized.current) {
-      logDevOnly("🚀 POSClient: Initializing static cache");
+      // Check if we have data from localStorage (via MenuItemsContext)
+      const hasLocalStorageData = foodMenuItems.length > 0 || beverageMenuItems.length > 0;
+      
+      logDevOnly(`🚀 POSClient: Initializing static cache ${hasLocalStorageData ? 'with localStorage data' : 'empty'}`);
 
-      // Initialize all caches at once
+      // Initialize all caches at once - these will contain localStorage data if available
       cachedFoodMenuItems.current = foodMenuItems || [];
       cachedBeverageMenuItems.current = beverageMenuItems || [];
       cachedMenuItemCategories.current = menuItemCategories || [];
@@ -346,12 +345,16 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         }
 
         categoriesMapRef.current = categoryMap;
+        
+        if (hasLocalStorageData) {
+          logDevOnly(`🗺️ POSClient: Categories map built from localStorage with ${categoryMap.size} categories`);
+        }
       }
 
       cacheInitialized.current = true;
 
       const initTime = performance.now() - startTime;
-      logDevOnly(`✅ POSClient: Static cache initialized in ${initTime.toFixed(1)}ms`);
+      logDevOnly(`✅ POSClient: Static cache initialized in ${initTime.toFixed(1)}ms ${hasLocalStorageData ? 'using localStorage data' : ''}`);
     }
   }, [foodMenuItems, beverageMenuItems, menuItemCategories, beverageCategories]);
 
@@ -366,6 +369,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       cachedFoodMenuItems.current = foodMenuItems;
       // Clear filtered cache when source data changes
       filteredPosItemsCache.current = {};
+      
+      // Invalidate POSItems localStorage cache when food menu items change
+      try {
+        localStorage.removeItem('oops_pos_items');
+        logDevOnly('🗑️ POSClient: Invalidated POSItems localStorage cache due to food menu items change');
+      } catch (err) {
+        logDevOnly(`💥 POSClient: Error invalidating POSItems cache: ${err}`);
+      }
     }
   }, [foodMenuItems?.length]);
 
@@ -380,6 +391,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       cachedBeverageMenuItems.current = beverageMenuItems;
       // Clear filtered cache when source data changes
       filteredPosItemsCache.current = {};
+      
+      // Invalidate POSItems localStorage cache when beverage menu items change
+      try {
+        localStorage.removeItem('oops_pos_items');
+        logDevOnly('🗑️ POSClient: Invalidated POSItems localStorage cache due to beverage menu items change');
+      } catch (err) {
+        logDevOnly(`💥 POSClient: Error invalidating POSItems cache: ${err}`);
+      }
     }
   }, [beverageMenuItems?.length]);
 
@@ -537,7 +556,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     []
   );
 
-  // EMERGENCY OPTIMIZED posItems with static caching and minimal rebuilds
+  // EMERGENCY OPTIMIZED posItems with localStorage caching for instant rendering
   const posItems = useMemo(() => {
     // EMERGENCY PATH: If we're in a POS action, NEVER rebuild
     if (isPOSActionInProgress && cachedPosItemsRef.current.length > 0) {
@@ -555,6 +574,28 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     // Skip rebuilding during loading if we have cached data
     if (menuItemsLoading && cachedPosItemsRef.current.length > 0) {
       return cachedPosItemsRef.current;
+    }
+    
+    // INSTANT RENDERING PATH: Check for pre-transformed POSItems in localStorage
+    try {
+      const cachedPosItems = localStorage.getItem('oops_pos_items');
+      if (cachedPosItems) {
+        const parsedItems = JSON.parse(cachedPosItems) as POSItem[];
+        if (parsedItems && Array.isArray(parsedItems) && parsedItems.length > 0) {
+          logDevOnly(`⚡ POSClient: INSTANT RENDER using ${parsedItems.length} pre-transformed POSItems from localStorage`);
+          cachedPosItemsRef.current = parsedItems;
+          posItemsInitializedRef.current = true;
+          return parsedItems;
+        }
+      }
+    } catch (err) {
+      logDevOnly(`💥 POSClient: Error loading pre-transformed POSItems from localStorage: ${err}`);
+      // Continue with normal transformation if localStorage fails
+    }
+    
+    // Log that we're using data from localStorage (via MenuItemsContext)
+    if ((foodMenuItems.length > 0 || beverageMenuItems.length > 0) && !posItemsInitializedRef.current) {
+      logDevOnly(`🏎️ POSClient: Building POS items from localStorage data: ${foodMenuItems.length} food, ${beverageMenuItems.length} beverage items`);
     }
 
     // Only rebuild if we have no cached items or explicit cache invalidation
@@ -617,6 +658,15 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       // Update cache and tracking refs
       cachedPosItemsRef.current = transformedItems;
       posItemsInitializedRef.current = true;
+      
+      // Save transformed items to localStorage for instant rendering next time
+      try {
+        localStorage.setItem('oops_pos_items', JSON.stringify(transformedItems));
+        localStorage.setItem('oops_pos_items_timestamp', Date.now().toString());
+        logDevOnly(`💾 POSClient: Saved ${transformedItems.length} transformed POSItems to localStorage for instant rendering next time`);
+      } catch (err) {
+        logDevOnly(`💥 POSClient: Error saving transformed POSItems to localStorage: ${err}`);
+      }
       
       // Only log on actual rebuilds
       if (process.env.NODE_ENV === 'development') {
@@ -729,7 +779,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     filteredPosItemsCache.current = newCache;
   }, [activeCategory, categories]);
 
-  // Ultra-throttled menu items fetching with minimal impact
+  // Ultra-throttled menu items fetching with minimal impact and localStorage prioritization
   const lastFetchTimeRef = useRef<number>(0);
   const fetchMenuItemsWithCacheBusting = useCallback(() => {
     // Extreme throttling - prevent fetches within 30 seconds
@@ -738,17 +788,23 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       return; // Silent skip - no logging to reduce overhead
     }
     
-    // Only fetch if we have no data at all
+    // Only fetch if we have no data at all - this will use localStorage first via MenuItemsContext
     if (cachedFoodMenuItems.current.length === 0 || cachedBeverageMenuItems.current.length === 0) {
       lastFetchTimeRef.current = now;
+      // This will first check localStorage before making API calls
       fetchMenuItems("both");
     }
   }, [fetchMenuItems]);
 
-  // Initial data loading
+  // Initial data loading - prioritize localStorage via MenuItemsContext
   useEffect(() => {
+    // This will first check localStorage data via the MenuItemsContext
+    // Only if localStorage doesn't have data will it make API calls
     if (!foodMenuItems || foodMenuItems.length === 0 || !beverageMenuItems || beverageMenuItems.length === 0) {
+      logDevOnly("🔄 POSClient: Loading menu items (will use localStorage if available)");
       fetchMenuItemsWithCacheBusting();
+    } else {
+      logDevOnly(`💾 POSClient: Using existing menu items: ${foodMenuItems.length} food, ${beverageMenuItems.length} beverage items`);
     }
   }, [fetchMenuItemsWithCacheBusting, foodMenuItems, beverageMenuItems]);
 
@@ -759,13 +815,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       const refreshInterval = setInterval(() => {
         // Only refresh if not in the middle of an operation and no user activity
         if (!isPOSActionInProgress && Date.now() - lastRenderTimeRef.current > 10000) {
-          logDevOnly("⏰ Periodic menu items refresh");
+          logDevOnly("⏰ Periodic menu items refresh check");
           // Use a throttled version of the fetch to reduce impact
-          if (Date.now() - lastFetchTimeRef.current > 120000) { // 2 minutes minimum between fetches
+          // Increased to 5 minutes to prioritize localStorage and reduce API calls
+          if (Date.now() - lastFetchTimeRef.current > 300000) { // 5 minutes minimum between fetches
             fetchMenuItemsWithCacheBusting();
           }
         }
-      }, 180000); // 3 minutes instead of 1 minute
+      }, 300000); // 5 minutes instead of 3 minutes
       
       return () => clearInterval(refreshInterval);
     }
