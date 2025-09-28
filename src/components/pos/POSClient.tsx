@@ -109,7 +109,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   );
 
   const { showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showReportsDialog, showPrinterSelector } = dialogStates;
-
   const selectedItemForNotes = useAppSelector(state => state.pos.selectedItemForNotes);
   const orderNotes = useAppSelector(state => state.pos.orderNotes);
   const appliedDiscount = useAppSelector(state => state.pos.appliedDiscount);
@@ -118,7 +117,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const editingSaleId = useAppSelector(state => state.pos.editingSaleId);
   const selectedSaleForEdit = useAppSelector(state => state.pos.selectedSaleForEdit);
   const isPOSActionInProgress = useAppSelector(state => state.pos.isPOSActionInProgress);
-
   const { foodMenuItems, beverageMenuItems, menuItemsLoading, menuItemCategories, beverageCategories, fetchMenuItems } = useMenuItems();
   const cachedPosItemsRef = useRef<POSItem[]>([]);
   const lastFoodItemsLengthRef = useRef<number>(0);
@@ -169,22 +167,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [paymentAmount, setPaymentAmount] = React.useState<string>("");
   const [activeCategory, setActiveCategory] = React.useState<string>("all");
   const [isItemsGridLoading, setIsItemsGridLoading] = React.useState<boolean>(false);
-  const renderCount = useRef(0);
-
-  if (process.env.NODE_ENV === "development" && renderCount.current < 100) {
-    renderCount.current += 1;
-
-    if (renderCount.current === 5) {
-      console.log(`✅ POSClient: ${renderCount.current} renders - EXCELLENT`);
-    }
-  }
-
   const handleCategoryChangeRef = useRef((category: string) => {});
 
   useEffect(() => {
     handleCategoryChangeRef.current = (category: string) => {
       if (category !== activeCategory) {
-        console.log(`🔄 Changing category from ${activeCategory} to ${category}`);
         setActiveCategory(category);
       }
     };
@@ -198,8 +185,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [tableOrders, setTableOrders] = React.useState<{ [tableId: string]: number }>({});
   const [incompleteTableOrdersCount, setIncompleteTableOrdersCount] = React.useState<number>(0);
   const [incompleteDeliveryTakeawayCount, setIncompleteDeliveryTakeawayCount] = React.useState<number>(0);
-  const [, setIncompleteDeliveryCount] = React.useState<number>(0);
-  const [, setIncompleteTakeawayCount] = React.useState<number>(0);
   const [leftPanelWidth, setLeftPanelWidth] = React.useState(33.33);
   const [rightPanelPixelWidth, setRightPanelPixelWidth] = React.useState(0);
   const [isResizing, setIsResizing] = React.useState(false);
@@ -1446,17 +1431,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             let saleId;
             if (currentOrder?.id) {
               orderId = currentOrder.id;
-            }
-            else if (selectedSaleForEdit?.orderId) {
+            } else if (selectedSaleForEdit?.orderId) {
               orderId = selectedSaleForEdit.orderId;
               saleId = selectedSaleForEdit.id;
               isSaleUpdate = true;
-            }
-            else if (currentEditingSaleId) {
+            } else if (currentEditingSaleId) {
               saleId = currentEditingSaleId;
               isSaleUpdate = true;
-            }
-            else {
+            } else {
               throw new Error("No valid ID found for update operation");
             }
             if (isSaleUpdate) {
@@ -1491,8 +1473,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                     discountAmount: updateData.discountAmount,
                     totalAmount: total
                   };
-                } 
-              } 
+                }
+              }
             } catch (error) {
               console.error(`❌ Error updating order/sale:`, error);
               throw error;
@@ -2311,9 +2293,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Tables Layout Dialog */}
-      {showTablesLayout && <TablesLayout tables={Array.isArray(tables) ? tables : []} selectedTable={selectedTable} onTableSelect={handleTableSelection} onClose={handleCloseTablesLayout} />}
 
       {/* Receipt Printer Dialog */}
       {showReceiptDialog && lastSaleData && <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => dispatch(setShowReceiptDialogAction(false))} receiptData={lastSaleData} autoPrint={false} />}
