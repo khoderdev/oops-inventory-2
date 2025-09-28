@@ -70,6 +70,9 @@ export const OptimizedStyleLoader: React.FC<StyleProps> = ({
 
 /**
  * Preload a stylesheet without applying it immediately
+ * 
+ * This function ensures the stylesheet is used shortly after preloading
+ * to avoid browser console warnings about unused preloaded resources
  */
 export const preloadStylesheet = (href: string): void => {
   // Check if already preloaded
@@ -80,6 +83,20 @@ export const preloadStylesheet = (href: string): void => {
   link.rel = 'preload';
   link.as = 'style';
   link.href = href;
+  link.onload = () => {
+    // Apply the stylesheet shortly after preloading to avoid warnings
+    // This creates a non-blocking stylesheet load pattern
+    setTimeout(() => {
+      const styleLink = document.createElement('link');
+      styleLink.rel = 'stylesheet';
+      styleLink.href = href;
+      styleLink.media = 'print';
+      styleLink.onload = () => {
+        styleLink.media = 'all';
+      };
+      document.head.appendChild(styleLink);
+    }, 100); // Short timeout to ensure the preload is used
+  };
   
   document.head.appendChild(link);
 };

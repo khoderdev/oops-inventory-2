@@ -98,19 +98,8 @@ export const addCriticalResourceHints = (): void => {
   apiPreconnect.href = 'http://localhost:3000'; // Adjust based on your API URL
   document.head.appendChild(apiPreconnect);
   
-  // Preload main font
-  const fontPreload = document.createElement('link');
-  fontPreload.rel = 'preload';
-  fontPreload.href = '/fonts/inter-var.woff2'; // Adjust based on your font
-  fontPreload.as = 'font';
-  fontPreload.type = 'font/woff2';
-  fontPreload.crossOrigin = 'anonymous';
-  document.head.appendChild(fontPreload);
-  
-  // Preload main CSS
-  const cssPreload = document.createElement('link');
-  cssPreload.rel = 'preload';
-  cssPreload.href = '/assets/index.css'; // Adjust based on your CSS path
-  cssPreload.as = 'style';
-  document.head.appendChild(cssPreload);
+  const originPreconnect = document.createElement('link');
+  originPreconnect.rel = 'preconnect';
+  originPreconnect.href = window.location.origin;
+  document.head.appendChild(originPreconnect);
 };
