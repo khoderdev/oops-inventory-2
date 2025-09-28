@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/types/auth";
-import { DollarSign, FileText, LucideIcon, Printer, Settings, Trash, WifiCog, X, Menu, ChevronUp } from "lucide-react";
+import { FileText, LucideIcon, Printer, Settings, Trash, WifiCog, X, Menu } from "lucide-react";
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ActionButtonConfig, defaultActionButtons, FlexibleActionBarProps, LegacyActionBarProps } from "./constants";
@@ -167,16 +167,6 @@ export const ActionBar: React.FC<ActionBarProps> = props => {
         onClick: canAccessBackOffice ? () => navigate("/") : undefined,
         className: ""
       },
-      {
-        id: "close-day",
-        icon: FileText,
-        label: "Close Day",
-        active: isDayOpen,
-        disabled: !isDayOpen || !onCloseDayClick,
-        onClick: onCloseDayClick,
-        className: isDayOpen ? "!bg-transparent border border-amber-500 text-amber-600 hover:!bg-amber-50 hover:text-amber-700" : "",
-        requiredPermission: PERMISSIONS.DAY_OPERATIONS_CLOSE
-      }
     ];
     columns = 8;
     className = "";

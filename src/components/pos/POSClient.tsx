@@ -79,26 +79,10 @@ import PrinterSelector from "../common/PrinterSelector";
 
 const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   const dispatch = useAppDispatch();
-  
-  // Daily reports functionality
-  const { 
-    handleViewReport, 
-    showReportModal, 
-    setShowReportModal, 
-    selectedReport, 
-    loading: reportLoading, 
-    error: reportError, 
-    setError: setReportError 
-  } = useDailyReports();
-  
-  // Day operations functionality
-  const {
-    currentDay,
-    closeDay,
-    refreshCurrentDay,
-    actionLoading: dayActionLoading,
-    actionSuccess: dayActionSuccess
-  } = useDayOperations();
+
+  const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
+  const { currentDay, closeDay, refreshCurrentDay, actionLoading: dayActionLoading, actionSuccess: dayActionSuccess } = useDayOperations();
+
   const cart = useAppSelector(
     state => state.pos.cart,
     (prev, next) => {
@@ -338,14 +322,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           logDevOnly(`🗺️ POSClient: Categories map built from localStorage with ${categoryMap.size} categories`);
         }
       }
-      
+
       // Initialize filteredPosItemsCache for "all" category to ensure it's available on first render
       if (filteredPosItemsCache.current && Object.keys(filteredPosItemsCache.current).length === 0) {
         logDevOnly(`🧩 POSClient: Initializing filteredPosItemsCache for 'all' category`);
         // We'll populate this once posItems are available
-        filteredPosItemsCache.current = { "all": createExtendedArray([], 0) };
+        filteredPosItemsCache.current = { all: createExtendedArray([], 0) };
       }
-      
+
       cacheInitialized.current = true;
       const initTime = performance.now() - startTime;
       logDevOnly(`✅ POSClient: Static cache initialized in ${initTime.toFixed(1)}ms ${hasLocalStorageData ? "using localStorage data" : ""}`);
@@ -489,7 +473,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [closingCash, setClosingCash] = React.useState<string>("");
   const [dayCloseNotes, setDayCloseNotes] = React.useState<string>("");
   const [dayReportShownRef] = React.useState<React.MutableRefObject<boolean>>(React.useRef(false));
-  const categoriesMap = useMemo(() => { return categoriesMapRef.current; }, []);
+  const categoriesMap = useMemo(() => {
+    return categoriesMapRef.current;
+  }, []);
 
   const transformVariants = useCallback(
     (
@@ -552,13 +538,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           logDevOnly(`⚡ POSClient: INSTANT RENDER using ${parsedItems.length} pre-transformed POSItems from localStorage (${ageMinutes} minutes old)`);
           cachedPosItemsRef.current = parsedItems;
           posItemsInitializedRef.current = true;
-          
+
           // Initialize filteredPosItemsCache for "all" category with these items
           if (!filteredPosItemsCache.current["all"]) {
             logDevOnly(`🔄 POSClient: Initializing filteredPosItemsCache for 'all' category with ${parsedItems.length} items`);
             filteredPosItemsCache.current["all"] = createExtendedArray(parsedItems, parsedItems.length);
           }
-          
+
           return parsedItems;
         }
       } else if (cachedPosItems) {
@@ -636,7 +622,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       return transformedItems;
     }
     return cachedPosItemsRef.current;
-  }, [isPOSActionInProgress, menuItemsLoading]); 
+  }, [isPOSActionInProgress, menuItemsLoading]);
 
   const lastPosItemsForCategoriesRef = useRef<POSItem[]>([]);
   const categoriesRef = useRef<string[]>(["all"]);
@@ -671,34 +657,24 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     if (isPOSActionInProgress) {
       return filteredPosItemsCache.current[activeCategory] || posItems;
     }
-    
+
     // For "all" category, make sure we cache it too for consistent behavior
     if (activeCategory === "all") {
       // Check if we already have a valid cached version
       const cachedAll = filteredPosItemsCache.current["all"];
-      if (
-        cachedAll &&
-        posItems.length > 0 &&
-        cachedAll.length > 0 &&
-        cachedAll._sourceLength === posItems.length
-      ) {
+      if (cachedAll && posItems.length > 0 && cachedAll.length > 0 && cachedAll._sourceLength === posItems.length) {
         return cachedAll;
       }
-      
+
       // Create and cache the "all" items array
       const allItems = createExtendedArray(posItems, posItems.length);
       filteredPosItemsCache.current["all"] = allItems;
       return allItems;
     }
-    
+
     // For other categories, check cache first
     const cachedFiltered = filteredPosItemsCache.current[activeCategory];
-    if (
-      cachedFiltered &&
-      posItems.length > 0 &&
-      cachedFiltered.length > 0 &&
-      cachedFiltered._sourceLength === posItems.length
-    ) {
+    if (cachedFiltered && posItems.length > 0 && cachedFiltered.length > 0 && cachedFiltered._sourceLength === posItems.length) {
       return cachedFiltered;
     }
 
@@ -739,7 +715,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const fetchMenuItemsWithCacheBusting = useCallback(() => {
     const now = Date.now();
     if (now - lastFetchTimeRef.current < 30000) {
-      return; 
+      return;
     }
 
     if (cachedFoodMenuItems.current.length === 0 || cachedBeverageMenuItems.current.length === 0) {
@@ -766,7 +742,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             fetchMenuItemsWithCacheBusting();
           }
         }
-      }, 300000); 
+      }, 300000);
       return () => clearInterval(refreshInterval);
     }
   }, [fetchMenuItemsWithCacheBusting, isPOSActionInProgress]);
@@ -2336,17 +2312,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       showError("No active day to close");
       return;
     }
-    
+
     // Set initial closing cash to expected cash if available
     if (currentDay.expectedCash) {
       setClosingCash(currentDay.expectedCash.toString());
     } else {
       setClosingCash("");
     }
-    
+
     // Clear notes
     setDayCloseNotes("");
-    
+
     // Show dialog
     setShowDayCloseDialog(true);
   }, [currentDay, showError]);
@@ -2356,13 +2332,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       showError("No active day to close");
       return;
     }
-    
+
     // Validate closing cash
     if (!closingCash || isNaN(parseFloat(closingCash))) {
       showError("Please enter a valid closing cash amount");
       return;
     }
-    
+
     // Prepare close day data
     const closeDayData = {
       closingCash: parseFloat(closingCash),
@@ -2370,36 +2346,36 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       notes: dayCloseNotes || "",
       userId: 1 // Use actual user ID
     };
-    
+
     // Start the closing process
     dispatch(setIsPOSActionInProgressAction(true));
-    
+
     // Close the dialog immediately for better UX
     setShowDayCloseDialog(false);
-    
+
     // Show optimistic success message
     showSuccess("Day closed successfully");
-    
+
     // Reset the report shown flag
     dayReportShownRef.current = false;
-    
+
     // Process in background
     const backgroundProcessing = async () => {
       try {
         // Close the day
         await closeDay(closeDayData);
-        
+
         // Refresh the current day data
         await refreshCurrentDay();
-        
+
         // If we have a date, show the report
         if (currentDay?.date && !dayReportShownRef.current) {
           // Mark that we're showing the report to prevent loops
           dayReportShownRef.current = true;
-          
+
           // Format date string properly for the API
           const dateString = new Date(currentDay.date).toISOString().split("T")[0];
-          
+
           // Generate and show the report
           handleViewReport(dateString);
           setShowReportModal(true);
@@ -2411,7 +2387,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         dispatch(setIsPOSActionInProgressAction(false));
       }
     };
-    
+
     // Start background processing
     backgroundProcessing();
   }, [currentDay, closingCash, dayCloseNotes, closeDay, refreshCurrentDay, handleViewReport, setShowReportModal, showSuccess, showError, dispatch]);
@@ -2880,71 +2856,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         </DialogContent>
       </Dialog>
 
-      {/* Day Close Dialog */}
-      <Dialog open={showDayCloseDialog} onOpenChange={setShowDayCloseDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogTitle>Close Day</DialogTitle>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label htmlFor="closing-cash" className="text-sm font-medium">Closing Cash Amount *</label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="closing-cash"
-                  type="number"
-                  step="0.01"
-                  value={closingCash}
-                  onChange={e => setClosingCash(e.target.value)}
-                  placeholder="0.00"
-                  required
-                  autoFocus
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-                {currentDay?.expectedCash && (
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setClosingCash(currentDay.expectedCash?.toString() || "0")} 
-                    className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 whitespace-nowrap"
-                    title="Click to use expected cash amount"
-                  >
-                    Expected: ${Number(currentDay.expectedCash || 0).toFixed(2)}
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="day-notes" className="text-sm font-medium">Closing Notes (Optional)</label>
-              <textarea
-                id="day-notes"
-                value={dayCloseNotes}
-                onChange={e => setDayCloseNotes(e.target.value)}
-                rows={3}
-                placeholder="Any closing notes..."
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDayCloseDialog(false)} disabled={isLoading}>
-              Cancel
-            </Button>
-            <Button onClick={handleDayClose} disabled={isLoading || !closingCash} variant="destructive">
-              {isLoading ? "Closing..." : "Close Day"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Daily Reports Modal */}
-      <DailyReports 
-        showReportModal={showReportModal} 
-        setShowReportModal={setShowReportModal} 
-        selectedReport={selectedReport} 
-        error={reportError} 
-        setError={setReportError} 
-      />
+      <DailyReports showReportModal={showReportModal} setShowReportModal={setShowReportModal} selectedReport={selectedReport} error={reportError} setError={setReportError} />
 
       {/* Notes Dialog */}
       <NotesDialog isOpen={showNotesDialog} onClose={() => dispatch(setShowNotesDialogAction(false))} notes={orderNotes} onNotesChange={notes => dispatch(setOrderNotesAction(notes))} />
