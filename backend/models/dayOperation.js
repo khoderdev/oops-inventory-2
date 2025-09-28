@@ -1,5 +1,6 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../config/database.js";
+// Note: These imports will be used in models/index.js for associations
 
 const DayOperation = sequelize.define(
   "DayOperation",
@@ -13,12 +14,17 @@ const DayOperation = sequelize.define(
     date: {
       type: DataTypes.DATEONLY,
       allowNull: false,
-      unique: true,
+      // Removed unique constraint to allow multiple operations per day
       validate: {
         isDate: {
           msg: "Invalid date"
         }
       }
+    },
+    uniqueId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: 'Unique identifier for this day operation to differentiate multiple operations on the same day'
     },
     status: {
       type: DataTypes.ENUM('opened', 'closed'),
@@ -107,26 +113,33 @@ const DayOperation = sequelize.define(
       allowNull: false,
       defaultValue: 0.00
     },
+    // These fields have been moved to separate tables
+    // Keeping legacy fields for backward compatibility during migration
     openingStockSnapshot: {
       type: DataTypes.JSONB,
       allowNull: true,
-      defaultValue: []
+      defaultValue: [],
+      comment: 'Legacy field - use DayOperationStockSnapshot table instead'
     },
     closingStockSnapshot: {
       type: DataTypes.JSONB,
       allowNull: true,
-      defaultValue: []
+      defaultValue: [],
+      comment: 'Legacy field - use DayOperationStockSnapshot table instead'
     },
     stockVariances: {
       type: DataTypes.JSONB,
       allowNull: true,
-      defaultValue: []
+      defaultValue: [],
+      comment: 'Legacy field - use DayOperationStockVariance table instead'
     },
     autoReportGenerated: {
       type: DataTypes.BOOLEAN,
       allowNull: false,
       defaultValue: false
     },
+    // Keeping reportData as JSONB since it has a complex structure
+    // that would require multiple tables to fully normalize
     reportData: {
       type: DataTypes.JSONB,
       allowNull: true,
@@ -136,11 +149,13 @@ const DayOperation = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true
     },
+    // This field has been moved to a separate table
+    // Keeping legacy field for backward compatibility during migration
     activityLogs: {
       type: DataTypes.JSONB,
       allowNull: true,
       defaultValue: [],
-      comment: 'Array of business activity logs during the day (sales, stock changes, etc.)'
+      comment: 'Legacy field - use DayOperationActivity table instead'
     },
     lastActivity: {
       type: DataTypes.DATE,
@@ -164,7 +179,8 @@ const DayOperation = sequelize.define(
     indexes: [
       {
         fields: ["date"],
-        unique: true
+        // Removed unique constraint
+        unique: false
       },
       {
         fields: ["status"]
@@ -174,6 +190,16 @@ const DayOperation = sequelize.define(
       },
       {
         fields: ["closedAt"]
+      },
+      {
+        // Add index for uniqueId
+        fields: ["uniqueId"]
+      },
+      {
+        // Add composite index for date + uniqueId to ensure uniqueness
+        fields: ["date", "uniqueId"],
+        unique: true,
+        name: "day_operation_date_uniqueid_idx"
       }
     ]
   }

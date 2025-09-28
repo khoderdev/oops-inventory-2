@@ -5,8 +5,12 @@ import AuditLog from "./AuditLog.js";
 import BackupSchedule from "./BackupSchedule.js";
 import Category from "./Category.js";
 import CategoryType from "./CategoryType.js";
-import DayOperation from "./dayOperation.js";
+import DayOperation from "./DayOperation.js";
 import DayOperationReport from "./dayOperationsReports.js";
+import DayOperationStockSnapshot from "./DayOperationStockSnapshot.js";
+import DayOperationStockVariance from "./DayOperationStockVariance.js";
+import DayOperationActivity from "./DayOperationActivity.js";
+import DayOperationUserStats from "./DayOperationUserStats.js";
 import Employee from "./Employee.js";
 import EmployeeSettlement from "./EmployeeSettlement.js";
 import EmployeeUsage from "./EmployeeUsage.js";
@@ -785,6 +789,90 @@ DayOperationReport.belongsTo(DayOperation, {
   onUpdate: "CASCADE"
 });
 
+// DayOperation ↔ DayOperationStockSnapshot
+DayOperation.hasMany(DayOperationStockSnapshot, {
+  foreignKey: "dayOperationId",
+  as: "stockSnapshots",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+DayOperationStockSnapshot.belongsTo(DayOperation, {
+  foreignKey: "dayOperationId",
+  as: "dayOperation",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// DayOperation ↔ DayOperationStockVariance
+DayOperation.hasMany(DayOperationStockVariance, {
+  foreignKey: "dayOperationId",
+  as: "stockVarianceRecords",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+DayOperationStockVariance.belongsTo(DayOperation, {
+  foreignKey: "dayOperationId",
+  as: "dayOperation",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// DayOperation ↔ DayOperationActivity
+DayOperation.hasMany(DayOperationActivity, {
+  foreignKey: "dayOperationId",
+  as: "activities",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+DayOperationActivity.belongsTo(DayOperation, {
+  foreignKey: "dayOperationId",
+  as: "dayOperation",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// DayOperation ↔ DayOperationUserStats
+DayOperation.hasMany(DayOperationUserStats, {
+  foreignKey: "dayOperationId",
+  as: "userStats",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+DayOperationUserStats.belongsTo(DayOperation, {
+  foreignKey: "dayOperationId",
+  as: "dayOperation",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
+// User ↔ DayOperationActivity
+User.hasMany(DayOperationActivity, {
+  foreignKey: "userId",
+  as: "dayActivities",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+DayOperationActivity.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+  onDelete: "SET NULL",
+  onUpdate: "CASCADE"
+});
+
+// User ↔ DayOperationUserStats
+User.hasMany(DayOperationUserStats, {
+  foreignKey: "userId",
+  as: "dayStats",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+DayOperationUserStats.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+  onDelete: "CASCADE",
+  onUpdate: "CASCADE"
+});
+
 // MenuItem ↔ Variants
 MenuItem.hasMany(Variants, {
   foreignKey: "menuItemId",
@@ -979,6 +1067,10 @@ export {
   CategoryType,
   DayOperation,
   DayOperationReport,
+  DayOperationStockSnapshot,
+  DayOperationStockVariance,
+  DayOperationActivity,
+  DayOperationUserStats,
   Department,
   Employee,
   EmployeeSettlement,
