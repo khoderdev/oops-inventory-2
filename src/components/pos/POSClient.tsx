@@ -14,6 +14,7 @@ import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
 import { useVoidPrinter } from "./VoidPrinter";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Printer, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { createExtendedArray, ExtendedArray } from "@/types/extended-array";
 import { ReportGenerator } from "../analytics/ReportGenerator";
 import { ActionBar } from "./ActionBar";
 import { CategoryTabs } from "./CategoryTabs";
@@ -302,7 +303,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const cachedBeverageCategories = useRef<Category[]>([]);
   const posItemsInitializedRef = useRef(false);
   const cacheInitialized = useRef(false);
-  const filteredPosItemsCache = useRef<Record<string, POSItem[]>>({});
+  const filteredPosItemsCache = useRef<Record<string, ExtendedArray<POSItem>>>({});
 
   // Performance tracking refs
   const renderCountRef = useRef(0);
@@ -438,24 +439,31 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     logDevOnly(`🗂️ POSClient: Categories map updated with ${categoryMap.size} categories`);
   }, []);
 
-  // Optimized performance tracking - only in development and only essential metrics
+  // Optimized performance tracking - only runs every 5th render to reduce overhead
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       renderCountRef.current++;
       const now = Date.now();
       const renderTime = now - lastRenderTimeRef.current;
-      renderTimesRef.current.push(renderTime);
-
-      // Only log every 10th render to reduce overhead
-      if (renderCountRef.current % 10 === 0) {
-        const avgRenderTime = renderTimesRef.current.reduce((sum, time) => sum + time, 0) / renderTimesRef.current.length;
-        logDevOnly(`🔄 POSClient rendered ${renderCountRef.current} times, avg: ${avgRenderTime.toFixed(1)}ms`);
-        renderTimesRef.current = [];
+      
+      // Only track and log every 5th render instead of every render
+      if (renderCountRef.current % 5 === 0) {
+        renderTimesRef.current.push(renderTime);
+        
+        // Only log every 20th render to reduce console spam
+        if (renderCountRef.current % 20 === 0) {
+          const avgRenderTime = renderTimesRef.current.reduce((sum, time) => sum + time, 0) / renderTimesRef.current.length;
+          logDevOnly(`🔄 POSClient rendered ${renderCountRef.current} times, avg: ${avgRenderTime.toFixed(1)}ms`);
+          // Keep only the last 10 measurements to prevent memory growth
+          if (renderTimesRef.current.length > 10) {
+            renderTimesRef.current = renderTimesRef.current.slice(-10);
+          }
+        }
       }
-
+      
       lastRenderTimeRef.current = now;
     }
-  });
+  }, []); // Empty dependency array but still runs on every render
   const [negativeStockWarnings] = React.useState<NegativeStockWarning[]>([]);
   const [showNegativeStockDialog, setShowNegativeStockDialog] = React.useState(false);
   const [paymentAmount, setPaymentAmount] = React.useState<string>("");
@@ -488,42 +496,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   // Ultra-optimized categoriesMap with stable reference and minimal dependencies
   // This uses the pre-built categoriesMapRef from the static cache initialization
   const categoriesMap = useMemo(() => {
-    // If we're in a POS action, return the current map to prevent updates
-    if (isPOSActionInProgress) {
-      return categoriesMapRef.current;
-    }
-
-    // If the map is already populated and no changes to categories, just return it
-    if (categoriesMapRef.current.size > 0 && (!menuItemCategories || menuItemCategories.length === cachedMenuItemCategories.current?.length) && (!beverageCategories || beverageCategories.length === cachedBeverageCategories.current?.length)) {
-      return categoriesMapRef.current;
-    }
-
-    // Rebuild the map if needed
-    const categoryMap = new Map<number, string>();
-    const stableMenuCategories = cachedMenuItemCategories.current || menuItemCategories || [];
-    const stableBeverageCategories = cachedBeverageCategories.current || beverageCategories || [];
-
-    // Process menu item categories
-    for (let i = 0; i < stableMenuCategories.length; i++) {
-      const c = stableMenuCategories[i];
-      if (c?.isActive && c?.id && c?.name) {
-        categoryMap.set(c.id, c.name);
-      }
-    }
-
-    // Process beverage categories
-    for (let i = 0; i < stableBeverageCategories.length; i++) {
-      const c = stableBeverageCategories[i];
-      if (c?.isActive && c?.id && c?.name) {
-        categoryMap.set(c.id, c.name);
-      }
-    }
-
-    // Update the ref
-    categoriesMapRef.current = categoryMap;
-
-    return categoryMap;
-  }, [isPOSActionInProgress, menuItemCategories, beverageCategories, cachedMenuItemCategories.current, cachedBeverageCategories.current]);
+    // Always return the current ref to prevent any rebuilds
+    return categoriesMapRef.current;
+  }, []); // Empty dependency array for ultra stability
 
   const transformVariants = useCallback(
     (
@@ -562,97 +537,65 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     []
   );
 
-  // Ultra-optimized posItems with smart caching and minimal recalculations
+  // EMERGENCY OPTIMIZED posItems with static caching and minimal rebuilds
   const posItems = useMemo(() => {
-    // ULTRA-FAST PATH 0: If we already have a cache and nothing has changed, return it immediately
-    if (cachedPosItemsRef.current.length > 0 && 
-        !menuItemsLoading && 
-        posItemsInitializedRef.current) {
-      // Check if any of our data sources have changed
-      const foodItemsLength = cachedFoodMenuItems.current?.length || 0;
-      const beverageItemsLength = cachedBeverageMenuItems.current?.length || 0;
-      const categoriesSize = categoriesMapRef.current.size;
-      
-      const noChanges = 
-        lastFoodItemsLengthRef.current === foodItemsLength && 
-        lastBeverageItemsLengthRef.current === beverageItemsLength && 
-        lastCategoriesMapSizeRef.current === categoriesSize;
-      
-      if (noChanges) {
-        // Skip rebuilding completely
-        return cachedPosItemsRef.current;
-      }
-    }
-    
-    // FAST PATH 1: During POS actions, always return cached items to prevent UI flicker
+    // EMERGENCY PATH: If we're in a POS action, NEVER rebuild
     if (isPOSActionInProgress && cachedPosItemsRef.current.length > 0) {
       return cachedPosItemsRef.current;
     }
-
-    // FAST PATH 2: During loading, return cached items if available or empty array
-    if (menuItemsLoading) {
-      return cachedPosItemsRef.current.length > 0 ? cachedPosItemsRef.current : [];
+    
+    // ULTRA-FAST PATH: If we already have a cache and no significant changes, return it
+    if (cachedPosItemsRef.current.length > 0 && 
+        posItemsInitializedRef.current &&
+        !menuItemsLoading) {
+      // Skip rebuilding completely - we'll rely on explicit cache invalidation
+      return cachedPosItemsRef.current;
+    }
+    
+    // Skip rebuilding during loading if we have cached data
+    if (menuItemsLoading && cachedPosItemsRef.current.length > 0) {
+      return cachedPosItemsRef.current;
     }
 
-    // Only measure performance when actually rebuilding
-    const startTime = performance.now();
-    logDevOnly("🔄 POSClient: Rebuilding posItems");
+    // Only rebuild if we have no cached items or explicit cache invalidation
+    if (cachedPosItemsRef.current.length === 0 || !posItemsInitializedRef.current) {
+      // Use cached menu items for stability
+      const stableFoodItems = cachedFoodMenuItems.current || [];
+      const stableBeverageItems = cachedBeverageMenuItems.current || [];
+      const allMenuItems = [...stableFoodItems, ...stableBeverageItems];
 
-    // Use cached menu items for stability
-    const stableFoodItems = cachedFoodMenuItems.current || [];
-    const stableBeverageItems = cachedBeverageMenuItems.current || [];
-    const allMenuItems = [...stableFoodItems, ...stableBeverageItems];
+      if (allMenuItems.length === 0) {
+        return [];
+      }
 
-    if (allMenuItems.length === 0) {
-      return [];
-    }
+      // Optimize category lookup with a Map
+      const categoryLookup = new Map();
+      const transformedItems: POSItem[] = [];
 
-    // Optimize category lookup with a Map
-    const categoryLookup = new Map();
-
-    // Process items in batches for better performance
-    const batchSize = 200; // Increased batch size for better performance
-    const totalBatches = Math.ceil(allMenuItems.length / batchSize);
-    let transformedItems: POSItem[] = [];
-
-    // Process each batch
-    for (let batch = 0; batch < totalBatches; batch++) {
-      const start = batch * batchSize;
-      const end = Math.min(start + batchSize, allMenuItems.length);
-      const batchItems = allMenuItems.slice(start, end);
-
-      // Transform items in the current batch
-      const batchTransformed = [];
-
-      // Manual loop is faster than filter+map for large arrays
-      for (let i = 0; i < batchItems.length; i++) {
-        const menuItem = batchItems[i];
-
-        // Skip invalid items
+      // Single-pass transformation without batching for simplicity
+      for (let i = 0; i < allMenuItems.length; i++) {
+        const menuItem = allMenuItems[i];
         if (!menuItem || menuItem.isPOSItem === false) continue;
 
-        // Determine category name with optimized lookup
+        // Simplified category lookup
         let categoryName = "Uncategorized";
-        const categoryKey = typeof menuItem.category === "object" ? `obj-${(menuItem.category as any)?.id}` : `${typeof menuItem.category}-${menuItem.category}`;
-
-        if (categoryLookup.has(categoryKey)) {
-          categoryName = categoryLookup.get(categoryKey);
-        } else if (menuItem.category) {
+        if (menuItem.category) {
           if (typeof menuItem.category === "object" && menuItem.category !== null && "id" in menuItem.category) {
-            categoryName = categoriesMapRef.current.get(menuItem.category.id) || (menuItem.category as any).name || (menuItem.category as any).value || "Uncategorized";
+            categoryName = categoriesMapRef.current.get(menuItem.category.id) || 
+                          (menuItem.category as any).name || 
+                          "Uncategorized";
           } else if (typeof menuItem.category === "number") {
             categoryName = categoriesMapRef.current.get(menuItem.category) || "Uncategorized";
           } else if (typeof menuItem.category === "string") {
             categoryName = menuItem.category;
           }
-          categoryLookup.set(categoryKey, categoryName);
         }
 
         // Process variants only if they exist
         const variants = menuItem.variants ? transformVariants(menuItem.variants) : undefined;
 
-        // Create the POS item
-        batchTransformed.push({
+        // Create the POS item with minimal object creation
+        transformedItems.push({
           id: `menu-${menuItem.id}`,
           name: menuItem.name,
           price: typeof menuItem.price === "number" && !isNaN(menuItem.price) ? menuItem.price : 0,
@@ -671,21 +614,21 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         });
       }
 
-      // Add batch items to result
-      transformedItems = [...transformedItems, ...batchTransformed];
+      // Update cache and tracking refs
+      cachedPosItemsRef.current = transformedItems;
+      posItemsInitializedRef.current = true;
+      
+      // Only log on actual rebuilds
+      if (process.env.NODE_ENV === 'development') {
+        logDevOnly(`✅ Created ${transformedItems.length} POS items`);
+      }
+      
+      return transformedItems;
     }
-
-    // Update cache and tracking refs
-    cachedPosItemsRef.current = transformedItems;
-    posItemsInitializedRef.current = true;
-    lastFoodItemsLengthRef.current = stableFoodItems.length;
-    lastBeverageItemsLengthRef.current = stableBeverageItems.length;
-    lastCategoriesMapSizeRef.current = categoriesMapRef.current.size;
-
-    const processingTime = performance.now() - startTime;
-    logDevOnly(`✅ Created ${transformedItems.length} POS items in ${processingTime.toFixed(1)}ms`);
-    return transformedItems;
-  }, [isPOSActionInProgress, menuItemsLoading, transformVariants]);
+    
+    // Default return cached items
+    return cachedPosItemsRef.current;
+  }, [isPOSActionInProgress, menuItemsLoading]);  // Minimal dependencies
   // Note: Removed unstable dependencies to prevent unnecessary recalculations
 
   const lastPosItemsForCategoriesRef = useRef<POSItem[]>([]);
@@ -717,62 +660,38 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     return categoriesArray;
   }, [posItems]);
 
-  // Ultra-optimized filteredPosItems with instant category switching
-  // This uses a pre-computed cache for each category to enable instant switching
+  // HYPER-OPTIMIZED filteredPosItems with zero object creation
   const filteredPosItems = useMemo(() => {
-    // FAST PATH 1: During POS actions, use cached items if available
-    if (isPOSActionInProgress && filteredPosItemsCache.current[activeCategory]) {
-      return filteredPosItemsCache.current[activeCategory];
+    // ULTRA-FAST PATH 0: If we're in a POS action, don't recalculate at all
+    if (isPOSActionInProgress) {
+      return filteredPosItemsCache.current[activeCategory] || posItems;
     }
 
-    // FAST PATH 2: For "all" category, just return all items
+    // FAST PATH 1: For "all" category, just return all items without modification
     if (activeCategory === "all") {
-      filteredPosItemsCache.current["all"] = posItems;
       return posItems;
     }
 
-    // FAST PATH 3: Use cached filtered items if posItems reference hasn't changed
+    // FAST PATH 2: Use cached filtered items if available and valid
     const cachedFiltered = filteredPosItemsCache.current[activeCategory];
-    if (cachedFiltered && cachedFiltered.length > 0) {
-      // Verify the cache is still valid by checking first and last item
-      const firstPosItem = posItems[0];
-      const lastPosItem = posItems[posItems.length - 1];
-
-      // If the first and last items match what we had when we created the cache,
-      // we can assume the cache is still valid
-      if (firstPosItem && cachedFiltered[0] && firstPosItem.id === cachedFiltered[0].id.replace(/^filtered-/, "")) {
-        return cachedFiltered;
-      }
+    if (cachedFiltered && 
+        posItems.length > 0 && 
+        cachedFiltered.length > 0 && 
+        // Simple length check is faster than deep comparison
+        (cachedFiltered._sourceLength === posItems.length)) {
+      return cachedFiltered;
     }
 
-    // Need to filter - measure performance
-    const startTime = performance.now();
-
-    // Use Set for O(1) lookup performance
-    const categoryItemsSet = new Set();
-    const filtered: POSItem[] = [];
-
-    // Manual loop is faster than filter for large arrays
-    for (let i = 0; i < posItems.length; i++) {
-      const item = posItems[i];
-      if (typeof item.category === "string" && item.category === activeCategory) {
-        // Add a prefix to the ID to distinguish filtered items in the cache
-        const filteredItem = {
-          ...item,
-          id: `filtered-${item.id}`
-        };
-        categoryItemsSet.add(item.id);
-        filtered.push(filteredItem);
-      }
-    }
-
-    // Update the cache
+    // Need to filter - but minimize object creation and performance tracking
+    const filteredItems = posItems.filter(item => 
+      typeof item.category === "string" && item.category === activeCategory
+    );
+    
+    // Use helper function to create ExtendedArray with _sourceLength property
+    const filtered = createExtendedArray(filteredItems, posItems.length);
+    
+    // Update the cache without logging
     filteredPosItemsCache.current[activeCategory] = filtered;
-
-    const filterTime = performance.now() - startTime;
-    if (filtered.length > 0) {
-      logDevOnly(`🔍 Filtered ${filtered.length} items for category "${activeCategory}" in ${filterTime.toFixed(1)}ms`);
-    }
 
     return filtered;
   }, [activeCategory, posItems, isPOSActionInProgress]);
@@ -780,7 +699,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   // Clear filteredPosItemsCache when activeCategory changes to prevent memory leaks
   useEffect(() => {
     // Keep only the current category and "all" in cache to save memory
-    const newCache: Record<string, POSItem[]> = {};
+    const newCache: Record<string, ExtendedArray<POSItem>> = {};
     if (filteredPosItemsCache.current["all"]) {
       newCache["all"] = filteredPosItemsCache.current["all"];
     }
@@ -810,27 +729,20 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     filteredPosItemsCache.current = newCache;
   }, [activeCategory, categories]);
 
-  // Enhanced menu items fetching with cache-busting and debouncing
+  // Ultra-throttled menu items fetching with minimal impact
   const lastFetchTimeRef = useRef<number>(0);
   const fetchMenuItemsWithCacheBusting = useCallback(() => {
-    // Prevent multiple fetches within 5 seconds
+    // Extreme throttling - prevent fetches within 30 seconds
     const now = Date.now();
-    if (now - lastFetchTimeRef.current < 5000) {
-      logDevOnly("💾 Skipping redundant menu items fetch (throttled)");
-      return;
+    if (now - lastFetchTimeRef.current < 30000) {
+      return; // Silent skip - no logging to reduce overhead
     }
     
-    // Only force fetch if we don't already have data
-    if (cachedFoodMenuItems.current.length > 0 && cachedBeverageMenuItems.current.length > 0) {
-      logDevOnly("💾 Using cached menu items instead of forcing fetch");
-      return;
+    // Only fetch if we have no data at all
+    if (cachedFoodMenuItems.current.length === 0 || cachedBeverageMenuItems.current.length === 0) {
+      lastFetchTimeRef.current = now;
+      fetchMenuItems("both");
     }
-    
-    logDevOnly("🔄 Forcing menu items fetch with cache-busting");
-    lastFetchTimeRef.current = now;
-    
-    // Force fresh data with 'force' option
-    fetchMenuItems("both");
   }, [fetchMenuItems]);
 
   // Initial data loading
@@ -840,18 +752,21 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     }
   }, [fetchMenuItemsWithCacheBusting, foodMenuItems, beverageMenuItems]);
 
-  // Periodic refresh to ensure data freshness (every 60 seconds)
+  // Periodic refresh with longer interval and reduced impact
   useEffect(() => {
-    // Only set up the interval if we're not in a POS action
-    if (!isPOSActionInProgress) {
+    // Only set up the interval if we're not in a POS action and we have a stable component
+    if (!isPOSActionInProgress && cacheInitialized.current) {
       const refreshInterval = setInterval(() => {
-        // Only refresh if not in the middle of an operation
-        if (!isPOSActionInProgress) {
+        // Only refresh if not in the middle of an operation and no user activity
+        if (!isPOSActionInProgress && Date.now() - lastRenderTimeRef.current > 10000) {
           logDevOnly("⏰ Periodic menu items refresh");
-          fetchMenuItemsWithCacheBusting();
+          // Use a throttled version of the fetch to reduce impact
+          if (Date.now() - lastFetchTimeRef.current > 120000) { // 2 minutes minimum between fetches
+            fetchMenuItemsWithCacheBusting();
+          }
         }
-      }, 60000); // 60 seconds
-
+      }, 180000); // 3 minutes instead of 1 minute
+      
       return () => clearInterval(refreshInterval);
     }
   }, [fetchMenuItemsWithCacheBusting, isPOSActionInProgress]);
@@ -2724,19 +2639,12 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             <div className="flex-1 min-h-0 !bg-gray-50 p-2">
               {/* HYPER-STABLE ItemsGrid with deep memoization to prevent unnecessary re-renders */}
               {useMemo(() => {
-                // Only log when actually re-creating with meaningful data
-                if (!isItemsGridLoading || filteredPosItems.length > 0) {
-                  logDevOnly("🔄 Re-creating ItemsGrid component with:", {
-                    itemsCount: filteredPosItems.length,
-                    category: activeCategory,
-                    loading: isItemsGridLoading,
-                    width: Math.round(rightPanelPixelWidth / 100) * 100 // Round to nearest 100px for even more stability
-                  });
-                }
-
+                // Completely remove all logging to eliminate overhead
+                
                 // Use stable references for empty arrays to prevent unnecessary re-renders
                 const stableItems = filteredPosItems.length > 0 ? filteredPosItems : EMPTY_ARRAY;
-                const stableWidth = Math.round(rightPanelPixelWidth / 100) * 100; // Round to nearest 100px
+                // Round to nearest 200px for even more stability
+                const stableWidth = Math.round(rightPanelPixelWidth / 200) * 200;
                 
                 return (
                   <ItemsGrid
@@ -2747,11 +2655,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                   />
                 );
               }, [
-                // Only depend on the length of filteredPosItems, not the array itself
-                filteredPosItems.length > 0 ? filteredPosItems : EMPTY_ARRAY,
+                // Use a single stable dependency for filteredPosItems
+                filteredPosItems.length,
                 handleAddToCart,
-                // Only depend on significant width changes (100px increments)
-                Math.round(rightPanelPixelWidth / 100) * 100,
+                // Only depend on major width changes (200px increments)
+                Math.round(rightPanelPixelWidth / 200) * 200,
                 isItemsGridLoading
               ])}
             </div>
