@@ -248,10 +248,10 @@ const dayOperationsController = {
           await activeDay.reload({ transaction });
           await transaction.commit();
           console.log("[DayOps][openDay][user] Commit successful for user-specific open", { dayId: activeDay.id, userId, stockItemsCaptured: openingStockSnapshot.length });
-          return res.status(existingDay ? 200 : 201).json({ 
-            message: "User day opened", 
-            dayOperation: activeDay, 
-            stockItemsCaptured: openingStockSnapshot.length 
+          return res.status(existingDay ? 200 : 201).json({
+            message: "User day opened",
+            dayOperation: activeDay,
+            stockItemsCaptured: openingStockSnapshot.length
           });
         } catch (e) {
           // Only rollback if transaction is still active
@@ -259,8 +259,8 @@ const dayOperationsController = {
             await transaction.rollback();
           }
           console.error("Error updating user-specific open:", e);
-          return res.status(500).json({ 
-            error: "Failed to open user shift", 
+          return res.status(500).json({
+            error: "Failed to open user shift",
             message: e.message || "An error occurred while opening the user shift",
             details: e.stack
           });
@@ -344,8 +344,8 @@ const dayOperationsController = {
         await transaction.rollback();
       }
       console.error("Error opening day:", error);
-      return res.status(500).json({ 
-        error: "Failed to open day", 
+      return res.status(500).json({
+        error: "Failed to open day",
         message: error.message || "An error occurred while opening the day",
         details: error.stack
       });
@@ -415,10 +415,7 @@ const dayOperationsController = {
             ...baseReportData,
             userOrderStats: [...userOrderStats]
           };
-          await DayOperation.update(
-            { reportData: updatedReportData, lastActivity: now.toISOString() },
-            { where: { id: dayOperation.id }, transaction }
-          );
+          await DayOperation.update({ reportData: updatedReportData, lastActivity: now.toISOString() }, { where: { id: dayOperation.id }, transaction });
           await dayOperation.reload({ transaction });
 
           if (!shouldFinalize) {
@@ -451,11 +448,64 @@ const dayOperationsController = {
       }
       const dayStart = new Date(dayOperation.openedAt);
       const dayEnd = new Date();
+      console.log(`[DayOps][closeDay] Fetching sales data from ${dayStart.toISOString()} to ${dayEnd.toISOString()}`);
+
+      // Get all sales with payment method information
       const salesData = await Sale.findAll({
-        where: { saleDate: { [Op.between]: [dayStart, dayEnd] }, isActive: true },
-        include: [{ model: Section, as: "section", attributes: ["id", "name"] }],
+        where: {
+          saleDate: { [Op.between]: [dayStart, dayEnd] },
+          isActive: true
+        },
+        include: [
+          { model: Section, as: "section", attributes: ["id", "name"] },
+          { model: User, as: "creator", attributes: ["id", "firstName", "lastName"] },
+          {
+            model: Order,
+            as: "order",
+            attributes: ["id", "orderNumber", "orderType", "status", "paymentAmount"],
+            required: false
+          }
+        ],
         transaction
       });
+
+      console.log(`[DayOps][closeDay] Found ${salesData.length} sales records`);
+
+      // If no sales found but day has been open for a while, try a fallback approach
+      if (salesData.length === 0) {
+        const hoursSinceOpening = (dayEnd - dayStart) / (1000 * 60 * 60);
+        if (hoursSinceOpening > 1) {
+          // If day has been open for more than 1 hour
+          console.log(`[DayOps][closeDay] No sales found with primary method after ${hoursSinceOpening.toFixed(2)} hours, checking for orphaned orders`);
+
+          // Look for paid orders that might not be linked to sales
+          const orphanedOrders = await Order.findAll({
+            where: {
+              status: { [Op.in]: ["paid", "served"] },
+              saleId: null, // Orders not linked to sales
+              [Op.or]: [{ completedAt: { [Op.between]: [dayStart, dayEnd] } }, { createdAt: { [Op.between]: [dayStart, dayEnd] } }]
+            },
+            transaction
+          });
+
+          if (orphanedOrders.length > 0) {
+            console.log(`[DayOps][closeDay] Found ${orphanedOrders.length} orphaned paid orders, creating synthetic sales data`);
+
+            // Create synthetic sales data from orphaned orders
+            for (const order of orphanedOrders) {
+              salesData.push({
+                id: null, // No actual sale ID
+                saleDate: order.completedAt || order.createdAt,
+                totalAmount: order.total,
+                section: { id: null, name: "Unknown" },
+                isActive: true,
+                isSynthetic: true, // Mark as synthetic for reporting
+                order: order
+              });
+            }
+          }
+        }
+      }
       const totalSales = salesData.reduce((sum, sale) => sum + parseFloat(sale.totalAmount), 0);
       const totalTransactions = salesData.length;
       const averageTicket = totalTransactions > 0 ? totalSales / totalTransactions : 0;
@@ -498,30 +548,43 @@ const dayOperationsController = {
         }
       });
       // Aggregate item-level sales for the closed day window
-      const itemAggregates = await OrderItem.findAll({
-        attributes: [
-          "menuItemId",
-          [sequelize.fn("COALESCE", sequelize.col("menuItem.name"), sequelize.col("OrderItem.name")), "name"],
-          [sequelize.fn("SUM", sequelize.col("OrderItem.quantity")), "quantity"],
-          [sequelize.fn("SUM", sequelize.col("OrderItem.totalPrice")), "revenue"]
-        ],
+      console.log(`[DayOps][closeDay] Aggregating item-level sales from ${dayStart.toISOString()} to ${dayEnd.toISOString()}`);
+
+      // First get all sales for this day period
+      const daySales = await Sale.findAll({
+        attributes: ["id"],
         where: {
+          saleDate: { [Op.between]: [dayStart, dayEnd] },
+          isActive: true
+        },
+        transaction
+      });
+
+      const saleIds = daySales.map(sale => sale.id);
+      console.log(`[DayOps][closeDay] Found ${saleIds.length} sales for aggregation`);
+
+      // Then get all orders associated with these sales
+      const dayOrders = await Order.findAll({
+        attributes: ["id"],
+        where: {
+          saleId: { [Op.in]: saleIds },
+          status: { [Op.in]: ["paid", "served"] }
+        },
+        transaction
+      });
+
+      const orderIds = dayOrders.map(order => order.id);
+      console.log(`[DayOps][closeDay] Found ${orderIds.length} orders for aggregation`);
+
+      // Now aggregate the order items
+      const itemAggregates = await OrderItem.findAll({
+        attributes: ["menuItemId", [sequelize.fn("COALESCE", sequelize.col("menuItem.name"), sequelize.col("OrderItem.name")), "name"], [sequelize.fn("SUM", sequelize.col("OrderItem.quantity")), "quantity"], [sequelize.fn("SUM", sequelize.col("OrderItem.totalPrice")), "revenue"]],
+        where: {
+          orderId: { [Op.in]: orderIds },
           type: "menu_item",
           status: { [Op.ne]: "cancelled" }
         },
         include: [
-          {
-            model: Order,
-            as: "order",
-            attributes: [],
-            where: {
-              status: { [Op.in]: ["paid", "served"] },
-              [Op.or]: [
-                { completedAt: { [Op.between]: [dayStart, dayEnd] } },
-                { createdAt: { [Op.between]: [dayStart, dayEnd] } }
-              ]
-            }
-          },
           {
             model: MenuItem,
             as: "menuItem",
@@ -533,6 +596,46 @@ const dayOperationsController = {
         transaction
       });
 
+      console.log(`[DayOps][closeDay] Aggregated ${itemAggregates.length} menu items for reporting`);
+
+      // If no items found, try a fallback approach
+      if (itemAggregates.length === 0 && saleIds.length > 0) {
+        console.log(`[DayOps][closeDay] No items found with primary method, trying fallback with direct order dates`);
+
+        // Fallback to direct order dates if no items found but sales exist
+        const fallbackItemAggregates = await OrderItem.findAll({
+          attributes: ["menuItemId", [sequelize.fn("COALESCE", sequelize.col("menuItem.name"), sequelize.col("OrderItem.name")), "name"], [sequelize.fn("SUM", sequelize.col("OrderItem.quantity")), "quantity"], [sequelize.fn("SUM", sequelize.col("OrderItem.totalPrice")), "revenue"]],
+          where: {
+            type: "menu_item",
+            status: { [Op.ne]: "cancelled" }
+          },
+          include: [
+            {
+              model: Order,
+              as: "order",
+              attributes: [],
+              where: {
+                status: { [Op.in]: ["paid", "served"] },
+                [Op.or]: [{ completedAt: { [Op.between]: [dayStart, dayEnd] } }, { createdAt: { [Op.between]: [dayStart, dayEnd] } }]
+              }
+            },
+            {
+              model: MenuItem,
+              as: "menuItem",
+              attributes: []
+            }
+          ],
+          group: ["OrderItem.menuItemId", "menuItem.name", "OrderItem.name"],
+          raw: true,
+          transaction
+        });
+
+        if (fallbackItemAggregates.length > 0) {
+          console.log(`[DayOps][closeDay] Fallback found ${fallbackItemAggregates.length} items`);
+          itemAggregates.push(...fallbackItemAggregates);
+        }
+      }
+
       const itemSales = itemAggregates
         .map(r => ({
           name: r.name,
@@ -542,6 +645,47 @@ const dayOperationsController = {
         .sort((a, b) => b.revenue - a.revenue);
 
       const existingReportData = dayOperation.reportData || {};
+
+      // Calculate payment method breakdown
+      const paymentMethodBreakdown = salesData.reduce((acc, sale) => {
+        // Try to get payment method from order if available
+        const paymentMethod = sale.order?.paymentMethod || "unknown";
+        if (!acc[paymentMethod]) {
+          acc[paymentMethod] = { count: 0, total: 0 };
+        }
+        acc[paymentMethod].count++;
+        acc[paymentMethod].total += parseFloat(sale.totalAmount);
+        return acc;
+      }, {});
+
+      // Calculate sales by hour
+      const salesByHour = {};
+      salesData.forEach(sale => {
+        const saleHour = new Date(sale.saleDate).getHours();
+        const hourKey = saleHour.toString().padStart(2, "0") + ":00";
+        if (!salesByHour[hourKey]) {
+          salesByHour[hourKey] = { count: 0, total: 0 };
+        }
+        salesByHour[hourKey].count++;
+        salesByHour[hourKey].total += parseFloat(sale.totalAmount);
+      });
+
+      // Calculate sales by category using the itemSales data
+      const salesByCategory = itemSales.reduce((acc, item) => {
+        // Try to find the menu item to get its category
+        const menuItem = itemAggregates.find(i => i.name === item.name);
+        const categoryName = menuItem?.category?.name || "Uncategorized";
+
+        if (!acc[categoryName]) {
+          acc[categoryName] = { count: 0, total: 0, items: [] };
+        }
+        acc[categoryName].count += item.quantity;
+        acc[categoryName].total += item.revenue;
+        acc[categoryName].items.push(item);
+        return acc;
+      }, {});
+
+      // Create comprehensive report data
       const reportData = {
         ...existingReportData,
         date: today,
@@ -559,7 +703,12 @@ const dayOperationsController = {
             acc[sectionName].total += parseFloat(sale.totalAmount);
             return acc;
           }, {}),
-          topItems: itemSales.slice(0, 20)
+          salesByHour,
+          salesByCategory,
+          paymentMethodBreakdown,
+          topItems: itemSales.slice(0, 20),
+          itemCount: itemSales.length,
+          totalItemsSold: itemSales.reduce((sum, item) => sum + item.quantity, 0)
         },
         cash: {
           opening: parseFloat(dayOperation.openingCash),
@@ -576,6 +725,8 @@ const dayOperationsController = {
         },
         generatedAt: new Date()
       };
+
+      console.log(`[DayOps][closeDay] Generated report with ${itemSales.length} unique items and ${reportData.sales.totalItemsSold} total items sold`);
       await dayOperation.update(
         {
           status: "closed",
@@ -604,31 +755,51 @@ const dayOperationsController = {
           cashSummary: reportData.cash || {},
           inventorySummary: reportData.inventory || {},
           topSellingItems: itemSales,
-          salesByCategory: {},
+          salesByCategory: reportData.sales?.salesByCategory || {},
           salesBySection: reportData.sales?.salesBySection || {},
-          salesByHour: [],
-          paymentMethodBreakdown: {},
-          stockMovements: [],
-          significantVariances: stockVariances || [],
+          salesByHour: reportData.sales?.salesByHour || {},
+          paymentMethodBreakdown: reportData.sales?.paymentMethodBreakdown || {},
+          stockMovements: stockVariances.map(v => ({
+            materialName: v.materialName,
+            opening: v.openingQuantity,
+            closing: v.closingQuantity,
+            change: v.variance,
+            unit: v.unit
+          })),
+          significantVariances: stockVariances.filter(v => Math.abs(v.variance) > 10) || [],
           notes: notes ? `Auto-generated during day closing. ${notes}` : "Auto-generated during day closing.",
           generatedBy: closedBy || "System",
           reportStatus: "final",
-          generatedAt: new Date()
+          generatedAt: new Date(),
+          enhancedData: {
+            salesByHour: reportData.sales?.salesByHour || {},
+            salesByCategory: reportData.sales?.salesByCategory || {},
+            salesBySection: reportData.sales?.salesBySection || {},
+            paymentMethodBreakdown: reportData.sales?.paymentMethodBreakdown || {},
+            stockMovements: stockVariances.map(v => ({
+              materialName: v.materialName,
+              opening: v.openingQuantity,
+              closing: v.closingQuantity,
+              change: v.variance,
+              unit: v.unit
+            })),
+            significantVariances: stockVariances.filter(v => Math.abs(v.variance) > 10) || []
+          }
         },
         { transaction }
       );
+
+      console.log(`[DayOps][closeDay] Created day operation report ID: ${report.id}`);
       await transaction.commit();
       res.status(200).json({
         message: "Day closed successfully",
         dayOperation,
         dailyReport: reportData,
-        summary: {
-          totalSales,
-          totalTransactions,
-          averageTicket,
-          cashVariance,
-          stockVariances: stockVariances.length
-        }
+        totalSales,
+        totalTransactions,
+        averageTicket,
+        cashVariance,
+        stockVariances: stockVariances.length
       });
     } catch (error) {
       await transaction.rollback();

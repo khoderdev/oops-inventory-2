@@ -17,81 +17,58 @@ const itemsGridPropsAreEqual = (prevProps: ProductGridProps, nextProps: ProductG
   if (prevProps === nextProps) {
     return true;
   }
-  
-  // Check loading state only if it's changing from true to false
-  // This allows the component to render when loading starts and stops
-  // but prevents re-renders when loading stays false
+
   if (prevProps.isLoading !== nextProps.isLoading) {
     if (prevProps.isLoading === true && nextProps.isLoading === false) {
-      console.log('ItemsGrid re-render: loading finished');
+      console.log("ItemsGrid re-render: loading finished");
       return false;
     } else if (prevProps.isLoading === false && nextProps.isLoading === true) {
-      console.log('ItemsGrid re-render: loading started');
+      console.log("ItemsGrid re-render: loading started");
       return false;
     } else {
       // If both are true or both are false but references changed, consider equal
-      console.log('ItemsGrid props equality check: loading state reference changed but value is the same');
+      console.log("ItemsGrid props equality check: loading state reference changed but value is the same");
     }
   }
-  
+
   // Only check width if it changed significantly (round to nearest 100px for even more stability)
   const prevWidth = Math.round(prevProps.rightPanelPixelWidth / 100) * 100;
   const nextWidth = Math.round(nextProps.rightPanelPixelWidth / 100) * 100;
   if (prevWidth !== nextWidth) {
-    console.log('ItemsGrid re-render: panel width changed significantly');
+    console.log("ItemsGrid re-render: panel width changed significantly");
     return false;
   }
-  
+
   // Check items array
   // 1. Length check (very fast)
   if (prevProps.posItems?.length !== nextProps.posItems?.length) {
-    console.log('ItemsGrid re-render: items length changed');
+    console.log("ItemsGrid re-render: items length changed");
     return false;
   }
-  
-  // 2. Reference check (very fast)
+
   if (prevProps.posItems === nextProps.posItems) {
     return true;
   }
-  
-  // 3. For any array size, just check a few samples for major changes
-  // This is an ultra-aggressive optimization that assumes the array contents
-  // rarely change without the reference or length changing
+
   if (prevProps.posItems?.length > 0) {
-    // Just check first and last item IDs
-    if (prevProps.posItems[0]?.id !== nextProps.posItems[0]?.id ||
-        prevProps.posItems[prevProps.posItems.length - 1]?.id !== nextProps.posItems[nextProps.posItems.length - 1]?.id) {
-      console.log('ItemsGrid re-render: first or last item changed');
+    if (prevProps.posItems[0]?.id !== nextProps.posItems[0]?.id || prevProps.posItems[prevProps.posItems.length - 1]?.id !== nextProps.posItems[nextProps.posItems.length - 1]?.id) {
+      console.log("ItemsGrid re-render: first or last item changed");
       return false;
     }
-    
+
     // If we got here, consider the arrays equal
-    console.log('ItemsGrid props equality check: arrays considered equal (sampled)');
+    console.log("ItemsGrid props equality check: arrays considered equal (sampled)");
     return true;
   }
 
   // If we got here, the arrays are empty but equal
-  console.log('ItemsGrid props equality check: empty arrays');
+  console.log("ItemsGrid props equality check: empty arrays");
   return true;
 };
 
 // Define ProductItem component outside of the main component
 // This prevents it from being recreated on each render
-const ProductItem = React.memo(({ 
-  item, 
-  onItemClick, 
-  onVariantClick, 
-  textSizes, 
-  gridConfig, 
-  handleImageError 
-}: { 
-  item: POSItem; 
-  onItemClick: (item: POSItem) => void; 
-  onVariantClick: (item: POSItem, variant: any) => void; 
-  textSizes: any; 
-  gridConfig: any; 
-  handleImageError: (e: React.SyntheticEvent<HTMLImageElement>, type: string) => void;
-}) => {
+const ProductItem = React.memo(({ item, onItemClick, onVariantClick, textSizes, gridConfig, handleImageError }: { item: POSItem; onItemClick: (item: POSItem) => void; onVariantClick: (item: POSItem, variant: any) => void; textSizes: any; gridConfig: any; handleImageError: (e: React.SyntheticEvent<HTMLImageElement>, type: string) => void }) => {
   // Check if the item has variants
   const hasVariants = item.variants && item.variants.length > 0;
   // Check if this is a beverage item with variants
@@ -118,14 +95,14 @@ const ProductItem = React.memo(({
         <div className="relative flex-1 group">
           {item.imageUrl ? (
             <div className="relative w-full h-full">
-              <img 
-                src={item.imageUrl} 
-                alt={item.name} 
-                className="w-full h-full object-cover" 
+              <img
+                src={item.imageUrl}
+                alt={item.name}
+                className="w-full h-full object-cover"
                 onError={e => {
                   console.log(`📷 Image error for ${item.name}:`, item.imageUrl);
                   handleImageError(e, item.type);
-                }} 
+                }}
               />
             </div>
           ) : (
@@ -167,24 +144,25 @@ const ProductItem = React.memo(({
                 <PopoverContent className="w-48 p-0" align="center">
                   <ScrollArea className="h-auto max-h-[200px]">
                     <div className="p-1">
-                      {item.variants && item.variants.map(variant => (
-                        <Button
-                          key={variant.id}
-                          variant="ghost"
-                          size="sm"
-                          className="w-full justify-between mb-1 text-left font-normal"
-                          onClick={e => {
-                            e.stopPropagation();
-                            onVariantClick(item, variant);
-                          }}
-                        >
-                          <span>
-                            {variant.name} - {variant.volume}
-                            {variant.unit}
-                          </span>
-                          <span className="font-medium text-primary">{formatPOSPrice(parseFloat(variant.price.toString()) || item.price)}</span>
-                        </Button>
-                      ))}
+                      {item.variants &&
+                        item.variants.map(variant => (
+                          <Button
+                            key={variant.id}
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-between mb-1 text-left font-normal"
+                            onClick={e => {
+                              e.stopPropagation();
+                              onVariantClick(item, variant);
+                            }}
+                          >
+                            <span>
+                              {variant.name} - {variant.volume}
+                              {variant.unit}
+                            </span>
+                            <span className="font-medium text-primary">{formatPOSPrice(parseFloat(variant.price.toString()) || item.price)}</span>
+                          </Button>
+                        ))}
                     </div>
                   </ScrollArea>
                 </PopoverContent>
@@ -201,27 +179,27 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
   // Debug logging to verify data
   console.log(`🧩 ItemsGrid received ${posItems?.length || 0} items, loading: ${isLoading}`);
   if (posItems?.length > 0) {
-    console.log('🧩 First item sample:', posItems[0]);
+    console.log("🧩 First item sample:", posItems[0]);
   }
-  
+
   // IMPORTANT: All hooks must be called in the same order on every render
   // Define all refs first
   const parentRef = useRef<HTMLDivElement>(null);
-  
+
   // Define all state hooks
   const [variantModalOpen, setVariantModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<POSItem | null>(null);
-  
+
   // Define all callback hooks
   const navigate = useNavigate();
-  
+
   const stableOnAddToCart = useCallback(
     (item: POSItem) => {
       onAddToCart(item);
     },
     [onAddToCart]
   );
-  
+
   const getColumnsCount = useCallback((width: number) => {
     if (width <= 300) return 2;
     if (width <= 450) return 3;
@@ -231,7 +209,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
     if (width <= 1400) return 6;
     return 7;
   }, []);
-  
+
   const handleImageError = useCallback((e: React.SyntheticEvent<HTMLImageElement>, itemType: string) => {
     const target = e.target as HTMLImageElement;
     const parent = target.parentElement;
@@ -249,39 +227,45 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
       `;
     }
   }, []);
-  
+
   const handleModalClose = useCallback(() => {
     setVariantModalOpen(false);
     setSelectedItem(null);
   }, []);
 
-  const handleItemClick = useCallback((item: POSItem) => {
-    // Special handling for beverage items with variants
-    if (item.type === "menu_item" && item.variants && item.variants.length > 0) {
-      setSelectedItem(item);
-      setVariantModalOpen(true);
-      return;
-    }
+  const handleItemClick = useCallback(
+    (item: POSItem) => {
+      // Special handling for beverage items with variants
+      if (item.type === "menu_item" && item.variants && item.variants.length > 0) {
+        setSelectedItem(item);
+        setVariantModalOpen(true);
+        return;
+      }
 
-    stableOnAddToCart(item);
-  }, [stableOnAddToCart]);
+      stableOnAddToCart(item);
+    },
+    [stableOnAddToCart]
+  );
 
-  const handleVariantClick = useCallback((item: POSItem, variant: any) => {
-    // Create a modified item with the selected variant
-    const itemWithVariant = {
-      ...item,
-      selectedVariant: variant,
-      // Update price to variant price if available
-      price: variant.price ? parseFloat(variant.price.toString()) : item.price,
-      // Add variant info to the name for cart display
-      displayName: `${item.name} (${variant.name} - ${variant.volume}${variant.unit})`
-    };
-    stableOnAddToCart(itemWithVariant);
-  }, [stableOnAddToCart]);
-  
+  const handleVariantClick = useCallback(
+    (item: POSItem, variant: any) => {
+      // Create a modified item with the selected variant
+      const itemWithVariant = {
+        ...item,
+        selectedVariant: variant,
+        // Update price to variant price if available
+        price: variant.price ? parseFloat(variant.price.toString()) : item.price,
+        // Add variant info to the name for cart display
+        displayName: `${item.name} (${variant.name} - ${variant.volume}${variant.unit})`
+      };
+      stableOnAddToCart(itemWithVariant);
+    },
+    [stableOnAddToCart]
+  );
+
   // Calculate derived values
   const roundedWidth = Math.round(rightPanelPixelWidth / 10) * 10;
-  
+
   // Define all memo hooks
   const gridConfig = useMemo(() => {
     const columns = getColumnsCount(roundedWidth);
@@ -293,7 +277,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
       gap: 12
     };
   }, [roundedWidth, getColumnsCount]);
-  
+
   const textSizes = useMemo(() => {
     // Define text size configurations once
     const smallConfig = {
@@ -335,7 +319,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
     if (roundedWidth <= 1400) return xxlargeConfig;
     return xxlargeConfig;
   }, [roundedWidth]);
-  
+
   // These hooks must always be called, even when loading or empty
   const virtualRows = useMemo(() => {
     // Always return an array, even if empty
@@ -349,7 +333,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
       return posItems.slice(startIndex, endIndex);
     });
   }, [posItems, gridConfig.columns]);
-  
+
   // Always initialize virtualizer with same parameters
   const virtualizer = useVirtualizer({
     count: virtualRows.length,
@@ -362,9 +346,9 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
     scrollPaddingStart: 8,
     scrollPaddingEnd: 8,
     initialOffset: 0,
-    getItemKey: (index) => `row-${index}`,
+    getItemKey: index => `row-${index}`
   });
-  
+
   // Always create virtualItems with same dependencies
   const virtualItems = useMemo(() => {
     // Always return an array, even if empty
@@ -375,14 +359,8 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
     return virtualizer.getVirtualItems().map(virtualRow => {
       const rowItems = virtualRows[virtualRow.index];
       // Determine grid columns class once
-      const gridColsClass = 
-        gridConfig.columns === 1 ? "grid-cols-1" : 
-        gridConfig.columns === 2 ? "grid-cols-2" : 
-        gridConfig.columns === 3 ? "grid-cols-3" : 
-        gridConfig.columns === 4 ? "grid-cols-4" : 
-        gridConfig.columns === 5 ? "grid-cols-5" : 
-        gridConfig.columns === 6 ? "grid-cols-6" : "grid-cols-7";
-      
+      const gridColsClass = gridConfig.columns === 1 ? "grid-cols-1" : gridConfig.columns === 2 ? "grid-cols-2" : gridConfig.columns === 3 ? "grid-cols-3" : gridConfig.columns === 4 ? "grid-cols-4" : gridConfig.columns === 5 ? "grid-cols-5" : gridConfig.columns === 6 ? "grid-cols-6" : "grid-cols-7";
+
       return {
         virtualRow,
         rowItems,
@@ -390,7 +368,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
       };
     });
   }, [virtualizer.getVirtualItems(), virtualRows, gridConfig.columns]);
-  
+
   // Render loading state
   if (isLoading) {
     return (
@@ -456,15 +434,7 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = []
             >
               <div className={`grid gap-4 sm:gap-4 lg:gap-4 ${gridColsClass} h-full`}>
                 {rowItems.map(item => (
-                  <ProductItem 
-                    key={item.id} 
-                    item={item} 
-                    onItemClick={handleItemClick}
-                    onVariantClick={handleVariantClick}
-                    textSizes={textSizes}
-                    gridConfig={gridConfig}
-                    handleImageError={handleImageError}
-                  />
+                  <ProductItem key={item.id} item={item} onItemClick={handleItemClick} onVariantClick={handleVariantClick} textSizes={textSizes} gridConfig={gridConfig} handleImageError={handleImageError} />
                 ))}
               </div>
             </div>
