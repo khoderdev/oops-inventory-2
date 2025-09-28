@@ -98,6 +98,8 @@ export interface LegacyActionBarProps {
   hasSavedPrinter?: boolean;
   savedPrinterName?: string;
   isDayOpen?: boolean;
+  onCloseDayClick?: () => void;
+  currentDay?: any;
 }
 
 export interface FlexibleActionBarProps {

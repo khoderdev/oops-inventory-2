@@ -6,6 +6,7 @@ import { PERMISSIONS } from "@/types/auth";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { DayOperation } from "@/types/inventory";
 
+
 interface POSHeaderProps {
   currentTime: Date;
   isFullscreen: boolean;
@@ -18,10 +19,10 @@ interface POSHeaderProps {
   incompleteOrdersCount: number;
   isLocked: boolean;
   currentDay: DayOperation | null;
-  isCheckingDayStatus: boolean;
+  onCloseDayClick: () => void;
 }
 
-export const POSHeader: React.FC<POSHeaderProps> = ({ currentTime, isFullscreen, toggleFullscreen, setShowLogoutDialog, setShowOrdersDialog, setShowSalesHistoryDialog, handleShowOpenModal, handleShowCloseModal, incompleteOrdersCount, isLocked, currentDay, isCheckingDayStatus }) => {
+export const POSHeader: React.FC<POSHeaderProps> = ({ currentTime, isFullscreen, toggleFullscreen, setShowLogoutDialog, setShowOrdersDialog, setShowSalesHistoryDialog, handleShowOpenModal, handleShowCloseModal, incompleteOrdersCount, isLocked, currentDay, onCloseDayClick }) => {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const canManageDay = hasPermission(PERMISSIONS.DAY_OPERATIONS_CREATE) || hasPermission(PERMISSIONS.DAY_OPERATIONS_CLOSE);
@@ -94,19 +95,19 @@ export const POSHeader: React.FC<POSHeaderProps> = ({ currentTime, isFullscreen,
           {/* Session Stats */}
           <div className="flex items-center space-x-2 select-none">
             {canAccessSalesHistory && (user?.role === "admin" || user?.role === "manager") && (
-              <button 
+              <button
                 onClick={() => {
                   if (!isLocked) setShowSalesHistoryDialog(true);
-                }} 
+                }}
                 className="group relative select-none transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLocked}
                 title={isLocked ? "Day must be open to view sales history" : "View sales history"}
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-xl blur-sm group-hover:blur-none transition-all duration-300" />
-                <div className={`relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 ${isLocked ? 'opacity-50' : 'hover:bg-white/20 cursor-pointer'}`}>
-                  <List className={`w-4 h-4 transition-colors ${isLocked ? 'text-gray-400' : 'text-emerald-300 group-hover:text-emerald-200'}`} />
+                <div className={`relative flex items-center space-x-2 bg-white/10 dark:bg-white/5 backdrop-blur-sm rounded-xl px-3 h-9 border border-white/20 dark:border-white/10 transition-all duration-300 ${isLocked ? "opacity-50" : "hover:bg-white/20 cursor-pointer"}`}>
+                  <List className={`w-4 h-4 transition-colors ${isLocked ? "text-gray-400" : "text-emerald-300 group-hover:text-emerald-200"}`} />
                   <div className="flex items-center space-x-1">
-                    <span className={`text-xs font-medium uppercase tracking-wide ${isLocked ? 'text-gray-400' : 'text-white/70'}`}>Sales History</span>
+                    <span className={`text-xs font-medium uppercase tracking-wide ${isLocked ? "text-gray-400" : "text-white/70"}`}>Sales History</span>
                   </div>
                 </div>
               </button>
@@ -126,12 +127,8 @@ export const POSHeader: React.FC<POSHeaderProps> = ({ currentTime, isFullscreen,
                   <ShoppingCart className="w-4 h-4 text-blue-300 group-hover:text-blue-200 transition-colors" />
                   <div className="flex items-center space-x-1">
                     <span className="text-xs font-medium text-white/70 uppercase tracking-wide">Orders:</span>
-                    <span 
-                      className={`text-sm font-bold group-hover:text-blue-200 transition-colors tabular-nums min-w-[1.5rem] text-center ${
-                        (incompleteOrdersCount || 0) > 0 
-                          ? 'text-orange-300 animate-pulse' 
-                          : 'text-blue-300'
-                      }`}
+                    <span
+                      className={`text-sm font-bold group-hover:text-blue-200 transition-colors tabular-nums min-w-[1.5rem] text-center ${(incompleteOrdersCount || 0) > 0 ? "text-orange-300 animate-pulse" : "text-blue-300"}`}
                       key={incompleteOrdersCount} // Force re-render on count change
                     >
                       {incompleteOrdersCount || 0}

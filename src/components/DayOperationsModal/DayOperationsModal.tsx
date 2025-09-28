@@ -11,7 +11,7 @@ import { useDailyReports } from "@/hooks/useDailyReports";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatCurrency as defaultFormatCurrency } from "@/utils/dayOperationsFormattings";
 import { toast } from "@/components/ui/use-toast";
-import { OpenDayRequest, CloseDayRequest } from "@/types/inventory";
+import { OpenDayRequest, CloseDayRequest, DayOperation } from "@/types/inventory";
 
 // Simplified modal props interface - only UI control props remain
 interface DayOperationsModalProps {
@@ -20,18 +20,18 @@ interface DayOperationsModalProps {
   onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
   type: "open" | "close";
+  currentDay?: DayOperation | null;
 }
 
-const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, onOpenChange, onClose, type }) => {
-  // Get data and actions from hooks
-  const { currentDay, userOrderStats, openDay, closeDay, actionLoading, actionSuccess, refreshCurrentDay } = useDayOperations();
+const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, onOpenChange, onClose, type, currentDay: propCurrentDay }) => {
+  // Get data and actions from hooks (excluding daily report to avoid conflicts)
+  const { userOrderStats, openDay, closeDay, actionLoading, actionSuccess, refreshCurrentDay } = useDayOperations();
 
-  // Get daily reports functionality
+  // Get daily reports functionality (separate state management)
   const { handleViewReport, setShowReportModal } = useDailyReports();
 
   // Get authenticated user information
   const { user } = useAuth();
-
   const isOpenType = type === "open";
   const isModalOpen = open !== undefined ? open : isOpen;
 
@@ -98,7 +98,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, o
 
       // If we just closed a day and have a date, show the report
       // Only proceed if we haven't shown the report yet (prevents infinite loop)
-      if (!isOpenType && currentDay?.date && !reportShownRef.current) {
+      if (!isOpenType && propCurrentDay?.date && !reportShownRef.current) {
         // Mark that we're showing the report to prevent loops
         reportShownRef.current = true;
         
@@ -106,7 +106,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, o
         setTimeout(() => {
           console.log("🔄 Triggering daily report after day close");
           // Format date string properly for the API
-          const dateString = new Date(currentDay.date).toISOString().split("T")[0];
+          const dateString = new Date(propCurrentDay.date).toISOString().split("T")[0];
           
           // Single refresh before showing report
           refreshCurrentDay()
@@ -114,18 +114,16 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, o
               console.log("✅ Current day refreshed, generating report for", dateString);
               // Generate and show the report
               handleViewReport(dateString);
-              setShowReportModal(true);
             })
             .catch(error => {
               console.error("❌ Error refreshing day data:", error);
               // Try to show report anyway
               handleViewReport(dateString);
-              setShowReportModal(true);
             });
-        }, 300); // Increased to ensure backend has time to process
+        }, 1000); // Increased from 300ms to 1000ms to ensure backend has time to process
       }
     }
-  }, [optimisticSuccess, onOpenChange, onClose, isOpenType, currentDay, handleViewReport, setShowReportModal, refreshCurrentDay]);
+  }, [optimisticSuccess, onOpenChange, onClose, isOpenType, propCurrentDay, handleViewReport, setShowReportModal, refreshCurrentDay]);
 
   // Background processing monitor
   useEffect(() => {
@@ -181,15 +179,15 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, o
   }, []);
 
   const handleUseExpectedCash = useCallback(() => {
-    if (currentDay?.expectedCash) {
-      const value = currentDay.expectedCash.toString();
+    if (propCurrentDay?.expectedCash) {
+      const value = propCurrentDay.expectedCash.toString();
       setCashValue(value);
       setFormData(prev => ({
         ...prev,
         ...(isOpenType ? { openingCash: parseFloat(value) } : { closingCash: parseFloat(value) })
       }));
     }
-  }, [currentDay, isOpenType]);
+  }, [propCurrentDay, isOpenType]);
 
   const handleSubmit = useCallback(() => {
     // Prevent multiple submissions
@@ -320,8 +318,8 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, o
                 autoFocus
                 className="flex-1"
               />
-              <Button type="button" variant="outline" onClick={handleUseExpectedCash} className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 whitespace-nowrap" title="Click to use expected cash amount" disabled={!currentDay?.expectedCash}>
-                Expected: {formatCurrency(currentDay?.expectedCash || 0)}
+              <Button type="button" variant="outline" onClick={handleUseExpectedCash} className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 whitespace-nowrap" title="Click to use expected cash amount" disabled={!propCurrentDay?.expectedCash}>
+                Expected: {formatCurrency(propCurrentDay?.expectedCash || 0)}
               </Button>
             </div>
           )}

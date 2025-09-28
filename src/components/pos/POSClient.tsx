@@ -2330,6 +2330,27 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     [loadOrder, cachedFoodMenuItems, cachedBeverageMenuItems, showError, clearOrder, dispatch, onOrderProcessed]
   );
 
+  // Function to show the day close dialog
+  const handleShowDayCloseDialog = useCallback(() => {
+    if (!currentDay || !currentDay.id) {
+      showError("No active day to close");
+      return;
+    }
+    
+    // Set initial closing cash to expected cash if available
+    if (currentDay.expectedCash) {
+      setClosingCash(currentDay.expectedCash.toString());
+    } else {
+      setClosingCash("");
+    }
+    
+    // Clear notes
+    setDayCloseNotes("");
+    
+    // Show dialog
+    setShowDayCloseDialog(true);
+  }, [currentDay, showError]);
+
   const handleDayClose = useCallback(() => {
     if (!currentDay || !currentDay.id) {
       showError("No active day to close");
@@ -2660,6 +2681,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                 onShowReports={handleShowReports}
                 onCancelOrder={handleCancelOrder}
                 onDiscount={handleShowDiscount}
+                onCloseDayClick={handleShowDayCloseDialog}
                 hasUnsavedChanges={hasUnsavedChanges}
                 isOrderLoading={orderLoading}
                 canPrintReceipt={cart && cart.length > 0}
@@ -2670,6 +2692,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                 hasSavedPrinter={hasSavedPrinter()}
                 savedPrinterName={getSavedPrinter()?.name}
                 isDayOpen={isDayOpen}
+                currentDay={currentDay}
               />
             </div>
           </div>
@@ -2856,6 +2879,72 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Day Close Dialog */}
+      <Dialog open={showDayCloseDialog} onOpenChange={setShowDayCloseDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogTitle>Close Day</DialogTitle>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="closing-cash" className="text-sm font-medium">Closing Cash Amount *</label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="closing-cash"
+                  type="number"
+                  step="0.01"
+                  value={closingCash}
+                  onChange={e => setClosingCash(e.target.value)}
+                  placeholder="0.00"
+                  required
+                  autoFocus
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                {currentDay?.expectedCash && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setClosingCash(currentDay.expectedCash?.toString() || "0")} 
+                    className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 whitespace-nowrap"
+                    title="Click to use expected cash amount"
+                  >
+                    Expected: ${Number(currentDay.expectedCash || 0).toFixed(2)}
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="day-notes" className="text-sm font-medium">Closing Notes (Optional)</label>
+              <textarea
+                id="day-notes"
+                value={dayCloseNotes}
+                onChange={e => setDayCloseNotes(e.target.value)}
+                rows={3}
+                placeholder="Any closing notes..."
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDayCloseDialog(false)} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleDayClose} disabled={isLoading || !closingCash} variant="destructive">
+              {isLoading ? "Closing..." : "Close Day"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Daily Reports Modal */}
+      <DailyReports 
+        showReportModal={showReportModal} 
+        setShowReportModal={setShowReportModal} 
+        selectedReport={selectedReport} 
+        error={reportError} 
+        setError={setReportError} 
+      />
 
       {/* Notes Dialog */}
       <NotesDialog isOpen={showNotesDialog} onClose={() => dispatch(setShowNotesDialogAction(false))} notes={orderNotes} onNotesChange={notes => dispatch(setOrderNotesAction(notes))} />

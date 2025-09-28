@@ -815,6 +815,7 @@ export interface POSLayoutProps {
   onOrderSelect?: (order: Order) => void;
   onLogout?: () => void;
   onRefreshCounts?: (refreshFn: () => Promise<void>) => void;
+  onCloseDayClick?: () => void;
 }
 
 export interface POSClientOrdersProps {

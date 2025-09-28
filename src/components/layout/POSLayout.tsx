@@ -17,6 +17,8 @@ import { formatCurrency } from "@/utils/dayOperationsFormattings";
 import { AlertCircle, CheckCircle, GripVertical, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import DailyReports from "@/components/analytics/DailyReports";
+import { useDailyReports } from "@/hooks/useDailyReports";
 
 const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
 
@@ -58,6 +60,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [, setRecentDays] = useState<DayOperation[]>([]);
   const [, setActivities] = useState<ActivityLog[]>([]);
   const navigate = useNavigate();
+
+  const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
 
   useEffect(() => {
     if (user) {
@@ -534,7 +538,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/10 to-cyan-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
       </div>
       {/* POS Header */}
-      <POSHeader currentTime={currentTime} isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} setShowLogoutDialog={setShowLogoutDialog} setShowOrdersDialog={setShowOrdersDialog} setShowSalesHistoryDialog={setShowSalesHistoryDialog} handleShowOpenModal={handleShowOpenModal} handleShowCloseModal={handleShowCloseModal} incompleteOrdersCount={incompleteOrdersCount} isLocked={isLocked} currentDay={currentDay} isCheckingDayStatus={isCheckingDayStatus} />
+      <POSHeader currentTime={currentTime} isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} setShowLogoutDialog={setShowLogoutDialog} setShowOrdersDialog={setShowOrdersDialog} setShowSalesHistoryDialog={setShowSalesHistoryDialog} handleShowOpenModal={handleShowOpenModal} handleShowCloseModal={handleShowCloseModal} incompleteOrdersCount={incompleteOrdersCount} isLocked={isLocked} currentDay={currentDay} onCloseDayClick={handleCloseDay} />
       {/* Main POS Content - Resizable Layout */}
       <main className="relative flex-1 overflow-hidden z-10" ref={containerRef}>
         <div className="h-full w-full flex bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">
@@ -587,10 +591,10 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
       {/* Day Operations Modal */}
       {/* Open Day Modal - Staff only */}
-      {canOpenDay && <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} formatCurrency={formatCurrency} />}
+      {canOpenDay && <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} type="open" />}
 
       {/* Close Day Modal - Staff only */}
-      {canCloseDayPerm && <DayOperationsModal open={showCloseModal} onOpenChange={setShowCloseModal} onSubmit={handleCloseDay} type="close" formData={convertToModalFormData("close")} onFormChange={data => handleModalFormChange("close", data)} formatCurrency={formatCurrency} />}
+      {canCloseDayPerm && <DayOperationsModal open={showCloseModal} onOpenChange={setShowCloseModal} type="close" currentDay={currentDay} />}
       {/* Day Operation Alerts */}
       {dayError && (
         <div className="fixed top-4 right-4 z-50 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center max-w-md shadow-lg">
@@ -635,6 +639,14 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           </div>
         </DialogContent>
       </Dialog>
+      {/* Daily Report Modal */}
+      <DailyReports
+        showReportModal={showReportModal}
+        setShowReportModal={setShowReportModal}
+        selectedReport={selectedReport}
+        error={reportError}
+        setError={setReportError}
+      />
     </div>
   );
 };

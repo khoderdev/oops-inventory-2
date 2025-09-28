@@ -358,7 +358,7 @@ const dayOperationReportsController = {
               {
                 model: User,
                 as: 'user',
-                attributes: ['id', 'firstName', 'lastName', 'email']
+                attributes: ['id', 'firstName', 'lastName']
               }
             ]
           }
