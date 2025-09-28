@@ -11,6 +11,9 @@ import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
 import { useVoidPrinter } from "./VoidPrinter";
 import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Printer, ShoppingBag, ShoppingCart, Trash2 } from "lucide-react";
+import { useDailyReports } from "@/hooks/useDailyReports";
+import { useDayOperations } from "@/hooks/useDayOperations";
+import DailyReports from "@/components/analytics/DailyReports";
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { createExtendedArray, ExtendedArray } from "@/types/extended-array";
 import { ReportGenerator } from "../analytics/ReportGenerator";
@@ -76,6 +79,26 @@ import PrinterSelector from "../common/PrinterSelector";
 
 const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   const dispatch = useAppDispatch();
+  
+  // Daily reports functionality
+  const { 
+    handleViewReport, 
+    showReportModal, 
+    setShowReportModal, 
+    selectedReport, 
+    loading: reportLoading, 
+    error: reportError, 
+    setError: setReportError 
+  } = useDailyReports();
+  
+  // Day operations functionality
+  const {
+    currentDay,
+    closeDay,
+    refreshCurrentDay,
+    actionLoading: dayActionLoading,
+    actionSuccess: dayActionSuccess
+  } = useDayOperations();
   const cart = useAppSelector(
     state => state.pos.cart,
     (prev, next) => {
@@ -462,6 +485,10 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [isResizing, setIsResizing] = React.useState(false);
   const [printerSelectionContext, setPrinterSelectionContext] = React.useState<"payment" | "manual_print" | null>(null);
   const [activeView, setActiveView] = React.useState<"cart" | "products">("products");
+  const [showDayCloseDialog, setShowDayCloseDialog] = React.useState(false);
+  const [closingCash, setClosingCash] = React.useState<string>("");
+  const [dayCloseNotes, setDayCloseNotes] = React.useState<string>("");
+  const [dayReportShownRef] = React.useState<React.MutableRefObject<boolean>>(React.useRef(false));
   const categoriesMap = useMemo(() => { return categoriesMapRef.current; }, []);
 
   const transformVariants = useCallback(

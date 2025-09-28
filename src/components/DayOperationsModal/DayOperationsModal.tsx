@@ -39,6 +39,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, o
   const [optimisticSuccess, setOptimisticSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const backgroundProcessingRef = useRef(false);
+  const reportShownRef = useRef(false); // Track if report has been shown already
 
   // Local form state
   const [formData, setFormData] = useState<DayOperationsFormData>({
@@ -82,6 +83,7 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, o
     setOptimisticSuccess(false);
     setIsSubmitting(false);
     backgroundProcessingRef.current = false;
+    reportShownRef.current = false; // Reset report shown flag when modal opens or type changes
   }, [type, isOpenType, user]);
 
   // Optimistic UI update - close modal immediately on submit
@@ -95,14 +97,18 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, o
       }
 
       // If we just closed a day and have a date, show the report
-      if (!isOpenType && currentDay?.date) {
+      // Only proceed if we haven't shown the report yet (prevents infinite loop)
+      if (!isOpenType && currentDay?.date && !reportShownRef.current) {
+        // Mark that we're showing the report to prevent loops
+        reportShownRef.current = true;
+        
         // Small delay to ensure the modal is closed first and data is refreshed
         setTimeout(() => {
           console.log("🔄 Triggering daily report after day close");
           // Format date string properly for the API
           const dateString = new Date(currentDay.date).toISOString().split("T")[0];
           
-          // Ensure we have the latest data before showing the report
+          // Single refresh before showing report
           refreshCurrentDay()
             .then(() => {
               console.log("✅ Current day refreshed, generating report for", dateString);
