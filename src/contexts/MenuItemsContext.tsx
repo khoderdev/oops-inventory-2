@@ -7,6 +7,85 @@ import { Category } from "@/types/categories";
 import { materialsAPI } from "@/api/materials.api";
 import { MenuItemsContextState } from "@/types/menuItems";
 
+// LocalStorage keys for menu items and categories
+const STORAGE_KEYS = {
+  FOOD_MENU_ITEMS: 'oops_food_menu_items',
+  BEVERAGE_MENU_ITEMS: 'oops_beverage_menu_items',
+  MENU_ITEM_CATEGORIES: 'oops_menu_item_categories',
+  BEVERAGE_CATEGORIES: 'oops_beverage_categories',
+  MATERIALS_WITH_STOCK: 'oops_materials_with_stock',
+  LAST_FETCH_TIME: 'oops_menu_items_last_fetch',
+  STORAGE_VERSION: 'oops_storage_version'
+};
+
+// Current storage version - increment when data structure changes
+const CURRENT_STORAGE_VERSION = '1.0';
+
+// Cache duration (24 hours)
+const CACHE_DURATION = 24 * 60 * 60 * 1000;
+
+// Helper functions for localStorage
+const storage = {
+  get: <T,>(key: string, defaultValue: T): T => {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return defaultValue;
+      return JSON.parse(item) as T;
+    } catch (error) {
+      logErrorDevOnly(`Error getting ${key} from localStorage:`, error);
+      return defaultValue;
+    }
+  },
+  set: <T,>(key: string, value: T): void => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      logErrorDevOnly(`Error setting ${key} in localStorage:`, error);
+    }
+  },
+  remove: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      logErrorDevOnly(`Error removing ${key} from localStorage:`, error);
+    }
+  },
+  isValid: (): boolean => {
+    try {
+      const version = localStorage.getItem(STORAGE_KEYS.STORAGE_VERSION);
+      return version === CURRENT_STORAGE_VERSION;
+    } catch (error) {
+      return false;
+    }
+  },
+  isCacheValid: (): boolean => {
+    try {
+      const lastFetchTime = localStorage.getItem(STORAGE_KEYS.LAST_FETCH_TIME);
+      if (!lastFetchTime) return false;
+      
+      const now = Date.now();
+      return now - parseInt(lastFetchTime) < CACHE_DURATION;
+    } catch (error) {
+      return false;
+    }
+  },
+  clearAll: (): void => {
+    try {
+      Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+      logErrorDevOnly('Error clearing localStorage:', error);
+    }
+  },
+  updateFetchTime: (): void => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.LAST_FETCH_TIME, Date.now().toString());
+      localStorage.setItem(STORAGE_KEYS.STORAGE_VERSION, CURRENT_STORAGE_VERSION);
+    } catch (error) {
+      logErrorDevOnly('Error updating fetch time:', error);
+    }
+  }
+};
+
 const MenuItemsContext = createContext<MenuItemsContextState | undefined>(undefined);
 
 interface MenuItemsProviderProps {
@@ -18,19 +97,29 @@ interface MenuItemsProviderProps {
 }
 
 export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, externalCategories, onCreateMenuItem, onUpdateMenuItem, onDeleteMenuItem }) => {
-  const [foodMenuItems, setFoodMenuItems] = useState<MenuItem[]>([]);
-  const [beverageMenuItems, setBeverageMenuItems] = useState<MenuItem[]>([]);
+  const [foodMenuItems, setFoodMenuItems] = useState<MenuItem[]>(() => 
+    storage.get<MenuItem[]>(STORAGE_KEYS.FOOD_MENU_ITEMS, [])
+  );
+  const [beverageMenuItems, setBeverageMenuItems] = useState<MenuItem[]>(() => 
+    storage.get<MenuItem[]>(STORAGE_KEYS.BEVERAGE_MENU_ITEMS, [])
+  );
   const [menuItemsLoading, setMenuItemsLoading] = useState<boolean>(false);
   const [menuItemsError, setMenuItemsError] = useState<string | null>(null);
 
   // Categories state
-  const [menuItemCategories, setMenuItemCategories] = useState<Category[]>([]);
-  const [beverageCategories, setBeverageCategories] = useState<Category[]>([]);
+  const [menuItemCategories, setMenuItemCategories] = useState<Category[]>(() => 
+    storage.get<Category[]>(STORAGE_KEYS.MENU_ITEM_CATEGORIES, [])
+  );
+  const [beverageCategories, setBeverageCategories] = useState<Category[]>(() => 
+    storage.get<Category[]>(STORAGE_KEYS.BEVERAGE_CATEGORIES, [])
+  );
   const [categoriesLoading, setCategoriesLoading] = useState<boolean>(false);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
 
   // Materials state
-  const [materialsWithStock, setMaterialsWithStock] = useState<Material[]>([]);
+  const [materialsWithStock, setMaterialsWithStock] = useState<Material[]>(() => 
+    storage.get<Material[]>(STORAGE_KEYS.MATERIALS_WITH_STOCK, [])
+  );
   const [materialsLoading, setMaterialsLoading] = useState<boolean>(false);
   const [materialsError, setMaterialsError] = useState<string | null>(null);
 
@@ -38,13 +127,17 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
   const [activeTab, setActiveTab] = useState<string>("food");
 
   // Track if initial data has been loaded
-  const [initialDataLoaded, setInitialDataLoaded] = useState<boolean>(false);
+  const [initialDataLoaded, setInitialDataLoaded] = useState<boolean>(() => {
+    // Check if we have valid cached data
+    return storage.isCacheValid() && 
+           storage.get<MenuItem[]>(STORAGE_KEYS.FOOD_MENU_ITEMS, []).length > 0;
+  });
   
   // Ultra-optimized fetch menu items function with progressive loading and caching
   const fetchMenuItems = useCallback(
     async (mode?: 'food' | 'beverages' | 'both' | 'force') => {
       // Skip redundant fetches if data is already loaded and not forced
-      if (initialDataLoaded && mode !== 'force') {
+      if (initialDataLoaded && mode !== 'force' && storage.isCacheValid()) {
         // Only check the data we need based on mode
         if (
           (mode === 'food' && foodMenuItems.length > 0) ||
@@ -99,15 +192,18 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
         // Only update state for what we fetched
         if (needFood && foodItems !== foodMenuItems) {
           setFoodMenuItems(foodItems);
+          storage.set(STORAGE_KEYS.FOOD_MENU_ITEMS, foodItems);
         }
         
         if (needBeverages && beverageItems !== beverageMenuItems) {
           setBeverageMenuItems(beverageItems);
+          storage.set(STORAGE_KEYS.BEVERAGE_MENU_ITEMS, beverageItems);
         }
         
         // Mark as initialized if we've loaded what we need
         if ((needFood && foodItems.length > 0) || (needBeverages && beverageItems.length > 0)) {
           setInitialDataLoaded(true);
+          storage.updateFetchTime();
         }
       } catch (error) {
         logErrorDevOnly("❌ Failed to fetch menu items:", error);
@@ -134,8 +230,8 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
 
   // Optimized fetch categories function that returns a Promise for chaining
   const fetchCategories = useCallback(async () => {
-    // Skip if we already have categories loaded
-    if (menuItemCategories.length > 0 && beverageCategories.length > 0) {
+    // Skip if we already have categories loaded and cache is valid
+    if (menuItemCategories.length > 0 && beverageCategories.length > 0 && storage.isCacheValid()) {
       logDevOnly('📋 Using cached categories:', { 
         menuItems: menuItemCategories.length, 
         beverages: beverageCategories.length 
@@ -176,7 +272,10 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
         });
         
         setMenuItemCategories(menuItemCats);
+        storage.set(STORAGE_KEYS.MENU_ITEM_CATEGORIES, menuItemCats);
+        
         setBeverageCategories(beverageCats);
+        storage.set(STORAGE_KEYS.BEVERAGE_CATEGORIES, beverageCats);
         
         logDevOnly('📋 Using external categories:', { 
           menuItems: menuItemCats.length, 
@@ -192,9 +291,11 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
         // Process and store results
         if (menuItemsResponse.totalItems) {
           setMenuItemCategories(menuItemsResponse.totalItems);
+          storage.set(STORAGE_KEYS.MENU_ITEM_CATEGORIES, menuItemsResponse.totalItems);
         }
         if (beveragesResponse.totalItems) {
           setBeverageCategories(beveragesResponse.totalItems);
+          storage.set(STORAGE_KEYS.BEVERAGE_CATEGORIES, beveragesResponse.totalItems);
         }
         
         logDevOnly('📋 Fetched categories from API:', { 
@@ -203,6 +304,7 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
         });
       }
       
+      storage.updateFetchTime();
       return Promise.resolve();
     } catch (error) {
       logErrorDevOnly("❌ Failed to fetch categories:", error);
@@ -215,8 +317,8 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
 
   // Optimized fetch materials function with caching and Promise return
   const fetchMaterials = useCallback(async () => {
-    // Skip if we already have materials loaded
-    if (materialsWithStock.length > 0) {
+    // Skip if we already have materials loaded and cache is valid
+    if (materialsWithStock.length > 0 && storage.isCacheValid()) {
       logDevOnly('💾 Using cached materials:', { count: materialsWithStock.length });
       return Promise.resolve();
     }
@@ -231,10 +333,12 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
       
       // Store the materials
       setMaterialsWithStock(materials);
+      storage.set(STORAGE_KEYS.MATERIALS_WITH_STOCK, materials);
       
       const fetchTime = performance.now() - startTime;
       logDevOnly(`✅ Fetched ${materials.length} materials in ${fetchTime.toFixed(0)}ms`);
       
+      storage.updateFetchTime();
       return Promise.resolve();
     } catch (error) {
       logErrorDevOnly("❌ Failed to fetch materials:", error);
@@ -244,10 +348,18 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
       setMaterialsLoading(false);
     }
   }, [materialsWithStock.length]);
+
   // Progressive initial data loading with prioritization and performance tracking
   useEffect(() => {
     const startTime = performance.now();
     logDevOnly('💾 MenuItemsContext: Starting progressive initial data load');
+    
+    // Check if we have valid cached data
+    if (storage.isCacheValid() && foodMenuItems.length > 0) {
+      logDevOnly('💾 MenuItemsContext: Using cached data from localStorage');
+      setInitialDataLoaded(true);
+      return;
+    }
     
     // Track loading stages
     let categoriesLoaded = false;
@@ -314,14 +426,15 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
       
       return () => clearTimeout(beverageLoadTimer);
     }
-  }, [fetchCategories, fetchMenuItems, fetchMaterials, activeTab]);
+  }, [fetchCategories, fetchMenuItems, fetchMaterials, activeTab, foodMenuItems.length]);
+
   const handleCreateMenuItem = useCallback(
     async (menuItem: any, imageFile?: File) => {
       try {
         if (onCreateMenuItem) {
           await onCreateMenuItem(menuItem, imageFile);
         }
-        fetchMenuItems();
+        fetchMenuItems('force'); // Force refresh after creation
         return Promise.resolve();
       } catch (error) {
         logErrorDevOnly("Error creating menu item:", error);
@@ -338,7 +451,7 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
         if (onUpdateMenuItem) {
           await onUpdateMenuItem(id, menuItem);
         }
-        fetchMenuItems();
+        fetchMenuItems('force'); // Force refresh after update
         return Promise.resolve();
       } catch (error) {
         logErrorDevOnly("Error updating menu item:", error);
@@ -364,7 +477,7 @@ export const MenuItemsProvider: React.FC<MenuItemsProviderProps> = ({ children, 
         } else {
           await menuAPI.deleteMenuItem(idStr);
         }
-        fetchMenuItems();
+        fetchMenuItems('force'); // Force refresh after deletion
         return Promise.resolve();
       } catch (error) {
         logErrorDevOnly("❌ Error deleting menu item:", error);
