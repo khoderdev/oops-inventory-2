@@ -7,7 +7,9 @@ export const dayOperationsAPI = {
   getDayOperations: async (page: number = 1, limit: number = 20, status?: "opened" | "closed"): Promise<DayOperationsListResponse> => {
     const params = new URLSearchParams({
       page: page.toString(),
-      limit: limit.toString()
+      limit: limit.toString(),
+      // Add cache-busting param to avoid stale 304 responses from proxies/browsers
+      _t: Date.now().toString()
     });
 
     if (status) {

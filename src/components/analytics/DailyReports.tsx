@@ -7,7 +7,7 @@ const DailyReports: React.FC<DailyReportsProps & DailyReportsModalProps> = ({ cl
     const numAmount = Number(amount) || 0;
     return `$${numAmount.toFixed(2)}`;
   };
-
+ 
   const formatDate = (value: any) => {
     if (!value) return "-";
     const d = new Date(value);

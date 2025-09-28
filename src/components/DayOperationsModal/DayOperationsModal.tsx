@@ -1,146 +1,302 @@
 import * as React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useCallback, useState, useEffect, useRef } from "react";
+import { Dialog, DialogContent, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { DayOperationsFormData } from "@/types/dayOperations";
-import { useDayOperations } from "@/contexts/DayOperationsContext";
+import { useDayOperations } from "@/hooks/useDayOperations";
+import { useDailyReports } from "@/hooks/useDailyReports";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrency as defaultFormatCurrency } from "@/utils/dayOperationsFormattings";
+import { toast } from "@/components/ui/use-toast";
+import { OpenDayRequest, CloseDayRequest } from "@/types/inventory";
 
-// Simplified modal props interface
+// Simplified modal props interface - only UI control props remain
 interface DayOperationsModalProps {
   open?: boolean;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   onClose?: () => void;
-  onSubmit: (formData: DayOperationsFormData) => void;
   type: "open" | "close";
-  formData: DayOperationsFormData;
-  onFormChange?: (data: DayOperationsFormData) => void;
-  onChange?: (data: DayOperationsFormData) => void;
-  formatCurrency?: (amount: number) => string;
 }
- 
-const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
-  open,
-  isOpen,
-  onOpenChange,
-  onClose,
-  onSubmit,
-  type,
-  formData,
-  onFormChange,
-  onChange,
-  formatCurrency = amount => {
-    const numAmount = typeof amount === "number" ? amount : 0;
-    return `$${numAmount.toFixed(2)}`;
-  }
-}) => {
-  // Use context for day operations data
-  const {
-    currentDay,
-    userOrderStats,
-    actionLoading
-  } = useDayOperations();
-  const isModalOpen = open ?? isOpen ?? false;
-  const handleOpenChange = (state: boolean) => {
-    if (onOpenChange) onOpenChange(state);
-    if (!state && onClose) onClose();
-  };
 
-  const handleFormChange = (data: DayOperationsFormData) => {
-    if (onFormChange) onFormChange(data);
-    if (onChange) onChange(data);
-  };
+const DayOperationsModal: React.FC<DayOperationsModalProps> = ({ open, isOpen, onOpenChange, onClose, type }) => {
+  // Get data and actions from hooks
+  const { currentDay, userOrderStats, openDay, closeDay, actionLoading, actionSuccess, refreshCurrentDay } = useDayOperations();
+
+  // Get daily reports functionality
+  const { handleViewReport, setShowReportModal } = useDailyReports();
+
+  // Get authenticated user information
+  const { user } = useAuth();
 
   const isOpenType = type === "open";
-  const isGlobalDayOpen = currentDay?.status === "opened";
-  const title = isOpenType ? (isGlobalDayOpen ? "Open Shift" : "Open New Day") : "Close Current Day";
-  const submitText = isOpenType ? (isGlobalDayOpen ? "Open Shift" : "Open Day") : "Close Day";
+  const isModalOpen = open !== undefined ? open : isOpen;
+
+  // Track if we're showing optimistic UI
+  const [optimisticSuccess, setOptimisticSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const backgroundProcessingRef = useRef(false);
+
+  // Local form state
+  const [formData, setFormData] = useState<DayOperationsFormData>({
+    openingCash: 0,
+    closingCash: 0,
+    openedBy: "",
+    closedBy: "",
+    notes: ""
+  });
+
+  const [cashValue, setCashValue] = useState("");
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
   const loadingText = isOpenType ? "Opening..." : "Closing...";
+  const submitText = isOpenType ? "Open Day" : "Close Day";
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !actionLoading) {
+  // Pre-load form data for faster rendering
+  const formDataRef = useRef<DayOperationsFormData>({
+    openingCash: 0,
+    closingCash: 0,
+    openedBy: "",
+    closedBy: "",
+    notes: ""
+  });
+
+  // Initialize form data based on type and user - optimized to run only once
+  useEffect(() => {
+    // Prepare data immediately for fast rendering
+    const initialData = {
+      openingCash: isOpenType ? 0 : undefined,
+      closingCash: !isOpenType ? 0 : undefined,
+      openedBy: isOpenType ? user?.fullName || "" : undefined,
+      closedBy: !isOpenType ? user?.fullName || "" : undefined,
+      notes: ""
+    };
+
+    formDataRef.current = initialData;
+    setFormData(initialData);
+    setCashValue(isOpenType ? "0" : "0");
+    setIsSubmitted(false);
+    setOptimisticSuccess(false);
+    setIsSubmitting(false);
+    backgroundProcessingRef.current = false;
+  }, [type, isOpenType, user]);
+
+  // Optimistic UI update - close modal immediately on submit
+  useEffect(() => {
+    if (optimisticSuccess) {
+      // Close modal immediately for better UX
+      if (onOpenChange) {
+        onOpenChange(false);
+      } else if (onClose) {
+        onClose();
+      }
+
+      // If we just closed a day and have a date, show the report
+      if (!isOpenType && currentDay?.date) {
+        // Small delay to ensure the modal is closed first and data is refreshed
+        setTimeout(() => {
+          console.log("🔄 Triggering daily report after day close");
+          // Format date string properly for the API
+          const dateString = new Date(currentDay.date).toISOString().split("T")[0];
+          
+          // Ensure we have the latest data before showing the report
+          refreshCurrentDay()
+            .then(() => {
+              console.log("✅ Current day refreshed, generating report for", dateString);
+              // Generate and show the report
+              handleViewReport(dateString);
+              setShowReportModal(true);
+            })
+            .catch(error => {
+              console.error("❌ Error refreshing day data:", error);
+              // Try to show report anyway
+              handleViewReport(dateString);
+              setShowReportModal(true);
+            });
+        }, 300); // Increased to ensure backend has time to process
+      }
+    }
+  }, [optimisticSuccess, onOpenChange, onClose, isOpenType, currentDay, handleViewReport, setShowReportModal, refreshCurrentDay]);
+
+  // Background processing monitor
+  useEffect(() => {
+    // If we've submitted the form and the action was successful
+    if (isSubmitted && actionSuccess && !actionLoading && backgroundProcessingRef.current) {
+      // Background processing completed successfully
+      console.log("✅ Background processing completed successfully");
+      backgroundProcessingRef.current = false;
+      setIsSubmitted(false);
+    }
+  }, [isSubmitted, actionSuccess, actionLoading]);
+
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      // Don't allow closing during submission
+      if (isSubmitting) return;
+
+      if (onOpenChange) {
+        onOpenChange(open);
+      } else if (!open && onClose) {
+        onClose();
+      }
+    },
+    [onOpenChange, onClose, isSubmitting]
+  );
+
+  const handleCashChange = useCallback(
+    (value: string) => {
+      setCashValue(value);
+      setFormData(prev => ({
+        ...prev,
+        ...(isOpenType ? { openingCash: value ? parseFloat(value) : 0 } : { closingCash: value ? parseFloat(value) : 0 })
+      }));
+    },
+    [isOpenType]
+  );
+
+  const handleStaffChange = useCallback(
+    (value: string) => {
+      setFormData(prev => ({
+        ...prev,
+        ...(isOpenType ? { openedBy: value } : { closedBy: value })
+      }));
+    },
+    [isOpenType]
+  );
+
+  const handleNotesChange = useCallback((value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      notes: value
+    }));
+  }, []);
+
+  const handleUseExpectedCash = useCallback(() => {
+    if (currentDay?.expectedCash) {
+      const value = currentDay.expectedCash.toString();
+      setCashValue(value);
+      setFormData(prev => ({
+        ...prev,
+        ...(isOpenType ? { openingCash: parseFloat(value) } : { closingCash: parseFloat(value) })
+      }));
+    }
+  }, [currentDay, isOpenType]);
+
+  const handleSubmit = useCallback(() => {
+    // Prevent multiple submissions
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    // Make sure we have a valid user ID
+    const userId = user?.id;
+
+    // Check if user ID is valid before proceeding
+    if (!userId) {
+      console.error("Cannot submit day operation: No valid user ID found");
+      toast({
+        title: "Authentication Error",
+        description: "You must be logged in with a valid user account to perform this action.",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Show optimistic success immediately
+    setOptimisticSuccess(true);
+
+    // Process in background
+    backgroundProcessingRef.current = true;
+    setIsSubmitted(true);
+
+    // Use setTimeout to move API call to next tick for smoother UI
+    setTimeout(() => {
+      // Process in background without blocking UI
+      if (isOpenType) {
+        // Create properly typed data object for opening day
+        const openDayData: OpenDayRequest = {
+          openingCash: formData.openingCash || 0,
+          openedBy: formData.openedBy || user?.fullName || "",
+          notes: formData.notes || "",
+          userId: userId
+        };
+        
+        openDay(openDayData)
+          .catch(error => {
+            console.error("Error opening day:", error);
+            toast({
+              title: "Error Opening Day",
+              description: "The operation completed but there was an issue with the server. Please check the day status.",
+              variant: "destructive"
+            });
+          })
+          .finally(() => {
+            setIsSubmitting(false);
+          });
+      } else {
+        // Create properly typed data object for closing day
+        const closeDayData: CloseDayRequest = {
+          closingCash: formData.closingCash || 0,
+          closedBy: formData.closedBy || user?.fullName || "",
+          notes: formData.notes || "",
+          userId: userId
+        };
+        
+        console.log("📊 Closing day with data:", closeDayData);
+        
+        closeDay(closeDayData)
+          .then(() => {
+            console.log("✅ Day closed successfully, report will be generated automatically");
+            // The optimistic UI effect will handle showing the report
+          })
+          .catch(error => {
+            console.error("❌ Error closing day:", error);
+            toast({
+              title: "Error Closing Day",
+              description: "The operation completed but there was an issue with the server. Please check the day status.",
+              variant: "destructive"
+            });
+          })
+          .finally(() => {
+            setIsSubmitting(false);
+          });
+      }
+    }, 10);
+  }, [formData, isOpenType, openDay, closeDay, user, isSubmitting]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
       e.preventDefault();
-      onSubmit(formData);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      handleOpenChange(false);
     }
-  };
+  }, []);
 
-  const handleCashChange = (value: string) => {
-    const numValue = parseFloat(value) || 0;
-    if (isOpenType) {
-      handleFormChange({ ...formData, openingCash: numValue });
-    } else {
-      handleFormChange({ ...formData, closingCash: numValue });
-    }
-  };
+  const handleNotesKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && e.ctrlKey && !isSubmitting) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    },
+    [handleSubmit, isSubmitting]
+  );
 
-  const handleStaffChange = (value: string) => {
-    if (isOpenType) {
-      handleFormChange({ ...formData, openedBy: value });
-    } else {
-      handleFormChange({ ...formData, closedBy: value });
-    }
-  };
-
-  const handleNotesChange = (value: string) => {
-    handleFormChange({ ...formData, notes: value });
-  };
-
-  const handleNotesKeyDown = (e: React.KeyboardEvent) => {
-    if (isOpenType && e.key === "Enter" && e.ctrlKey && !actionLoading) {
-      e.preventDefault();
-      onSubmit(formData);
-    }
-  };
-
-  const handleUseExpectedCash = () => {
-    if (currentDay?.expectedCash !== undefined) {
-      handleFormChange({ ...formData, closingCash: currentDay.expectedCash });
-    }
-  };
-
-  const cashValue = isOpenType ? formData.openingCash || 0 : formData.closingCash || 0;
-  const staffValue = isOpenType ? formData.openedBy || "" : formData.closedBy || "";
+  // Memoized format currency function
+  const formatCurrency = useCallback((amount: number) => {
+    return defaultFormatCurrency(amount);
+  }, []);
 
   return (
     <Dialog open={isModalOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md" onKeyDown={handleKeyDown}>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="cash-amount">{isOpenType ? "Opening Cash Amount" : "Actual Closing Cash Amount *"}</Label>
-
-            {!isOpenType && currentDay ? (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <Input
-                  id="cash-amount"
-                  type="number"
-                  step="0.01"
-                  value={cashValue}
-                  onChange={e => handleCashChange(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === "Enter" && !actionLoading) {
-                      e.preventDefault();
-                      onSubmit(formData);
-                    }
-                  }}
-                  placeholder="0.00"
-                  required={!isOpenType}
-                  autoFocus
-                  className="flex-1"
-                />
-                <Button type="button" variant="outline" onClick={handleUseExpectedCash} className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 whitespace-nowrap" title="Click to use expected cash amount">
-                  Expected: {formatCurrency(currentDay.expectedCash || 0)}
-                </Button>
-              </div>
-            ) : (
+        <DialogTitle>{isOpenType ? "Open Day" : "Close Day"}</DialogTitle>
+        <div className="space-y-2">
+          <Label htmlFor="cash-amount">{isOpenType ? "Opening cash Amount" : "Actual Closing cash Amount *"}</Label>
+          {!isOpenType && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <Input
                 id="cash-amount"
                 type="number"
@@ -148,22 +304,21 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
                 value={cashValue}
                 onChange={e => handleCashChange(e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === "Enter" && !actionLoading) {
+                  if (e.key === "Enter" && !isSubmitting) {
                     e.preventDefault();
-                    onSubmit(formData);
+                    handleSubmit();
                   }
                 }}
                 placeholder="0.00"
+                required={!isOpenType}
                 autoFocus
+                className="flex-1"
               />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="staff-name">{isOpenType ? "Opened By" : "Closed By"}</Label>
-            <Input id="staff-name" type="text" value={staffValue} onChange={e => handleStaffChange(e.target.value)} className="bg-gray-50" placeholder="Staff name" readOnly />
-            <p className="text-xs text-muted-foreground">Automatically detected from logged-in user</p>
-          </div>
+              <Button type="button" variant="outline" onClick={handleUseExpectedCash} className="bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200 hover:text-blue-800 whitespace-nowrap" title="Click to use expected cash amount" disabled={!currentDay?.expectedCash}>
+                Expected: {formatCurrency(currentDay?.expectedCash || 0)}
+              </Button>
+            </div>
+          )}
 
           {!isOpenType && userOrderStats && userOrderStats.length > 0 && (
             <div className="space-y-2">
@@ -205,11 +360,11 @@ const DayOperationsModal: React.FC<DayOperationsModalProps> = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button onClick={() => onSubmit(formData)} disabled={actionLoading} variant={isOpenType ? "default" : "destructive"}>
-            {actionLoading ? loadingText : submitText}
+          <Button onClick={handleSubmit} disabled={isSubmitting || !user?.id} variant={isOpenType ? "default" : "destructive"}>
+            {isSubmitting ? loadingText : submitText}
           </Button>
         </DialogFooter>
       </DialogContent>

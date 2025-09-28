@@ -1,6 +1,6 @@
 import { Activity, BarChart3, Calendar, DollarSign, Package, ShoppingCart, Users, Utensils } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { useDayOperations } from "@/contexts/DayOperationsContext";
+import { useDayOperations } from "@/hooks/useDayOperations";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/types/auth";
@@ -14,7 +14,6 @@ import QuickActionsCard from "./QuickActionsCard";
 import LowStockAlertsCard from "./LowStockAlertsCard";
 import EmployeeUsageCard from "./EmployeeUsageCard";
 import SystemStatusCard from "./SystemStatusCard";
-import { VirtualSelect } from "../ui/VirtualSelect";
 
 interface DashboardStats {
   totalMaterials: number;
@@ -40,7 +39,7 @@ interface QuickAction {
 export const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
-  const { currentDay, loading: dayOpsLoading } = useDayOperations();
+  const { currentDay, actionLoading: dayOpsLoading } = useDayOperations();
   const { materialsWithStock, stockEntries, menuItems } = useInventoryStore();
   const [employees] = useAtom(employeesAtom);
   const [usageStats] = useAtom(usageStatsAtom);

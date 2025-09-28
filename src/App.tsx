@@ -11,7 +11,6 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import System from "./components/system";
 import { AuthProvider } from "./contexts/AuthContext";
-import { DayOperationsProvider } from "./contexts/DayOperationsContext";
 import { SuppliersProvider } from "./context/SuppliersContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import { AuthenticatedLayout } from "./routes/AuthenticatedLayout";
@@ -92,7 +91,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
           >
             <AuthProvider>
               <SalesProvider>
-                <DayOperationsProvider autoRefreshInterval={30000} enableAutoRefresh={true}>
                   <SuppliersProvider>
                     <Suspense
                       fallback={
@@ -344,7 +342,6 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
                       </Routes>
                     </Suspense>
                   </SuppliersProvider>
-                </DayOperationsProvider>
               </SalesProvider>
             </AuthProvider>
           </BrowserRouter>

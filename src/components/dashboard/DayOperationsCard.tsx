@@ -5,15 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/utils/dayOperationsFormattings";
-import { useDayOperations } from "@/contexts/DayOperationsContext";
+import { useDayOperations } from "@/hooks/useDayOperations";
 import { dayOperationsAPI } from "@/api/dayOperations.api";
 import { DayOperation } from "@/types/inventory";
 
 export const DayOperationsCard: React.FC = () => {
-  // Get context values as fallback
   const { refreshAll } = useDayOperations();
-  
-  // Local component state for direct API data
   const [localDay, setLocalDay] = useState<DayOperation | null>(null);
   const [localLoading, setLocalLoading] = useState(true);
   const [localError, setLocalError] = useState<string | null>(null);

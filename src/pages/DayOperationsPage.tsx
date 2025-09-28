@@ -1,56 +1,51 @@
 import { BarChart3, Calendar, CheckCircle, Clock, DollarSign, Plus, ToggleLeft, ToggleRight, TrendingUp, XCircle } from "lucide-react";
-import React, { useState, useEffect } from "react";
-import { dayOperationsAPI } from "../api/dayOperations.api";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { useDayOperations } from "../contexts/DayOperationsContext";
+import { useDayOperations } from "../hooks/useDayOperations";
 import DayOperationsModal from "../components/DayOperationsModal/DayOperationsModal";
 import DailyReports from "../components/analytics/DailyReports";
 import ViewReportButton from "../components/ui/ViewReportButton";
 import { useDailyReports } from "../hooks/useDailyReports";
-import { CloseDayRequest, DayOperation, OpenDayRequest } from "../types/inventory";
-import type { DayOperationsFormData } from "@/types/dayOperations";
 import { formatCurrency, formatDate, formatDateTime, formatWeekday } from "@/utils/dayOperationsFormattings";
-
-// Destructure API methods for cleaner usage
-const { getDayOperations } = dayOperationsAPI;
 
 const DayOperationsPage: React.FC = () => {
   const { user } = useAuth();
-  const { currentDay, loading, error, success, openDay: contextOpenDay, closeDay: contextCloseDay, clearError, clearSuccess } = useDayOperations();
+  const { currentDay, dayOperations: recentDays, currentDayLoading: loading, dayOperationsLoading, actionError: error, actionSuccess: success, clearError, clearSuccess, getDayOperations, userOrderStats } = useDayOperations(false);
 
-  // Local state for page-specific data
-  const [recentDays, setRecentDays] = useState<DayOperation[]>([]);
   const [showTotalSales, setShowTotalSales] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
-  const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
 
-  // Daily reports hook
-  const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
+  // Daily reports hook with enhanced handling
+  const { 
+    handleViewReport, 
+    showReportModal, 
+    setShowReportModal, 
+    selectedReport, 
+    loading: reportLoading, 
+    error: reportError, 
+    setError: setReportError 
+  } = useDailyReports();
+  
+  // Handle report modal visibility changes
+  const handleReportModalChange = useCallback((isOpen: boolean) => {
+    setShowReportModal(isOpen);
+    if (!isOpen) {
+      // Refresh day operations data when report modal is closed
+      getDayOperations(1, 10);
+    }
+  }, [getDayOperations, setShowReportModal]);
 
-  // Real-time clock update
   useEffect(() => {
-    const timer = setInterval(() => {
+    const timer = setInterval(() => { 
       setCurrentTime(new Date());
-    }, 1000); // Update every second
+    }, 10000);
     return () => clearInterval(timer);
   }, []);
 
-  // Load recent days data (current day is handled by context)
-  const loadRecentDays = async () => {
-    try {
-      const recentResponse = await getDayOperations(1, 10);
-      console.log("🔍 DayOperationsPage: Loading recent days data:", recentResponse.dayOperations.length);
-      setRecentDays(recentResponse.dayOperations);
-    } catch (err) {
-      console.error("❌ DayOperationsPage: Failed to load recent days:", err);
-    }
-  };
-
   useEffect(() => {
-    loadRecentDays();
+    getDayOperations(1, 10);
   }, []);
 
   // Keyboard event handler for Enter key
@@ -68,91 +63,8 @@ const DayOperationsPage: React.FC = () => {
     };
   }, [showOpenModal, showCloseModal, currentDay]);
 
-  // Update form user fields when user changes
-  useEffect(() => {
-    if (user) {
-      if (user.fullName) {
-        setOpenDayForm(prev => ({
-          ...prev,
-          openedBy: user.fullName
-        }));
-        setCloseDayForm(prev => ({
-          ...prev,
-          closedBy: user.fullName
-        }));
-      }
-      // Always keep userId in sync for per-user operations
-      setOpenDayForm(prev => ({
-        ...prev,
-        userId: user.id as any
-      }));
-      setCloseDayForm(prev => ({
-        ...prev,
-        userId: user.id as any
-      }));
-    }
-  }, [user]);
 
-  const handleOpenDay = async () => {
-    try {
-      // Use context's openDay function which handles all state management
-      await contextOpenDay({ ...openDayForm, userId: user?.id as any });
-      setShowOpenModal(false);
-      setOpenDayForm({ openingCash: 0, openedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-      // Refresh recent days to show the new day
-      loadRecentDays();
-    } catch (err) {
-      console.error("❌ DayOperationsPage: Failed to open day:", err);
-    }
-  };
-
-  const handleCloseDay = async () => {
-    try {
-      // Use context's closeDay function which handles all state management
-      await contextCloseDay({ ...closeDayForm, userId: user?.id as any });
-      setShowCloseModal(false);
-      setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-      // Refresh recent days to show the updated day
-      loadRecentDays();
-    } catch (err) {
-      console.error("❌ DayOperationsPage: Failed to close day:", err);
-    }
-  };
-
-  // Convert form data for the reusable modal component
-  const convertToModalFormData = (type: "open" | "close"): DayOperationsFormData => {
-    if (type === "open") {
-      return {
-        openingCash: openDayForm.openingCash,
-        openedBy: openDayForm.openedBy,
-        notes: openDayForm.notes
-      };
-    } else {
-      return {
-        closingCash: closeDayForm.closingCash,
-        closedBy: closeDayForm.closedBy,
-        notes: closeDayForm.notes
-      };
-    }
-  };
-
-  const handleModalFormChange = (type: "open" | "close", data: DayOperationsFormData) => {
-    if (type === "open") {
-      setOpenDayForm({
-        openingCash: data.openingCash || 0,
-        openedBy: data.openedBy || "",
-        notes: data.notes || ""
-      });
-    } else {
-      setCloseDayForm({
-        closingCash: data.closingCash || 0,
-        closedBy: data.closedBy || "",
-        notes: data.notes || ""
-      });
-    }
-  };
-
-  if (loading) {
+  if ((loading || dayOperationsLoading) && !currentDay && recentDays.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -263,7 +175,7 @@ const DayOperationsPage: React.FC = () => {
                         </div>
                       </div>
                       <button onClick={() => setShowOpenModal(true)} className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 sm:px-6 lg:px-8 py-2 sm:py-3 lg:py-4 rounded-lg sm:rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold text-sm sm:text-base lg:text-lg w-full sm:w-auto">
-                        Open New Day
+                        New Day
                       </button>
                     </div>
                   </div>
@@ -441,13 +353,19 @@ const DayOperationsPage: React.FC = () => {
       </div>
 
       {/* Open Day Modal */}
-      <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} onSubmit={handleOpenDay} type="open" formData={convertToModalFormData("open")} onFormChange={data => handleModalFormChange("open", data)} formatCurrency={formatCurrency} />
+      <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} type="open" />
 
       {/* Close Day Modal */}
-      <DayOperationsModal open={showCloseModal} onOpenChange={setShowCloseModal} onSubmit={handleCloseDay} type="close" formData={convertToModalFormData("close")} onFormChange={data => handleModalFormChange("close", data)} formatCurrency={formatCurrency} />
+      <DayOperationsModal open={showCloseModal} onOpenChange={setShowCloseModal} type="close" />
 
       {/* Daily Reports Modal */}
-      <DailyReports showReportModal={showReportModal} setShowReportModal={setShowReportModal} selectedReport={selectedReport} error={reportError} setError={setReportError} />
+      <DailyReports 
+        showReportModal={showReportModal} 
+        setShowReportModal={handleReportModalChange} 
+        selectedReport={selectedReport} 
+        error={reportError} 
+        setError={setReportError} 
+      />
     </div>
   );
 };
