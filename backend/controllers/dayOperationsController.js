@@ -276,40 +276,14 @@ const dayOperationsController = {
         transaction
       });
 
-      // If there's already a day operation for today, check its status
+      // Preserve history: never modify an existing day operation row.
+      // If one exists, we will still create a NEW row for this open request.
       if (existingDay) {
-        if (existingDay.status === "opened") {
-          console.log("[DayOps][openDay] Day already opened, returning existing day:", { id: existingDay.id, status: existingDay.status });
-          await transaction.commit();
-          return res.status(200).json({
-            success: true,
-            message: "Day operation already opened",
-            dayOperation: existingDay,
-            alreadyOpened: true
-          });
-        } else if (existingDay.status === "closed") {
-          console.log("[DayOps][openDay] Day was closed, reopening it:", { id: existingDay.id, status: existingDay.status });
-          // Update the existing day to reopen it
-          await existingDay.update(
-            {
-              status: "opened",
-              openedAt: new Date(),
-              openedBy: openedBy || "System",
-              openingCash: parseFloat(openingCash ?? 0),
-              expectedCash: parseFloat(openingCash ?? 0),
-              notes: notes || existingDay.notes
-            },
-            { transaction }
-          );
-
-          await transaction.commit();
-          return res.status(200).json({
-            success: true,
-            message: "Day operation reopened successfully",
-            dayOperation: existingDay,
-            reopened: true
-          });
-        }
+        console.log("[DayOps][openDay] Existing day found for today, preserving history and creating a NEW record", {
+          id: existingDay.id,
+          status: existingDay.status,
+          date: existingDay.date
+        });
       }
 
       console.log("[DayOps][openDay] existingDay:", existingDay ? { id: existingDay.id, status: existingDay.status } : null);
@@ -319,7 +293,9 @@ const dayOperationsController = {
       if (isUserSpecificOperation) {
         // Handle user-specific operation
         console.log("[DayOps][openDay] Handling user-specific operation");
-        let activeDay = existingDay; // Use existing day if available
+        // Always create a new DayOperation to preserve history
+        let activeDay = null;
+        const baseDayRef = existingDay; // for logging/info only
         let openingStockSnapshot = []; // Initialize at proper scope level
 
         // Build opening stock snapshot for new day
@@ -358,7 +334,7 @@ const dayOperationsController = {
         const now = new Date();
         const uniqueIdentifier = now.getTime().toString();
 
-        // Only create a new day operation if there isn't an existing one
+        // Always create a new day operation for a user-specific open
         if (!activeDay) {
           console.log("[DayOps][openDay] Creating new day operation (user path) for", { date: today });
           try {
@@ -454,7 +430,8 @@ const dayOperationsController = {
             }
           }
         } else {
-          console.log("[DayOps][openDay] Using existing day operation:", { id: activeDay.id, status: activeDay.status });
+          // Unreachable with current logic, kept for safety/logging
+          console.log("[DayOps][openDay] Using existing day operation (unexpected path):", { id: activeDay.id, status: activeDay.status });
         }
 
         // At this point we have an opened global day; proceed with user stats
@@ -570,7 +547,7 @@ const dayOperationsController = {
             console.warn("[DayOps][openDay][user] Failed to get stock snapshots, continuing:", snapshotError.message);
           }
 
-          return res.status(existingDay ? 200 : 201).json({
+          return res.status(201).json({
             message: "User day opened",
             dayOperation: activeDay,
             stockItemsCaptured: stockSnapshots.length || 0
@@ -600,26 +577,116 @@ const dayOperationsController = {
             message: e.message || "An error occurred while opening the user shift"
           });
         }
-      }
+      } else {
+        // Global day open (no specific user). Always create a NEW DayOperation row.
+        console.log("[DayOps][openDay] Handling global day open (no userId)");
 
-      // This code should not be reached since we handle existing day operations at the beginning
-      // But keeping it as a safety net
-      console.error("[DayOps][openDay] Unexpected code path reached - this should not happen");
-
-      // Always attempt to rollback the transaction if it exists
-      if (transaction && !transaction.finished) {
+        // Build opening stock snapshot for the new day (for relational table)
+        let stockSnapshot = [];
         try {
-          await transaction.rollback();
-          console.log("[DayOps][openDay] Transaction rolled back successfully");
-        } catch (rollbackError) {
-          console.error("[DayOps][openDay] Error during transaction rollback:", rollbackError);
+          console.log("[DayOps][openDay][global] Fetching stock entries with transaction ID:", transaction.id);
+          const entries = await StockEntry.findAll({
+            include: [{ model: Material, as: "material", attributes: ["id", "name", "baseUnit", "categoryId"] }],
+            transaction
+          });
+          stockSnapshot = entries.map(entry => ({
+            stockEntryId: entry.id,
+            materialId: entry.materialId,
+            materialName: entry.material?.name || "Unknown",
+            materialCategory: entry.material?.categoryId || "other",
+            quantity: entry.purchasedIndividualQuantity || 0,
+            unit: entry.material?.baseUnit || "unit",
+            supplier: entry.supplier,
+            costPerUnit: entry.costPerPurchasedUnit || 0,
+            snapshotTime: new Date()
+          }));
+          console.log(`[DayOps][openDay][global] Prepared ${stockSnapshot.length} snapshot items`);
+        } catch (stockError) {
+          console.error("[DayOps][openDay][global] Error fetching stock entries:", stockError);
+          // Rollback and fail
+          if (transaction && !transaction.finished) {
+            try {
+              await transaction.rollback();
+            } catch {}
+          }
+          return res.status(500).json({ error: "Failed to prepare opening stock snapshot", message: stockError.message });
         }
-      }
 
-      return res.status(500).json({
-        error: "Internal error",
-        message: "Unexpected code path in day operations"
-      });
+        // Create the new day operation (legacy JSON arrays kept empty)
+        const now = new Date();
+        const uniqueIdentifier = now.getTime().toString();
+        const dayOpData = {
+          date: today,
+          status: "opened",
+          openedAt: now,
+          openedBy: openedBy || "System",
+          openingCash: parseFloat(openingCash ?? 0),
+          expectedCash: parseFloat(openingCash ?? 0),
+          notes,
+          totalSales: 0,
+          totalTransactions: 0,
+          averageTicket: 0,
+          uniqueId: uniqueIdentifier,
+          openingStockSnapshot: [],
+          closingStockSnapshot: [],
+          stockVariances: [],
+          activityLogs: [],
+          reportData: {}
+        };
+
+        let newDay = null;
+        try {
+          newDay = await DayOperation.create(dayOpData, { transaction });
+          console.log("[DayOps][openDay][global] DayOperation created:", { id: newDay.id });
+        } catch (createErr) {
+          console.error("[DayOps][openDay][global] Error creating DayOperation:", createErr);
+          if (transaction && !transaction.finished) {
+            try {
+              await transaction.rollback();
+            } catch {}
+          }
+          return res.status(500).json({ error: "Failed to create day operation", message: createErr.message });
+        }
+
+        // Create relational stock snapshots (best effort)
+        try {
+          await createStockSnapshots(newDay.id, stockSnapshot, "opening", now, transaction);
+        } catch (snapErr) {
+          console.warn("[DayOps][openDay][global] Failed to create stock snapshots:", snapErr.message);
+        }
+
+        // Create activity log (best effort)
+        try {
+          await createActivityLog(newDay.id, "day_opened", `Day opened by ${openedBy || "System"}`, null, openedBy || "System", { openingCash: parseFloat(openingCash ?? 0) }, transaction);
+        } catch (actErr) {
+          console.warn("[DayOps][openDay][global] Failed to create activity log:", actErr.message);
+        }
+
+        // Commit and respond
+        try {
+          await transaction.commit();
+        } catch (commitErr) {
+          console.error("[DayOps][openDay][global] Commit failed:", commitErr);
+          if (transaction && !transaction.finished) {
+            try {
+              await transaction.rollback();
+            } catch {}
+          }
+          return res.status(500).json({ error: "Transaction commit failed", message: commitErr.message });
+        }
+
+        // Load snapshots count for response (non-transactional read)
+        let createdSnapshots = [];
+        try {
+          createdSnapshots = await getStockSnapshots(newDay.id, "opening");
+        } catch {}
+
+        return res.status(201).json({
+          message: "Day opened",
+          dayOperation: newDay,
+          stockItemsCaptured: createdSnapshots.length || 0
+        });
+      }
     } catch (error) {
       // Always attempt to rollback the transaction if it exists
       if (transaction && !transaction.finished) {
@@ -658,9 +725,10 @@ const dayOperationsController = {
       const shouldFinalize = Boolean(closeDay) || Boolean(finalizeDay) || (userId !== undefined && onlyUser !== true);
       const today = getTodayDate();
 
-      // Find the currently open day operation
+      // Find the most recent currently open day operation for today
       const dayOperation = await DayOperation.findOne({
         where: { date: today, status: "opened" },
+        order: [["createdAt", "DESC"]],
         transaction
       });
       if (!dayOperation) {
@@ -1028,78 +1096,63 @@ const dayOperationsController = {
       };
 
       console.log(`[DayOps][closeDay] Generated report with ${itemSales.length} unique items and ${reportData.sales.totalItemsSold} total items sold`);
-      // Create a copy of the day operation with closed status instead of updating the existing one
-      // This ensures we keep all day operations history
-      const now = new Date();
-      const uniqueIdentifier = now.getTime().toString();
-      let closedDayOperation;
+      
+      // Update the existing day operation to closed status
+      // Unlike openDay, closeDay should update the existing record, not create a new one
+      console.log("[DayOps][closeDay] Updating existing day operation to closed status");
+      
+      await dayOperation.update(
+        {
+          status: "closed",
+          closedAt: dayEnd,
+          closedBy,
+          closingCash: actualClosingCash,
+          expectedCash,
+          cashVariance,
+          totalSales,
+          totalTransactions,
+          averageTicket,
+          closingStockSnapshot: closingSnapshot,
+          stockVariances,
+          autoReportGenerated: true,
+          reportData,
+          notes: notes ? (dayOperation.notes ? `${dayOperation.notes}\n[CLOSED] ${notes}` : notes) : dayOperation.notes,
+          lastActivity: dayEnd
+        },
+        { transaction }
+      );
 
+      // Create closing stock snapshots in relational table
       try {
-        closedDayOperation = await DayOperation.create(
-          {
-            date: today,
-            status: "closed",
-            openedAt: dayOperation.openedAt,
-            closedAt: dayEnd,
-            openedBy: dayOperation.openedBy,
-            closedBy,
-            openingCash: dayOperation.openingCash,
-            closingCash: actualClosingCash,
-            expectedCash,
-            cashVariance,
-            totalSales,
-            totalTransactions,
-            averageTicket,
-            openingStockSnapshot: dayOperation.openingStockSnapshot,
-            closingStockSnapshot: closingSnapshot,
-            stockVariances,
-            autoReportGenerated: true,
-            reportData,
-            notes: notes ? (dayOperation.notes ? `${dayOperation.notes}\n[CLOSED] ${notes}` : notes) : dayOperation.notes,
-            uniqueId: uniqueIdentifier
-          },
-          { transaction, logging: console.log }
-        );
-      } catch (createError) {
-        // If there's a unique constraint error, try again with a different approach
-        if (createError.name === "SequelizeUniqueConstraintError") {
-          console.log("[DayOps][closeDay] Unique constraint error, trying with timestamp in notes", { date: today });
-
-          // Add timestamp to notes to make it unique
-          const baseNotes = dayOperation.notes || "";
-          const closeNotes = notes || "";
-          const uniqueNotes = `${baseNotes}\n[CLOSED ${uniqueIdentifier}] ${closeNotes}`;
-
-          closedDayOperation = await DayOperation.create(
-            {
-              date: today,
-              status: "closed",
-              openedAt: dayOperation.openedAt,
-              closedAt: dayEnd,
-              openedBy: dayOperation.openedBy,
-              closedBy,
-              openingCash: dayOperation.openingCash,
-              closingCash: actualClosingCash,
-              expectedCash,
-              cashVariance,
-              totalSales,
-              totalTransactions,
-              averageTicket,
-              openingStockSnapshot: dayOperation.openingStockSnapshot,
-              closingStockSnapshot: closingSnapshot,
-              stockVariances,
-              autoReportGenerated: true,
-              reportData,
-              notes: uniqueNotes,
-              uniqueId: uniqueIdentifier
-            },
-            { transaction, logging: console.log }
-          );
-        } else {
-          // If it's a different error, rethrow it
-          throw createError;
-        }
+        await createStockSnapshots(dayOperation.id, closingSnapshot, "closing", dayEnd, transaction);
+        console.log("[DayOps][closeDay] Created closing stock snapshots in relational table");
+      } catch (snapErr) {
+        console.warn("[DayOps][closeDay] Failed to create closing stock snapshots:", snapErr.message);
       }
+
+      // Create stock variances in relational table
+      try {
+        await createStockVariances(dayOperation.id, stockVariances, transaction);
+        console.log("[DayOps][closeDay] Created stock variances in relational table");
+      } catch (varErr) {
+        console.warn("[DayOps][closeDay] Failed to create stock variances:", varErr.message);
+      }
+
+      // Create activity log for day closing
+      try {
+        await createActivityLog(dayOperation.id, "day_closed", `Day closed by ${closedBy}`, null, closedBy, { 
+          closingCash: actualClosingCash, 
+          totalSales, 
+          cashVariance 
+        }, transaction);
+        console.log("[DayOps][closeDay] Created closing activity log");
+      } catch (actErr) {
+        console.warn("[DayOps][closeDay] Failed to create closing activity log:", actErr.message);
+      }
+
+      // Reload the updated day operation
+      await dayOperation.reload({ transaction });
+      const closedDayOperation = dayOperation;
       const report = await DayOperationReport.create(
         {
           dayOperationId: closedDayOperation.id,

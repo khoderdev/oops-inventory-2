@@ -1,6 +1,6 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
-import { DayOperation, DayOperationReport, User, Order, OrderItem, MenuItem } from "../models/index.js";
+import { DayOperation, DayOperationReport, DayOperationUserStats, User, Order, OrderItem, MenuItem } from "../models/index.js";
 
 const dayOperationReportsController = {
   getAllReports: async (req, res, next) => {
@@ -350,7 +350,19 @@ const dayOperationReportsController = {
       const { dayOperationId } = req.params;
       const { generatedBy = "System" } = req.body;
       const dayOperation = await DayOperation.findByPk(dayOperationId, {
-        include: [{ model: User, as: 'users' }],
+        include: [
+          {
+            model: DayOperationUserStats,
+            as: 'userStats',
+            include: [
+              {
+                model: User,
+                as: 'user',
+                attributes: ['id', 'firstName', 'lastName', 'email']
+              }
+            ]
+          }
+        ],
         transaction
       });
       if (!dayOperation) {
