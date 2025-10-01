@@ -237,7 +237,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     setShowOrdersDialog(false);
   }, []);
 
-
   const refreshCounts = useCallback(async () => {
     await Promise.all([fetchOrdersCount()]);
   }, [fetchOrdersCount]);
@@ -455,33 +454,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   //------------------------------------------------------
 
-  const handleOpenDay = async () => {
-    try {
-      setActionLoading(true);
-      setError(null);
-      const response = await openDay({ ...openDayForm, userId: user?.id as any });
-      if (response.dayOperation) {
-        setCurrentDay(response.dayOperation);
-        const isDayOpen = response.dayOperation.status === "opened";
-        setUserDayOpen(isDayOpen);
-        // Hide lock overlay immediately when day opens successfully
-        if (isDayOpen) {
-          setShowLockOverlay(false);
-        }
-      }
-      setSuccess(`Shift opened successfully! ${response.stockItemsCaptured} stock items captured.`);
-      setShowOpenModal(false);
-      setOpenDayForm({ openingCash: 0, openedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-      setTimeout(async () => {
-        await loadData();
-      }, 500);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to open day");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   const handleCloseDay = async () => {
     try {
       setActionLoading(true);
@@ -561,14 +533,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       {/* Sales History Dialog */}
       <Dialog open={showSalesHistoryDialog} onOpenChange={setShowSalesHistoryDialog}>
         <DialogContent className="max-w-screen h-[100vh] shadow-2xl p-0 overflow-auto">
-          <div className="h-full overflow-auto">
-            {showSalesHistoryDialog && (
-              <Sales
-                key={showSalesHistoryDialog ? "sales-history-open" : "sales-history-closed"}
-                onClose={() => setShowSalesHistoryDialog(false)}
-              />
-            )}
-          </div>
+          <div className="h-full overflow-auto">{showSalesHistoryDialog && <Sales key={showSalesHistoryDialog ? "sales-history-open" : "sales-history-closed"} onClose={() => setShowSalesHistoryDialog(false)} />}</div>
         </DialogContent>
       </Dialog>
 
