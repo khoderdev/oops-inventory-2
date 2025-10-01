@@ -1811,10 +1811,16 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                 totalAmount: total
               };
             } catch (error) {
-              logDevOnly(`❌ Error updating sale:`, error);
+              logDevOnly(`❌ Error updating sale:` , error);
             }
+          } else if (orderId) {
+            // Update existing order
+            logDevOnly(`🔄 Updating existing order ${orderId}`);
+            const response = await ordersAPI.updateOrder(orderId, updateData);
+            logDevOnly(`✅ Order ${orderId} updated successfully`);
           }
         } else {
+          // Create new order
           const createData = {
             orderType,
             tableId: selectedTable?.id,
@@ -1836,13 +1842,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             discountAmount: appliedDiscount?.amount || 0,
             discountReason: appliedDiscount?.reason
           };
+
+          logDevOnly(`🆕 Creating new order with ${createData.items.length} items`);
+          const response = await ordersAPI.createOrder(createData);
+          logDevOnly(`✅ New order created successfully with ID: ${response.data.id}`);
         }
         if (onOrderProcessed) onOrderProcessed();
         await refreshAllCounts();
         dispatch(posActions.setSelectedSaleForEdit(null));
         dispatch(posActions.clearEditingSaleId());
         const totalTime = performance.now() - startTime;
-        logDevOnly(`💾 Order save completed in ${totalTime.toFixed(1)}ms`);
+        logDevOnly(`💾 Order save completed in ${totalTime.toFixed(1)}ms` );
       } catch (error: unknown) {
         logDevOnly("❌ Background save processing failed:", error);
       } finally {
