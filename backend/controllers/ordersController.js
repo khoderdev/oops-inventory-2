@@ -1103,7 +1103,8 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
 
           // Explicitly set other related fields to ensure they're in sync
           if (fieldToUpdate === "purchasedIndividualQuantity") {
-            updateData.purchasedConvertedQuantity = intValue;
+            // purchasedConvertedQuantity should remain as decimal, not integer
+            updateData.purchasedConvertedQuantity = numericQuantity;
           }
         } else {
           // For non-integer fields, ensure we're not passing strings
@@ -1163,7 +1164,8 @@ export const deductIngredientStock = async (menuItemId, orderQuantity, transacti
             if (!isNaN(numValue)) {
               const intValue = Math.max(0, Math.round(numValue));
               packageUpdateObj.purchasedIndividualQuantity = intValue;
-              packageUpdateObj.purchasedConvertedQuantity = intValue;
+              // purchasedConvertedQuantity should remain as decimal for proper calculations
+              packageUpdateObj.purchasedConvertedQuantity = parseFloat(stockEntry.purchasedConvertedQuantity || stockEntry.purchasedQuantity || 0) - (deductAmount / material.packageQuantity);
               console.log(`      - Updated package individual quantity to integer: ${intValue}`);
             }
           }
