@@ -536,7 +536,7 @@ export interface SaleRecord {
   notes?: string;
 }
 
-export interface MenuItemSale { 
+export interface MenuItemSale {
   id?: string | number; // Add optional id property
   menuItemId: string;
   menuItemName?: string;
@@ -876,8 +876,8 @@ export interface TablesLayoutProps {
   selectedTable?: Table;
   onTableSelect: (table: Table) => void;
   onClose: () => void;
-  tableOrders?: { [tableId: string]: number }; // For notification badges
-  printedTables?: string[]; // Track tables with printed receipts
+  tableOrders?: { [tableId: string]: number };
+  printedTables?: string[];
 }
 
 export interface CategoryTabsProps {

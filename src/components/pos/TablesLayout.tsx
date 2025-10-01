@@ -530,8 +530,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                                 )}
                               </div>
                               {table.id && printedTables.includes(table.id.toString()) && (
-                                <div className="absolute -bottom-1 -left-1 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-20">
-                                  <Printer className="w-3 h-3" />
+                                <div className="absolute -bottom-1 -left-1 bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-md z-10">
+                                  <Printer className="w-6 h-6" />
                                 </div>
                               )}
                               {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
