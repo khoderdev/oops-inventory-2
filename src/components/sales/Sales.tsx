@@ -6,9 +6,11 @@ import { AlertCircle, ChevronDown, ChevronUp, ExternalLink, X } from "lucide-rea
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
-interface SalesProps {}
+interface SalesProps {
+  onClose?: () => void;
+}
 
-const Sales: React.FC<SalesProps> = () => {
+const Sales: React.FC<SalesProps> = ({ onClose }) => {
   const { salesHistory, fetchSalesHistory, isLoading, error, selectedItemFilter, selectedSectionFilter, dateFrom, dateTo, setSelectedItemFilter, setSelectedSectionFilter, setDateFrom, setDateTo, uniqueItemNames, uniqueSectionNames, setUniqueItemNames, setUniqueSectionNames, filteredSalesHistory, salesTotal, setSelectedSaleForEdit, setEditingSaleId, lastSaleData, showSuccessCheckmark, successMessage } = usePOSRedux();
   const navigate = useNavigate();
   const [sortField, setSortField] = useState<keyof SaleRecord | null>(null);
@@ -103,9 +105,13 @@ const Sales: React.FC<SalesProps> = () => {
         orderId: orderId
       };
       setSelectedSaleForEdit(saleWithOrderId);
+
+      // Close the dialog before navigating
+      onClose?.();
+
       navigate("/pos");
     },
-    [salesHistory, setSelectedSaleForEdit, setEditingSaleId, navigate]
+    [salesHistory, setSelectedSaleForEdit, setEditingSaleId, navigate, onClose]
   );
   // Format currency
   const formatCurrency = (amount: number | string) => {

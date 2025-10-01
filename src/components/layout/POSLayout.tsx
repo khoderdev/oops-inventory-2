@@ -9,16 +9,15 @@ import PinInput from "@/components/ui/PinInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/types/auth";
-import { SalesHistoryPage } from "@/pages/SalesHistoryPage";
 import { POSLayoutProps, OpenDayRequest, CloseDayRequest, DayOperation, ActivityLog } from "@/types/inventory";
 import { DayOperationsFormData, UserOrderStats } from "@/types/dayOperations";
 import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
-import { formatCurrency } from "@/utils/dayOperationsFormattings";
 import { AlertCircle, CheckCircle, GripVertical, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DailyReports from "@/components/analytics/DailyReports";
 import { useDailyReports } from "@/hooks/useDailyReports";
+import Sales from "../sales/Sales";
 
 const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
 
@@ -584,7 +583,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       <Dialog open={showSalesHistoryDialog} onOpenChange={setShowSalesHistoryDialog}>
         <DialogContent className="max-w-screen h-[100vh] shadow-2xl p-0 overflow-auto">
           <div className="h-full overflow-auto">
-            <SalesHistoryPage key={showSalesHistoryDialog ? "sales-history-open" : "sales-history-closed"} isOpen={showSalesHistoryDialog} onClose={handleCloseSalesHistoryDialog} />
+            {showSalesHistoryDialog && (
+              <Sales
+                key={showSalesHistoryDialog ? "sales-history-open" : "sales-history-closed"}
+                onClose={() => setShowSalesHistoryDialog(false)}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -640,13 +644,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         </DialogContent>
       </Dialog>
       {/* Daily Report Modal */}
-      <DailyReports
-        showReportModal={showReportModal}
-        setShowReportModal={setShowReportModal}
-        selectedReport={selectedReport}
-        error={reportError}
-        setError={setReportError}
-      />
+      <DailyReports showReportModal={showReportModal} setShowReportModal={setShowReportModal} selectedReport={selectedReport} error={reportError} setError={setReportError} />
     </div>
   );
 };
