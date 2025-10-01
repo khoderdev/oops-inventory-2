@@ -2306,26 +2306,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     [loadOrder, cachedFoodMenuItems, cachedBeverageMenuItems, showError, clearOrder, dispatch, onOrderProcessed]
   );
 
-  // Function to show the day close dialog
-  const handleShowDayCloseDialog = useCallback(() => {
-    if (!currentDay || !currentDay.id) {
-      showError("No active day to close");
-      return;
-    }
-
-    // Set initial closing cash to expected cash if available
-    if (currentDay.expectedCash) {
-      setClosingCash(currentDay.expectedCash.toString());
-    } else {
-      setClosingCash("");
-    }
-
-    // Clear notes
-    setDayCloseNotes("");
-
-    // Show dialog
-    setShowDayCloseDialog(true);
-  }, [currentDay, showError]);
 
   const handleDayClose = useCallback(() => {
     if (!currentDay || !currentDay.id) {
@@ -2657,7 +2637,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                 onShowReports={handleShowReports}
                 onCancelOrder={handleCancelOrder}
                 onDiscount={handleShowDiscount}
-                onCloseDayClick={handleShowDayCloseDialog}
+                onCloseDayClick={handleDayClose}
                 hasUnsavedChanges={hasUnsavedChanges}
                 isOrderLoading={orderLoading}
                 canPrintReceipt={cart && cart.length > 0}

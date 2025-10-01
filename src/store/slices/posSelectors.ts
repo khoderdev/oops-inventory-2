@@ -20,6 +20,23 @@ export const selectSalesHistory = (state: RootState) => state.pos.salesHistory;
 export const selectSelectedSaleForEdit = (state: RootState) => state.pos.selectedSaleForEdit;
 export const selectEditingSaleId = (state: RootState) => state.pos.editingSaleId;
 
+// UI Layout selectors
+export const selectUIState = (state: RootState) => state.ui;
+export const selectShowLeftPanel = (state: RootState) => state.ui.showLeftPanel;
+export const selectIsResizing = (state: RootState) => state.ui.isResizing;
+export const selectLeftPanelWidth = (state: RootState) => state.ui.leftPanelWidth;
+export const selectShowLockOverlay = (state: RootState) => state.ui.showLockOverlay;
+export const selectUserDayOpen = (state: RootState) => state.ui.userDayOpen;
+
+// Day Operations selectors
+export const selectDayOperationsState = (state: RootState) => state.dayOperations;
+export const selectCurrentDay = (state: RootState) => state.dayOperations.currentDay;
+
+// Computed selectors for UI
+export const selectIsLocked = createSelector([selectUserDayOpen], userDayOpen => userDayOpen === false);
+
+export const selectIsDayOpen = createSelector([selectUserDayOpen], userDayOpen => userDayOpen === true);
+
 // Dialog selectors
 export const selectShowPaymentDialog = (state: RootState) => state.pos.showPaymentDialog;
 export const selectShowReceiptDialog = (state: RootState) => state.pos.showReceiptDialog;

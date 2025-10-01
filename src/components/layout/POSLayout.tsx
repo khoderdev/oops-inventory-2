@@ -18,6 +18,24 @@ import { useNavigate } from "react-router-dom";
 import DailyReports from "@/components/analytics/DailyReports";
 import { useDailyReports } from "@/hooks/useDailyReports";
 import Sales from "../sales/Sales";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
+import {
+  selectShowLeftPanel,
+  selectIsResizing,
+  selectLeftPanelWidth,
+  selectShowLockOverlay,
+  selectUserDayOpen,
+  selectCurrentDay,
+  selectIsLocked
+} from "@/store/slices/posSelectors";
+import {
+  setShowLeftPanel,
+  setIsResizing,
+  setLeftPanelWidth,
+  setShowLockOverlay,
+  setUserDayOpen
+} from "@/store/slices/uiSlice";
+import { fetchCurrentDayOperation } from "@/store/dayOperationsSlice";
 
 const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
 
@@ -28,28 +46,32 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const canOpenDay = hasPermission(PERMISSIONS.DAY_OPERATIONS_CREATE);
   const canCloseDayPerm = hasPermission(PERMISSIONS.DAY_OPERATIONS_CLOSE);
   const canManageDay = canOpenDay || canCloseDayPerm;
+
+  // Redux state selectors
+  const dispatch = useAppDispatch();
+  const showLeftPanel = useAppSelector(selectShowLeftPanel);
+  const isResizing = useAppSelector(selectIsResizing);
+  const leftPanelWidth = useAppSelector(selectLeftPanelWidth);
+  const showLockOverlay = useAppSelector(selectShowLockOverlay);
+  const userDayOpen = useAppSelector(selectUserDayOpen);
+  const currentDay = useAppSelector(selectCurrentDay);
+  const isLocked = useAppSelector(selectIsLocked);
+
+  // Local state (only for things that don't need to be in Redux)
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const [logoutPinError, setLogoutPinError] = useState("");
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [showSalesHistoryDialog, setShowSalesHistoryDialog] = useState(false);
-  const [leftPanelWidth, setLeftPanelWidth] = useState(280);
-  const [isResizing, setIsResizing] = useState(false);
-  const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [, setShowDayOperationsModal] = useState(false);
-  const [userDayOpen, setUserDayOpen] = useState<boolean | null>(null);
-
   const [, setDayOperationType] = useState<"open" | "close">("open");
   const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
-  const [showLockOverlay, setShowLockOverlay] = useState(false); // Don't show until we know the status
   const [isCheckingDayStatus, setIsCheckingDayStatus] = useState(true);
   const [dayError, setDayError] = useState<string | null>(null);
   const [daySuccess, setDaySuccess] = useState<string | null>(null);
-  const [currentDay, setCurrentDay] = useState<DayOperation | null>(null);
   const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
   const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
-  const isLocked = userDayOpen === false; // Only locked if explicitly false (not null/unknown)
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [, setLoading] = useState(true);
@@ -90,13 +112,11 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       setLoading(true);
       setError(null);
       const currentResponse = await getCurrentDayOperation();
-      setCurrentDay(currentResponse.currentDay);
-      const isDayOpen = currentResponse.currentDay?.status === "opened";
-      setUserDayOpen(isDayOpen);
+      dispatch(setUserDayOpen(currentResponse.currentDay?.status === "opened"));
 
       // Hide lock overlay immediately if day is open
-      if (isDayOpen) {
-        setShowLockOverlay(false);
+      if (currentResponse.currentDay?.status === "opened") {
+        dispatch(setShowLockOverlay(false));
       }
 
       const recentResponse = await getDayOperations(1, 10);
@@ -150,11 +170,10 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { logoSrc, isLoaded } = useCachedLogo(LOGO_CONFIGS.MAIN_LOGO);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    setIsResizing(true);
+    dispatch(setIsResizing(true));
 
     const handleMouseMove = (e: MouseEvent) => {
       if (!containerRef.current) return;
@@ -163,34 +182,34 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       const minWidth = 200;
       const maxWidth = containerRect.width * 0.35;
       if (newWidth >= minWidth && newWidth <= maxWidth) {
-        setLeftPanelWidth(newWidth);
+        dispatch(setLeftPanelWidth(newWidth));
       }
     };
     const handleMouseUp = () => {
-      setIsResizing(false);
+      dispatch(setIsResizing(false));
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     const handleResize = () => {
       if (!containerRef.current) return;
       const containerWidth = containerRef.current.offsetWidth;
       if (containerWidth < 1024) {
-        setShowLeftPanel(false);
+        dispatch(setShowLeftPanel(false));
       }
       const maxWidth = containerWidth * 0.35;
       if (leftPanelWidth > maxWidth) {
-        setLeftPanelWidth(Math.max(200, maxWidth));
+        dispatch(setLeftPanelWidth(Math.max(200, maxWidth)));
       }
     };
     window.addEventListener("resize", handleResize);
     handleResize();
     return () => window.removeEventListener("resize", handleResize);
-  }, [leftPanelWidth, showLeftPanel]);
+  }, [leftPanelWidth, showLeftPanel, dispatch]);
 
   const fetchOrdersCount = useCallback(async () => {
     try {
@@ -409,7 +428,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const refreshExpectedAndStats = useCallback(async () => {
     try {
       const [currentResponse, statsResponse] = await Promise.all([getCurrentDayOperation(), getUserOrderStats().catch(() => ({ userOrderStats: [] as UserOrderStats[] }))]);
-      setCurrentDay(currentResponse.currentDay);
+      dispatch(fetchCurrentDayOperation());
       setUserOrderStats(statsResponse.userOrderStats || []);
       const latestExpected = currentResponse.currentDay?.expectedCash ?? 0;
       setCloseDayForm(prev => ({
@@ -449,8 +468,8 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       return;
     }
     // Only show overlay if day is explicitly closed (not unknown)
-    setShowLockOverlay(isLocked);
-  }, [isLocked, isCheckingDayStatus]);
+    dispatch(setShowLockOverlay(isLocked));
+  }, [isLocked, isCheckingDayStatus, dispatch]);
 
   //------------------------------------------------------
 
@@ -460,12 +479,11 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       setError(null);
       const response = await closeDay({ ...closeDayForm, userId: user?.id as any });
       if (response.dayOperation) {
-        setCurrentDay(response.dayOperation);
         const isDayOpen = response.dayOperation.status === "opened";
-        setUserDayOpen(isDayOpen);
+        dispatch(setUserDayOpen(isDayOpen));
         // Show lock overlay immediately when day closes
         if (!isDayOpen) {
-          setShowLockOverlay(true);
+          dispatch(setShowLockOverlay(true));
         }
       }
       setShowCloseModal(false);
@@ -537,12 +555,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         </DialogContent>
       </Dialog>
 
-      {/* Day Operations Modal */}
       {/* Open Day Modal - Staff only */}
       {canOpenDay && <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} type="open" />}
 
       {/* Close Day Modal - Staff only */}
       {canCloseDayPerm && <DayOperationsModal open={showCloseModal} onOpenChange={setShowCloseModal} type="close" currentDay={currentDay} />}
+
       {/* Day Operation Alerts */}
       {dayError && (
         <div className="fixed top-4 right-4 z-50 bg-red-50 border border-red-200 rounded-lg p-3 sm:p-4 flex items-start sm:items-center max-w-md shadow-lg">
