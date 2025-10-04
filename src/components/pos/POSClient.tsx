@@ -34,29 +34,16 @@ const CategoryTabs = lazy(() => import("./CategoryTabs"));
 const DiscountDialog = lazy(() => import("./DiscountDialog"));
 const ItemNotesDialog = lazy(() => import("./ItemNotesDialog"));
 const OrderItemsList = lazy(() => import("./OrderItemsList"));
-const OrderSummary = lazy(() => import("./OrderSummary"));
 const PaymentDialog = lazy(() => import("./PaymentDialog"));
 const POSClientOrders = lazy(() => import("./POSClientOrders"));
 const ItemsGrid = lazy(() => import("./ItemsGrid"));
 const ReceiptPrinter = lazy(() => import("./ReceiptPrinter"));
 
-// Import tables components directly (not lazy-loaded)
-import { SimpleTablesLayout } from "./SimpleTablesLayout";
+// Import TablesPage component directly (not lazy-loaded)
 import { TablesPage } from "./TablesPage";
 
-// Original lazy-loaded TablesLayout (keeping for reference)
-const TablesLayout = lazy(() => {
-  console.log(" [POSClient] Loading TablesLayout component");
-  return import("./TablesLayout")
-    .then(module => {
-      console.log("📚 [POSClient] TablesLayout loaded successfully", module);
-      return module;
-    })
-    .catch(error => {
-      console.error("❌ [POSClient] Error loading TablesLayout:", error);
-      throw error;
-    });
-});
+// Original TablesLayout is no longer needed
+// const TablesLayout = lazy(() => import("./TablesLayout"));
 const VoidOrderDialog = lazy(() => import("./VoidOrderDialog"));
 
 // Redux actions
@@ -96,6 +83,8 @@ import {
   applyDiscount as applyDiscountAction,
   completeOrder
 } from "@/store/slices/posSlice";
+import NotesDialog from "./NotesDialog";
+import OrderSummary from "./OrderSummary";
 
 const EMPTY_ARRAY: any[] = [];
 
@@ -734,26 +723,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   return (
     <>
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
-        {/* Debug button */}
-        <button
-          onClick={() => {
-            console.log("💥 [DEBUG] Force opening tables layout");
-            console.log("💥 [DEBUG] Current showTablesLayout:", showTablesLayout);
-            dispatch(setShowTablesLayoutAction(true));
-          }}
-          style={{
-            position: "fixed",
-            top: "10px",
-            right: "10px",
-            zIndex: 9999,
-            background: "red",
-            color: "white",
-            padding: "5px 10px",
-            borderRadius: "4px"
-          }}
-        >
-          FORCE OPEN TABLES
-        </button>
         {/* Left Panel - Cart */}
         <div
           className="cart hidden lg:flex flex-col h-full bg-white lg:border-r lg:border-gray-200"
@@ -1013,18 +982,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
         {showItemNotesDialog && selectedItemForNotes && <ItemNotesDialog isOpen={showItemNotesDialog} onClose={() => dispatch(setShowItemNotesDialogAction(false))} item={selectedItemForNotes} onNotesChange={(itemId, notes) => dispatch(setItemNotesAction({ itemId, notes }))} />}
 
-
         {/* Full-page Tables Layout */}
-        {showTablesLayout && (
-          <TablesPage
-            onClose={() => dispatch(setShowTablesLayoutAction(false))}
-            onTableSelect={handleTableSelection}
-            tables={tables}
-            tableOrders={tableOrders}
-            selectedTable={selectedTable}
-          />
-        )}
-
+        {showTablesLayout && <TablesLayout onClose={() => dispatch(setShowTablesLayoutAction(false))} onTableSelect={handleTableSelection} tables={tables} tableOrders={tableOrders} selectedTable={selectedTable} />}
 
         {showPrinterSelector && (
           <Dialog open={showPrinterSelector} onOpenChange={open => dispatch(setShowPrinterSelectorAction(open))}>

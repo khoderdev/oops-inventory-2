@@ -447,11 +447,7 @@ const posSlice = createSlice({
     },
 
     setShowTablesLayout: (state, action: PayloadAction<boolean>) => {
-      console.log("🔴 [REDUCER] setShowTablesLayout called with:", action.payload);
-      console.log("🔴 [REDUCER] Previous state:", state.showTablesLayout);
       state.showTablesLayout = action.payload;
-      console.log("🔴 [REDUCER] New state:", state.showTablesLayout);
-      console.trace("Call stack:");
     },
 
     setShowDiscountDialog: (state, action: PayloadAction<boolean>) => {
