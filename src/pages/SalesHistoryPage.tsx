@@ -50,15 +50,25 @@ import { format, isValid } from "date-fns";
 import { AlertCircle, CalendarIcon, CheckCircle, CheckSquare, Loader2, Package, Printer, Search, ShoppingBag, ShoppingCart, Square, Trash2, Undo2, Edit } from "lucide-react";
 import React, { useCallback, useEffect, useMemo } from "react";
 import { salesAPI } from "@/api/sales.api.ts.tsx";
-import { useOrderManagement } from "@/hooks/useOrderManagement";
-import { useAppDispatch } from "@/store/hooks";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchOrderById } from "@/store/slices/ordersSlice";
+import { selectIsAnyLoading as selectOrdersLoading } from "@/store/slices/ordersSelectors";
 import { useNavigate } from "react-router-dom";
 import { useSalesOperationsRedux } from "@/hooks/useSalesOperationsRedux";
 
 export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => void }) {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { loadOrder } = useOrderManagement();
+  const isLoadingOrder = useAppSelector(selectOrdersLoading);
+  
+  // Order management using Redux
+  const loadOrder = useCallback(async (orderId: string) => {
+    const result = await dispatch(fetchOrderById(orderId));
+    if (fetchOrderById.fulfilled.match(result)) {
+      return result.payload;
+    }
+    throw new Error(result.payload as string || "Failed to load order");
+  }, [dispatch]);
 
   // Get state from Redux
   const {
@@ -311,7 +321,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
         // Handle error (e.g., show error toast)
       }
     },
-    [loadOrder, navigate]
+    [loadOrder, navigate, dispatch]
   );
 
   const handleBulkRevert = useCallback(() => {

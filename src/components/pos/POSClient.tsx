@@ -1,11 +1,13 @@
 import { logDevOnly } from "@/utils/logDevOnly";
 const EMPTY_ARRAY: any[] = [];
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useOrderManagement } from "@/hooks/useOrderManagement";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { createOrder as createOrderThunk, fetchOrderById, updateOrder as updateOrderThunk, voidOrder as voidOrderThunk, setActiveOrder, clearStockRestorations } from "@/store/slices/ordersSlice";
+import { selectActiveOrder, selectIsCreating, selectIsUpdating, selectIsVoiding, selectIsAnyLoading, selectLastStockRestorations } from "@/store/slices/ordersSelectors";
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { Employee } from "@/types/employee";
 import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, SectionAssignment, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { Order, OrderSummary as OrderSummaryType, OrderType, UpdateOrderData } from "@/types/orders";
+import { CreateOrderData, Order, OrderSummary as OrderSummaryType, OrderType, UpdateOrderData } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
@@ -32,7 +34,6 @@ import { TablesLayout } from "./TablesLayout";
 import { VoidOrderDialog } from "./VoidOrderDialog";
 import { Category } from "@/types/categories";
 import { useMenuItems } from "@/contexts/MenuItemsContext";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import * as posActions from "@/store/slices/posSlice";
 import { setCart } from "@/store/slices/posSlice";
 import {
@@ -124,19 +125,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     state => state.pos.selectedEmployee,
     (prev, next) => {
       if (prev === next) return true;
-      if (!prev && !next) return true;
-      if (!prev || !next) return false;
       return prev.id === next.id;
     }
   );
 
-  const currentOrder = useAppSelector(
+  const posCurrentOrder = useAppSelector(
     state => state.pos.currentOrder,
     (prev, next) => {
       if (prev === next) return true;
       if (!prev && !next) return true;
       if (!prev || !next) return false;
-      return prev.id === next.id && prev.status === next.status;
+      return prev.id === next.id;
     }
   );
 
@@ -788,7 +787,97 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const containerRef = useRef<HTMLDivElement>(null);
   const routerStateProcessedRef = useRef(false);
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
-  const { currentOrder: hookCurrentOrder, isLoading: orderLoading, createOrder, loadOrder, updateOrder, voidOrder, clearOrder } = useOrderManagement();
+
+  // Redux orders state
+  const reduxDispatch = useAppDispatch();
+  const currentOrder = useAppSelector(selectActiveOrder);
+  const isCreatingOrder = useAppSelector(selectIsCreating);
+  const isUpdatingOrder = useAppSelector(selectIsUpdating);
+  const isVoidingOrder = useAppSelector(selectIsVoiding);
+  const orderLoading = useAppSelector(selectIsAnyLoading);
+  const lastStockRestorations = useAppSelector(selectLastStockRestorations);
+
+  // Order management functions using Redux
+  const createOrder = useCallback(
+    async (data: CreateOrderData): Promise<Order> => {
+      const result = await reduxDispatch(createOrderThunk(data));
+      if (createOrderThunk.fulfilled.match(result)) {
+        return result.payload;
+      }
+      throw new Error((result.payload as string) || "Failed to create order");
+    },
+    [reduxDispatch]
+  );
+
+  const loadOrder = useCallback(
+    async (orderId: string): Promise<Order> => {
+      const result = await reduxDispatch(fetchOrderById(orderId));
+      if (fetchOrderById.fulfilled.match(result)) {
+        return result.payload;
+      }
+      throw new Error((result.payload as string) || "Failed to load order");
+    },
+    [reduxDispatch]
+  );
+
+  const updateOrder = useCallback(
+    async (orderIdOrData: string | UpdateOrderData, maybeData?: UpdateOrderData): Promise<Order> => {
+      let orderId: string;
+      let data: UpdateOrderData;
+
+      if (typeof orderIdOrData === "string") {
+        orderId = orderIdOrData;
+        data = maybeData as UpdateOrderData;
+      } else {
+        if (!currentOrder) {
+          throw new Error("No current order to update");
+        }
+        data = orderIdOrData;
+        orderId = currentOrder.id;
+      }
+
+      const result = await reduxDispatch(updateOrderThunk({ orderId, data }));
+      if (updateOrderThunk.fulfilled.match(result)) {
+        return result.payload;
+      }
+      throw new Error((result.payload as string) || "Failed to update order");
+    },
+    [reduxDispatch, currentOrder]
+  );
+
+  const voidOrder = useCallback(
+    async (reason?: string, restoreStock: boolean = true) => {
+      if (!currentOrder) {
+        throw new Error("No current order to void");
+      }
+
+      const result = await reduxDispatch(
+        voidOrderThunk({
+          orderId: currentOrder.id,
+          data: {
+            reason: reason || "Order voided by user",
+            restoreStock
+          }
+        })
+      );
+
+      if (voidOrderThunk.fulfilled.match(result)) {
+        const { order, stockRestorations } = result.payload;
+        let successMessage = "Order voided successfully";
+        if (stockRestorations && stockRestorations.length > 0) {
+          successMessage += `. Stock restored for ${stockRestorations.length} item(s).`;
+        }
+        return { order, stockRestorations };
+      }
+      throw new Error((result.payload as string) || "Failed to void order");
+    },
+    [reduxDispatch, currentOrder]
+  );
+
+  const clearOrder = useCallback(() => {
+    reduxDispatch(setActiveOrder(null));
+    reduxDispatch(clearStockRestorations());
+  }, [reduxDispatch]);
   const { printVoidReceiptsForRemovedItems } = useVoidPrinter({
     showSuccess: message => dispatch(setSuccessMessageAction(message)),
     showError: message => dispatch(setErrorAction(message))
@@ -1667,7 +1756,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         backgroundOperations.push(
           (async () => {
             try {
-              await printItemsToAssignedPrinters(cart, (tableId) => {
+              await printItemsToAssignedPrinters(cart, tableId => {
                 // Update printedTables when print job succeeds for table orders
                 setPrintedTables(prev => {
                   if (!prev.includes(tableId)) {
@@ -1823,7 +1912,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                 totalAmount: total
               };
             } catch (error) {
-              logDevOnly(`❌ Error updating sale:` , error);
+              logDevOnly(`❌ Error updating sale:`, error);
             }
           } else if (orderId) {
             // Update existing order
@@ -1864,7 +1953,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         dispatch(posActions.setSelectedSaleForEdit(null));
         dispatch(posActions.clearEditingSaleId());
         const totalTime = performance.now() - startTime;
-        logDevOnly(`💾 Order save completed in ${totalTime.toFixed(1)}ms` );
+        logDevOnly(`💾 Order save completed in ${totalTime.toFixed(1)}ms`);
       } catch (error: unknown) {
         logDevOnly("❌ Background save processing failed:", error);
       } finally {
@@ -2327,7 +2416,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     },
     [loadOrder, cachedFoodMenuItems, cachedBeverageMenuItems, showError, clearOrder, dispatch, onOrderProcessed]
   );
-
 
   const handleDayClose = useCallback(() => {
     if (!currentDay || !currentDay.id) {
