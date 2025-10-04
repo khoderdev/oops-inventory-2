@@ -10,7 +10,7 @@ import { Order, OrderSummary } from "@/types/orders";
 import React, { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 // Lazy load the POSClient component to improve initial page load
-const POSClient = lazy(() => 
+const POSClient = lazy(() =>
   import("@/components/pos/POSClient").then(module => ({
     default: module.POSClient
   }))
@@ -82,7 +82,7 @@ const POSClientPage: React.FC<POSClientPageProps> = ({ isDayOpen = true }) => {
       const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
       const allOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
       const today = new Date().toISOString().split("T")[0];
-      const incompleteStatuses = ['draft', 'confirmed', 'preparing', 'ready'];
+      const incompleteStatuses = ["draft", "confirmed", "preparing", "ready"];
       const incompleteOrdersToday = allOrders.filter((order: OrderSummary) => {
         const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : null;
         const isToday = orderDate === today;
@@ -146,32 +146,9 @@ const POSClientPage: React.FC<POSClientPageProps> = ({ isDayOpen = true }) => {
   }
 
   return (
-    <POSLayout 
-      currentTotal={sessionStats.totalSales} 
-      transactionCount={sessionStats.transactionCount}
-      incompleteOrdersCount={sessionStats.incompleteOrdersCount}
-      onLogout={handleLogout}
-      onOrderSelect={handleOrderSelect}
-      onRefreshCounts={handleRefreshCounts}
-    >
+    <POSLayout currentTotal={sessionStats.totalSales} transactionCount={sessionStats.transactionCount} incompleteOrdersCount={sessionStats.incompleteOrdersCount} onLogout={handleLogout} onOrderSelect={handleOrderSelect} onRefreshCounts={handleRefreshCounts}>
       <MenuItemsProvider>
-        <Suspense fallback={
-          <div className="h-full w-full flex items-center justify-center">
-            <div className="flex flex-col items-center space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              <p className="text-gray-600 font-medium">Loading POS System...</p>
-            </div>
-          </div>
-        }>
-          <POSClient 
-            sectionAssignments={sectionAssignments} 
-            onSaleComplete={handleSaleComplete}
-            selectedOrderForPOS={selectedOrderForPOS}
-            onOrderProcessed={undefined}
-            refreshCountsRef={refreshCountsRef}
-            isDayOpen={isDayOpen}
-          />
-        </Suspense>
+        <POSClient sectionAssignments={sectionAssignments} onSaleComplete={handleSaleComplete} selectedOrderForPOS={selectedOrderForPOS} onOrderProcessed={undefined} refreshCountsRef={refreshCountsRef} isDayOpen={isDayOpen} />
       </MenuItemsProvider>
     </POSLayout>
   );

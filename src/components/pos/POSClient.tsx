@@ -1,18 +1,3 @@
-/**
- * OPTIMIZED POSClient Component
- *
- * Performance Optimizations Applied:
- * ✅ Consolidated Redux selectors (1 instead of 30+)
- * ✅ Moved data transformation to service layer
- * ✅ Removed localStorage from render path
- * ✅ Consolidated useEffect hooks
- * ✅ Debounced expensive operations
- * ✅ Lazy loaded heavy components
- * ✅ Removed performance monitoring overhead
- * ✅ Used useTransition for non-urgent updates
- * ✅ Optimized memoization dependencies
- */
-
 import { logDevOnly } from "@/utils/logDevOnly";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -42,10 +27,6 @@ import PrinterSelector from "../common/PrinterSelector";
 import { usePOSState } from "@/hooks/usePOSState";
 import { useOptimizedPOSData } from "@/hooks/useOptimizedPOSData";
 
-// Import critical components directly (not lazy)
-import { OrderItemsList } from "./OrderItemsList";
-import { OrderSummary } from "./OrderSummary";
-
 // Lazy load heavy components
 const ReportGenerator = lazy(() => import("../analytics/ReportGenerator"));
 const ActionBar = lazy(() => import("./ActionBar"));
@@ -53,6 +34,8 @@ const CategoryTabs = lazy(() => import("./CategoryTabs"));
 const DiscountDialog = lazy(() => import("./DiscountDialog"));
 const ItemNotesDialog = lazy(() => import("./ItemNotesDialog"));
 const NotesDialog = lazy(() => import("./NotesDialog"));
+const OrderItemsList = lazy(() => import("./OrderItemsList"));
+const OrderSummary = lazy(() => import("./OrderSummary"));
 const PaymentDialog = lazy(() => import("./PaymentDialog"));
 const POSClientOrders = lazy(() => import("./POSClientOrders"));
 const ItemsGrid = lazy(() => import("./ItemsGrid"));
@@ -129,6 +112,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const [leftPanelWidth, setLeftPanelWidth] = useState(33.33);
   const [rightPanelPixelWidth, setRightPanelPixelWidth] = useState(0);
   const [isResizing, setIsResizing] = useState(false);
+  const resizeRafRef = useRef<number | null>(null);
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
   const [activeView, setActiveView] = useState<"cart" | "products">("products");
   const [showDayCloseDialog, setShowDayCloseDialog] = useState(false);
@@ -159,6 +143,15 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     showSuccess: message => dispatch(setSuccessMessageAction(message)),
     showError: message => dispatch(setErrorAction(message))
   });
+
+  // Cleanup RAF on unmount
+  useEffect(() => {
+    return () => {
+      if (resizeRafRef.current) {
+        cancelAnimationFrame(resizeRafRef.current);
+      }
+    };
+  }, []);
 
   // Consolidated useEffect for data fetching
   useEffect(() => {
@@ -474,33 +467,35 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           </div>
 
           {/* Order Items List */}
-          <div className="hidden lg:block flex-1 h-full overflow-hidden">
+          <div className="hidden lg:block flex-1 h-full relative overflow-hidden">
             <div className="h-full overflow-y-auto">
-              <OrderItemsList
-                cart={cart}
-                updateCartQuantity={updateCartQuantity}
-                orderType={orderType}
-                selectedTable={selectedTable}
-                selectedEmployee={selectedEmployee}
-                onOrderTypeChange={type => dispatch(setOrderTypeAction(type))}
-                onTableSelect={() => dispatch(setShowTablesLayoutAction(true))}
-                onEmployeeSelect={emp => dispatch(setSelectedEmployeeAction(emp))}
-                incompleteTableOrdersCount={incompleteTableOrdersCount}
-                orderStatus={currentOrder?.status}
-                isOrderCompleted={currentOrder?.status === "paid"}
-                discountReason={appliedDiscount?.reason}
-                leftPanelPixelWidth={containerRef.current ? (leftPanelWidth / 100) * containerRef.current.offsetWidth : 0}
-                onItemNotesChange={(itemId, notes) => dispatch(setItemNotesAction({ itemId, notes }))}
-                onShowItemNotes={item => {
-                  dispatch(setSelectedItemForNotesAction(item));
-                  dispatch(setShowItemNotesDialogAction(true));
-                }}
-              />
+              <Suspense fallback={renderLoadingFallback()}>
+                <OrderItemsList
+                  cart={cart}
+                  updateCartQuantity={updateCartQuantity}
+                  orderType={orderType}
+                  selectedTable={selectedTable}
+                  selectedEmployee={selectedEmployee}
+                  onOrderTypeChange={type => dispatch(setOrderTypeAction(type))}
+                  onTableSelect={() => dispatch(setShowTablesLayoutAction(true))}
+                  onEmployeeSelect={emp => dispatch(setSelectedEmployeeAction(emp))}
+                  incompleteTableOrdersCount={incompleteTableOrdersCount}
+                  orderStatus={currentOrder?.status}
+                  isOrderCompleted={currentOrder?.status === "paid"}
+                  discountReason={appliedDiscount?.reason}
+                  leftPanelPixelWidth={containerRef.current ? (leftPanelWidth / 100) * containerRef.current.offsetWidth : 0}
+                  onItemNotesChange={(itemId, notes) => dispatch(setItemNotesAction({ itemId, notes }))}
+                  onShowItemNotes={item => {
+                    dispatch(setSelectedItemForNotesAction(item));
+                    dispatch(setShowItemNotesDialogAction(true));
+                  }}
+                />
+              </Suspense>
             </div>
 
             {/* Success Animation */}
             {showSuccessCheckmark && (
-              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+              <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="text-center">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-scale-in" />
                   <p className="text-green-700 font-medium text-lg">Order Completed!</p>
@@ -512,26 +507,28 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           {/* Order Summary */}
           {!showSuccessCheckmark && (
             <div className="hidden lg:block border-t border-gray-200 bg-white">
-              <OrderSummary
-                cart={cart}
-                subtotal={subtotal}
-                total={total}
-                orderStatus={currentOrder?.status}
-                isOrderCompleted={currentOrder?.status === "paid"}
-                appliedDiscount={appliedDiscount}
-                onRemoveDiscount={() => dispatch(removeDiscountAction())}
-                onPaymentClick={() => {
-                  if (currentOrder?.status === "paid") {
-                    showError(`Order ${currentOrder.orderNumber} is already completed`);
-                    return;
-                  }
-                  setPaymentAmount(total.toString());
-                  dispatch(setShowPaymentDialogAction(true));
-                }}
-                onSaveClick={() => {
-                  // Handle save
-                }}
-              />
+              <Suspense fallback={renderLoadingFallback()}>
+                <OrderSummary
+                  cart={cart}
+                  subtotal={subtotal}
+                  total={total}
+                  orderStatus={currentOrder?.status}
+                  isOrderCompleted={currentOrder?.status === "paid"}
+                  appliedDiscount={appliedDiscount}
+                  onRemoveDiscount={() => dispatch(removeDiscountAction())}
+                  onPaymentClick={() => {
+                    if (currentOrder?.status === "paid") {
+                      showError(`Order ${currentOrder.orderNumber} is already completed`);
+                      return;
+                    }
+                    setPaymentAmount(total.toString());
+                    dispatch(setShowPaymentDialogAction(true));
+                  }}
+                  onSaveClick={() => {
+                    // Handle save
+                  }}
+                />
+              </Suspense>
             </div>
           )}
         </div>
@@ -541,30 +538,52 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           <div
             onMouseDown={e => {
               e.preventDefault();
-              e.stopPropagation();
               setIsResizing(true);
-              
+
               const startX = e.clientX;
               const startWidth = leftPanelWidth;
               const containerWidth = containerRef.current?.offsetWidth || 0;
-              
+
+              // Optimized mouse move handler with requestAnimationFrame
               const handleMouseMove = (moveEvent: MouseEvent) => {
-                const deltaX = moveEvent.clientX - startX;
-                const newWidthPercent = Math.max(20, Math.min(80, startWidth + (deltaX / containerWidth) * 100));
-                setLeftPanelWidth(newWidthPercent);
-                setRightPanelPixelWidth(containerWidth - (containerWidth * newWidthPercent) / 100);
+                // Cancel previous frame if it hasn't executed yet
+                if (resizeRafRef.current) {
+                  cancelAnimationFrame(resizeRafRef.current);
+                }
+
+                // Schedule update for next frame
+                resizeRafRef.current = requestAnimationFrame(() => {
+                  const deltaX = moveEvent.clientX - startX;
+                  const calculatedWidth = startWidth + (deltaX / containerWidth) * 100;
+
+                  // Calculate max width: either 500px or 30% of container, whichever is smaller
+                  const maxWidthPx = 500;
+                  const maxWidthPercent = Math.min(30, (maxWidthPx / containerWidth) * 100);
+
+                  // Min: 20%, Max: 30% or 500px (whichever is smaller)
+                  const newWidthPercent = Math.max(20, Math.min(maxWidthPercent, calculatedWidth));
+                  setLeftPanelWidth(newWidthPercent);
+                  setRightPanelPixelWidth(containerWidth - (containerWidth * newWidthPercent) / 100);
+                });
               };
-              
+
               const handleMouseUp = () => {
                 setIsResizing(false);
+
+                // Clean up RAF if pending
+                if (resizeRafRef.current) {
+                  cancelAnimationFrame(resizeRafRef.current);
+                  resizeRafRef.current = null;
+                }
+
                 document.removeEventListener("mousemove", handleMouseMove);
                 document.removeEventListener("mouseup", handleMouseUp);
               };
-              
+
               document.addEventListener("mousemove", handleMouseMove);
               document.addEventListener("mouseup", handleMouseUp);
             }}
-            className={`hidden lg:block w-1 bg-gray-300/50 hover:bg-blue-400 cursor-col-resize flex-shrink-0 ${isResizing ? "bg-blue-500" : ""}`}
+            className={`hidden lg:block w-1 bg-gray-300/50 hover:bg-blue-400 cursor-col-resize flex-shrink-0 transition-colors ${isResizing ? "bg-blue-500" : ""}`}
             style={{ minWidth: "4px", maxWidth: "4px" }}
           >
             <div className="flex items-center justify-center h-full">
