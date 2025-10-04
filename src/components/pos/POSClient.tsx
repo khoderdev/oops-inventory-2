@@ -514,13 +514,22 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   );
 
   const posItems = useMemo(() => {
+    logDevOnly(`🔄 POSClient: posItems useMemo triggered - foodItems: ${foodMenuItems.length}, beverageItems: ${beverageMenuItems.length}, loading: ${menuItemsLoading}`);
+    
     if (isPOSActionInProgress && cachedPosItemsRef.current.length > 0) {
+      logDevOnly(`⏸️ POSClient: Returning cached items (POS action in progress)`);
       return cachedPosItemsRef.current;
     }
-    if (cachedPosItemsRef.current.length > 0 && posItemsInitializedRef.current && !menuItemsLoading) {
+    // Only return cached items if we have them AND the source data hasn't changed
+    const currentSourceLength = (cachedFoodMenuItems.current?.length || 0) + (cachedBeverageMenuItems.current?.length || 0);
+    const newSourceLength = foodMenuItems.length + beverageMenuItems.length;
+    
+    if (cachedPosItemsRef.current.length > 0 && posItemsInitializedRef.current && !menuItemsLoading && currentSourceLength === newSourceLength) {
+      logDevOnly(`💾 POSClient: Returning cached items (already initialized, source unchanged: ${currentSourceLength} items)`);
       return cachedPosItemsRef.current;
     }
     if (menuItemsLoading && cachedPosItemsRef.current.length > 0) {
+      logDevOnly(`⏳ POSClient: Returning cached items (still loading)`);
       return cachedPosItemsRef.current;
     }
     try {
@@ -562,7 +571,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       const stableFoodItems = cachedFoodMenuItems.current || [];
       const stableBeverageItems = cachedBeverageMenuItems.current || [];
       const allMenuItems = [...stableFoodItems, ...stableBeverageItems];
+      logDevOnly(`🏗️ POSClient: Building POS items from menu data - ${stableFoodItems.length} food + ${stableBeverageItems.length} beverage = ${allMenuItems.length} total`);
       if (allMenuItems.length === 0) {
+        logDevOnly(`⚠️ POSClient: No menu items available to build POS items`);
         return [];
       }
       const categoryLookup = new Map();
@@ -621,7 +632,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       return transformedItems;
     }
     return cachedPosItemsRef.current;
-  }, [isPOSActionInProgress, menuItemsLoading]);
+  }, [isPOSActionInProgress, menuItemsLoading, foodMenuItems.length, beverageMenuItems.length]);
 
   const lastPosItemsForCategoriesRef = useRef<POSItem[]>([]);
   const categoriesRef = useRef<string[]>(["all"]);
@@ -653,19 +664,28 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   }, [posItems]);
 
   const filteredPosItems = useMemo(() => {
+    logDevOnly(`🎯 POSClient: filteredPosItems useMemo - category: ${activeCategory}, posItems: ${posItems.length}, inProgress: ${isPOSActionInProgress}`);
+    
     if (isPOSActionInProgress) {
-      return filteredPosItemsCache.current[activeCategory] || posItems;
+      const cached = filteredPosItemsCache.current[activeCategory] || posItems;
+      logDevOnly(`⏸️ POSClient: Returning cached filtered items (POS action in progress) - ${cached.length} items`);
+      return cached;
     }
 
     // For "all" category, make sure we cache it too for consistent behavior
     if (activeCategory === "all") {
       // Check if we already have a valid cached version
       const cachedAll = filteredPosItemsCache.current["all"];
-      if (cachedAll && posItems.length > 0 && cachedAll.length > 0 && cachedAll._sourceLength === posItems.length) {
+      
+      // Only use cache if it has items AND matches current posItems length
+      // This prevents using an empty cached array when posItems has data
+      if (cachedAll && cachedAll._sourceLength === posItems.length && cachedAll.length === posItems.length && posItems.length > 0) {
+        logDevOnly(`💾 POSClient: Returning cached "all" items - ${cachedAll.length} items`);
         return cachedAll;
       }
 
-      // Create and cache the "all" items array
+      // Create and cache the "all" items array (even if empty, to handle loading states)
+      logDevOnly(`🆕 POSClient: Creating new "all" items array - ${posItems.length} items`);
       const allItems = createExtendedArray(posItems, posItems.length);
       filteredPosItemsCache.current["all"] = allItems;
       return allItems;
@@ -762,11 +782,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     }
 
     if (menuItemsLoading) {
+      logDevOnly(`⏳ POSClient: Menu items loading - setting grid to loading state`);
       setIsItemsGridLoading(true);
     } else {
+      logDevOnly(`✅ POSClient: Menu items loaded - clearing loading state in 200ms`);
       loadingTimerRef.current = setTimeout(() => {
         setIsItemsGridLoading(false);
         loadingTimerRef.current = null;
+        logDevOnly(`🎉 POSClient: Grid loading state cleared - items should be interactive now`);
       }, 200);
     }
 
@@ -2719,13 +2742,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             <div className="flex-1 min-h-0 !bg-gray-50 p-2">
               {/* HYPER-STABLE ItemsGrid with deep memoization to prevent unnecessary re-renders */}
               {useMemo(() => {
-                // Completely remove all logging to eliminate overhead
+                logDevOnly(`🎨 POSClient: Rendering ItemsGrid - filteredPosItems: ${filteredPosItems.length}, loading: ${isItemsGridLoading}`);
 
                 // Use stable references for empty arrays to prevent unnecessary re-renders
                 const stableItems = filteredPosItems.length > 0 ? filteredPosItems : EMPTY_ARRAY;
                 // Round to nearest 200px for even more stability
                 const stableWidth = Math.round(rightPanelPixelWidth / 200) * 200;
 
+                logDevOnly(`📦 POSClient: ItemsGrid receiving ${stableItems.length} items`);
                 return <ItemsGrid posItems={stableItems} onAddToCart={handleAddToCart} rightPanelPixelWidth={stableWidth} isLoading={isItemsGridLoading} />;
               }, [
                 // Use a single stable dependency for filteredPosItems
