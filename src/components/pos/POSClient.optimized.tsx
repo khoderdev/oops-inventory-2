@@ -42,10 +42,6 @@ import PrinterSelector from "../common/PrinterSelector";
 import { usePOSState } from "@/hooks/usePOSState";
 import { useOptimizedPOSData } from "@/hooks/useOptimizedPOSData";
 
-// Import critical components directly (not lazy)
-import { OrderItemsList } from "./OrderItemsList";
-import { OrderSummary } from "./OrderSummary";
-
 // Lazy load heavy components
 const ReportGenerator = lazy(() => import("../analytics/ReportGenerator"));
 const ActionBar = lazy(() => import("./ActionBar"));
@@ -53,6 +49,8 @@ const CategoryTabs = lazy(() => import("./CategoryTabs"));
 const DiscountDialog = lazy(() => import("./DiscountDialog"));
 const ItemNotesDialog = lazy(() => import("./ItemNotesDialog"));
 const NotesDialog = lazy(() => import("./NotesDialog"));
+const OrderItemsList = lazy(() => import("./OrderItemsList"));
+const OrderSummary = lazy(() => import("./OrderSummary"));
 const PaymentDialog = lazy(() => import("./PaymentDialog"));
 const POSClientOrders = lazy(() => import("./POSClientOrders"));
 const ItemsGrid = lazy(() => import("./ItemsGrid"));
@@ -474,33 +472,35 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           </div>
 
           {/* Order Items List */}
-          <div className="hidden lg:block flex-1 h-full overflow-hidden">
+          <div className="hidden lg:block flex-1 h-full relative overflow-hidden">
             <div className="h-full overflow-y-auto">
-              <OrderItemsList
-                cart={cart}
-                updateCartQuantity={updateCartQuantity}
-                orderType={orderType}
-                selectedTable={selectedTable}
-                selectedEmployee={selectedEmployee}
-                onOrderTypeChange={type => dispatch(setOrderTypeAction(type))}
-                onTableSelect={() => dispatch(setShowTablesLayoutAction(true))}
-                onEmployeeSelect={emp => dispatch(setSelectedEmployeeAction(emp))}
-                incompleteTableOrdersCount={incompleteTableOrdersCount}
-                orderStatus={currentOrder?.status}
-                isOrderCompleted={currentOrder?.status === "paid"}
-                discountReason={appliedDiscount?.reason}
-                leftPanelPixelWidth={containerRef.current ? (leftPanelWidth / 100) * containerRef.current.offsetWidth : 0}
-                onItemNotesChange={(itemId, notes) => dispatch(setItemNotesAction({ itemId, notes }))}
-                onShowItemNotes={item => {
-                  dispatch(setSelectedItemForNotesAction(item));
-                  dispatch(setShowItemNotesDialogAction(true));
-                }}
-              />
+              <Suspense fallback={renderLoadingFallback()}>
+                <OrderItemsList
+                  cart={cart}
+                  updateCartQuantity={updateCartQuantity}
+                  orderType={orderType}
+                  selectedTable={selectedTable}
+                  selectedEmployee={selectedEmployee}
+                  onOrderTypeChange={type => dispatch(setOrderTypeAction(type))}
+                  onTableSelect={() => dispatch(setShowTablesLayoutAction(true))}
+                  onEmployeeSelect={emp => dispatch(setSelectedEmployeeAction(emp))}
+                  incompleteTableOrdersCount={incompleteTableOrdersCount}
+                  orderStatus={currentOrder?.status}
+                  isOrderCompleted={currentOrder?.status === "paid"}
+                  discountReason={appliedDiscount?.reason}
+                  leftPanelPixelWidth={containerRef.current ? (leftPanelWidth / 100) * containerRef.current.offsetWidth : 0}
+                  onItemNotesChange={(itemId, notes) => dispatch(setItemNotesAction({ itemId, notes }))}
+                  onShowItemNotes={item => {
+                    dispatch(setSelectedItemForNotesAction(item));
+                    dispatch(setShowItemNotesDialogAction(true));
+                  }}
+                />
+              </Suspense>
             </div>
 
             {/* Success Animation */}
             {showSuccessCheckmark && (
-              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+              <div className="absolute inset-0 flex items-center justify-center z-10">
                 <div className="text-center">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-scale-in" />
                   <p className="text-green-700 font-medium text-lg">Order Completed!</p>
@@ -512,26 +512,28 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           {/* Order Summary */}
           {!showSuccessCheckmark && (
             <div className="hidden lg:block border-t border-gray-200 bg-white">
-              <OrderSummary
-                cart={cart}
-                subtotal={subtotal}
-                total={total}
-                orderStatus={currentOrder?.status}
-                isOrderCompleted={currentOrder?.status === "paid"}
-                appliedDiscount={appliedDiscount}
-                onRemoveDiscount={() => dispatch(removeDiscountAction())}
-                onPaymentClick={() => {
-                  if (currentOrder?.status === "paid") {
-                    showError(`Order ${currentOrder.orderNumber} is already completed`);
-                    return;
-                  }
-                  setPaymentAmount(total.toString());
-                  dispatch(setShowPaymentDialogAction(true));
-                }}
-                onSaveClick={() => {
-                  // Handle save
-                }}
-              />
+              <Suspense fallback={renderLoadingFallback()}>
+                <OrderSummary
+                  cart={cart}
+                  subtotal={subtotal}
+                  total={total}
+                  orderStatus={currentOrder?.status}
+                  isOrderCompleted={currentOrder?.status === "paid"}
+                  appliedDiscount={appliedDiscount}
+                  onRemoveDiscount={() => dispatch(removeDiscountAction())}
+                  onPaymentClick={() => {
+                    if (currentOrder?.status === "paid") {
+                      showError(`Order ${currentOrder.orderNumber} is already completed`);
+                      return;
+                    }
+                    setPaymentAmount(total.toString());
+                    dispatch(setShowPaymentDialogAction(true));
+                  }}
+                  onSaveClick={() => {
+                    // Handle save
+                  }}
+                />
+              </Suspense>
             </div>
           )}
         </div>
@@ -541,33 +543,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           <div
             onMouseDown={e => {
               e.preventDefault();
-              e.stopPropagation();
               setIsResizing(true);
-              
-              const startX = e.clientX;
-              const startWidth = leftPanelWidth;
-              const containerWidth = containerRef.current?.offsetWidth || 0;
-              
-              const handleMouseMove = (moveEvent: MouseEvent) => {
-                const deltaX = moveEvent.clientX - startX;
-                const newWidthPercent = Math.max(20, Math.min(80, startWidth + (deltaX / containerWidth) * 100));
-                setLeftPanelWidth(newWidthPercent);
-                setRightPanelPixelWidth(containerWidth - (containerWidth * newWidthPercent) / 100);
-              };
-              
-              const handleMouseUp = () => {
-                setIsResizing(false);
-                document.removeEventListener("mousemove", handleMouseMove);
-                document.removeEventListener("mouseup", handleMouseUp);
-              };
-              
-              document.addEventListener("mousemove", handleMouseMove);
-              document.addEventListener("mouseup", handleMouseUp);
             }}
-            className={`hidden lg:block w-1 bg-gray-300/50 hover:bg-blue-400 cursor-col-resize flex-shrink-0 ${isResizing ? "bg-blue-500" : ""}`}
-            style={{ minWidth: "4px", maxWidth: "4px" }}
+            className={`hidden lg:block w-1 bg-gray-300/50 hover:bg-blue-400 cursor-col-resize ${isResizing ? "bg-blue-500" : ""}`}
           >
-            <div className="flex items-center justify-center h-full">
+            <div className="absolute inset-y-0 -left-1 -right-1 flex items-center justify-center">
               <GripVertical className="w-3 h-3 text-gray-400" />
             </div>
           </div>

@@ -12,7 +12,7 @@ interface ItemNotesDialogProps {
   onNotesChange: (itemId: string, notes: string) => void;
 }
 
-export const ItemNotesDialog: React.FC<ItemNotesDialogProps> = ({ 
+const ItemNotesDialog: React.FC<ItemNotesDialogProps> = ({ 
   isOpen, 
   onClose, 
   item, 
@@ -125,3 +125,9 @@ export const ItemNotesDialog: React.FC<ItemNotesDialogProps> = ({
     </Dialog>
   );
 };
+
+// Named export for backward compatibility
+export { ItemNotesDialog };
+
+// Default export for React.lazy()
+export default ItemNotesDialog;

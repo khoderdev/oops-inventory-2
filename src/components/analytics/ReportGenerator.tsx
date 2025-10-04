@@ -539,3 +539,5 @@ export function ReportGenerator({ className }: ReportGeneratorProps) {
     </div>
   );
 }
+
+export default ReportGenerator;

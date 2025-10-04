@@ -11,7 +11,7 @@ interface NotesDialogProps {
   onNotesChange: (notes: string) => void;
 }
 
-export const NotesDialog: React.FC<NotesDialogProps> = ({ isOpen, onClose, notes, onNotesChange }) => {
+const NotesDialog: React.FC<NotesDialogProps> = ({ isOpen, onClose, notes, onNotesChange }) => {
   const [localNotes, setLocalNotes] = useState(notes);
 
   // Update local notes when props change
@@ -77,3 +77,9 @@ export const NotesDialog: React.FC<NotesDialogProps> = ({ isOpen, onClose, notes
     </Dialog>
   );
 };
+
+// Named export for backward compatibility
+export { NotesDialog };
+
+// Default export for React.lazy()
+export default NotesDialog;

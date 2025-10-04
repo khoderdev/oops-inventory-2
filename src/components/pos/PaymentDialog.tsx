@@ -6,7 +6,7 @@ import { formatCurrency } from "@/utils/conversionLogic";
 import { ArrowRight, Calculator, Check, DollarSign, HandCoins, Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
-export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, total, paymentAmount, onPaymentAmountChange, onPayment, isLoading }) => {
+const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, total, paymentAmount, onPaymentAmountChange, onPayment, isLoading }) => {
   const [isDialogReady, setIsDialogReady] = useState(false);
 
   // Prevent focus during dialog transitions to avoid aria-hidden conflicts
@@ -193,3 +193,9 @@ export const PaymentDialog: React.FC<PaymentDialogProps> = ({ isOpen, onClose, t
     </Dialog>
   );
 };
+
+// Named export for backward compatibility
+export { PaymentDialog };
+
+// Default export for React.lazy()
+export default PaymentDialog;

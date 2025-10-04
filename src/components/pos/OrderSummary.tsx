@@ -4,7 +4,7 @@ import { HandCoins, Save, X } from "lucide-react";
 import React from "react";
 import { ActionButton } from "./ActionBar";
 
-export const OrderSummary: React.FC<OrderSummaryProps> = ({ 
+const OrderSummary: React.FC<OrderSummaryProps> = ({ 
   cart, 
   subtotal, 
   total, 
@@ -121,3 +121,9 @@ export const OrderSummary: React.FC<OrderSummaryProps> = ({
     </div>
   );
 };
+
+// Named export for backward compatibility
+export { OrderSummary };
+
+// Default export for React.lazy()
+export default OrderSummary;

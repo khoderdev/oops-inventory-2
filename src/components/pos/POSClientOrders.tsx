@@ -826,3 +826,6 @@ export const POSClientOrders: React.FC<POSClientOrdersProps> = React.memo(POSCli
 
   return isEqual;
 });
+
+// Default export for React.lazy()
+export default POSClientOrders;

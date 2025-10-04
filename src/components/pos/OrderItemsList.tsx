@@ -253,3 +253,6 @@ const OrderItemsListBase: React.FC<OrderItemsListProps> = ({ cart: propCart, upd
 
 // Export with React.memo for performance optimization
 export const OrderItemsList = React.memo(OrderItemsListBase);
+
+// Default export for React.lazy()
+export default OrderItemsList;

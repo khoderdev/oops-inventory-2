@@ -722,3 +722,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     </div>
   );
 };
+
+// Named export for backward compatibility
+// export { TablesLayout };
+
+// Default export for React.lazy()
+export default TablesLayout;

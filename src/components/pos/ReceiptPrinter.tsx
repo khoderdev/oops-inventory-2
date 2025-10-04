@@ -668,3 +668,9 @@ export const ReceiptPrinter: React.FC<ReceiptPrinterProps> = ({
     </Dialog>
   );
 };
+
+// Named export for backward compatibility
+// export { ReceiptPrinter };
+
+// Default export for React.lazy()
+export default ReceiptPrinter;

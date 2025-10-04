@@ -19,7 +19,7 @@ export interface ExtendedDiscountDialogProps extends DiscountDialogProps {
   onApplyDiscount: (discount: DiscountData) => void;
 }
 
-export const DiscountDialog: React.FC<ExtendedDiscountDialogProps> = ({ 
+const DiscountDialog: React.FC<ExtendedDiscountDialogProps> = ({ 
   isOpen, 
   onClose, 
   discountAmount = 0, 
@@ -277,3 +277,9 @@ export const DiscountDialog: React.FC<ExtendedDiscountDialogProps> = ({
     </Dialog>
   );
 };
+
+// Named export for backward compatibility
+export { DiscountDialog };
+
+// Default export for React.lazy()
+export default DiscountDialog;

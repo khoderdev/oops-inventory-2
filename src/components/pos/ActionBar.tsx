@@ -95,7 +95,7 @@ const MobileActionMenu: React.FC<{ buttons: ActionButtonConfig[]; isOpen: boolea
 };
 
 // Main ActionBar Component
-export const ActionBar: React.FC<ActionBarProps> = props => {
+const ActionBar: React.FC<ActionBarProps> = props => {
   const { hasPermission, hasRole } = usePermissions();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   let buttons: ActionButtonConfig[];
@@ -239,3 +239,6 @@ export const createActionButton = (id: string, icon: LucideIcon, label: string, 
 export const getDefaultButton = (id: string): ActionButtonConfig | undefined => {
   return defaultActionButtons.find(button => button.id === id);
 };
+
+// Default export for React.lazy()
+export default ActionBar;

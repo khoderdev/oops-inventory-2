@@ -459,3 +459,6 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = EM
     </div>
   );
 }, itemsGridPropsAreEqual);
+
+// Default export for React.lazy()
+export default ItemsGrid;

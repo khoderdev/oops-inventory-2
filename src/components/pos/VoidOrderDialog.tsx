@@ -16,7 +16,7 @@ interface VoidOrderDialogProps {
   isLoading?: boolean;
 }
 
-export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClose, onConfirm, order, isLoading = false }) => {
+const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClose, onConfirm, order, isLoading = false }) => {
   const [reason, setReason] = useState("");
   const [restoreStock, setRestoreStock] = useState(true);
 
@@ -146,3 +146,9 @@ export const VoidOrderDialog: React.FC<VoidOrderDialogProps> = ({ isOpen, onClos
     </Dialog>
   );
 };
+
+// Named export for backward compatibility
+export { VoidOrderDialog };
+
+// Default export for React.lazy()
+export default VoidOrderDialog;
