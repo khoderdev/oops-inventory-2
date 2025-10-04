@@ -13,15 +13,15 @@ import { RenameTableModal, TransferTableModal, InactiveTablesModal, DeleteTableM
 import { TableContextMenu } from "../ui/TableContextMenu";
 import ClearTableModal from "../tables/ClearTableModal";
 
-export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {}, printedTables = [] }) => {
+export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {}, printedTables = [], hideHeaderFooter = false }) => {
   console.log("🎯 [TablesLayout] COMPONENT RENDERING");
-  console.log("🎯 [TablesLayout] Props received:", { 
-    tablesCount: tables?.length || 0, 
-    selectedTable, 
-    tableOrders, 
+  console.log("🎯 [TablesLayout] Props received:", {
+    tablesCount: tables?.length || 0,
+    selectedTable,
+    tableOrders,
     printedTables: printedTables?.length || 0
   });
-  
+
   const safeTablesList = useMemo(() => {
     const result = Array.isArray(tables) ? tables : [];
     console.log("🎯 [TablesLayout] safeTablesList created with", result.length, "tables");
@@ -61,6 +61,24 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     setUpdatedTables(safeTablesList);
     fetchInactiveTablesCount();
   }, [safeTablesList]);
+
+  // Listen for Settings button click from Modal header
+  useEffect(() => {
+    const handleToggleArrangeMode = () => {
+      setIsArrangeMode(prev => !prev);
+      if (!isArrangeMode) {
+        setSelectedTool("select");
+      }
+    };
+
+    const layoutElement = layoutRef.current;
+    if (layoutElement) {
+      layoutElement.addEventListener('toggleArrangeMode', handleToggleArrangeMode);
+      return () => {
+        layoutElement.removeEventListener('toggleArrangeMode', handleToggleArrangeMode);
+      };
+    }
+  }, [isArrangeMode]);
 
   const fetchInactiveTablesCount = async () => {
     try {
@@ -364,6 +382,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   return (
     <div
       ref={layoutRef}
+      data-tables-layout
       className="md:h-[calc(100vh-0rem)] h-[100dvh] w-full flex flex-col overflow-hidden"
       onContextMenu={e => {
         const target = e.target as HTMLElement | null;
@@ -373,142 +392,145 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         e.preventDefault();
       }}
     >
-      <div className="h-full flex flex-col">
-        <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 mr-6">
-          <div className="flex items-center gap-4">
-            <h2 className={`text-2xl font-bold text-gray-800 ${isArrangeMode ? "hidden sm:block" : ""}`}>Tables</h2>
-          </div>
-          {isArrangeMode ? (
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {[
-                  { tool: "select", label: "Select", icon: null, title: undefined },
-                  { tool: "round-table", label: null, icon: Circle, title: "Create Round Table" },
-                  { tool: "square-table", label: null, icon: Square, title: "Create Square Table" },
-                  { tool: "rectangular-table", label: null, icon: RectangleHorizontal, title: "Create Rectangular Table" }
-                ].map(({ tool, label, icon: Icon, title }) => (
-                  <Button key={tool} variant={selectedTool === tool ? "default" : "outline"} size="sm" onClick={() => setSelectedTool(tool)} disabled={isDragMode} className="flex items-center gap-1" title={title}>
-                    {Icon && <Icon className="w-3 h-3" />}
-                    {label}
-                  </Button>
-                ))}
+      <>
+        <div className="h-full flex flex-col">
+          {!hideHeaderFooter && (
+            <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 mr-6">
+              <div className="flex items-center gap-4">
+                <h2 className={`text-2xl font-bold text-gray-800 ${isArrangeMode ? "hidden sm:block" : ""}`}>Tables</h2>
               </div>
-
-              <Separator orientation="vertical" className="h-6" />
-
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => selectedTable && handleDeleteTable(selectedTable)} disabled={!selectedTable || selectedTable.status === "opened" || isDragMode} className="flex items-center gap-1 hover:bg-destructive hover:text-destructive-foreground" title="Delete Selected Table">
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </div>
-
-              <Separator orientation="vertical" className="h-6" />
-
-              <Button
-                variant={isDragMode ? "outline" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setIsDragMode(!isDragMode);
-                  if (!isDragMode) {
-                    setSelectedTool("select");
-                  }
-                }}
-                className={isDragMode ? "bg-red-500/10 border border-red-500" : ""}
-              >
-                <Move className="w-4 h-4" />
-                {isDragMode ? "Exit Dragging" : "Drag"}
-              </Button>
-
-              <Separator orientation="vertical" className="h-6" />
-
-              <Button variant="outline" size="sm" onClick={() => setShowInactiveTablesModal(true)} className="relative">
-                Manage Tables
-                {inactiveTablesCount > 0 && <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{inactiveTablesCount}</span>}
-              </Button>
-
-              <Separator orientation="vertical" className="h-6" />
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsArrangeMode(false);
-                  setIsDragMode(false);
-                  setSelectedTool("select");
-                }}
-                className="text-red-600 hover:bg-red-50"
-              >
-                Exit Settings
-              </Button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setIsArrangeMode(true);
-                  setSelectedTool("select");
-                }}
-              >
-                <Settings className="w-4 h-4" />
-                Settings
-              </Button>
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-hidden">
-          <div className="relative bg-gray-50 h-full">
-            <div
-              ref={canvasRef}
-              className={`relative w-full h-full ${isDragMode ? "cursor-default" : isArrangeMode && selectedTool !== "select" ? "cursor-crosshair" : ""}`}
-              style={{
-                backgroundImage: isDragMode ? "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.1) 1px, transparent 0)" : "none",
-                backgroundSize: isDragMode ? "20px 20px" : "auto"
-              }}
-              onClick={handleCanvasClick}
-              onContextMenu={e => {
-                const target = e.target as HTMLElement | null;
-                if (target && target.closest("[data-table-trigger]")) {
-                  return;
-                }
-                e.preventDefault();
-              }}
-            >
-              {safeTablesList.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center text-gray-500">
-                    <div className="text-lg font-medium mb-2">No tables available</div>
-                    <div className="text-sm">Tables are being loaded or none are configured.</div>
+              {isArrangeMode ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    {[
+                      { tool: "select", label: "Select", icon: null, title: undefined },
+                      { tool: "round-table", label: null, icon: Circle, title: "Create Round Table" },
+                      { tool: "square-table", label: null, icon: Square, title: "Create Square Table" },
+                      { tool: "rectangular-table", label: null, icon: RectangleHorizontal, title: "Create Rectangular Table" }
+                    ].map(({ tool, label, icon: Icon, title }) => (
+                      <Button key={tool} variant={selectedTool === tool ? "default" : "outline"} size="sm" onClick={() => setSelectedTool(tool)} disabled={isDragMode} className="flex items-center gap-1" title={title}>
+                        {Icon && <Icon className="w-3 h-3" />}
+                        {label}
+                      </Button>
+                    ))}
                   </div>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  <div className="flex gap-1">
+                    <Button variant="outline" size="sm" onClick={() => selectedTable && handleDeleteTable(selectedTable)} disabled={!selectedTable || selectedTable.status === "opened" || isDragMode} className="flex items-center gap-1 hover:bg-destructive hover:text-destructive-foreground" title="Delete Selected Table">
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  <Button
+                    variant={isDragMode ? "outline" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      setIsDragMode(!isDragMode);
+                      if (!isDragMode) {
+                        setSelectedTool("select");
+                      }
+                    }}
+                    className={isDragMode ? "bg-red-500/10 border border-red-500" : ""}
+                  >
+                    <Move className="w-4 h-4" />
+                    {isDragMode ? "Exit Dragging" : "Drag"}
+                  </Button>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  <Button variant="outline" size="sm" onClick={() => setShowInactiveTablesModal(true)} className="relative">
+                    Manage Tables
+                    {inactiveTablesCount > 0 && <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{inactiveTablesCount}</span>}
+                  </Button>
+
+                  <Separator orientation="vertical" className="h-6" />
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsArrangeMode(false);
+                      setIsDragMode(false);
+                      setSelectedTool("select");
+                    }}
+                    className="text-red-600 hover:bg-red-50"
+                  >
+                    Exit Settings
+                  </Button>
                 </div>
               ) : (
-                <div className="relative w-full h-full">
-                  {updatedTables.map((table, index) => {
-                    const basePosition = table.position || {
-                      ...constrainPosition(15 + (index % 4) * 20, 20 + Math.floor(index / 4) * 20)
-                    };
-                    const isDragging = dragState?.tableId === table.id;
-                    const isUpdating = isUpdatingPosition === table.id;
-                    const currentPosition = isDragging && tempPositions[table.id] ? tempPositions[table.id] : basePosition;
-                    return (
-                      <div
-                        key={table.id}
-                        className="absolute"
-                        style={{
-                          left: `${currentPosition.x}%`,
-                          top: `${currentPosition.y}%`,
-                          transform: "translate(-50%, -50%)",
-                          zIndex: isDragging ? 1000 : "auto",
-                          opacity: isUpdating ? 0.7 : 1
-                        }}
-                      >
-                        {(() => {
-                          const content = (
-                            <div className="relative" data-table-trigger>
-                              <div
-                                className={`
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsArrangeMode(true);
+                      setSelectedTool("select");
+                    }}
+                  >
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex-1 overflow-hidden">
+            <div className="relative bg-gray-50 h-full">
+              <div
+                ref={canvasRef}
+                className={`relative w-full h-full ${isDragMode ? "cursor-default" : isArrangeMode && selectedTool !== "select" ? "cursor-crosshair" : ""}`}
+                style={{
+                  backgroundImage: isDragMode ? "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.1) 1px, transparent 0)" : "none",
+                  backgroundSize: isDragMode ? "20px 20px" : "auto"
+                }}
+                onClick={handleCanvasClick}
+                onContextMenu={e => {
+                  const target = e.target as HTMLElement | null;
+                  if (target && target.closest("[data-table-trigger]")) {
+                    return;
+                  }
+                  e.preventDefault();
+                }}
+              >
+                {safeTablesList.length === 0 ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-gray-500">
+                      <div className="text-lg font-medium mb-2">No tables available</div>
+                      <div className="text-sm">Tables are being loaded or none are configured.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="relative w-full h-full">
+                    {updatedTables.map((table, index) => {
+                      const basePosition = table.position || {
+                        ...constrainPosition(15 + (index % 4) * 20, 20 + Math.floor(index / 4) * 20)
+                      };
+                      const isDragging = dragState?.tableId === table.id;
+                      const isUpdating = isUpdatingPosition === table.id;
+                      const currentPosition = isDragging && tempPositions[table.id] ? tempPositions[table.id] : basePosition;
+                      return (
+                        <div
+                          key={table.id}
+                          className="absolute"
+                          style={{
+                            left: `${currentPosition.x}%`,
+                            top: `${currentPosition.y}%`,
+                            transform: "translate(-50%, -50%)",
+                            zIndex: isDragging ? 1000 : "auto",
+                            opacity: isUpdating ? 0.7 : 1
+                          }}
+                        >
+                          {(() => {
+                            const content = (
+                              <div className="relative" data-table-trigger>
+                                <div
+                                  className={`
                             ${getTableShape(table.shape, table.seats)} 
                             ${getTableStatusColor(table.status)} 
                             ${selectedTable?.id === table.id && !isArrangeMode ? "ring-4 ring-blue-500" : ""}
@@ -519,218 +541,219 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                             ${isArrangeMode && !isDragMode ? "opacity-75" : ""}
                             transition-all duration-200
                           `}
-                                onClick={() => handleTableClick(table)}
-                                onMouseDown={e => handleMouseDown(e, table)}
-                                onMouseEnter={e => !isDragMode && !isArrangeMode && handleTableHover(table, e)}
-                                onMouseLeave={handleTableLeave}
-                              >
-                                <div className="text-center">
-                                  <div className="font-bold text-lg text-gray-800">{table.number}</div>
-                                  <div className="text-xs text-gray-600 text-center">{table.name}</div>
+                                  onClick={() => handleTableClick(table)}
+                                  onMouseDown={e => handleMouseDown(e, table)}
+                                  onMouseEnter={e => !isDragMode && !isArrangeMode && handleTableHover(table, e)}
+                                  onMouseLeave={handleTableLeave}
+                                >
+                                  <div className="text-center">
+                                    <div className="font-bold text-lg text-gray-800">{table.number}</div>
+                                    <div className="text-xs text-gray-600 text-center">{table.name}</div>
+                                  </div>
+
+                                  {isDragMode && (
+                                    <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                                      <Move className="w-2 h-2" />
+                                    </div>
+                                  )}
+
+                                  {isUpdating && (
+                                    <div className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center">
+                                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                    </div>
+                                  )}
                                 </div>
-
-                                {isDragMode && (
-                                  <div className="absolute -top-1 -right-1 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">
-                                    <Move className="w-2 h-2" />
+                                {table.id && printedTables.includes(table.id.toString()) && (
+                                  <div className="absolute -bottom-1 -left-1 bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-md z-10">
+                                    <Printer className="w-6 h-6" />
                                   </div>
                                 )}
-
-                                {isUpdating && (
-                                  <div className="absolute inset-0 bg-blue-500 bg-opacity-20 rounded-full flex items-center justify-center">
-                                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                                  </div>
-                                )}
+                                {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
                               </div>
-                              {table.id && printedTables.includes(table.id.toString()) && (
-                                <div className="absolute -bottom-1 -left-1 bg-blue-500 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-md z-10">
-                                  <Printer className="w-6 h-6" />
-                                </div>
-                              )}
-                              {tableOrders[table.number?.toString()] && tableOrders[table.number.toString()] > 0 && <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow-lg border-2 border-white z-10">{tableOrders[table.number.toString()]}</div>}
-                            </div>
-                          );
-                          return isDragMode || isArrangeMode ? (
-                            content
-                          ) : (
-                            <TableContextMenu
-                              table={table}
-                              tableOrders={tableOrders}
-                              onRename={handleRenameTable}
-                              onTransfer={handleTransferOrder}
-                              onClear={requestClearTable}
-                              onDelete={handleDeleteTable}
-                              onOpenChange={open => {
-                                setIsContextMenuOpen(open);
-                                if (open) {
-                                  setHoveredTable(null);
-                                  setPopupPosition(null);
-                                }
-                              }}
-                            >
-                              {content}
-                            </TableContextMenu>
-                          );
-                        })()}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="px-6 py-2 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <div className="px-6  border-b border-gray-100">
-              <div className="flex items-center space-x-6">
-                {[
-                  { status: "available", color: "bg-green-100 border-green-300", label: "Available" },
-                  { status: "opened", color: "bg-red-100 border-red-300", label: "Open" },
-                  { status: "reserved", color: "bg-yellow-100 border-yellow-300", label: "Reserved" },
-                  { status: "cleaning", color: "bg-gray-100 border-gray-300", label: "Cleaning" }
-                ].map(item => (
-                  <div key={item.status} className="flex items-center space-x-2">
-                    <div className={`w-4 h-4 rounded-full ${item.color} border-2`}></div>
-                    <span className="text-sm text-gray-600">{item.label}</span>
+                            );
+                            return isDragMode || isArrangeMode ? (
+                              content
+                            ) : (
+                              <TableContextMenu
+                                table={table}
+                                tableOrders={tableOrders}
+                                onRename={handleRenameTable}
+                                onTransfer={handleTransferOrder}
+                                onClear={requestClearTable}
+                                onDelete={handleDeleteTable}
+                                onOpenChange={open => {
+                                  setIsContextMenuOpen(open);
+                                  if (open) {
+                                    setHoveredTable(null);
+                                    setPopupPosition(null);
+                                  }
+                                }}
+                              >
+                                {content}
+                              </TableContextMenu>
+                            );
+                          })()}
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                )}
               </div>
             </div>
+          </div>
 
-            <div className="flex space-x-3">
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              {!isArrangeMode && (
-                <Button onClick={() => selectedTable && onTableSelect(selectedTable)} disabled={!selectedTable || selectedTable.status === "cleaning"} className="bg-blue-600 hover:bg-blue-700">
-                  {selectedTable?.status === "opened" ? "Continue Order" : "Start Order"}
+          <div className="px-6 py-2 border-t border-gray-200 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <div className="px-6  border-b border-gray-100">
+                <div className="flex items-center space-x-6">
+                  {[
+                    { status: "available", color: "bg-green-100 border-green-300", label: "Available" },
+                    { status: "opened", color: "bg-red-100 border-red-300", label: "Open" },
+                    { status: "reserved", color: "bg-yellow-100 border-yellow-300", label: "Reserved" },
+                    { status: "cleaning", color: "bg-gray-100 border-gray-300", label: "Cleaning" }
+                  ].map(item => (
+                    <div key={item.status} className="flex items-center space-x-2">
+                      <div className={`w-4 h-4 rounded-full ${item.color} border-2`}></div>
+                      <span className="text-sm text-gray-600">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <Button variant="outline" onClick={onClose}>
+                  Cancel
                 </Button>
-              )}
+                {!isArrangeMode && (
+                  <Button onClick={() => selectedTable && onTableSelect(selectedTable)} disabled={!selectedTable || selectedTable.status === "cleaning"} className="bg-blue-600 hover:bg-blue-700">
+                    {selectedTable?.status === "opened" ? "Continue Order" : "Start Order"}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {hoveredTable && popupPosition && !isContextMenuOpen && (
-        <div
-          className="fixed z-[9999] pointer-events-none"
-          style={{
-            left: popupPosition.x,
-            top: popupPosition.y,
-            transform: "translateX(-50%)"
-          }}
-        >
-          <div className="relative">
-            <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[8px] border-l-transparent border-r-transparent border-b-white drop-shadow-sm"></div>
-            <Card className="w-52 shadow-xl border-0 bg-white backdrop-blur-sm animate-in fade-in-0 zoom-in-95 duration-200">
-              <CardContent className="p-4">
-                <div className="space-y-3">
-                  {[
-                    {
-                      key: "order-number",
-                      content: (
-                        <div className="text-center">
-                          <div className="font-bold text-lg text-gray-800 m">{hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}</div>
-                        </div>
-                      )
-                    },
-                    {
-                      key: "time",
-                      content: (
-                        <div className="flex items-center justify-center text-gray-600">
-                          <Clock className="w-4 h-4 mr-2 text-blue-500" />
-                          <span className="font-medium">{formatTime(hoveredTable.currentOrder?.startTime || new Date())}</span>
-                        </div>
-                      )
-                    },
-                    {
-                      key: "items-count",
-                      content: (
-                        <div className="flex items-center justify-center text-gray-600">
-                          <div className="w-4 h-4 mr-2 rounded-full bg-orange-100 flex items-center justify-center">
-                            <span className="text-xs font-bold text-orange-600">{hoveredTable.currentOrder?.itemCount || 0}</span>
+        {hoveredTable && popupPosition && !isContextMenuOpen && (
+          <div
+            className="fixed z-[9999] pointer-events-none"
+            style={{
+              left: popupPosition.x,
+              top: popupPosition.y,
+              transform: "translateX(-50%)"
+            }}
+          >
+            <div className="relative">
+              <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[8px] border-r-[8px] border-b-[8px] border-l-transparent border-r-transparent border-b-white drop-shadow-sm"></div>
+              <Card className="w-52 shadow-xl border-0 bg-white backdrop-blur-sm animate-in fade-in-0 zoom-in-95 duration-200">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    {[
+                      {
+                        key: "order-number",
+                        content: (
+                          <div className="text-center">
+                            <div className="font-bold text-lg text-gray-800 m">{hoveredTable.currentOrder?.orderNumber || `ORD-${String(hoveredTable.currentOrder?.orderId).padStart(4, "0")}`}</div>
                           </div>
-                          <span className="font-medium">{hoveredTable.currentOrder?.itemCount || 0} items</span>
-                        </div>
-                      )
-                    },
-                    {
-                      key: "total-amount",
-                      content: (
-                        <div className="text-center pt-2 border-t border-gray-100">
-                          <div className="text-xl font-bold text-green-600">{formatCurrency(hoveredTable.currentOrder?.totalAmount || 0)}</div>
-                        </div>
-                      )
-                    }
-                  ].map(({ key, content }) => (
-                    <div key={key}>{content}</div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                        )
+                      },
+                      {
+                        key: "time",
+                        content: (
+                          <div className="flex items-center justify-center text-gray-600">
+                            <Clock className="w-4 h-4 mr-2 text-blue-500" />
+                            <span className="font-medium">{formatTime(hoveredTable.currentOrder?.startTime || new Date())}</span>
+                          </div>
+                        )
+                      },
+                      {
+                        key: "items-count",
+                        content: (
+                          <div className="flex items-center justify-center text-gray-600">
+                            <div className="w-4 h-4 mr-2 rounded-full bg-orange-100 flex items-center justify-center">
+                              <span className="text-xs font-bold text-orange-600">{hoveredTable.currentOrder?.itemCount || 0}</span>
+                            </div>
+                            <span className="font-medium">{hoveredTable.currentOrder?.itemCount || 0} items</span>
+                          </div>
+                        )
+                      },
+                      {
+                        key: "total-amount",
+                        content: (
+                          <div className="text-center pt-2 border-t border-gray-100">
+                            <div className="text-xl font-bold text-green-600">{formatCurrency(hoveredTable.currentOrder?.totalAmount || 0)}</div>
+                          </div>
+                        )
+                      }
+                    ].map(({ key, content }) => (
+                      <div key={key}>{content}</div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Modals */}
-      <ClearTableModal showClearDialog={showClearDialog} setShowClearDialog={setShowClearDialog} tableToClear={tableToClear} confirmClearTable={confirmClearTable} setTableToClear={setTableToClear} />
+        {/* Modals */}
+        <ClearTableModal showClearDialog={showClearDialog} setShowClearDialog={setShowClearDialog} tableToClear={tableToClear} confirmClearTable={confirmClearTable} setTableToClear={setTableToClear} />
 
-      <RenameTableModal
-        isOpen={showRenameModal}
-        onClose={() => {
-          setShowRenameModal(false);
-          setSelectedTableForAction(null);
-        }}
-        table={selectedTableForAction}
-        onTableRenamed={updatedTable => {
-          setUpdatedTables(prev => prev.map(table => (table.id === updatedTable.id ? updatedTable : table)));
-          setShowRenameModal(false);
-          setSelectedTableForAction(null);
-          toast.success("Table renamed successfully");
-        }}
-      />
+        <RenameTableModal
+          isOpen={showRenameModal}
+          onClose={() => {
+            setShowRenameModal(false);
+            setSelectedTableForAction(null);
+          }}
+          table={selectedTableForAction}
+          onTableRenamed={updatedTable => {
+            setUpdatedTables(prev => prev.map(table => (table.id === updatedTable.id ? updatedTable : table)));
+            setShowRenameModal(false);
+            setSelectedTableForAction(null);
+            toast.success("Table renamed successfully");
+          }}
+        />
 
-      <TransferTableModal
-        isOpen={showTransferModal}
-        onClose={() => {
-          setShowTransferModal(false);
-          setSelectedTableForAction(null);
-          setSelectedOrderForTransfer(null);
-        }}
-        tables={updatedTables}
-        sourceTable={selectedTableForAction}
-        sourceOrder={selectedOrderForTransfer}
-        onTransferComplete={async () => {
-          setShowTransferModal(false);
-          setSelectedTableForAction(null);
-          setSelectedOrderForTransfer(null);
+        <TransferTableModal
+          isOpen={showTransferModal}
+          onClose={() => {
+            setShowTransferModal(false);
+            setSelectedTableForAction(null);
+            setSelectedOrderForTransfer(null);
+          }}
+          tables={updatedTables}
+          sourceTable={selectedTableForAction}
+          sourceOrder={selectedOrderForTransfer}
+          onTransferComplete={async () => {
+            setShowTransferModal(false);
+            setSelectedTableForAction(null);
+            setSelectedOrderForTransfer(null);
 
-          // Force immediate refresh with fresh data
-          await refreshTablesData();
+            // Force immediate refresh with fresh data
+            await refreshTablesData();
 
-          toast.success("Transfer completed successfully");
-        }}
-      />
+            toast.success("Transfer completed successfully");
+          }}
+        />
 
-      <InactiveTablesModal
-        isOpen={showInactiveTablesModal}
-        onClose={() => setShowInactiveTablesModal(false)}
-        onTableActivated={() => {
-          refreshTablesData();
-        }}
-      />
+        <InactiveTablesModal
+          isOpen={showInactiveTablesModal}
+          onClose={() => setShowInactiveTablesModal(false)}
+          onTableActivated={() => {
+            refreshTablesData();
+          }}
+        />
 
-      <DeleteTableModal
-        isOpen={showDeleteConfirmModal}
-        onClose={() => {
-          setShowDeleteConfirmModal(false);
-          setSelectedTableForAction(null);
-        }}
-        onConfirmDelete={confirmDeleteTable}
-        table={selectedTableForAction}
-        isDeleting={isDeletingTable}
-      />
+        <DeleteTableModal
+          isOpen={showDeleteConfirmModal}
+          onClose={() => {
+            setShowDeleteConfirmModal(false);
+            setSelectedTableForAction(null);
+          }}
+          onConfirmDelete={confirmDeleteTable}
+          table={selectedTableForAction}
+          isDeleting={isDeletingTable}
+        />
+      </>
     </div>
   );
 };

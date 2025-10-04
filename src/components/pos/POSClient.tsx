@@ -11,7 +11,7 @@ import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
 import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
 import { useVoidPrinter } from "./VoidPrinter";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
+import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Settings, Trash2 } from "lucide-react";
 import { useDailyReports } from "@/hooks/useDailyReports";
 import { useDayOperations } from "@/hooks/useDayOperations";
 import DailyReports from "@/components/analytics/DailyReports";
@@ -38,16 +38,10 @@ const PaymentDialog = lazy(() => import("./PaymentDialog"));
 const POSClientOrders = lazy(() => import("./POSClientOrders"));
 const ItemsGrid = lazy(() => import("./ItemsGrid"));
 const ReceiptPrinter = lazy(() => import("./ReceiptPrinter"));
-
-// Import TablesPage component directly (not lazy-loaded)
-import { TablesPage } from "./TablesPage";
-
-// Original TablesLayout is no longer needed
-// const TablesLayout = lazy(() => import("./TablesLayout"));
 const VoidOrderDialog = lazy(() => import("./VoidOrderDialog"));
+const TablesLayout = lazy(() => import("./TablesLayout"));
 
 // Redux actions
-import * as posActions from "@/store/slices/posSlice";
 import {
   setCart,
   addToCart as addToCartAction,
@@ -85,6 +79,8 @@ import {
 } from "@/store/slices/posSlice";
 import NotesDialog from "./NotesDialog";
 import OrderSummary from "./OrderSummary";
+
+import { Modal } from "./Modal";
 
 const EMPTY_ARRAY: any[] = [];
 
@@ -982,8 +978,84 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
         {showItemNotesDialog && selectedItemForNotes && <ItemNotesDialog isOpen={showItemNotesDialog} onClose={() => dispatch(setShowItemNotesDialogAction(false))} item={selectedItemForNotes} onNotesChange={(itemId, notes) => dispatch(setItemNotesAction({ itemId, notes }))} />}
 
-        {/* Full-page Tables Layout */}
-        {showTablesLayout && <TablesLayout onClose={() => dispatch(setShowTablesLayoutAction(false))} onTableSelect={handleTableSelection} tables={tables} tableOrders={tableOrders} selectedTable={selectedTable} />}
+        <Modal 
+          isOpen={showTablesLayout} 
+          onClose={() => dispatch(setShowTablesLayoutAction(false))} 
+          title={(
+            <div className="flex items-center justify-between w-full">
+              <span>Tables</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-4"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // This will be passed to TablesLayout
+                  const tablesLayoutComponent = document.querySelector('[data-tables-layout]');
+                  if (tablesLayoutComponent) {
+                    const event = new CustomEvent('toggleArrangeMode');
+                    tablesLayoutComponent.dispatchEvent(event);
+                  }
+                }}
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Settings
+              </Button>
+            </div>
+          )}
+          titleStyle="text-xl font-bold text-gray-800 flex items-center justify-between w-full"
+          showCloseButton={true}
+          width="w-screen"
+          height="h-screen"
+          maxWidth="max-w-none"
+          maxHeight="max-h-none"
+          modalStyle="bg-white dark:bg-gray-900 border-none"
+          headerStyle="flex justify-between items-center p-4 border-b dark:border-gray-700 bg-inherit z-10"
+          contentStyle="flex-1 overflow-hidden p-0"
+          footerStyle="p-4 border-t dark:border-gray-700 bg-gray-50"
+          preventClickOutside={true}
+          footer={
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-6">
+                {[
+                  { status: "available", color: "bg-green-100 border-green-300", label: "Available" },
+                  { status: "opened", color: "bg-red-100 border-red-300", label: "Open" },
+                  { status: "reserved", color: "bg-yellow-100 border-yellow-300", label: "Reserved" },
+                  { status: "cleaning", color: "bg-gray-100 border-gray-300", label: "Cleaning" }
+                ].map(item => (
+                  <div key={item.status} className="flex items-center space-x-2">
+                    <div className={`w-4 h-4 rounded-full ${item.color} border-2`}></div>
+                    <span className="text-sm text-gray-600">{item.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex space-x-3">
+                <Button variant="outline" onClick={() => dispatch(setShowTablesLayoutAction(false))}>
+                  Cancel
+                </Button>
+                {selectedTable && (
+                  <Button 
+                    onClick={() => selectedTable && handleTableSelection(selectedTable)} 
+                    disabled={!selectedTable || selectedTable.status === "cleaning"} 
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {selectedTable?.status === "opened" ? "Continue Order" : "Start Order"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          }
+        >
+          <TablesLayout 
+            onTableSelect={handleTableSelection} 
+            tables={tables} 
+            tableOrders={tableOrders} 
+            selectedTable={selectedTable} 
+            onClose={() => dispatch(setShowTablesLayoutAction(false))} 
+            hideHeaderFooter={true}
+          />
+        </Modal>
 
         {showPrinterSelector && (
           <Dialog open={showPrinterSelector} onOpenChange={open => dispatch(setShowPrinterSelectorAction(open))}>

@@ -91,5 +91,8 @@ export const tablesAPI = {
     >(`/tables/${tableId}/duplicate`, data || {}),
 
   // Get next available table number
-  getNextTableNumber: () => api.get<{ nextNumber: number; suggestedName: string }>("/tables/next-number")
+  getNextTableNumber: () => api.get<{ nextNumber: number; suggestedName: string }>("/tables/next-number"),
+
+  // Clear table (reset status and remove orders)
+  clearTable: (tableId: string) => api.patch<Table, Record<string, never>>(`/tables/${tableId}/clear`, {})
 };

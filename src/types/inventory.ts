@@ -878,6 +878,7 @@ export interface TablesLayoutProps {
   onClose: () => void;
   tableOrders?: { [tableId: string]: number };
   printedTables?: string[];
+  hideHeaderFooter?: boolean;
 }
 
 export interface CategoryTabsProps {
