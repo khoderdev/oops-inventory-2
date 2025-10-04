@@ -217,8 +217,6 @@ export const fetchSalesHistory = createAsyncThunk("pos/fetchSalesHistory", async
   }
 });
 
-
-
 export const loadOrder = createAsyncThunk("pos/loadOrder", async (orderId: string, { rejectWithValue }) => {
   try {
     const response = await ordersAPI.getOrder(orderId);
@@ -250,45 +248,33 @@ export const updateOrder = createAsyncThunk("pos/updateOrder", async ({ orderId,
   }
 });
 
-export const completeOrder = createAsyncThunk(
-  "pos/completeOrder",
-  async (
-    { orderId, paymentData }: { orderId: string; paymentData: { paymentMethod: string; paymentAmount: number; change?: number } },
-    { rejectWithValue, dispatch }
-  ) => {
-    try {
-      const response = await ordersAPI.completeOrder(orderId, paymentData);
-      // Immediately refresh sales history so UI updates instantly
-      dispatch(fetchSalesHistory());
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to complete order");
-    }
+export const completeOrder = createAsyncThunk("pos/completeOrder", async ({ orderId, paymentData }: { orderId: string; paymentData: { paymentMethod: string; paymentAmount: number; change?: number } }, { rejectWithValue, dispatch }) => {
+  try {
+    const response = await ordersAPI.completeOrder(orderId, paymentData);
+    // Immediately refresh sales history so UI updates instantly
+    dispatch(fetchSalesHistory());
+    return response.data;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to complete order");
   }
-);
+});
 
-export const voidOrder = createAsyncThunk(
-  "pos/voidOrder",
-  async (
-    { orderId, reason, restoreStock = true }: { orderId: string; reason?: string; restoreStock?: boolean },
-    { rejectWithValue, dispatch }
-  ) => {
-    try {
-      const response = await ordersAPI.voidOrder(orderId, {
-        reason: reason || "Order voided by user",
-        restoreStock
-      });
-      const responseData = response.data as { order?: any; stockRestorations?: any[] } | any;
-      const voidedOrder = responseData.order || responseData;
-      const stockRestorations = responseData.stockRestorations;
-      // Refresh sales history after voiding to reflect changes instantly
-      dispatch(fetchSalesHistory());
-      return { order: voidedOrder, stockRestorations };
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to void order");
-    }
+export const voidOrder = createAsyncThunk("pos/voidOrder", async ({ orderId, reason, restoreStock = true }: { orderId: string; reason?: string; restoreStock?: boolean }, { rejectWithValue, dispatch }) => {
+  try {
+    const response = await ordersAPI.voidOrder(orderId, {
+      reason: reason || "Order voided by user",
+      restoreStock
+    });
+    const responseData = response.data as { order?: any; stockRestorations?: any[] } | any;
+    const voidedOrder = responseData.order || responseData;
+    const stockRestorations = responseData.stockRestorations;
+    // Refresh sales history after voiding to reflect changes instantly
+    dispatch(fetchSalesHistory());
+    return { order: voidedOrder, stockRestorations };
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to void order");
   }
-);
+});
 
 export const addOrderItems = createAsyncThunk("pos/addOrderItems", async ({ orderId, items }: { orderId: string; items: Omit<any, "id">[] }, { rejectWithValue }) => {
   try {
@@ -357,7 +343,7 @@ const posSlice = createSlice({
       state.hasUnsavedChanges = true;
       state.isPOSActionInProgress = false;
     },
-    
+
     removeFromCart: (state, action: PayloadAction<string>) => {
       state.cart = state.cart.filter(item => item.id !== action.payload);
       state.hasUnsavedChanges = true;
@@ -461,7 +447,11 @@ const posSlice = createSlice({
     },
 
     setShowTablesLayout: (state, action: PayloadAction<boolean>) => {
+      console.log("🔴 [REDUCER] setShowTablesLayout called with:", action.payload);
+      console.log("🔴 [REDUCER] Previous state:", state.showTablesLayout);
       state.showTablesLayout = action.payload;
+      console.log("🔴 [REDUCER] New state:", state.showTablesLayout);
+      console.trace("Call stack:");
     },
 
     setShowDiscountDialog: (state, action: PayloadAction<boolean>) => {
@@ -569,13 +559,13 @@ const posSlice = createSlice({
         console.log("🚫 Redux: Skipping selectedSaleForEdit update - same reference");
         return;
       }
-      
+
       console.log("💾 Redux: Setting selectedSaleForEdit in posSlice:", action.payload);
       console.log("📍 Caller:", new Error().stack); // Log the call stack to see where this is triggered
-      
+
       // Update selectedSaleForEdit
       state.selectedSaleForEdit = action.payload;
-      
+
       // If setting a sale for edit, also set the editingSaleId
       if (action.payload && action.payload.id) {
         state.editingSaleId = action.payload.id.toString();
@@ -583,21 +573,21 @@ const posSlice = createSlice({
       }
       // Note: We don't clear editingSaleId when setting selectedSaleForEdit to null
       // This allows us to keep track of which sale we're editing even after clearing the object
-      
+
       // Log the current state for debugging
       if (action.payload === null) {
         console.log("🧹 Redux: selectedSaleForEdit cleared, but editingSaleId preserved:", state.editingSaleId);
       }
     },
-    
+
     // Set the editing sale ID directly
     setEditingSaleId: (state, action: PayloadAction<string | null>) => {
       console.log("🔑 Redux: Setting editingSaleId directly:", action.payload);
       state.editingSaleId = action.payload;
     },
-    
+
     // Clear editing sale ID
-    clearEditingSaleId: (state) => {
+    clearEditingSaleId: state => {
       console.log("🧹 Redux: Clearing editingSaleId");
       state.editingSaleId = null;
     },
@@ -668,7 +658,7 @@ const posSlice = createSlice({
     setHasUnsavedChanges: (state, action: PayloadAction<boolean>) => {
       state.hasUnsavedChanges = action.payload;
     },
-    
+
     // Sales operations actions
     setIsDeleting: (state, action: PayloadAction<boolean>) => {
       state.isDeleting = action.payload;

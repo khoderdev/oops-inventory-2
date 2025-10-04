@@ -33,14 +33,30 @@ const ActionBar = lazy(() => import("./ActionBar"));
 const CategoryTabs = lazy(() => import("./CategoryTabs"));
 const DiscountDialog = lazy(() => import("./DiscountDialog"));
 const ItemNotesDialog = lazy(() => import("./ItemNotesDialog"));
-const NotesDialog = lazy(() => import("./NotesDialog"));
 const OrderItemsList = lazy(() => import("./OrderItemsList"));
 const OrderSummary = lazy(() => import("./OrderSummary"));
 const PaymentDialog = lazy(() => import("./PaymentDialog"));
 const POSClientOrders = lazy(() => import("./POSClientOrders"));
 const ItemsGrid = lazy(() => import("./ItemsGrid"));
 const ReceiptPrinter = lazy(() => import("./ReceiptPrinter"));
-const TablesLayout = lazy(() => import("./TablesLayout"));
+
+// Import tables components directly (not lazy-loaded)
+import { SimpleTablesLayout } from "./SimpleTablesLayout";
+import { TablesPage } from "./TablesPage";
+
+// Original lazy-loaded TablesLayout (keeping for reference)
+const TablesLayout = lazy(() => {
+  console.log(" [POSClient] Loading TablesLayout component");
+  return import("./TablesLayout")
+    .then(module => {
+      console.log("📚 [POSClient] TablesLayout loaded successfully", module);
+      return module;
+    })
+    .catch(error => {
+      console.error("❌ [POSClient] Error loading TablesLayout:", error);
+      throw error;
+    });
+});
 const VoidOrderDialog = lazy(() => import("./VoidOrderDialog"));
 
 // Redux actions
@@ -77,7 +93,8 @@ import {
   setHasUnsavedChanges as setHasUnsavedChangesAction,
   setOrderType as setOrderTypeAction,
   setSelectedTable as setSelectedTableAction,
-  applyDiscount as applyDiscountAction
+  applyDiscount as applyDiscountAction,
+  completeOrder
 } from "@/store/slices/posSlice";
 
 const EMPTY_ARRAY: any[] = [];
@@ -143,6 +160,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     showSuccess: message => dispatch(setSuccessMessageAction(message)),
     showError: message => dispatch(setErrorAction(message))
   });
+
+  // Reset showTablesLayout to false on component mount
+  useEffect(() => {
+    if (showTablesLayout) {
+      dispatch(setShowTablesLayoutAction(false));
+    }
+  }, []);
 
   // Cleanup RAF on unmount
   useEffect(() => {
@@ -340,6 +364,301 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     dispatch(clearStockRestorations());
   }, [dispatch]);
 
+  // Cart clearing functions (must be declared before handleTableSelection)
+  const clearCart = useCallback(() => {
+    dispatch(clearCartAction());
+  }, [dispatch]);
+
+  const clearCartWithAnimation = useCallback(() => {
+    dispatch(clearCartWithAnimationAction());
+    processedOrderRef.current = null;
+  }, [dispatch]);
+
+  // Table selection handler
+  const handleTableSelection = useCallback(
+    async (table: Table) => {
+      try {
+        dispatch(setIsTableManuallySelectedAction(true));
+        dispatch(setSelectedTableAction(table));
+        dispatch(setOrderTypeAction("table"));
+        dispatch(setShowTablesLayoutAction(false));
+
+        // Clear any existing order state when selecting a new table
+        clearOrder();
+        clearCart();
+
+        showSuccess(`Table ${table.number} selected`);
+      } catch (error) {
+        console.error("Error selecting table:", error);
+        showError("Failed to select table");
+      }
+    },
+    [dispatch, clearOrder, clearCart, showSuccess, showError]
+  );
+
+  // Save order handler
+  const handleManualSave = useCallback(async () => {
+    if (cart.length === 0) {
+      showError("Cannot save empty order");
+      return;
+    }
+
+    if (currentOrder?.status === "paid") {
+      showError(`Order ${currentOrder.orderNumber} is already completed`);
+      return;
+    }
+
+    try {
+      dispatch(setIsLoadingAction(true));
+
+      const orderData = {
+        orderType,
+        tableId: selectedTable?.id ? String(selectedTable.id) : undefined,
+        employeeId: selectedEmployee?.id,
+        items: cart.map(item => ({
+          type: item.type,
+          menuItemId: item.menuItemId ? String(item.menuItemId) : undefined,
+          materialId: item.materialId ? String(item.materialId) : undefined,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.price,
+          totalPrice: item.price * item.quantity,
+          notes: item.notes
+        })),
+        notes: orderNotes,
+        // Flatten discount fields instead of nested object
+        discountType: appliedDiscount?.type,
+        discountValue: appliedDiscount?.value,
+        discountReason: appliedDiscount?.reason
+      };
+
+      let savedOrder: Order;
+      if (currentOrder) {
+        // Update existing order
+        savedOrder = await updateOrder(currentOrder.id, orderData as UpdateOrderData);
+        showSuccess(`Order ${savedOrder.orderNumber} updated successfully`);
+      } else {
+        // Create new order
+        savedOrder = await createOrder(orderData as CreateOrderData);
+        showSuccess(`Order ${savedOrder.orderNumber} saved successfully`);
+      }
+
+      dispatch(setHasUnsavedChangesAction(false));
+      await fetchIncompleteOrdersCount();
+      await fetchTablesData();
+    } catch (error: any) {
+      console.error("Error saving order:", error);
+      showError(error.message || "Failed to save order");
+    } finally {
+      dispatch(setIsLoadingAction(false));
+    }
+  }, [cart, currentOrder, orderType, selectedTable, selectedEmployee, orderNotes, appliedDiscount, dispatch, createOrder, updateOrder, showSuccess, showError, fetchIncompleteOrdersCount, fetchTablesData]);
+
+  // Payment handler
+  const handlePayment = useCallback(async () => {
+    if (cart.length === 0) {
+      showError("Cannot complete payment with empty cart");
+      return;
+    }
+
+    try {
+      dispatch(setIsLoadingAction(true));
+      dispatch(setShowPaymentDialogAction(false));
+
+      let orderId: string;
+
+      // If no current order, create one first
+      if (!currentOrder) {
+        const orderData: CreateOrderData = {
+          orderType,
+          tableId: selectedTable?.id || undefined,
+          employeeId: selectedEmployee?.id || null,
+          items: cart.map(item => ({
+            type: item.type,
+            menuItemId: item.menuItemId ? String(item.menuItemId) : undefined,
+            materialId: item.materialId ? String(item.materialId) : undefined,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.price * item.quantity,
+            notes: item.notes
+          })),
+          notes: orderNotes,
+          // Flatten discount fields instead of nested object
+          discountType: appliedDiscount?.type,
+          discountValue: appliedDiscount?.value,
+          discountReason: appliedDiscount?.reason
+        };
+
+        const newOrder = await createOrder(orderData);
+        orderId = newOrder.id;
+      } else {
+        if (currentOrder.status === "paid") {
+          showError(`Order ${currentOrder.orderNumber} is already completed`);
+          dispatch(setIsLoadingAction(false));
+          return;
+        }
+        orderId = currentOrder.id;
+      }
+
+      const paymentData = {
+        paymentMethod: "cash",
+        paymentAmount: parseFloat(paymentAmount) || total,
+        change: Math.max(0, parseFloat(paymentAmount) - total)
+      };
+
+      const result = await dispatch(
+        completeOrder({
+          orderId,
+          paymentData
+        })
+      );
+
+      if (completeOrder.fulfilled.match(result)) {
+        const responseData = result.payload as any;
+        const completedOrder = responseData.order || responseData;
+
+        // Generate receipt data
+        const now = new Date();
+        const receiptData: ReceiptData = {
+          id: completedOrder.orderNumber || generatePreviewOrderNumber(),
+          date: now.toLocaleDateString(),
+          time: now.toLocaleTimeString(),
+          items: cart.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.price,
+            totalPrice: item.price * item.quantity,
+            type: item.type
+          })),
+          subtotal,
+          discountType: appliedDiscount?.type || null,
+          discountValue: appliedDiscount?.value || null,
+          discountAmount: appliedDiscount?.amount || null,
+          discountReason: appliedDiscount?.reason || null,
+          tax,
+          total,
+          paymentMethod: paymentData.paymentMethod,
+          paymentAmount: paymentData.paymentAmount,
+          change: paymentData.change,
+          orderType,
+          tableNumber: selectedTable?.number || null,
+          employeeName: selectedEmployee ? `${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName}` : null,
+          cashier: "POS User"
+        };
+
+        dispatch(setLastSaleDataAction(receiptData));
+        dispatch(setShowSuccessCheckmarkAction(true));
+
+        // Show success animation
+        setTimeout(() => {
+          dispatch(setShowSuccessCheckmarkAction(false));
+          dispatch(setShowReceiptDialogAction(true));
+          clearCartWithAnimation();
+          clearOrder();
+        }, 1500);
+
+        showSuccess(`Order ${completedOrder.orderNumber} completed successfully!`);
+
+        // Refresh counts
+        await fetchIncompleteOrdersCount();
+        await fetchTablesData();
+      }
+    } catch (error: any) {
+      console.error("Error completing order:", error);
+      showError(error.message || "Failed to complete order");
+    } finally {
+      dispatch(setIsLoadingAction(false));
+    }
+  }, [currentOrder, cart, paymentAmount, total, subtotal, tax, appliedDiscount, orderType, selectedTable, selectedEmployee, orderNotes, dispatch, createOrder, showSuccess, showError, clearCartWithAnimation, clearOrder, fetchIncompleteOrdersCount, fetchTablesData]);
+
+  // Manual print handler
+  const handleManualPrint = useCallback(() => {
+    if (cart.length === 0) {
+      showError("No items to print");
+      return;
+    }
+
+    setPrinterSelectionContext("manual_print");
+    dispatch(setShowPrinterSelectorAction(true));
+  }, [cart, dispatch, showError]);
+
+  // Printer settings handler
+  const handleShowPrinterSettings = useCallback(() => {
+    setPrinterSelectionContext("manual_print");
+    dispatch(setShowPrinterSelectorAction(true));
+  }, [dispatch]);
+
+  // Printer selected handler
+  const handlePrinterSelected = useCallback(async () => {
+    if (!selectedPrinter) {
+      showError("Please select a printer");
+      return;
+    }
+
+    dispatch(setShowPrinterSelectorAction(false));
+
+    if (printerSelectionContext === "manual_print") {
+      try {
+        const formattedReceipt = formatItemsForPrinter({
+          items: cart,
+          currentOrder,
+          orderType,
+          selectedTable: selectedTable || null,
+          selectedEmployee: selectedEmployee || null,
+          generatePreviewOrderNumber
+        });
+
+        await printerAPI.createPrintJob({
+          printerId: selectedPrinter.id,
+          jobType: "receipt",
+          content: {
+            rawContent: formattedReceipt
+          },
+          settings: {
+            copies: 1
+          }
+        });
+
+        showSuccess(`Receipt sent to ${selectedPrinter.name}`);
+      } catch (error: any) {
+        console.error("Error printing receipt:", error);
+        showError(error.message || "Failed to print receipt");
+      }
+    }
+  }, [selectedPrinter, printerSelectionContext, cart, currentOrder, subtotal, tax, total, appliedDiscount, orderType, selectedTable, selectedEmployee, dispatch, showSuccess, showError]);
+
+  // Close day handler
+  const handleCloseDayClick = useCallback(() => {
+    setShowDayCloseDialog(true);
+  }, []);
+
+  // Confirm close day handler
+  const handleConfirmCloseDay = useCallback(async () => {
+    if (!closingCash) {
+      showError("Please enter closing cash amount");
+      return;
+    }
+
+    try {
+      await closeDay({
+        closingCash: parseFloat(closingCash),
+        notes: dayCloseNotes
+      });
+
+      setShowDayCloseDialog(false);
+      setClosingCash("");
+      setDayCloseNotes("");
+      showSuccess("Day closed successfully");
+
+      // Refresh current day
+      await refreshCurrentDay();
+    } catch (error: any) {
+      console.error("Error closing day:", error);
+      showError(error.message || "Failed to close day");
+    }
+  }, [closingCash, dayCloseNotes, closeDay, refreshCurrentDay, showSuccess, showError]);
+
   // Cart operations
   const addToCart = useCallback(
     (posItem: POSItem) => {
@@ -396,15 +715,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     [dispatch, startTransition]
   );
 
-  const clearCartWithAnimation = useCallback(() => {
-    dispatch(clearCartWithAnimationAction());
-    processedOrderRef.current = null;
-  }, [dispatch]);
-
-  const clearCart = useCallback(() => {
-    dispatch(clearCartAction());
-  }, [dispatch]);
-
   // Category change handler (debounced via hook)
   const handleCategoryChange = useCallback(
     (category: string) => {
@@ -424,6 +734,26 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   return (
     <>
       <div ref={containerRef} className="h-full flex flex-col lg:flex-row bg-gray-50 safe-area-padding">
+        {/* Debug button */}
+        <button
+          onClick={() => {
+            console.log("💥 [DEBUG] Force opening tables layout");
+            console.log("💥 [DEBUG] Current showTablesLayout:", showTablesLayout);
+            dispatch(setShowTablesLayoutAction(true));
+          }}
+          style={{
+            position: "fixed",
+            top: "10px",
+            right: "10px",
+            zIndex: 9999,
+            background: "red",
+            color: "white",
+            padding: "5px 10px",
+            borderRadius: "4px"
+          }}
+        >
+          FORCE OPEN TABLES
+        </button>
         {/* Left Panel - Cart */}
         <div
           className="cart hidden lg:flex flex-col h-full bg-white lg:border-r lg:border-gray-200"
@@ -524,9 +854,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                     setPaymentAmount(total.toString());
                     dispatch(setShowPaymentDialogAction(true));
                   }}
-                  onSaveClick={() => {
-                    // Handle save
-                  }}
+                  onSaveClick={handleManualSave}
                 />
               </Suspense>
             </div>
@@ -617,21 +945,21 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           <div className="flex-shrink-0 border-t border-gray-200 bg-white">
             <Suspense fallback={<div className="h-16" />}>
               <ActionBar
-                onSaveOrder={() => {}}
-                onPrintReceipt={() => {}}
+                onSaveOrder={handleManualSave}
+                onPrintReceipt={handleManualPrint}
                 onVoidOrder={() => dispatch(setShowVoidDialogAction(true))}
                 onShowOrders={() => dispatch(setShowOrdersDialogAction(true))}
                 onShowReports={() => dispatch(setShowReportsDialogAction(true))}
                 onCancelOrder={clearCart}
                 onDiscount={() => dispatch(setShowDiscountDialogAction(true))}
-                onCloseDayClick={() => {}}
+                onCloseDayClick={handleCloseDayClick}
                 hasUnsavedChanges={hasUnsavedChanges}
                 isOrderLoading={orderLoading}
                 canPrintReceipt={cart.length > 0}
                 canVoidOrder={!!currentOrder}
                 incompleteOrdersCount={incompleteOrdersCount}
                 incompleteDeliveryTakeawayCount={incompleteDeliveryTakeawayCount}
-                onShowPrinterSettings={() => {}}
+                onShowPrinterSettings={handleShowPrinterSettings}
                 hasSavedPrinter={hasSavedPrinter()}
                 savedPrinterName={getSavedPrinter()?.name}
                 isDayOpen={isDayOpen}
@@ -644,7 +972,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
       {/* Dialogs */}
       <Suspense fallback={null}>
-        {showPaymentDialog && <PaymentDialog isOpen={showPaymentDialog} onClose={() => dispatch(setShowPaymentDialogAction(false))} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={() => {}} isLoading={isLoading} />}
+        {showPaymentDialog && <PaymentDialog isOpen={showPaymentDialog} onClose={() => dispatch(setShowPaymentDialogAction(false))} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />}
 
         {showReceiptDialog && lastSaleData && <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => dispatch(setShowReceiptDialogAction(false))} receiptData={lastSaleData} autoPrint={false} />}
 
@@ -675,11 +1003,84 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           />
         )}
 
-        {showOrdersDialog && <POSClientOrders isOpen={showOrdersDialog} onClose={() => dispatch(setShowOrdersDialogAction(false))} onOrderSelect={onOrderSelect} onOrderStatusChange={fetchIncompleteOrdersCount} />}
+        {showOrdersDialog && (
+          <Suspense fallback={renderLoadingFallback()}>
+            <POSClientOrders isOpen={showOrdersDialog} onClose={() => dispatch(setShowOrdersDialogAction(false))} onOrderSelect={onOrderSelect} onOrderStatusChange={fetchIncompleteOrdersCount} />
+          </Suspense>
+        )}
 
         {showNotesDialog && <NotesDialog isOpen={showNotesDialog} onClose={() => dispatch(setShowNotesDialogAction(false))} notes={orderNotes} onNotesChange={notes => dispatch(setOrderNotesAction(notes))} />}
 
         {showItemNotesDialog && selectedItemForNotes && <ItemNotesDialog isOpen={showItemNotesDialog} onClose={() => dispatch(setShowItemNotesDialogAction(false))} item={selectedItemForNotes} onNotesChange={(itemId, notes) => dispatch(setItemNotesAction({ itemId, notes }))} />}
+
+
+        {/* Full-page Tables Layout */}
+        {showTablesLayout && (
+          <TablesPage
+            onClose={() => dispatch(setShowTablesLayoutAction(false))}
+            onTableSelect={handleTableSelection}
+            tables={tables}
+            tableOrders={tableOrders}
+            selectedTable={selectedTable}
+          />
+        )}
+
+
+        {showPrinterSelector && (
+          <Dialog open={showPrinterSelector} onOpenChange={open => dispatch(setShowPrinterSelectorAction(open))}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Select Printer</DialogTitle>
+                <DialogDescription>Choose a printer for {printerSelectionContext === "payment" ? "payment receipt" : "manual print"}</DialogDescription>
+              </DialogHeader>
+              <PrinterSelector
+                selectedPrinterId={selectedPrinter?.id ?? null}
+                onPrinterSelect={printer => {
+                  if (printer) {
+                    selectPrinter(printer);
+                  } else {
+                    clearSelection();
+                  }
+                }}
+              />
+              <DialogFooter>
+                <Button variant="outline" onClick={() => dispatch(setShowPrinterSelectorAction(false))}>
+                  Cancel
+                </Button>
+                <Button onClick={handlePrinterSelected}>Continue</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {showDayCloseDialog && (
+          <Dialog open={showDayCloseDialog} onOpenChange={setShowDayCloseDialog}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Close Day</DialogTitle>
+                <DialogDescription>Enter the closing cash amount and any notes for the day.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Closing Cash Amount</label>
+                  <input type="number" value={closingCash} onChange={e => setClosingCash(e.target.value)} className="w-full px-3 py-2 border rounded-md" placeholder="Enter closing cash amount" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Notes (Optional)</label>
+                  <textarea value={dayCloseNotes} onChange={e => setDayCloseNotes(e.target.value)} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="Add any notes about the day" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowDayCloseDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleConfirmCloseDay} disabled={!closingCash || dayActionLoading}>
+                  {dayActionLoading ? "Closing..." : "Close Day"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
       </Suspense>
 
       {/* Success/Error Messages */}

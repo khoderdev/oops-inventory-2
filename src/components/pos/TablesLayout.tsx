@@ -14,7 +14,19 @@ import { TableContextMenu } from "../ui/TableContextMenu";
 import ClearTableModal from "../tables/ClearTableModal";
 
 export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {}, printedTables = [] }) => {
-  const safeTablesList = useMemo(() => (Array.isArray(tables) ? tables : []), [tables]);
+  console.log("🎯 [TablesLayout] COMPONENT RENDERING");
+  console.log("🎯 [TablesLayout] Props received:", { 
+    tablesCount: tables?.length || 0, 
+    selectedTable, 
+    tableOrders, 
+    printedTables: printedTables?.length || 0
+  });
+  
+  const safeTablesList = useMemo(() => {
+    const result = Array.isArray(tables) ? tables : [];
+    console.log("🎯 [TablesLayout] safeTablesList created with", result.length, "tables");
+    return result;
+  }, [tables]);
   const [updatedTables, setUpdatedTables] = useState<Table[]>(safeTablesList);
   const [hoveredTable, setHoveredTable] = useState<Table | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);

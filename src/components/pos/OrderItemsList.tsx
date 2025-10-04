@@ -130,7 +130,17 @@ const OrderItemsListBase: React.FC<OrderItemsListProps> = ({ cart: propCart, upd
 
       const handleClick = () => {
         if (type === "table") {
-          if (onTableSelect) onTableSelect();
+          console.log("🔍 [OrderItemsList] TABLE BUTTON CLICKED");
+          console.log("🔍 [OrderItemsList] onTableSelect exists?", !!onTableSelect);
+          console.log("🔍 [OrderItemsList] incompleteTableOrdersCount:", incompleteTableOrdersCount);
+          
+          if (onTableSelect) {
+            console.log("🔍 [OrderItemsList] Calling onTableSelect()");
+            onTableSelect();
+            console.log("🔍 [OrderItemsList] onTableSelect() called successfully");
+          } else {
+            console.error("❌ [OrderItemsList] onTableSelect is undefined!");
+          }
         } else if (type === "employees") {
           handleEmployeeSelectClick();
         } else {
