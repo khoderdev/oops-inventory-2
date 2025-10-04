@@ -525,24 +525,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           {/* Right Panel - Main Content */}
           <div className="flex-1 relative overflow-hidden">
             <div className="h-full w-full pointer-events-auto">{React.cloneElement(children as React.ReactElement, { isDayOpen: userDayOpen })}</div>
-            {canAccessPOS && isLocked && showLockOverlay && (
-              <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-6 max-w-sm w-[90%] text-center border border-slate-200/60 dark:border-slate-700/60">
-                  <div className="mb-3 text-slate-900 dark:text-slate-100 font-semibold">Day is not open</div>
-                  <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">Please open the day to start taking orders.</p>
-                  <div className="flex justify-center gap-2">
-                    <button onClick={handleShowOpenModal} className="px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
-                      Open Day
-                    </button>
-                    {hasRole(["admin", "manager"]) && (
-                      <button onClick={() => navigate("/")} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors">
-                        Back Office
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Lock overlay removed - using DayOperationsModal instead */}
           </div>
         </div>
       </main>
@@ -555,8 +538,22 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         </DialogContent>
       </Dialog>
 
-      {/* Open Day Modal - Staff only */}
-      {canOpenDay && <DayOperationsModal open={showOpenModal} onOpenChange={setShowOpenModal} type="open" />}
+      {/* Day Operations Modal - Unified for both open and close, auto-shows when day is locked */}
+      {canOpenDay && (
+        <DayOperationsModal 
+          open={showOpenModal || (canAccessPOS && isLocked && showLockOverlay)} 
+          onOpenChange={(open) => {
+            // Always update the manual open state
+            setShowOpenModal(open);
+            
+            // When modal closes, hide the lock overlay to prevent it from reopening
+            if (!open) {
+              dispatch(setShowLockOverlay(false));
+            }
+          }} 
+          type="open" 
+        />
+      )}
 
       {/* Close Day Modal - Staff only */}
       {canCloseDayPerm && <DayOperationsModal open={showCloseModal} onOpenChange={setShowCloseModal} type="close" currentDay={currentDay} />}

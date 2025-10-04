@@ -63,8 +63,8 @@ export const useOrderManagement = () => {
       // Determine if we're using (orderId, data) or just (data)
       let orderId: string;
       let data: UpdateOrderData;
-      
-      if (typeof orderIdOrData === 'string') {
+
+      if (typeof orderIdOrData === "string") {
         // Called with (orderId, data)
         orderId = orderIdOrData;
         data = maybeData as UpdateOrderData;
@@ -81,7 +81,7 @@ export const useOrderManagement = () => {
         }
         console.log(`🔄 updateOrder using currentOrder.id: ${orderId}`);
       }
-      
+
       setIsLoading(true);
       setError(null);
       try {
