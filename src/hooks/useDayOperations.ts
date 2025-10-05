@@ -79,17 +79,17 @@ export const useDayOperations = (autoRefresh = false, refreshInterval = 30000) =
   const isDayClosed = useSelector(selectIsDayClosed);
   const hasActiveDay = useSelector(selectHasActiveDay);
 
-  // Fetch actions
-  const refreshCurrentDay = useCallback(() => {
-    return dispatch(fetchCurrentDayOperation());
+  // Fetch actions with optional force parameter
+  const refreshCurrentDay = useCallback((force = false) => {
+    return dispatch(fetchCurrentDayOperation({ force }));
   }, [dispatch]);
 
-  const refreshActivities = useCallback(() => {
-    return dispatch(fetchCurrentDayActivities());
+  const refreshActivities = useCallback((force = false) => {
+    return dispatch(fetchCurrentDayActivities({ force }));
   }, [dispatch]);
 
-  const refreshUserStats = useCallback(() => {
-    return dispatch(fetchUserOrderStats());
+  const refreshUserStats = useCallback((force = false) => {
+    return dispatch(fetchUserOrderStats({ force }));
   }, [dispatch]);
 
   const getDayOperations = useCallback(
@@ -151,9 +151,13 @@ export const useDayOperations = (autoRefresh = false, refreshInterval = 30000) =
     [dispatch]
   );
 
-  // Refresh all data
-  const refreshAll = useCallback(() => {
-    const promises = [dispatch(fetchCurrentDayOperation()), dispatch(fetchCurrentDayActivities()), dispatch(fetchUserOrderStats())];
+  // Refresh all data with optional force parameter
+  const refreshAll = useCallback((force = false) => {
+    const promises = [
+      dispatch(fetchCurrentDayOperation({ force })),
+      dispatch(fetchCurrentDayActivities({ force })),
+      dispatch(fetchUserOrderStats({ force }))
+    ];
     return Promise.all(promises);
   }, [dispatch]);
 

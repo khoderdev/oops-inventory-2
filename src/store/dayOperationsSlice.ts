@@ -4,17 +4,28 @@ import { UserOrderStats } from "@/types/dayOperations";
 import { dayOperationsAPI } from "@/api/dayOperations.api";
 import { RootState } from "../store/";
 
+// Cache configuration (in milliseconds)
+const CACHE_DURATION = {
+  CURRENT_DAY: 30000, // 30 seconds - frequently changes
+  DAY_OPERATIONS: 60000, // 1 minute - less frequent
+  ACTIVITIES: 30000, // 30 seconds - frequently changes
+  USER_STATS: 30000, // 30 seconds - frequently changes
+  DAILY_REPORT: 300000 // 5 minutes - rarely changes
+};
+
 // Define the state interface
 interface DayOperationsState {
   // Current day operation data
   currentDay: DayOperation | null;
   currentDayLoading: boolean;
   currentDayError: string | null;
+  currentDayLastFetch: string | null;
 
   // Day operations list
   dayOperations: DayOperation[];
   dayOperationsLoading: boolean;
   dayOperationsError: string | null;
+  dayOperationsLastFetch: string | null;
   pagination: {
     currentPage: number;
     totalPages: number;
@@ -26,16 +37,19 @@ interface DayOperationsState {
   activities: ActivityLog[];
   activitiesLoading: boolean;
   activitiesError: string | null;
+  activitiesLastFetch: string | null;
 
   // User order stats
   userOrderStats: UserOrderStats[];
   userOrderStatsLoading: boolean;
   userOrderStatsError: string | null;
+  userOrderStatsLastFetch: string | null;
 
   // Daily report
   dailyReport: DailyReportData | null;
   dailyReportLoading: boolean;
   dailyReportError: string | null;
+  dailyReportLastFetch: string | null;
 
   // Action status
   actionLoading: boolean;
@@ -46,17 +60,27 @@ interface DayOperationsState {
   lastRefresh: string | null;
 }
 
+// Helper function to check if cache is still valid
+const isCacheValid = (lastFetch: string | null, cacheDuration: number): boolean => {
+  if (!lastFetch) return false;
+  const now = Date.now();
+  const lastFetchTime = new Date(lastFetch).getTime();
+  return now - lastFetchTime < cacheDuration;
+};
+
 // Initial state
 const initialState: DayOperationsState = {
   // Current day operation data
   currentDay: null,
   currentDayLoading: false,
   currentDayError: null,
+  currentDayLastFetch: null,
 
   // Day operations list
   dayOperations: [],
   dayOperationsLoading: false,
   dayOperationsError: null,
+  dayOperationsLastFetch: null,
   pagination: {
     currentPage: 1,
     totalPages: 1,
@@ -68,16 +92,19 @@ const initialState: DayOperationsState = {
   activities: [],
   activitiesLoading: false,
   activitiesError: null,
+  activitiesLastFetch: null,
 
   // User order stats
   userOrderStats: [],
   userOrderStatsLoading: false,
   userOrderStatsError: null,
+  userOrderStatsLastFetch: null,
 
   // Daily report
   dailyReport: null,
   dailyReportLoading: false,
   dailyReportError: null,
+  dailyReportLastFetch: null,
 
   // Action status
   actionLoading: false,
@@ -88,15 +115,31 @@ const initialState: DayOperationsState = {
   lastRefresh: null
 };
 
-// Async thunks
-export const fetchCurrentDayOperation = createAsyncThunk("dayOperations/fetchCurrentDayOperation", async (_, { rejectWithValue }) => {
-  try {
-    const response = await dayOperationsAPI.getCurrentDayOperation();
-    return response;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.message || "Failed to fetch current day operation");
+// Async thunks with intelligent caching
+export const fetchCurrentDayOperation = createAsyncThunk(
+  "dayOperations/fetchCurrentDayOperation",
+  async (options: { force?: boolean } = {}, { rejectWithValue, getState }) => {
+    try {
+      // Check cache validity unless force refresh
+      if (!options.force) {
+        const state = getState() as RootState;
+        if (
+          state.dayOperations.currentDay &&
+          isCacheValid(state.dayOperations.currentDayLastFetch, CACHE_DURATION.CURRENT_DAY)
+        ) {
+          console.log("📦 [Cache] Using cached current day operation");
+          return { currentDay: state.dayOperations.currentDay, fromCache: true };
+        }
+      }
+
+      console.log("🌐 [API] Fetching current day operation from server");
+      const response = await dayOperationsAPI.getCurrentDayOperation();
+      return { ...response, fromCache: false };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch current day operation");
+    }
   }
-});
+);
 
 export const fetchDayOperations = createAsyncThunk(
   "dayOperations/fetchDayOperations",
@@ -121,23 +164,55 @@ export const fetchDayOperations = createAsyncThunk(
   }
 );
 
-export const fetchCurrentDayActivities = createAsyncThunk("dayOperations/fetchCurrentDayActivities", async (_, { rejectWithValue }) => {
-  try {
-    const response = await dayOperationsAPI.getCurrentDayActivities();
-    return response;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.message || "Failed to fetch day activities");
-  }
-});
+export const fetchCurrentDayActivities = createAsyncThunk(
+  "dayOperations/fetchCurrentDayActivities",
+  async (options: { force?: boolean } = {}, { rejectWithValue, getState }) => {
+    try {
+      // Check cache validity unless force refresh
+      if (!options.force) {
+        const state = getState() as RootState;
+        if (
+          state.dayOperations.activities.length > 0 &&
+          isCacheValid(state.dayOperations.activitiesLastFetch, CACHE_DURATION.ACTIVITIES)
+        ) {
+          console.log("📦 [Cache] Using cached activities");
+          return { activities: state.dayOperations.activities, fromCache: true };
+        }
+      }
 
-export const fetchUserOrderStats = createAsyncThunk("dayOperations/fetchUserOrderStats", async (_, { rejectWithValue }) => {
-  try {
-    const response = await dayOperationsAPI.getUserOrderStats();
-    return response;
-  } catch (error: any) {
-    return rejectWithValue(error.response?.data?.message || "Failed to fetch user order stats");
+      console.log("🌐 [API] Fetching activities from server");
+      const response = await dayOperationsAPI.getCurrentDayActivities();
+      return { ...response, fromCache: false };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch day activities");
+    }
   }
-});
+);
+
+export const fetchUserOrderStats = createAsyncThunk(
+  "dayOperations/fetchUserOrderStats",
+  async (options: { force?: boolean } = {}, { rejectWithValue, getState }) => {
+    try {
+      // Check cache validity unless force refresh
+      if (!options.force) {
+        const state = getState() as RootState;
+        if (
+          state.dayOperations.userOrderStats.length > 0 &&
+          isCacheValid(state.dayOperations.userOrderStatsLastFetch, CACHE_DURATION.USER_STATS)
+        ) {
+          console.log("📦 [Cache] Using cached user order stats");
+          return { userOrderStats: state.dayOperations.userOrderStats, fromCache: true };
+        }
+      }
+
+      console.log("🌐 [API] Fetching user order stats from server");
+      const response = await dayOperationsAPI.getUserOrderStats();
+      return { ...response, fromCache: false };
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || "Failed to fetch user order stats");
+    }
+  }
+);
 
 export const fetchDailyReport = createAsyncThunk("dayOperations/fetchDailyReport", async (date: string, { rejectWithValue }) => {
   try {
@@ -216,6 +291,7 @@ const dayOperationsSlice = createSlice({
       .addCase(fetchCurrentDayOperation.fulfilled, (state, action) => {
         state.currentDayLoading = false;
         state.currentDay = action.payload.currentDay;
+        state.currentDayLastFetch = new Date().toISOString();
         state.lastRefresh = new Date().toISOString();
       })
       .addCase(fetchCurrentDayOperation.rejected, (state, action) => {
@@ -254,6 +330,7 @@ const dayOperationsSlice = createSlice({
       .addCase(fetchCurrentDayActivities.fulfilled, (state, action) => {
         state.activitiesLoading = false;
         state.activities = action.payload.activities;
+        state.activitiesLastFetch = new Date().toISOString();
         state.lastRefresh = new Date().toISOString();
       })
       .addCase(fetchCurrentDayActivities.rejected, (state, action) => {
@@ -270,6 +347,7 @@ const dayOperationsSlice = createSlice({
       .addCase(fetchUserOrderStats.fulfilled, (state, action) => {
         state.userOrderStatsLoading = false;
         state.userOrderStats = action.payload.userOrderStats;
+        state.userOrderStatsLastFetch = new Date().toISOString();
         state.lastRefresh = new Date().toISOString();
       })
       .addCase(fetchUserOrderStats.rejected, (state, action) => {

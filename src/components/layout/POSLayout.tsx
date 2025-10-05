@@ -1,6 +1,6 @@
 import { ordersAPI } from "@/api/orders.api";
 import { authAPI } from "@/api/auth";
-import { dayOperationsAPI } from "@/api/dayOperations.api";
+import { useDayOperations } from "@/hooks/useDayOperations";
 import { POSClientOrders } from "@/components/pos/POSClientOrders";
 import { POSHeader } from "@/components/pos/POSHeader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -20,9 +20,9 @@ import Sales from "../sales/Sales";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { selectShowLeftPanel, selectIsResizing, selectLeftPanelWidth, selectShowLockOverlay, selectUserDayOpen, selectCurrentDay, selectIsLocked } from "@/store/slices/posSelectors";
 import { setShowLeftPanel, setIsResizing, setLeftPanelWidth, setShowLockOverlay, setUserDayOpen } from "@/store/slices/uiSlice";
-import { fetchCurrentDayOperation } from "@/store/dayOperationsSlice";
+import { closeDay, fetchCurrentDayOperation } from "@/store/dayOperationsSlice";
 
-const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
+// Use centralized day operations hook for Redux state sharing and caching
 
 const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
   const { user, logout } = useAuth();
@@ -51,7 +51,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [showSalesHistoryDialog, setShowSalesHistoryDialog] = useState(false);
   const [, setShowDayOperationsModal] = useState(false);
   const [, setDayOperationType] = useState<"open" | "close">("open");
-  const [userOrderStats, setUserOrderStats] = useState<UserOrderStats[]>([]);
+  // Removed: userOrderStats now comes from Redux via useDayOperations hook
   const [isCheckingDayStatus, setIsCheckingDayStatus] = useState(true);
   const [dayError, setDayError] = useState<string | null>(null);
   const [daySuccess, setDaySuccess] = useState<string | null>(null);
@@ -68,6 +68,17 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const navigate = useNavigate();
 
   const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
+
+  // 🚀 PERFORMANCE FIX: Use centralized Redux state to eliminate duplicate API calls
+  const {
+    currentDay: reduxCurrentDay,
+    userOrderStats,
+    refreshCurrentDay,
+    refreshActivities,
+    refreshUserStats,
+    currentDayLoading,
+    userOrderStatsLoading
+  } = useDayOperations(false); // Don't auto-refresh, we'll control it manually
 
   useEffect(() => {
     if (user) {
@@ -92,56 +103,37 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   }, [user]);
 
+  // 🚀 PERFORMANCE FIX: Use Redux state instead of duplicate API calls
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const currentResponse = await getCurrentDayOperation();
-      dispatch(setUserDayOpen(currentResponse.currentDay?.status === "opened"));
+      
+      console.log("📊 [POSLayout] Loading data from Redux (cached)...");
+      
+      // Fetch current day operation (will use cache if valid)
+      await refreshCurrentDay();
+      
+      // Use Redux state instead of making duplicate API calls
+      if (reduxCurrentDay) {
+        dispatch(setUserDayOpen(reduxCurrentDay.status === "opened"));
 
-      // Hide lock overlay immediately if day is open
-      if (currentResponse.currentDay?.status === "opened") {
-        dispatch(setShowLockOverlay(false));
-      }
-
-      const recentResponse = await getDayOperations(1, 10);
-      recentResponse.dayOperations.map(day => {
-        const dateStr = day.date;
-        let localDate: Date;
-        if (typeof dateStr === "string" && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          const [year, month, dayNum] = dateStr.split("-").map(Number);
-          localDate = new Date(year, month - 1, dayNum);
-        } else {
-          localDate = new Date(dateStr);
-        }
-        return {
-          id: day.id,
-          date: dateStr,
-          dateType: typeof dateStr,
-          openedAt: day.openedAt,
-          closedAt: day.closedAt,
-          parsedDate: new Date(dateStr),
-          localDate: localDate,
-          currentTime: new Date().toISOString(),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        };
-      });
-      setRecentDays(recentResponse.dayOperations);
-      if (currentResponse.currentDay && currentResponse.currentDay.status === "opened") {
-        try {
-          const activitiesResponse = await getCurrentDayActivities();
-          setActivities(activitiesResponse.activities);
-          try {
-            const statsResponse = await getUserOrderStats();
-            setUserOrderStats(statsResponse.userOrderStats || []);
-          } catch (statsError) {
-            setUserOrderStats([]);
-          }
-        } catch (activityError) {
-          console.warn("Could not load activities:", activityError);
+        // Hide lock overlay immediately if day is open
+        if (reduxCurrentDay.status === "opened") {
+          dispatch(setShowLockOverlay(false));
+          
+          // Only fetch activities and stats if day is open (will use cache if valid)
+          console.log("📊 [POSLayout] Day is open, fetching activities and stats from cache...");
+          await Promise.all([
+            refreshActivities(),
+            refreshUserStats()
+          ]);
         }
       }
+      
+      console.log("✅ [POSLayout] Data loaded successfully from Redux");
     } catch (err) {
+      console.error("❌ [POSLayout] Error loading data:", err);
       setError(err instanceof Error ? err.message : "Failed to load day operations");
     } finally {
       setLoading(false);
@@ -413,22 +405,31 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     }
   };
 
+  // 🚀 PERFORMANCE FIX: Use Redux state instead of duplicate API calls
   const refreshExpectedAndStats = useCallback(async () => {
     try {
-      const [currentResponse, statsResponse] = await Promise.all([getCurrentDayOperation(), getUserOrderStats().catch(() => ({ userOrderStats: [] as UserOrderStats[] }))]);
-      dispatch(fetchCurrentDayOperation());
-      setUserOrderStats(statsResponse.userOrderStats || []);
-      const latestExpected = currentResponse.currentDay?.expectedCash ?? 0;
+      console.log("🔄 [POSLayout] Refreshing expected cash and stats from Redux...");
+      
+      // Force refresh from server (bypass cache) - pass true to force
+      await Promise.all([
+        refreshCurrentDay(true),
+        refreshUserStats(true)
+      ]);
+      
+      // Use Redux state (already updated by the refresh calls above)
+      const latestExpected = reduxCurrentDay?.expectedCash ?? 0;
       setCloseDayForm(prev => ({
         ...prev,
         closingCash: latestExpected,
         closedBy: user?.fullName || prev.closedBy || "",
         userId: (user?.id as any) ?? prev.userId
       }));
+      
+      console.log("✅ [POSLayout] Expected cash and stats refreshed:", { latestExpected, statsCount: userOrderStats.length });
     } catch (e) {
-      console.warn("Failed to refresh expected cash or user stats before showing modal", e);
+      console.warn("⚠️ [POSLayout] Failed to refresh expected cash or user stats:", e);
     }
-  }, [getCurrentDayOperation, getUserOrderStats, user?.fullName, user?.id]);
+  }, [refreshCurrentDay, refreshUserStats, reduxCurrentDay, userOrderStats, user?.fullName, user?.id]);
 
   const handleShowCloseModal = useCallback(async () => {
     if (!canCloseDayPerm) return;
@@ -465,15 +466,21 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     try {
       setActionLoading(true);
       setError(null);
-      const response = await closeDay({ ...closeDayForm, userId: user?.id as any });
-      if (response.dayOperation) {
-        const isDayOpen = response.dayOperation.status === "opened";
-        dispatch(setUserDayOpen(isDayOpen));
-        // Show lock overlay immediately when day closes
-        if (!isDayOpen) {
-          dispatch(setShowLockOverlay(true));
+      const resultAction = await dispatch(closeDay({ ...closeDayForm, userId: user?.id as any }));
+      
+      // Unwrap the result to get the actual response
+      if (closeDay.fulfilled.match(resultAction)) {
+        const response = resultAction.payload;
+        if (response.dayOperation) {
+          const isDayOpen = response.dayOperation.status === "opened";
+          dispatch(setUserDayOpen(isDayOpen));
+          // Show lock overlay immediately when day closes
+          if (!isDayOpen) {
+            dispatch(setShowLockOverlay(true));
+          }
         }
       }
+      
       setShowCloseModal(false);
       setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
       setTimeout(async () => {

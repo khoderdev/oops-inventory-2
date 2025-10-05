@@ -539,6 +539,10 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
               console.log("🛒 [POSClient] Cart items count:", cartItems.length);
               console.log("🛒 [POSClient] First cart item:", cartItems[0]);
               
+              // CRITICAL FIX: Set the active order FIRST so handleManualSave knows to UPDATE instead of CREATE
+              dispatch(setActiveOrder(fullOrder));
+              console.log("✅ [POSClient] Set active order:", fullOrder.id, fullOrder.orderNumber);
+              
               // Set the cart with the order items
               dispatch(setCart(cartItems));
               
@@ -631,14 +635,25 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         discountReason: appliedDiscount?.reason
       };
 
+      console.log("💾 [handleManualSave] Saving order:", {
+        hasCurrentOrder: !!currentOrder,
+        currentOrderId: currentOrder?.id,
+        cartLength: cart.length,
+        orderType
+      });
+
       let savedOrder: Order;
-      if (currentOrder) {
-        // Update existing order
+      if (currentOrder?.id) {
+        // Update existing order - ensure we have a valid order ID
+        console.log("📝 [handleManualSave] Updating existing order:", currentOrder.id);
         savedOrder = await updateOrder(currentOrder.id, orderData as UpdateOrderData);
         showSuccess(`Order ${savedOrder.orderNumber} updated successfully`);
       } else {
         // Create new order
+        console.log("✨ [handleManualSave] Creating new order");
         savedOrder = await createOrder(orderData as CreateOrderData);
+        // CRITICAL FIX: Set the newly created order as active order
+        dispatch(setActiveOrder(savedOrder));
         showSuccess(`Order ${savedOrder.orderNumber} saved successfully`);
       }
 
@@ -646,7 +661,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       await fetchIncompleteOrdersCount();
       await fetchTablesData();
     } catch (error: any) {
-      console.error("Error saving order:", error);
+      console.error("❌ [handleManualSave] Error saving order:", error);
       showError(error.message || "Failed to save order");
     } finally {
       dispatch(setIsLoadingAction(false));
@@ -1176,6 +1191,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             onConfirm={async (reason, restoreStock) => {
               await voidOrder(reason, restoreStock);
               clearCartWithAnimation();
+              clearOrder(); // Clear active order after voiding
             }}
             order={currentOrder}
             isLoading={orderLoading}
