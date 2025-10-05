@@ -4,7 +4,7 @@ import { CreateTableData, ReserveTableData, UpdateTableData } from "@/types/orde
 
 export const tablesAPI = {
   // Get all tables
-  getTables: (params?: { section?: string; status?: string; includeOrders?: boolean }) => {
+  getTables: (params?: { section?: string; status?: string; includeOrders?: boolean; isActive?: boolean }) => {
     return api.get<Table[]>('/tables', params ? { params } : undefined);
   },
 

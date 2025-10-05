@@ -42,21 +42,30 @@ export const InactiveTablesModal: React.FC<TablesManagementModalProps> = ({
   const fetchAllTables = async () => {
     setIsRefreshing(true);
     try {
-      // Fetch all tables
+      // Fetch all tables - ApiClient returns { data: Table[], status, message }
       const response = await tablesAPI.getTables();
       
-      // Handle the response structure - backend returns array directly
-      let tables = [];
-      if (Array.isArray(response)) {
-        tables = response;
+      console.log("📊 Raw API response:", response);
+      
+      // ApiClient wraps the response in { data: T }
+      // Backend may also wrap in { data: [...] }, so check both
+      let tables: ExtendedTable[] = [];
+      
+      if (Array.isArray(response.data)) {
+        // Direct array: { data: Table[] }
+        tables = response.data;
+        console.log("✅ Found tables in response.data:", tables.length);
+      } else if (response.data && typeof response.data === 'object' && 'data' in response.data && Array.isArray((response.data as any).data)) {
+        // Double wrapped: { data: { data: Table[] } }
+        tables = (response.data as any).data;
+        console.log("✅ Found tables in response.data.data:", tables.length);
       } else {
-        console.error("Unexpected API response structure:", response);
-        throw new Error("Invalid API response structure");
+        console.warn("⚠️ Unexpected response structure:", response);
       }
       
       setAllTables(tables);
     } catch (error) {
-      console.error("Failed to fetch tables:", error);
+      console.error("❌ Failed to fetch tables:", error);
       toast.error("Failed to load tables");
       setAllTables([]);
     } finally {
@@ -70,9 +79,11 @@ export const InactiveTablesModal: React.FC<TablesManagementModalProps> = ({
       const newStatus = !currentStatus;
       const response = await tablesAPI.updateTable(tableId, { isActive: newStatus });
       
+      console.log("✅ Table status updated:", { tableId, newStatus, response });
+      
       // Update the table in the local state
       setAllTables(prev => prev.map(table => 
-        table.id === tableId 
+        String(table.id) === String(tableId)
           ? { ...table, isActive: newStatus }
           : table
       ));
@@ -80,7 +91,7 @@ export const InactiveTablesModal: React.FC<TablesManagementModalProps> = ({
       toast.success(`Table ${newStatus ? 'activated' : 'deactivated'} successfully`);
       onTableActivated?.();
     } catch (error) {
-      console.error("Failed to update table status:", error);
+      console.error("❌ Failed to update table status:", error);
       toast.error("Failed to update table status");
     } finally {
       setUpdatingTableId(null);
@@ -209,12 +220,12 @@ export const InactiveTablesModal: React.FC<TablesManagementModalProps> = ({
                             <Switch
                               id={`table-${table.id}-active`}
                               checked={table.isActive}
-                              onCheckedChange={() => handleToggleTableStatus(table.id, table.isActive)}
-                              disabled={updatingTableId === table.id}
+                              onCheckedChange={() => handleToggleTableStatus(String(table.id), table.isActive)}
+                              disabled={updatingTableId === String(table.id)}
                             />
                           </div>
                           
-                          {updatingTableId === table.id && (
+                          {updatingTableId === String(table.id) && (
                             <div className="flex items-center gap-2 text-blue-600">
                               <RefreshCw className="w-4 h-4 animate-spin" />
                               <span className="text-sm">Updating...</span>
