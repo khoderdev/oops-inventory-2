@@ -981,30 +981,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         <Modal 
           isOpen={showTablesLayout} 
           onClose={() => dispatch(setShowTablesLayoutAction(false))} 
-          title={(
-            <div className="flex items-center justify-between w-full">
-              <span>Tables</span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="ml-4"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // This will be passed to TablesLayout
-                  const tablesLayoutComponent = document.querySelector('[data-tables-layout]');
-                  if (tablesLayoutComponent) {
-                    const event = new CustomEvent('toggleArrangeMode');
-                    tablesLayoutComponent.dispatchEvent(event);
-                  }
-                }}
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
-              </Button>
-            </div>
-          )}
-          titleStyle="text-xl font-bold text-gray-800 flex items-center justify-between w-full"
-          showCloseButton={true}
+          showCloseButton={false}
           width="w-screen"
           height="h-screen"
           maxWidth="max-w-none"
@@ -1053,7 +1030,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             tableOrders={tableOrders} 
             selectedTable={selectedTable} 
             onClose={() => dispatch(setShowTablesLayoutAction(false))} 
-            hideHeaderFooter={true}
+            hideHeaderFooter={false}
           />
         </Modal>
 

@@ -45,17 +45,14 @@ export const InactiveTablesModal: React.FC<TablesManagementModalProps> = ({
       // Fetch all tables
       const response = await tablesAPI.getTables();
       
-      // Handle the response structure - backend returns { data: tables }
+      // Handle the response structure - backend returns array directly
       let tables = [];
-      if (response.data && Array.isArray(response.data.data)) {
-        tables = response.data.data;
-      } else if (Array.isArray(response.data)) {
-        tables = response.data;
+      if (Array.isArray(response)) {
+        tables = response;
       } else {
         console.error("Unexpected API response structure:", response);
         throw new Error("Invalid API response structure");
       }
-      
       
       setAllTables(tables);
     } catch (error) {
@@ -105,7 +102,7 @@ export const InactiveTablesModal: React.FC<TablesManagementModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-hidden p-0 flex flex-col">
+      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-hidden p-0 flex flex-col z-[10000]">
         <DialogHeader className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">

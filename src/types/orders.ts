@@ -22,6 +22,7 @@ export interface UpdateTableData {
   position?: { x: number; y: number };
   section?: string;
   notes?: string;
+  isActive?: boolean;
   status?: TableStatus;
 }
 

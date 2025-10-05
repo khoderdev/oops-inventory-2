@@ -5,7 +5,7 @@ import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { tablesAPI } from "@/api/tables.api";
 import { ordersAPI } from "@/api/orders.api";
-import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Settings, Printer } from "lucide-react";
+import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Settings, Printer, X } from "lucide-react";
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
@@ -61,24 +61,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     setUpdatedTables(safeTablesList);
     fetchInactiveTablesCount();
   }, [safeTablesList]);
-
-  // Listen for Settings button click from Modal header
-  useEffect(() => {
-    const handleToggleArrangeMode = () => {
-      setIsArrangeMode(prev => !prev);
-      if (!isArrangeMode) {
-        setSelectedTool("select");
-      }
-    };
-
-    const layoutElement = layoutRef.current;
-    if (layoutElement) {
-      layoutElement.addEventListener('toggleArrangeMode', handleToggleArrangeMode);
-      return () => {
-        layoutElement.removeEventListener('toggleArrangeMode', handleToggleArrangeMode);
-      };
-    }
-  }, [isArrangeMode]);
 
   const fetchInactiveTablesCount = async () => {
     try {
@@ -382,7 +364,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   return (
     <div
       ref={layoutRef}
-      data-tables-layout
       className="md:h-[calc(100vh-0rem)] h-[100dvh] w-full flex flex-col overflow-hidden"
       onContextMenu={e => {
         const target = e.target as HTMLElement | null;
@@ -395,7 +376,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       <>
         <div className="h-full flex flex-col">
           {!hideHeaderFooter && (
-            <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200 mr-6">
+            <div className="flex items-center justify-between px-6 py-2 border-b border-gray-200">
               <div className="flex items-center gap-4">
                 <h2 className={`text-2xl font-bold text-gray-800 ${isArrangeMode ? "hidden sm:block" : ""}`}>Tables</h2>
               </div>
@@ -472,8 +453,11 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                       setSelectedTool("select");
                     }}
                   >
-                    <Settings className="w-4 h-4" />
+                    <Settings className="w-4 h-4 mr-2" />
                     Settings
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={onClose} className="text-gray-500 hover:text-red-500">
+                    <X className="w-5 h-5" />
                   </Button>
                 </div>
               )}
@@ -757,9 +741,6 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     </div>
   );
 };
-
-// Named export for backward compatibility
-// export { TablesLayout };
 
 // Default export for React.lazy()
 export default TablesLayout;

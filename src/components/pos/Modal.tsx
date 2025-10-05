@@ -89,7 +89,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   const modalContent = (
     <div className={`fixed inset-0 !z-[9999] flex items-center justify-center ${overlayStyle}`} onClick={handleOverlayClick}>
-      <div className={`relative flex flex-col ${responsiveWidth} ${responsiveHeight} ${maxWidth} ${maxHeight} ${modalStyle}`} style={{ maxWidth: maxWidth === 'max-w-none' ? 'none' : undefined, maxHeight: maxHeight === 'max-h-none' ? 'none' : undefined }} onClick={e => e.stopPropagation()}>
+      <div className={`relative flex flex-col ${responsiveWidth} ${responsiveHeight} ${maxWidth} ${maxHeight} ${modalStyle}`} style={{ maxWidth: maxWidth === "max-w-none" ? "none" : undefined, maxHeight: maxHeight === "max-h-none" ? "none" : undefined }} onClick={e => e.stopPropagation()}>
         {/* Header */}
         {(title || showCloseButton) && (
           <header className={headerStyle}>
