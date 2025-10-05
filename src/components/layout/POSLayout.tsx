@@ -11,7 +11,6 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/types/auth";
 import { POSLayoutProps, OpenDayRequest, CloseDayRequest, DayOperation, ActivityLog } from "@/types/inventory";
 import { DayOperationsFormData, UserOrderStats } from "@/types/dayOperations";
-import { LOGO_CONFIGS, useCachedLogo } from "@/utils/logoCache";
 import { AlertCircle, CheckCircle, GripVertical, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -19,22 +18,8 @@ import DailyReports from "@/components/analytics/DailyReports";
 import { useDailyReports } from "@/hooks/useDailyReports";
 import Sales from "../sales/Sales";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import {
-  selectShowLeftPanel,
-  selectIsResizing,
-  selectLeftPanelWidth,
-  selectShowLockOverlay,
-  selectUserDayOpen,
-  selectCurrentDay,
-  selectIsLocked
-} from "@/store/slices/posSelectors";
-import {
-  setShowLeftPanel,
-  setIsResizing,
-  setLeftPanelWidth,
-  setShowLockOverlay,
-  setUserDayOpen
-} from "@/store/slices/uiSlice";
+import { selectShowLeftPanel, selectIsResizing, selectLeftPanelWidth, selectShowLockOverlay, selectUserDayOpen, selectCurrentDay, selectIsLocked } from "@/store/slices/posSelectors";
+import { setShowLeftPanel, setIsResizing, setLeftPanelWidth, setShowLockOverlay, setUserDayOpen } from "@/store/slices/uiSlice";
 import { fetchCurrentDayOperation } from "@/store/dayOperationsSlice";
 
 const { getCurrentDayOperation, getDayOperations, getCurrentDayActivities, openDay, closeDay, getUserOrderStats } = dayOperationsAPI;
@@ -171,28 +156,31 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const resizeRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    dispatch(setIsResizing(true));
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      dispatch(setIsResizing(true));
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const newWidth = e.clientX - containerRect.left;
-      const minWidth = 200;
-      const maxWidth = containerRect.width * 0.35;
-      if (newWidth >= minWidth && newWidth <= maxWidth) {
-        dispatch(setLeftPanelWidth(newWidth));
-      }
-    };
-    const handleMouseUp = () => {
-      dispatch(setIsResizing(false));
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-  }, [dispatch]);
+      const handleMouseMove = (e: MouseEvent) => {
+        if (!containerRef.current) return;
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const newWidth = e.clientX - containerRect.left;
+        const minWidth = 200;
+        const maxWidth = containerRect.width * 0.35;
+        if (newWidth >= minWidth && newWidth <= maxWidth) {
+          dispatch(setLeftPanelWidth(newWidth));
+        }
+      };
+      const handleMouseUp = () => {
+        dispatch(setIsResizing(false));
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+    },
+    [dispatch]
+  );
 
   useEffect(() => {
     const handleResize = () => {
@@ -540,18 +528,18 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
       {/* Day Operations Modal - Unified for both open and close, auto-shows when day is locked */}
       {canOpenDay && (
-        <DayOperationsModal 
-          open={showOpenModal || (canAccessPOS && isLocked && showLockOverlay)} 
-          onOpenChange={(open) => {
+        <DayOperationsModal
+          open={showOpenModal || (canAccessPOS && isLocked && showLockOverlay)}
+          onOpenChange={open => {
             // Always update the manual open state
             setShowOpenModal(open);
-            
+
             // When modal closes, hide the lock overlay to prevent it from reopening
             if (!open) {
               dispatch(setShowLockOverlay(false));
             }
-          }} 
-          type="open" 
+          }}
+          type="open"
         />
       )}
 

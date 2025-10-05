@@ -295,6 +295,89 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     [dispatch]
   );
 
+  // Handle selectedOrderForPOS prop - load order when passed from parent
+  useEffect(() => {
+    if (!selectedOrderForPOS) return;
+    
+    console.log("📥 [POSClient] selectedOrderForPOS changed:", selectedOrderForPOS);
+    
+    const loadSelectedOrder = async () => {
+      try {
+        // Load the full order
+        const fullOrderResponse = await loadOrder(selectedOrderForPOS.id);
+        console.log("📄 [POSClient] Loaded selectedOrderForPOS response:", fullOrderResponse);
+        
+        // Extract the actual order data (handle nested data structure)
+        const fullOrder = (fullOrderResponse as any)?.data || fullOrderResponse;
+        console.log("📄 [POSClient] Extracted selectedOrderForPOS data:", fullOrder);
+        
+        // Convert order items to cart items (same logic as handleTableSelection)
+        const cartItems: POSCartItem[] = fullOrder.items.map(item => {
+          const unitPrice = typeof item.unitPrice === 'string' ? parseFloat(item.unitPrice) : item.unitPrice;
+          const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
+          
+          const originalItem = item.menuItem || item.material || {
+            id: item.menuItemId || item.materialId || item.id,
+            name: item.name,
+            price: unitPrice
+          };
+          
+          return {
+            id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
+            menuItemId: item.menuItemId?.toString() || undefined,
+            materialId: item.materialId?.toString() || undefined,
+            name: item.name,
+            price: unitPrice,
+            quantity: quantity,
+            type: item.type as "menu_item" | "stock_entry" | "material",
+            notes: item.notes || undefined,
+            originalItem: originalItem as any,
+            orderItemId: item.id?.toString(),
+            variant: item.selectedVariant ? {
+              id: item.selectedVariant.name,
+              name: item.selectedVariant.name,
+              volume: item.selectedVariant.volume,
+              unit: item.selectedVariant.unit,
+              price: typeof item.selectedVariant.price === 'string' 
+                ? parseFloat(item.selectedVariant.price) 
+                : item.selectedVariant.price
+            } : undefined
+          };
+        });
+        
+        console.log("🛒 [POSClient] Setting cart from selectedOrderForPOS:", cartItems);
+        dispatch(setCart(cartItems));
+        
+        // Set order notes if any
+        if (fullOrder.notes) {
+          dispatch(setOrderNotesAction(fullOrder.notes));
+        }
+        
+        // Set discount if any
+        if (fullOrder.discountType && fullOrder.discountValue) {
+          dispatch(applyDiscountAction({
+            type: fullOrder.discountType as "percentage" | "fixed",
+            value: fullOrder.discountValue,
+            reason: fullOrder.discountReason
+          }));
+        }
+        
+        // Set table if it's a table order
+        if (fullOrder.table) {
+          dispatch(setSelectedTableAction(fullOrder.table));
+          dispatch(setOrderTypeAction("table"));
+        }
+        
+        showSuccess(`Loaded order ${fullOrder.orderNumber}`);
+      } catch (error) {
+        console.error("❌ [POSClient] Error loading selectedOrderForPOS:", error);
+        showError("Failed to load order");
+      }
+    };
+    
+    loadSelectedOrder();
+  }, [selectedOrderForPOS, loadOrder, dispatch, showSuccess, showError]);
+
   const updateOrder = useCallback(
     async (orderIdOrData: string | UpdateOrderData, maybeData?: UpdateOrderData): Promise<Order> => {
       let orderId: string;
@@ -363,22 +446,153 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const handleTableSelection = useCallback(
     async (table: Table) => {
       try {
+        console.log("🎯 [POSClient] handleTableSelection called:", { tableId: table.id, tableNumber: table.number, status: table.status });
+        
         dispatch(setIsTableManuallySelectedAction(true));
         dispatch(setSelectedTableAction(table));
         dispatch(setOrderTypeAction("table"));
         dispatch(setShowTablesLayoutAction(false));
 
-        // Clear any existing order state when selecting a new table
-        clearOrder();
-        clearCart();
+        // Check if this table has an existing order
+        const tableKey = table.number?.toString() || table.id?.toString();
+        const hasExistingOrder = tableOrders[tableKey] && tableOrders[tableKey] > 0;
+        
+        console.log("🔍 [POSClient] Table order check:", { tableKey, hasExistingOrder, tableOrders });
 
-        showSuccess(`Table ${table.number} selected`);
+        if (hasExistingOrder && table.status === "opened") {
+          // Table has an existing order - fetch and load it
+          console.log("📋 [POSClient] Loading existing order for table", table.number);
+          
+          try {
+            // Fetch draft orders to find the order for this table
+            const response = await ordersAPI.getOrders({ 
+              status: "draft",
+              tableNumber: table.number 
+            });
+            
+            console.log("📦 [POSClient] Orders response:", response);
+            
+            // Handle nested data structure: response.data.data
+            const orders = (response.data as any)?.data || response.data;
+            
+            if (orders && Array.isArray(orders) && orders.length > 0) {
+              const tableOrder = orders[0]; // Get the first draft order for this table
+              console.log("✅ [POSClient] Found order for table:", tableOrder);
+              
+              // Load the order
+              const fullOrderResponse = await loadOrder(tableOrder.id);
+              console.log("📄 [POSClient] Loaded full order response:", fullOrderResponse);
+              
+              // Extract the actual order data (handle nested data structure)
+              const fullOrder = (fullOrderResponse as any)?.data || fullOrderResponse;
+              console.log("📄 [POSClient] Extracted order data:", fullOrder);
+              console.log("📄 [POSClient] Order items:", fullOrder.items);
+              
+              // Convert order items to cart items
+              const cartItems: POSCartItem[] = fullOrder.items.map(item => {
+                console.log("🔄 [POSClient] Converting order item:", {
+                  id: item.id,
+                  name: item.name,
+                  type: item.type,
+                  unitPrice: item.unitPrice,
+                  hasMenuItem: !!item.menuItem,
+                  hasMaterial: !!item.material
+                });
+                
+                // Parse numeric values from strings
+                const unitPrice = typeof item.unitPrice === 'string' ? parseFloat(item.unitPrice) : item.unitPrice;
+                const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
+                
+                // Use the full menuItem or material object if available, otherwise create minimal object
+                const originalItem = item.menuItem || item.material || {
+                  id: item.menuItemId || item.materialId || item.id,
+                  name: item.name,
+                  price: unitPrice
+                };
+                
+                return {
+                  id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
+                  menuItemId: item.menuItemId?.toString() || undefined,
+                  materialId: item.materialId?.toString() || undefined,
+                  name: item.name,
+                  price: unitPrice,
+                  quantity: quantity,
+                  type: item.type as "menu_item" | "stock_entry" | "material",
+                  notes: item.notes || undefined,
+                  originalItem: originalItem as any,
+                  // Store the backend order item ID for updates
+                  orderItemId: item.id?.toString(),
+                  // Map selectedVariant from OrderItem to variant in POSCartItem
+                  variant: item.selectedVariant ? {
+                    id: item.selectedVariant.name,
+                    name: item.selectedVariant.name,
+                    volume: item.selectedVariant.volume,
+                    unit: item.selectedVariant.unit,
+                    price: typeof item.selectedVariant.price === 'string' 
+                      ? parseFloat(item.selectedVariant.price) 
+                      : item.selectedVariant.price
+                  } : undefined
+                };
+              });
+              
+              console.log("🛒 [POSClient] Setting cart items:", cartItems);
+              console.log("🛒 [POSClient] Cart items count:", cartItems.length);
+              console.log("🛒 [POSClient] First cart item:", cartItems[0]);
+              
+              // Set the cart with the order items
+              dispatch(setCart(cartItems));
+              
+              // Verify cart was set in Redux
+              setTimeout(() => {
+                console.log("✅ [POSClient] Cart verification after dispatch - current cart from Redux:", cart);
+                console.log("✅ [POSClient] Cart length from Redux:", cart.length);
+                if (cart.length === 0) {
+                  console.error("🚨 [POSClient] CRITICAL: Cart is EMPTY in Redux after setCart dispatch!");
+                }
+              }, 100);
+              
+              // Set order notes if any
+              if (fullOrder.notes) {
+                dispatch(setOrderNotesAction(fullOrder.notes));
+              }
+              
+              // Set discount if any
+              if (fullOrder.discountType && fullOrder.discountValue) {
+                dispatch(applyDiscountAction({
+                  type: fullOrder.discountType as "percentage" | "fixed",
+                  value: fullOrder.discountValue,
+                  reason: fullOrder.discountReason
+                }));
+              }
+              
+              showSuccess(`Loaded order for Table ${table.number}`);
+            } else {
+              console.log("⚠️ [POSClient] No incomplete orders found for table", table.number);
+              // Clear cart for new order
+              clearOrder();
+              clearCart();
+              showSuccess(`Table ${table.number} selected - Start new order`);
+            }
+          } catch (error) {
+            console.error("❌ [POSClient] Error loading table order:", error);
+            // Clear cart on error
+            clearOrder();
+            clearCart();
+            showError("Failed to load table order");
+          }
+        } else {
+          // No existing order - clear cart for new order
+          console.log("🆕 [POSClient] No existing order - starting fresh");
+          clearOrder();
+          clearCart();
+          showSuccess(`Table ${table.number} selected`);
+        }
       } catch (error) {
-        console.error("Error selecting table:", error);
+        console.error("❌ [POSClient] Error selecting table:", error);
         showError("Failed to select table");
       }
     },
-    [dispatch, clearOrder, clearCart, showSuccess, showError]
+    [dispatch, clearOrder, clearCart, showSuccess, showError, tableOrders, loadOrder]
   );
 
   // Save order handler

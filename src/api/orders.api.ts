@@ -6,7 +6,7 @@ export const ordersAPI = {
   createOrder: (data: CreateOrderData) => api.post<Order, CreateOrderData>("/orders", data),
 
   // Get all orders with optional filters
-  getOrders: (params?: { status?: string; orderType?: string; tableId?: string; startDate?: string; endDate?: string; limit?: number; offset?: number }) => api.get<OrderSummary[]>("/orders", params ? ({ params } as any) : undefined),
+  getOrders: (params?: { status?: string; orderType?: string; tableId?: string; tableNumber?: number; startDate?: string; endDate?: string; limit?: number; offset?: number }) => api.get<OrderSummary[]>("/orders", params ? ({ params } as any) : undefined),
 
   // Get staff/employee orders only with optional filters
   getStaffOrders: (params?: { status?: string; tableId?: string; startDate?: string; endDate?: string; limit?: number; offset?: number; orderBy?: string; order?: "ASC" | "DESC" }) => api.get<Order[]>("/orders/staff", params ? ({ params } as any) : undefined),

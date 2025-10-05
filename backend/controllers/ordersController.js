@@ -1360,7 +1360,7 @@ export const ordersController = {
 
   getOrders: async (req, res) => {
     try {
-      const { status, orderType, tableId, startDate, endDate, limit = 50, offset = 0, orderBy = "createdAt", order = "DESC" } = req.query;
+      const { status, orderType, tableId, tableNumber, startDate, endDate, limit = 50, offset = 0, orderBy = "createdAt", order = "DESC" } = req.query;
       const whereClause = {};
       if (status) whereClause.status = status;
       const excludedTypes = ["employees", "staff"];
@@ -1373,6 +1373,16 @@ export const ordersController = {
         whereClause[Op.and] = [...(whereClause[Op.and] || []), sequelize.where(sequelize.cast(sequelize.col("orderType"), "text"), { [Op.notIn]: excludedTypes })];
       }
       if (tableId) whereClause.tableId = tableId;
+      
+      // Handle tableNumber parameter by looking up table ID
+      if (tableNumber && !tableId) {
+        const table = await Table.findOne({
+          where: { number: parseInt(tableNumber) }
+        });
+        if (table) {
+          whereClause.tableId = table.id;
+        }
+      }
       if (startDate || endDate) {
         whereClause.createdAt = {};
         if (startDate) whereClause.createdAt[Op.gte] = new Date(startDate);

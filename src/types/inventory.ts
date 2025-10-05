@@ -594,7 +594,7 @@ export interface ReceiptData {
     quantity: number;
     unitPrice: number;
     totalPrice: number;
-    type: "material" | "menu_item";
+    type: "material" | "menu_item" | "stock_entry";
   }>;
   subtotal: number;
   tax: number;
@@ -638,7 +638,7 @@ export interface POSCartItem {
   name: string;
   price: number;
   quantity: number;
-  type: "material" | "menu_item";
+  type: "material" | "menu_item" | "stock_entry";
   originalItem: StockEntryWithMaterial | MenuItem;
   posItem?: POSItem;
   stockEntryId?: string;

@@ -41,8 +41,17 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
-  type: "material" | "menu_item";
+  type: "material" | "menu_item" | "stock_entry";
   notes?: string;
+  selectedVariant?: {
+    name: string;
+    volume: number;
+    unit: string;
+    price: number;
+  };
+  // Populated objects from backend (when included in query)
+  menuItem?: any; // Full MenuItem object
+  material?: any; // Full Material object
 }
 
 export interface Order {
@@ -92,7 +101,7 @@ export interface CreateOrderData {
     quantity: number;
     unitPrice: number;
     totalPrice: number;
-    type: "material" | "menu_item";
+    type: "material" | "menu_item" | "stock_entry";
     notes?: string;
   }[];
   notes?: string;
