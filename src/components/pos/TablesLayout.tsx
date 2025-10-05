@@ -3,191 +3,221 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Table, TablesLayoutProps } from "@/types/inventory";
 import { formatCurrency } from "@/utils/conversionLogic";
-import { tablesAPI } from "@/api/tables.api";
-import { ordersAPI } from "@/api/orders.api";
 import { Clock, Move, Circle, Square, RectangleHorizontal, Trash2, Settings, Printer, X } from "lucide-react";
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { formatTime, getTableShape, getTableStatusColor } from "./constants";
 import { RenameTableModal, TransferTableModal, InactiveTablesModal, DeleteTableModal } from "@/components/tables";
 import { TableContextMenu } from "../ui/TableContextMenu";
 import ClearTableModal from "../tables/ClearTableModal";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  fetchTables,
+  fetchInactiveTables,
+  setSelectedTable,
+  setHoveredTable,
+  setPopupPosition,
+  setArrangeMode,
+  setDragMode,
+  setSelectedTool,
+  setDragState,
+  setTempPosition,
+  clearTempPosition,
+  setIsUpdatingPosition,
+  setShowRenameModal,
+  setShowTransferModal,
+  setShowInactiveTablesModal,
+  setShowDeleteModal,
+  setShowClearModal,
+  setIsContextMenuOpen,
+  setSelectedTableForAction,
+  setTableToClear,
+  setTransferSourceTable,
+  setTransferSourceOrder,
+  clearTransferState,
+  updateTablePosition,
+  deleteTable,
+  clearTableReservation,
+  createTable,
+  fetchTableOrder
+} from "@/store/slices/tablesSlice";
+import {
+  selectTables,
+  selectSelectedTable,
+  selectHoveredTable,
+  selectPopupPosition,
+  selectIsArrangeMode,
+  selectIsDragMode,
+  selectSelectedTool,
+  selectDragState,
+  selectTempPositions,
+  selectIsUpdatingPosition,
+  selectShowRenameModal,
+  selectShowTransferModal,
+  selectShowInactiveTablesModal,
+  selectShowDeleteModal,
+  selectShowClearModal,
+  selectIsContextMenuOpen,
+  selectSelectedTableForAction,
+  selectTableToClear,
+  selectTransferSourceTable,
+  selectTransferSourceOrder,
+  selectInactiveTablesCount,
+  selectIsDeleting,
+  selectTableOrders,
+  selectPrintedTables
+} from "@/store/slices/tablesSelectors";
 
-export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTable, onTableSelect, onClose, tableOrders = {}, printedTables = [], hideHeaderFooter = false }) => {
+export const TablesLayout: React.FC<TablesLayoutProps> = ({ onTableSelect, onClose, hideHeaderFooter = false }) => {
+  const dispatch = useAppDispatch();
+
+  // Redux selectors
+  const tables = useAppSelector(selectTables);
+  const selectedTable = useAppSelector(selectSelectedTable);
+  const hoveredTable = useAppSelector(selectHoveredTable);
+  const popupPosition = useAppSelector(selectPopupPosition);
+  const isArrangeMode = useAppSelector(selectIsArrangeMode);
+  const isDragMode = useAppSelector(selectIsDragMode);
+  const selectedTool = useAppSelector(selectSelectedTool);
+  const dragState = useAppSelector(selectDragState);
+  const tempPositions = useAppSelector(selectTempPositions);
+  const isUpdatingPosition = useAppSelector(selectIsUpdatingPosition);
+  const showRenameModal = useAppSelector(selectShowRenameModal);
+  const showTransferModal = useAppSelector(selectShowTransferModal);
+  const showInactiveTablesModal = useAppSelector(selectShowInactiveTablesModal);
+  const showDeleteConfirmModal = useAppSelector(selectShowDeleteModal);
+  const showClearDialog = useAppSelector(selectShowClearModal);
+  const isContextMenuOpen = useAppSelector(selectIsContextMenuOpen);
+  const selectedTableForAction = useAppSelector(selectSelectedTableForAction);
+  const tableToClear = useAppSelector(selectTableToClear);
+  const transferSourceTable = useAppSelector(selectTransferSourceTable);
+  const transferSourceOrder = useAppSelector(selectTransferSourceOrder);
+  const inactiveTablesCount = useAppSelector(selectInactiveTablesCount);
+  const isDeletingTable = useAppSelector(selectIsDeleting);
+  const tableOrders = useAppSelector(selectTableOrders);
+  const printedTables = useAppSelector(selectPrintedTables);
+
+  // Refs
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const dragStateRef = useRef(dragState);
+
   console.log("🎯 [TablesLayout] COMPONENT RENDERING");
-  console.log("🎯 [TablesLayout] Props received:", {
+  console.log("🎯 [TablesLayout] Redux state:", {
     tablesCount: tables?.length || 0,
     selectedTable,
     tableOrders,
-    printedTables: printedTables?.length || 0
+    printedTablesCount: printedTables?.length || 0
   });
 
-  const safeTablesList = useMemo(() => {
-    const result = Array.isArray(tables) ? tables : [];
-    console.log("🎯 [TablesLayout] safeTablesList created with", result.length, "tables");
-    return result;
-  }, [tables]);
-  const [updatedTables, setUpdatedTables] = useState<Table[]>(safeTablesList);
-  const [hoveredTable, setHoveredTable] = useState<Table | null>(null);
-  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const layoutRef = useRef<HTMLDivElement>(null);
-  const [isDragMode, setIsDragMode] = useState(false);
-  const [isArrangeMode, setIsArrangeMode] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<string>("select");
-  const [, setIsCreatingTable] = useState(false);
-  const [dragState, setDragState] = useState<{
-    isDragging: boolean;
-    tableId: string;
-    offset: { x: number; y: number };
-    startPosition: { x: number; y: number };
-  } | null>(null);
-  const dragStateRef = useRef(dragState);
-  const [tempPositions, setTempPositions] = useState<Record<string, { x: number; y: number }>>({});
-  const [isUpdatingPosition, setIsUpdatingPosition] = useState<string | null>(null);
-  const [showRenameModal, setShowRenameModal] = useState(false);
-  const [showTransferModal, setShowTransferModal] = useState(false);
-  const [showInactiveTablesModal, setShowInactiveTablesModal] = useState(false);
-  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
-  const [selectedTableForAction, setSelectedTableForAction] = useState<Table | null>(null);
-  const [selectedOrderForTransfer, setSelectedOrderForTransfer] = useState<any>(null);
-  const [inactiveTablesCount, setInactiveTablesCount] = useState(0);
-  const [isDeletingTable, setIsDeletingTable] = useState(false);
-  const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
-  const [showClearDialog, setShowClearDialog] = useState(false);
-  const [tableToClear, setTableToClear] = useState<Table | null>(null);
-
+  // Fetch tables on mount
   useEffect(() => {
-    setUpdatedTables(safeTablesList);
-    fetchInactiveTablesCount();
-  }, [safeTablesList]);
+    dispatch(fetchTables({ includeOrders: true }));
+    dispatch(fetchInactiveTables());
+  }, [dispatch]);
 
-  const fetchInactiveTablesCount = async () => {
-    try {
-      const response = await tablesAPI.getTables();
-      let allTables = [];
-      if (Array.isArray(response)) {
-        allTables = response;
-      } else {
-        console.error("Unexpected API response structure:", response);
-        setInactiveTablesCount(0);
-        return;
-      }
-      const inactiveCount = allTables.filter(table => table.isActive === false).length;
-      setInactiveTablesCount(inactiveCount);
-    } catch (error) {
-      console.error("Failed to fetch inactive tables count:", error);
-      setInactiveTablesCount(0);
-    }
-  };
-
-  const refreshTablesData = async () => {
-    try {
-      const response = await tablesAPI.getTables({ includeOrders: true });
-      let freshTables = [];
-      if (Array.isArray(response)) {
-        freshTables = response;
-      } else {
-        console.error("Unexpected API response structure:", response);
-        return;
-      }
-      const activeTables = freshTables.filter(table => table.isActive !== false);
-      setUpdatedTables([...activeTables]);
-      await fetchInactiveTablesCount();
-    } catch (error) {
-      console.error("❌ Failed to refresh tables data:", error);
-    }
-  };
+  const refreshTablesData = useCallback(async () => {
+    await dispatch(fetchTables({ includeOrders: true })).unwrap();
+    await dispatch(fetchInactiveTables()).unwrap();
+  }, [dispatch]);
 
   useEffect(() => {
     dragStateRef.current = dragState;
   }, [dragState]);
 
-  const handleRenameTable = (table: Table) => {
-    console.log("✏️ [TablesLayout] handleRenameTable called for table:", table);
-    setSelectedTableForAction(table);
-    setShowRenameModal(true);
-    console.log("✅ [TablesLayout] Rename modal state set to true");
-  };
+  const handleRenameTable = useCallback(
+    (table: Table) => {
+      console.log("✏️ [TablesLayout] handleRenameTable called for table:", table);
+      dispatch(setSelectedTableForAction(table));
+      dispatch(setShowRenameModal(true));
+      console.log("✅ [TablesLayout] Rename modal state set to true");
+    },
+    [dispatch]
+  );
 
-  const handleTransferOrder = async (table: Table) => {
-    console.log("🔄 [TablesLayout] handleTransferOrder called for table:", table);
-    try {
-      if (!table.currentOrder?.orderId) {
-        console.log("❌ [TablesLayout] No order found for table", table.number);
-        toast.error("No order found for this table");
+  const handleTransferOrder = useCallback(
+    async (table: Table) => {
+      console.log("🔄 [TablesLayout] handleTransferOrder called for table:", table);
+      try {
+        if (!table.currentOrder?.orderId) {
+          console.log("❌ [TablesLayout] No order found for table", table.number);
+          toast.error("No order found for this table");
+          return;
+        }
+        console.log("📡 [TablesLayout] Fetching order details for orderId:", table.currentOrder.orderId);
+        const fullOrderData = await dispatch(fetchTableOrder(table.currentOrder.orderId)).unwrap();
+        console.log("✅ [TablesLayout] Order data fetched:", fullOrderData);
+        dispatch(setSelectedTableForAction(table));
+        dispatch(setTransferSourceTable(table));
+        dispatch(setTransferSourceOrder(fullOrderData));
+        dispatch(setShowTransferModal(true));
+        console.log("✅ [TablesLayout] Transfer modal state set to true");
+      } catch (error: any) {
+        console.error("❌ [TablesLayout] Failed to fetch order details:", error);
+        toast.error("Failed to load order details");
+      }
+    },
+    [dispatch]
+  );
+
+  const handleDeleteTable = useCallback(
+    (table: Table) => {
+      console.log("🗑️ [TablesLayout] handleDeleteTable called for table:", table);
+      if (table.status === "opened") {
+        console.log("❌ [TablesLayout] Cannot delete table with active orders");
+        toast.error("Cannot delete table with active orders");
         return;
       }
-      console.log("📡 [TablesLayout] Fetching order details for orderId:", table.currentOrder.orderId);
-      const orderResponse = await ordersAPI.getOrder(table.currentOrder.orderId);
-      const responseData = orderResponse.data as { data?: any } | any;
-      const fullOrderData = responseData.data || responseData;
-      console.log("✅ [TablesLayout] Order data fetched:", fullOrderData);
-      setSelectedTableForAction(table);
-      setSelectedOrderForTransfer(fullOrderData);
-      setShowTransferModal(true);
-      console.log("✅ [TablesLayout] Transfer modal state set to true");
-    } catch (error: any) {
-      console.error("❌ [TablesLayout] Failed to fetch order details:", error);
-      toast.error("Failed to load order details");
-    }
-  };
+      dispatch(setSelectedTableForAction(table));
+      dispatch(setShowDeleteModal(true));
+      console.log("✅ [TablesLayout] Delete modal state set to true");
+    },
+    [dispatch]
+  );
 
-  const handleDeleteTable = (table: Table) => {
-    console.log("🗑️ [TablesLayout] handleDeleteTable called for table:", table);
-    if (table.status === "opened") {
-      console.log("❌ [TablesLayout] Cannot delete table with active orders");
-      toast.error("Cannot delete table with active orders");
-      return;
-    }
-    setSelectedTableForAction(table);
-    setShowDeleteConfirmModal(true);
-    console.log("✅ [TablesLayout] Delete modal state set to true");
-  };
+  const requestClearTable = useCallback(
+    (table: Table) => {
+      console.log("🧹 [TablesLayout] requestClearTable called for table:", table);
+      dispatch(setTableToClear(table));
+      dispatch(setShowClearModal(true));
+      console.log("✅ [TablesLayout] Clear dialog state set to true");
+    },
+    [dispatch]
+  );
 
-  const requestClearTable = (table: Table) => {
-    console.log("🧹 [TablesLayout] requestClearTable called for table:", table);
-    setTableToClear(table);
-    setShowClearDialog(true);
-    console.log("✅ [TablesLayout] Clear dialog state set to true");
-  };
+  const handleClearTable = useCallback(
+    async (table: Table) => {
+      try {
+        await dispatch(clearTableReservation(table.id.toString())).unwrap();
+        toast.success(`Table ${table.number} has been cleared`);
+      } catch (error: any) {
+        console.error("Failed to clear table:", error);
+        toast.error(error.response?.data?.message || "Failed to clear table");
+      }
+    },
+    [dispatch]
+  );
 
-  const handleClearTable = async (table: Table) => {
-    try {
-      const response = await tablesAPI.clearReservation(table.id.toString());
-      const respData: any = response.data as any;
-      const updatedTable = respData?.table || respData;
-      setUpdatedTables(prev => prev.map(t => (t.id === table.id ? updatedTable : t)));
-      toast.success(`Table ${table.number} has been cleared`);
-    } catch (error: any) {
-      console.error("Failed to clear table:", error);
-      toast.error(error.response?.data?.message || "Failed to clear table");
-    }
-  };
-
-  const confirmClearTable = async () => {
+  const confirmClearTable = useCallback(async () => {
     if (!tableToClear) return;
     await handleClearTable(tableToClear);
-    setShowClearDialog(false);
-    setTableToClear(null);
-  };
+    dispatch(setShowClearModal(false));
+    dispatch(setTableToClear(null));
+  }, [tableToClear, handleClearTable, dispatch]);
 
-  const confirmDeleteTable = async () => {
+  const confirmDeleteTable = useCallback(async () => {
     if (!selectedTableForAction) return;
-    setIsDeletingTable(true);
     try {
-      await tablesAPI.deleteTable(selectedTableForAction.id.toString());
+      await dispatch(deleteTable(selectedTableForAction.id.toString())).unwrap();
       toast.success(`Table ${selectedTableForAction.number} deleted`);
       await refreshTablesData();
-      setShowDeleteConfirmModal(false);
-      setSelectedTableForAction(null);
+      dispatch(setShowDeleteModal(false));
+      dispatch(setSelectedTableForAction(null));
     } catch (error: any) {
       console.error("Delete table error:", error);
       toast.error(error.response?.data?.message || "Failed to delete table");
-    } finally {
-      setIsDeletingTable(false);
     }
-  };
+  }, [selectedTableForAction, dispatch, refreshTablesData]);
 
   const constrainPosition = useCallback((x: number, y: number) => {
     const constrainedX = Math.max(8, Math.min(x, 92));
@@ -214,22 +244,24 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       const rect = canvasRef.current.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
-      const currentTable = updatedTables.find(t => t.id === table.id);
+      const currentTable = tables.find(t => t.id === table.id);
       const currentPosition = currentTable?.position || { x: 50, y: 50 };
       const tableCenterX = (currentPosition.x / 100) * rect.width;
       const tableCenterY = (currentPosition.y / 100) * rect.height;
       const offsetX = mouseX - tableCenterX;
       const offsetY = mouseY - tableCenterY;
-      setDragState({
-        isDragging: true,
-        tableId: table.id,
-        offset: { x: offsetX, y: offsetY },
-        startPosition: currentPosition
-      });
+      dispatch(
+        setDragState({
+          isDragging: true,
+          tableId: table.id,
+          offset: { x: offsetX, y: offsetY },
+          startPosition: currentPosition
+        })
+      );
       document.body.style.cursor = "grabbing";
       document.body.style.userSelect = "none";
     },
-    [isDragMode, updatedTables]
+    [isDragMode, tables, dispatch]
   );
 
   const handleGlobalMouseMove = useCallback(
@@ -243,12 +275,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       const newCenterX = mouseX - currentDragState.offset.x;
       const newCenterY = mouseY - currentDragState.offset.y;
       const newPosition = pixelToPercentage(newCenterX, newCenterY);
-      setTempPositions(prev => ({
-        ...prev,
-        [currentDragState.tableId]: newPosition
-      }));
+      dispatch(setTempPosition({ tableId: currentDragState.tableId, position: newPosition }));
     },
-    [pixelToPercentage]
+    [pixelToPercentage, dispatch]
   );
 
   const handleGlobalMouseUp = useCallback(async () => {
@@ -257,30 +286,15 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
     const finalPosition = tempPositions[currentDragState.tableId];
     if (finalPosition) {
       try {
-        setIsUpdatingPosition(currentDragState.tableId);
-        await tablesAPI.updateTable(currentDragState.tableId, {
-          position: finalPosition
-        });
-        setUpdatedTables(prev => prev.map(table => (table.id === currentDragState.tableId ? { ...table, position: finalPosition } : table)));
-        setTempPositions(prev => {
-          const newPositions = { ...prev };
-          delete newPositions[currentDragState.tableId];
-          return newPositions;
-        });
+        await dispatch(updateTablePosition({ tableId: currentDragState.tableId, position: finalPosition })).unwrap();
       } catch (error) {
         console.error("Failed to update table position:", error);
         toast.error("Failed to update table position");
-        setTempPositions(prev => {
-          const newPositions = { ...prev };
-          delete newPositions[currentDragState.tableId];
-          return newPositions;
-        });
-      } finally {
-        setIsUpdatingPosition(null);
+        dispatch(clearTempPosition(currentDragState.tableId));
       }
     }
-    setDragState(null);
-  }, [tempPositions]);
+    dispatch(setDragState(null));
+  }, [tempPositions, dispatch]);
 
   useEffect(() => {
     if (dragState?.isDragging) {
@@ -304,30 +318,33 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   const handleTableClick = useCallback(
     (table: Table) => {
       if (!isDragMode && !isArrangeMode) {
+        dispatch(setSelectedTable(table));
         onTableSelect(table);
       }
     },
-    [isDragMode, isArrangeMode, onTableSelect]
+    [isDragMode, isArrangeMode, onTableSelect, dispatch]
   );
 
   const handleTableHover = useCallback(
     (table: Table, e: React.MouseEvent) => {
       if (isDragMode || isArrangeMode) return;
       if (table.status === "opened" && table.currentOrder) {
-        setHoveredTable(table);
-        setPopupPosition({
-          x: e.clientX,
-          y: e.clientY - 10
-        });
+        dispatch(setHoveredTable(table));
+        dispatch(
+          setPopupPosition({
+            x: e.clientX,
+            y: e.clientY - 10
+          })
+        );
       }
     },
-    [isDragMode, isArrangeMode]
+    [isDragMode, isArrangeMode, dispatch]
   );
 
   const handleTableLeave = useCallback(() => {
-    setHoveredTable(null);
-    setPopupPosition(null);
-  }, []);
+    dispatch(setHoveredTable(null));
+    dispatch(setPopupPosition(null));
+  }, [dispatch]);
 
   const handleCanvasClick = useCallback(
     async (e: React.MouseEvent) => {
@@ -348,8 +365,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
       const config = tableConfigs[selectedTool as keyof typeof tableConfigs];
       if (!config) return;
       try {
-        setIsCreatingTable(true);
-        const existingNumbers = updatedTables.map(t => t.number);
+        const existingNumbers = tables.map(t => t.number);
         const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
         const nextNumber = maxNumber + 1;
         const newTableData = {
@@ -358,19 +374,15 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           shape: config.shape,
           position: constrainedPosition
         };
-        const response = await tablesAPI.createTable(newTableData);
-        const newTable = response.data.table || response.data;
-        setUpdatedTables(prev => [...prev, newTable]);
+        await dispatch(createTable(newTableData)).unwrap();
         toast.success(`Table ${nextNumber} created successfully`);
-        setSelectedTool("select");
+        dispatch(setSelectedTool("select"));
       } catch (error) {
         console.error("Failed to create table:", error);
         toast.error("Failed to create table");
-      } finally {
-        setIsCreatingTable(false);
       }
     },
-    [selectedTool, isDragMode, isArrangeMode, constrainPosition, updatedTables]
+    [selectedTool, isDragMode, isArrangeMode, constrainPosition, tables, dispatch]
   );
 
   return (
@@ -401,7 +413,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                       { tool: "square-table", label: null, icon: Square, title: "Create Square Table" },
                       { tool: "rectangular-table", label: null, icon: RectangleHorizontal, title: "Create Rectangular Table" }
                     ].map(({ tool, label, icon: Icon, title }) => (
-                      <Button key={tool} variant={selectedTool === tool ? "default" : "outline"} size="sm" onClick={() => setSelectedTool(tool)} disabled={isDragMode} className="flex items-center gap-1" title={title}>
+                      <Button key={tool} variant={selectedTool === tool ? "default" : "outline"} size="sm" onClick={() => dispatch(setSelectedTool(tool as any))} disabled={isDragMode} className="flex items-center gap-1" title={title}>
                         {Icon && <Icon className="w-3 h-3" />}
                         {label}
                       </Button>
@@ -422,9 +434,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                     variant={isDragMode ? "outline" : "outline"}
                     size="sm"
                     onClick={() => {
-                      setIsDragMode(!isDragMode);
+                      dispatch(setDragMode(!isDragMode));
                       if (!isDragMode) {
-                        setSelectedTool("select");
+                        dispatch(setSelectedTool("select"));
                       }
                     }}
                     className={isDragMode ? "bg-red-500/10 border border-red-500" : ""}
@@ -435,7 +447,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
 
                   <Separator orientation="vertical" className="h-6" />
 
-                  <Button variant="outline" size="sm" onClick={() => setShowInactiveTablesModal(true)} className="relative">
+                  <Button variant="outline" size="sm" onClick={() => dispatch(setShowInactiveTablesModal(true))} className="relative">
                     Manage Tables
                     {inactiveTablesCount > 0 && <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{inactiveTablesCount}</span>}
                   </Button>
@@ -446,9 +458,9 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setIsArrangeMode(false);
-                      setIsDragMode(false);
-                      setSelectedTool("select");
+                      dispatch(setArrangeMode(false));
+                      dispatch(setDragMode(false));
+                      dispatch(setSelectedTool("select"));
                     }}
                     className="text-red-600 hover:bg-red-50"
                   >
@@ -461,8 +473,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      setIsArrangeMode(true);
-                      setSelectedTool("select");
+                      dispatch(setArrangeMode(true));
+                      dispatch(setSelectedTool("select"));
                     }}
                   >
                     <Settings className="w-4 h-4 mr-2" />
@@ -494,7 +506,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                   e.preventDefault();
                 }}
               >
-                {safeTablesList.length === 0 ? (
+                {tables.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center text-gray-500">
                       <div className="text-lg font-medium mb-2">No tables available</div>
@@ -503,7 +515,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                   </div>
                 ) : (
                   <div className="relative w-full h-full">
-                    {updatedTables.map((table, index) => {
+                    {tables.map((table, index) => {
                       const basePosition = table.position || {
                         ...constrainPosition(15 + (index % 4) * 20, 20 + Math.floor(index / 4) * 20)
                       };
@@ -578,10 +590,10 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
                                 onClear={requestClearTable}
                                 onDelete={handleDeleteTable}
                                 onOpenChange={open => {
-                                  setIsContextMenuOpen(open);
+                                  dispatch(setIsContextMenuOpen(open));
                                   if (open) {
-                                    setHoveredTable(null);
-                                    setPopupPosition(null);
+                                    dispatch(setHoveredTable(null));
+                                    dispatch(setPopupPosition(null));
                                   }
                                 }}
                               >
@@ -692,56 +704,51 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         )}
 
         {/* Modals */}
-        <ClearTableModal showClearDialog={showClearDialog} setShowClearDialog={setShowClearDialog} tableToClear={tableToClear} confirmClearTable={confirmClearTable} setTableToClear={setTableToClear} />
+        <ClearTableModal showClearDialog={showClearDialog} setShowClearDialog={show => dispatch(setShowClearModal(show))} tableToClear={tableToClear} confirmClearTable={confirmClearTable} setTableToClear={table => dispatch(setTableToClear(table))} />
 
         <RenameTableModal
           isOpen={showRenameModal}
           onClose={() => {
-            setShowRenameModal(false);
-            setSelectedTableForAction(null);
+            dispatch(setShowRenameModal(false));
+            dispatch(setSelectedTableForAction(null));
           }}
           table={selectedTableForAction}
-          onTableRenamed={updatedTable => {
-            setUpdatedTables(prev => prev.map(table => (table.id === updatedTable.id ? updatedTable : table)));
-            setShowRenameModal(false);
-            setSelectedTableForAction(null);
+          onTableRenamed={async () => {
+            await refreshTablesData();
+            dispatch(setShowRenameModal(false));
+            dispatch(setSelectedTableForAction(null));
             toast.success("Table renamed successfully");
           }}
         />
 
         {console.log("🔍 [TablesLayout] TransferTableModal render check:", {
           showTransferModal,
-          selectedTableForAction,
-          selectedOrderForTransfer,
-          updatedTablesCount: updatedTables.length
+          transferSourceTable,
+          transferSourceOrder,
+          tablesCount: tables.length
         })}
         <TransferTableModal
           isOpen={showTransferModal}
           onClose={() => {
             console.log("❌ [TablesLayout] TransferTableModal onClose called");
-            setShowTransferModal(false);
-            setSelectedTableForAction(null);
-            setSelectedOrderForTransfer(null);
+            dispatch(setShowTransferModal(false));
+            dispatch(clearTransferState());
           }}
-          tables={updatedTables}
-          sourceTable={selectedTableForAction}
-          sourceOrder={selectedOrderForTransfer}
+          tables={tables}
+          sourceTable={transferSourceTable}
+          sourceOrder={transferSourceOrder}
           onTransferComplete={async () => {
             console.log("✅ [TablesLayout] Transfer completed, refreshing data...");
-            setShowTransferModal(false);
-            setSelectedTableForAction(null);
-            setSelectedOrderForTransfer(null);
-
-            // Force immediate refresh with fresh data
+            dispatch(setShowTransferModal(false));
+            dispatch(clearTransferState());
             await refreshTablesData();
-
             toast.success("Transfer completed successfully");
           }}
         />
 
         <InactiveTablesModal
           isOpen={showInactiveTablesModal}
-          onClose={() => setShowInactiveTablesModal(false)}
+          onClose={() => dispatch(setShowInactiveTablesModal(false))}
           onTableActivated={() => {
             refreshTablesData();
           }}
@@ -750,8 +757,8 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
         <DeleteTableModal
           isOpen={showDeleteConfirmModal}
           onClose={() => {
-            setShowDeleteConfirmModal(false);
-            setSelectedTableForAction(null);
+            dispatch(setShowDeleteModal(false));
+            dispatch(setSelectedTableForAction(null));
           }}
           onConfirmDelete={confirmDeleteTable}
           table={selectedTableForAction}

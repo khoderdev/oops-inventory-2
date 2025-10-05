@@ -14,35 +14,19 @@ interface TableContextMenuProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-export const TableContextMenu = ({
-  table,
-  tableOrders,
-  onRename,
-  onTransfer,
-  onClear,
-  onDelete,
-  children,
-  onOpenChange
-}: TableContextMenuProps) => {
+export const TableContextMenu = ({ table, tableOrders, onRename, onTransfer, onClear, onDelete, children, onOpenChange }: TableContextMenuProps) => {
   return (
     <ContextMenu.Root onOpenChange={onOpenChange}>
-      <ContextMenu.Trigger asChild>
-        {children}
-      </ContextMenu.Trigger>
+      <ContextMenu.Trigger asChild>{children}</ContextMenu.Trigger>
 
       <ContextMenu.Portal>
-        <ContextMenu.Content 
-          className="min-w-[220px] bg-white rounded-md overflow-hidden p-1 shadow-lg border border-gray-200 z-[9999]"
-          onContextMenu={(e) => e.preventDefault()}
-        >
+        <ContextMenu.Content className="min-w-[220px] bg-white rounded-md overflow-hidden p-1 shadow-lg border border-gray-200 z-[9999]" onContextMenu={e => e.preventDefault()}>
           {table && (
             <>
-              <ContextMenu.Label className="px-2 py-1 text-sm font-medium text-gray-700">
-                Table {table.number}
-              </ContextMenu.Label>
+              <ContextMenu.Label className="px-2 py-1 text-sm font-medium text-gray-700">Table {table.number}</ContextMenu.Label>
               <ContextMenu.Separator className="h-px bg-gray-200 m-1" />
 
-              <ContextMenu.Item 
+              <ContextMenu.Item
                 className="text-sm text-gray-700 flex items-center px-2 py-1.5 rounded hover:bg-gray-100 outline-none cursor-pointer"
                 onClick={() => {
                   console.log("✏️ [TableContextMenu] Rename clicked for table:", table);
@@ -54,7 +38,7 @@ export const TableContextMenu = ({
               </ContextMenu.Item>
 
               {(table.status === "opened" || table.currentOrder || tableOrders[table.number?.toString()]) && (
-                <ContextMenu.Item 
+                <ContextMenu.Item
                   className="text-sm text-gray-700 flex items-center px-2 py-1.5 rounded hover:bg-gray-100 outline-none cursor-pointer"
                   onClick={() => {
                     console.log("🔄 [TableContextMenu] Transfer clicked for table:", table);
@@ -71,12 +55,8 @@ export const TableContextMenu = ({
                 </ContextMenu.Item>
               )}
 
-              <ContextMenu.Item 
-                className={`text-sm flex items-center px-2 py-1.5 rounded outline-none cursor-pointer ${
-                  table.status !== "opened" && table.status !== "reserved" 
-                    ? "text-gray-400 cursor-not-allowed" 
-                    : "text-orange-600 hover:bg-orange-50"
-                }`}
+              <ContextMenu.Item
+                className={`text-sm flex items-center px-2 py-1.5 rounded outline-none cursor-pointer ${table.status !== "opened" && table.status !== "reserved" ? "text-gray-400 cursor-not-allowed" : "text-orange-600 hover:bg-orange-50"}`}
                 onClick={() => {
                   console.log("🧹 [TableContextMenu] Clear clicked for table:", table);
                   if (table.status === "opened" || table.status === "reserved") {
@@ -93,12 +73,8 @@ export const TableContextMenu = ({
 
               <ContextMenu.Separator className="h-px bg-gray-200 m-1" />
 
-              <ContextMenu.Item 
-                className={`text-sm flex items-center px-2 py-1.5 rounded outline-none cursor-pointer ${
-                  table.status === "opened" 
-                    ? "text-gray-400 cursor-not-allowed" 
-                    : "text-red-600 hover:bg-red-50"
-                }`}
+              <ContextMenu.Item
+                className={`text-sm flex items-center px-2 py-1.5 rounded outline-none cursor-pointer ${table.status === "opened" ? "text-gray-400 cursor-not-allowed" : "text-red-600 hover:bg-red-50"}`}
                 onClick={() => {
                   console.log("🗑️ [TableContextMenu] Delete clicked for table:", table);
                   if (table.status !== "opened") {

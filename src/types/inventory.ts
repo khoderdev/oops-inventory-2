@@ -872,12 +872,8 @@ export interface Table {
 }
 
 export interface TablesLayoutProps {
-  tables: Table[];
-  selectedTable?: Table;
   onTableSelect: (table: Table) => void;
   onClose: () => void;
-  tableOrders?: { [tableId: string]: number };
-  printedTables?: string[];
   hideHeaderFooter?: boolean;
 }
 

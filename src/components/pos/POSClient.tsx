@@ -1026,9 +1026,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         >
           <TablesLayout 
             onTableSelect={handleTableSelection} 
-            tables={tables} 
-            tableOrders={tableOrders} 
-            selectedTable={selectedTable} 
             onClose={() => dispatch(setShowTablesLayoutAction(false))} 
             hideHeaderFooter={false}
           />
