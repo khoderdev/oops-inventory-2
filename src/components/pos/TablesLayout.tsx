@@ -104,40 +104,52 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
   }, [dragState]);
 
   const handleRenameTable = (table: Table) => {
+    console.log("✏️ [TablesLayout] handleRenameTable called for table:", table);
     setSelectedTableForAction(table);
     setShowRenameModal(true);
+    console.log("✅ [TablesLayout] Rename modal state set to true");
   };
 
   const handleTransferOrder = async (table: Table) => {
+    console.log("🔄 [TablesLayout] handleTransferOrder called for table:", table);
     try {
       if (!table.currentOrder?.orderId) {
+        console.log("❌ [TablesLayout] No order found for table", table.number);
         toast.error("No order found for this table");
         return;
       }
+      console.log("📡 [TablesLayout] Fetching order details for orderId:", table.currentOrder.orderId);
       const orderResponse = await ordersAPI.getOrder(table.currentOrder.orderId);
       const responseData = orderResponse.data as { data?: any } | any;
       const fullOrderData = responseData.data || responseData;
+      console.log("✅ [TablesLayout] Order data fetched:", fullOrderData);
       setSelectedTableForAction(table);
       setSelectedOrderForTransfer(fullOrderData);
       setShowTransferModal(true);
+      console.log("✅ [TablesLayout] Transfer modal state set to true");
     } catch (error: any) {
-      console.error("Failed to fetch order details:", error);
+      console.error("❌ [TablesLayout] Failed to fetch order details:", error);
       toast.error("Failed to load order details");
     }
   };
 
   const handleDeleteTable = (table: Table) => {
+    console.log("🗑️ [TablesLayout] handleDeleteTable called for table:", table);
     if (table.status === "opened") {
+      console.log("❌ [TablesLayout] Cannot delete table with active orders");
       toast.error("Cannot delete table with active orders");
       return;
     }
     setSelectedTableForAction(table);
     setShowDeleteConfirmModal(true);
+    console.log("✅ [TablesLayout] Delete modal state set to true");
   };
 
   const requestClearTable = (table: Table) => {
+    console.log("🧹 [TablesLayout] requestClearTable called for table:", table);
     setTableToClear(table);
     setShowClearDialog(true);
+    console.log("✅ [TablesLayout] Clear dialog state set to true");
   };
 
   const handleClearTable = async (table: Table) => {
@@ -697,9 +709,16 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           }}
         />
 
+        {console.log("🔍 [TablesLayout] TransferTableModal render check:", {
+          showTransferModal,
+          selectedTableForAction,
+          selectedOrderForTransfer,
+          updatedTablesCount: updatedTables.length
+        })}
         <TransferTableModal
           isOpen={showTransferModal}
           onClose={() => {
+            console.log("❌ [TablesLayout] TransferTableModal onClose called");
             setShowTransferModal(false);
             setSelectedTableForAction(null);
             setSelectedOrderForTransfer(null);
@@ -708,6 +727,7 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ tables, selectedTabl
           sourceTable={selectedTableForAction}
           sourceOrder={selectedOrderForTransfer}
           onTransferComplete={async () => {
+            console.log("✅ [TablesLayout] Transfer completed, refreshing data...");
             setShowTransferModal(false);
             setSelectedTableForAction(null);
             setSelectedOrderForTransfer(null);

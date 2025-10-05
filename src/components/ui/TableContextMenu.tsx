@@ -44,7 +44,10 @@ export const TableContextMenu = ({
 
               <ContextMenu.Item 
                 className="text-sm text-gray-700 flex items-center px-2 py-1.5 rounded hover:bg-gray-100 outline-none cursor-pointer"
-                onClick={() => onRename(table)}
+                onClick={() => {
+                  console.log("✏️ [TableContextMenu] Rename clicked for table:", table);
+                  onRename(table);
+                }}
               >
                 <Edit3 className="w-4 h-4 mr-2" />
                 Rename Table
@@ -53,7 +56,15 @@ export const TableContextMenu = ({
               {(table.status === "opened" || table.currentOrder || tableOrders[table.number?.toString()]) && (
                 <ContextMenu.Item 
                   className="text-sm text-gray-700 flex items-center px-2 py-1.5 rounded hover:bg-gray-100 outline-none cursor-pointer"
-                  onClick={() => onTransfer(table)}
+                  onClick={() => {
+                    console.log("🔄 [TableContextMenu] Transfer clicked for table:", table);
+                    console.log("📋 [TableContextMenu] Table details:", {
+                      status: table.status,
+                      currentOrder: table.currentOrder,
+                      tableOrders: tableOrders[table.number?.toString()]
+                    });
+                    onTransfer(table);
+                  }}
                 >
                   <Move className="w-4 h-4 mr-2" />
                   Transfer Order
@@ -66,7 +77,14 @@ export const TableContextMenu = ({
                     ? "text-gray-400 cursor-not-allowed" 
                     : "text-orange-600 hover:bg-orange-50"
                 }`}
-                onClick={() => (table.status === "opened" || table.status === "reserved") && onClear(table)}
+                onClick={() => {
+                  console.log("🧹 [TableContextMenu] Clear clicked for table:", table);
+                  if (table.status === "opened" || table.status === "reserved") {
+                    onClear(table);
+                  } else {
+                    console.log("⚠️ [TableContextMenu] Clear blocked - invalid status:", table.status);
+                  }
+                }}
                 disabled={table.status !== "opened" && table.status !== "reserved"}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
@@ -81,7 +99,14 @@ export const TableContextMenu = ({
                     ? "text-gray-400 cursor-not-allowed" 
                     : "text-red-600 hover:bg-red-50"
                 }`}
-                onClick={() => table.status !== "opened" && onDelete(table)}
+                onClick={() => {
+                  console.log("🗑️ [TableContextMenu] Delete clicked for table:", table);
+                  if (table.status !== "opened") {
+                    onDelete(table);
+                  } else {
+                    console.log("⚠️ [TableContextMenu] Delete blocked - table has active order");
+                  }
+                }}
                 disabled={table.status === "opened"}
               >
                 <Trash2 className="w-4 h-4 mr-2" />

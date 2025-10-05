@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Modal } from "@/components/pos/Modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,16 +103,19 @@ export const RenameTableModal: React.FC<RenameTableModalProps> = ({ isOpen, onCl
   if (!table) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Edit3 className="w-5 h-5" />
-            Rename Table
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose}
+      title={
+        <div className="flex items-center gap-2">
+          <Edit3 className="w-5 h-5" />
+          Rename Table
+        </div>
+      }
+      maxWidth="max-w-md"
+      showCloseButton={true}
+    >
+      <div className="space-y-4">
           {/* Current Table Info */}
           <Card>
             <CardContent className="p-4">
@@ -183,24 +186,23 @@ export const RenameTableModal: React.FC<RenameTableModalProps> = ({ isOpen, onCl
               </CardContent>
             </Card>
           )}
-        </div>
+      </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isLoading}>
-            Cancel
-          </Button>
-          <Button onClick={handleRename} disabled={isLoading || !hasChanges || hasActiveOrders} className="flex items-center gap-2">
-            {isLoading ? (
-              "Renaming..."
-            ) : (
-              <>
-                <Edit3 className="w-4 h-4" />
-                Rename Table
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <div className="mt-6 flex justify-end gap-2">
+        <Button variant="outline" onClick={onClose} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button onClick={handleRename} disabled={isLoading || !hasChanges || hasActiveOrders} className="flex items-center gap-2">
+          {isLoading ? (
+            "Renaming..."
+          ) : (
+            <>
+              <Edit3 className="w-4 h-4" />
+              Rename Table
+            </>
+          )}
+        </Button>
+      </div>
+    </Modal>
   );
 };
