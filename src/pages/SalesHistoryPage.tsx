@@ -325,12 +325,12 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   );
 
   const handleBulkRevert = useCallback(() => {
-    console.log("Initiating bulk revert for selected items:", Array.from(selectedItemIds)); // Debug log
+    console.log("Initiating bulk revert for selected items:", selectedItemIds); // Debug log
     dispatch(setBulkRevertDialogOpen(true));
   }, [dispatch, selectedItemIds]);
 
   const handleBulkDelete = useCallback(() => {
-    console.log("Initiating bulk delete for selected items:", Array.from(selectedItemIds)); // Debug log
+    console.log("Initiating bulk delete for selected items:", selectedItemIds); // Debug log
     dispatch(setBulkDeleteDialogOpen(true));
   }, [dispatch, selectedItemIds]);
 
@@ -436,7 +436,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
   const confirmBulkRevert = useCallback(async () => {
     if (bulkRevertSales) {
       const selectedSaleIds = new Set(
-        Array.from(selectedItemIds)
+        selectedItemIds
           .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
           .filter(Boolean) as string[]
       );
@@ -453,7 +453,7 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
 
   const confirmBulkDelete = useCallback(async () => {
     if (deleteSaleItems) {
-      const selectedSales = Array.from(selectedItemIds)
+      const selectedSales = selectedItemIds
         .map(itemId => localFilteredSales.find(item => item.id === itemId))
         .filter((sale): sale is SaleRecord => Boolean(sale));
 
@@ -874,21 +874,21 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {selectedItemIds.size > 0 && (
+                {selectedItemIds.length > 0 && (
                   <>
                     <span className="text-sm text-muted-foreground">
-                      {selectedItemIds.size} item{selectedItemIds.size === 1 ? "" : "s"} selected
+                      {selectedItemIds.length} item{selectedItemIds.length === 1 ? "" : "s"} selected
                     </span>
                     <Button variant="outline" size="sm" onClick={handleClearSelection}>
                       Cancel
                     </Button>
                     <Button variant="outline" size="sm" onClick={handleBulkRevert} className="text-orange-600 hover:text-orange-700 hover:bg-orange-50">
                       <Undo2 className="mr-2 h-4 w-4" />
-                      Revert Selected ({selectedItemIds.size})
+                      Revert Selected ({selectedItemIds.length})
                     </Button>
                     <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Selected ({selectedItemIds.size})
+                      Delete Selected ({selectedItemIds.length})
                     </Button>
                   </>
                 )}
@@ -932,12 +932,12 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                             const itemName = item.itemType === "material" ? item.materialName : item.menuItemName;
 
                             return (
-                              <Card key={`${item.itemType}-${itemId}-${index}`} className={`p-4 ${selectedItemIds.has(itemId) ? "bg-blue-50 border-blue-200" : ""}`}>
+                              <Card key={`${item.itemType}-${itemId}-${index}`} className={`p-4 ${selectedItemIds.includes(itemId) ? "bg-blue-50 border-blue-200" : ""}`}>
                                 <div className="flex flex-col gap-2">
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                       <Button variant="ghost" size="sm" onClick={() => handleToggleItemSelection(itemId)} className="h-8 w-8 p-0">
-                                        {selectedItemIds.has(itemId) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
+                                        {selectedItemIds.includes(itemId) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4" />}
                                       </Button>
                                       <div className="flex items-center gap-2">
                                         {item.itemType === "material" ? <Package className="h-4 w-4 text-blue-500" /> : <ShoppingBag className="h-4 w-4 text-green-500" />}
@@ -1105,17 +1105,17 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
               </DialogHeader>
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
                 <p>
-                  Are you sure you want to delete {selectedItemIds.size} selected item{selectedItemIds.size === 1 ? "" : "s"} from{" "}
+                  Are you sure you want to delete {selectedItemIds.length} selected item{selectedItemIds.length === 1 ? "" : "s"} from{" "}
                   {
                     new Set(
-                      Array.from(selectedItemIds)
+                      selectedItemIds
                         .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
                         .filter(Boolean)
                     ).size
                   }
                   sale
                   {new Set(
-                    Array.from(selectedItemIds)
+                    selectedItemIds
                       .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
                       .filter(Boolean)
                   ).size === 1
@@ -1158,12 +1158,12 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                   {isBulkDeleting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Deleting {selectedItemIds.size} Items...
+                      Deleting {selectedItemIds.length} Items...
                     </>
                   ) : (
                     <>
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete {selectedItemIds.size} Items
+                      Delete {selectedItemIds.length} Items
                     </>
                   )}
                 </Button>
@@ -1180,17 +1180,17 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
               </DialogHeader>
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
                 <p>
-                  Are you sure you want to revert {selectedItemIds.size} selected item{selectedItemIds.size === 1 ? "" : "s"} from{" "}
+                  Are you sure you want to revert {selectedItemIds.length} selected item{selectedItemIds.length === 1 ? "" : "s"} from{" "}
                   {
                     new Set(
-                      Array.from(selectedItemIds)
+                      selectedItemIds
                         .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
                         .filter(Boolean)
                     ).size
                   }{" "}
                   sale
                   {new Set(
-                    Array.from(selectedItemIds)
+                    selectedItemIds
                       .map(itemId => localFilteredSales.find(item => item.id === itemId)?.id)
                       .filter(Boolean)
                   ).size === 1
@@ -1243,12 +1243,12 @@ export function SalesHistoryPage({ isOpen }: { isOpen: boolean; onClose: () => v
                   {isBulkReverting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Reverting {selectedItemIds.size} Items...
+                      Reverting {selectedItemIds.length} Items...
                     </>
                   ) : (
                     <>
                       <Undo2 className="mr-2 h-4 w-4" />
-                      Revert {selectedItemIds.size} Items
+                      Revert {selectedItemIds.length} Items
                     </>
                   )}
                 </Button>

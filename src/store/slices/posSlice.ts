@@ -76,7 +76,7 @@ interface POSState {
   staffSales: SaleRecord[];
   isLoadingStaff: boolean;
   staffError: string | null;
-  selectedItemIds: Set<string>;
+  selectedItemIds: string[];
   isPrintingReport: boolean;
   showSalesReportDialog: boolean;
   salesReportData: ReceiptData | null;
@@ -174,7 +174,7 @@ const initialState: POSState = {
   staffSales: [],
   isLoadingStaff: false,
   staffError: null,
-  selectedItemIds: new Set<string>(),
+  selectedItemIds: [],
   isPrintingReport: false,
   showSalesReportDialog: false,
   salesReportData: null,
@@ -618,21 +618,22 @@ const posSlice = createSlice({
     setStaffError: (state, action: PayloadAction<string | null>) => {
       state.staffError = action.payload;
     },
-    setSelectedItemIds: (state, action: PayloadAction<Set<string>>) => {
+    setSelectedItemIds: (state, action: PayloadAction<string[]>) => {
       state.selectedItemIds = action.payload;
     },
     toggleItemSelection: (state, action: PayloadAction<string>) => {
       const itemId = action.payload;
-      const newSet = new Set(state.selectedItemIds);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
+      const index = state.selectedItemIds.indexOf(itemId);
+      if (index > -1) {
+        // Item exists, remove it
+        state.selectedItemIds = state.selectedItemIds.filter(id => id !== itemId);
       } else {
-        newSet.add(itemId);
+        // Item doesn't exist, add it
+        state.selectedItemIds = [...state.selectedItemIds, itemId];
       }
-      state.selectedItemIds = newSet;
     },
     clearSelection: state => {
-      state.selectedItemIds = new Set();
+      state.selectedItemIds = [];
     },
     setIsPrintingReport: (state, action: PayloadAction<boolean>) => {
       state.isPrintingReport = action.payload;

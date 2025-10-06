@@ -144,7 +144,7 @@ interface TablesState {
   suggestedTableName: string;
 
   // Bulk operations
-  selectedTableIds: Set<string>;
+  selectedTableIds: string[];
   bulkOperationInProgress: boolean;
 }
 
@@ -234,7 +234,7 @@ const initialState: TablesState = {
   },
   nextTableNumber: 1,
   suggestedTableName: "Table 1",
-  selectedTableIds: new Set(),
+  selectedTableIds: [],
   bulkOperationInProgress: false,
 };
 
@@ -930,21 +930,22 @@ const tablesSlice = createSlice({
 
     toggleTableSelection: (state, action: PayloadAction<string>) => {
       const tableId = action.payload;
-      const newSet = new Set(state.selectedTableIds);
-      if (newSet.has(tableId)) {
-        newSet.delete(tableId);
+      const index = state.selectedTableIds.indexOf(tableId);
+      if (index > -1) {
+        // Remove if exists
+        state.selectedTableIds = state.selectedTableIds.filter(id => id !== tableId);
       } else {
-        newSet.add(tableId);
+        // Add if doesn't exist
+        state.selectedTableIds = [...state.selectedTableIds, tableId];
       }
-      state.selectedTableIds = newSet;
     },
 
     selectAllTables: (state) => {
-      state.selectedTableIds = new Set(state.tables.map((t) => t.id));
+      state.selectedTableIds = state.tables.map((t) => t.id);
     },
 
     clearTableSelection: (state) => {
-      state.selectedTableIds = new Set();
+      state.selectedTableIds = [];
     },
 
     // ========================================================================

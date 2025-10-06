@@ -66,8 +66,8 @@ interface OrdersState {
   };
 
   // UI state
-  selectedOrderIds: Set<string>;
-  expandedOrderIds: Set<string>;
+  selectedOrderIds: string[];
+  expandedOrderIds: string[];
 
   // Last operation metadata
   lastOperation: {
@@ -128,8 +128,8 @@ const initialState: OrdersState = {
     total: 0,
     hasMore: false
   },
-  selectedOrderIds: new Set(),
-  expandedOrderIds: new Set(),
+  selectedOrderIds: [],
+  expandedOrderIds: [],
   lastOperation: {
     type: null,
     orderId: null,
@@ -355,35 +355,47 @@ const ordersSlice = createSlice({
     // Toggle order selection
     toggleOrderSelection: (state, action: PayloadAction<string>) => {
       const orderId = action.payload;
-      const newSet = new Set(state.selectedOrderIds);
-      if (newSet.has(orderId)) {
-        newSet.delete(orderId);
+      const index = state.selectedOrderIds.indexOf(orderId);
+      if (index > -1) {
+        // Remove if exists
+        state.selectedOrderIds = state.selectedOrderIds.filter(id => id !== orderId);
       } else {
-        newSet.add(orderId);
+        // Add if doesn't exist
+        state.selectedOrderIds = [...state.selectedOrderIds, orderId];
       }
-      state.selectedOrderIds = newSet;
     },
 
     // Select all orders
     selectAllOrders: state => {
-      state.selectedOrderIds = new Set(state.orders.map(order => order.id));
+      state.selectedOrderIds = state.orders.map(order => order.id);
     },
 
     // Clear order selection
     clearOrderSelection: state => {
-      state.selectedOrderIds = new Set();
+      state.selectedOrderIds = [];
     },
 
     // Toggle order expansion
     toggleOrderExpansion: (state, action: PayloadAction<string>) => {
       const orderId = action.payload;
-      const newSet = new Set(state.expandedOrderIds);
-      if (newSet.has(orderId)) {
-        newSet.delete(orderId);
+      const index = state.expandedOrderIds.indexOf(orderId);
+      if (index > -1) {
+        // Remove if exists
+        state.expandedOrderIds = state.expandedOrderIds.filter(id => id !== orderId);
       } else {
-        newSet.add(orderId);
+        // Add if doesn't exist
+        state.expandedOrderIds = [...state.expandedOrderIds, orderId];
       }
-      state.expandedOrderIds = newSet;
+    },
+
+    // Expand all orders
+    expandAllOrders: state => {
+      state.expandedOrderIds = state.orders.map(order => order.id);
+    },
+
+    // Collapse all orders
+    collapseAllOrders: state => {
+      state.expandedOrderIds = [];
     },
 
     // Clear all errors

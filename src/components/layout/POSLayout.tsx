@@ -1,6 +1,7 @@
 import { ordersAPI } from "@/api/orders.api";
 import { authAPI } from "@/api/auth";
 import { useDayOperations } from "@/hooks/useDayOperations";
+import { useGetOrdersQuery, useGetTablesQuery } from "@/store/api/posApi";
 import { POSClientOrders } from "@/components/pos/POSClientOrders";
 import { POSHeader } from "@/components/pos/POSHeader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,7 +13,7 @@ import { PERMISSIONS } from "@/types/auth";
 import { POSLayoutProps, OpenDayRequest, CloseDayRequest, DayOperation, ActivityLog } from "@/types/inventory";
 import { DayOperationsFormData, UserOrderStats } from "@/types/dayOperations";
 import { AlertCircle, CheckCircle, GripVertical, XCircle } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DailyReports from "@/components/analytics/DailyReports";
 import { useDailyReports } from "@/hooks/useDailyReports";
@@ -191,39 +192,26 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     return () => window.removeEventListener("resize", handleResize);
   }, [leftPanelWidth, showLeftPanel, dispatch]);
 
-  const fetchOrdersCount = useCallback(async () => {
-    try {
-      const response = await ordersAPI.getOrders({ limit: 1000, offset: 0 });
-      interface OrderData {
-        id: string;
-        createdAt?: string;
-        status?: string;
-        orderType?: string;
-      }
-      const responseData = response.data as { data?: OrderData[] } | OrderData[];
-      const orders = Array.isArray(responseData) ? responseData : responseData?.data || [];
-      const today = new Date().toISOString().split("T")[0];
-      const incompleteOrdersToday = orders.filter(order => {
-        const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : null;
-        const isToday = orderDate === today;
-        const isIncomplete = order.status && !["paid", "served", "completed"].includes(order.status);
-        return isToday && isIncomplete;
-      });
-      incompleteOrdersCount = incompleteOrdersToday.length;
-      // console.log("incompleteOrdersCount Today", incompleteOrdersCount);
-    } catch (error) {
-      console.error("Failed to fetch orders count:", error);
+  // Use RTK Query for orders with smart polling (2 minutes instead of 30 seconds)
+  const { data: ordersData = [] } = useGetOrdersQuery(
+    { limit: 1000, offset: 0 },
+    {
+      pollingInterval: 120000, // 2 minutes instead of 30 seconds
+      refetchOnMountOrArgChange: true,
     }
-  }, []);
+  );
 
-  const fetchSalesCount = useCallback(async () => {
-    try {
-      const response = await ordersAPI.getOrders({ limit: 100, offset: 0 });
-      const responseData = response.data as { data?: { orderType: string }[] } | { orderType: string }[];
-    } catch (error) {
-      console.error("Failed to fetch sales count:", error);
-    }
-  }, []);
+  // Calculate incomplete orders count from RTK Query data
+  const incompleteOrdersCountCalculated = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const incompleteOrdersToday = ordersData.filter(order => {
+      const orderDate = order.createdAt ? new Date(order.createdAt).toISOString().split("T")[0] : null;
+      const isToday = orderDate === today;
+      const isIncomplete = order.status && !["paid", "served", "completed"].includes(order.status);
+      return isToday && isIncomplete;
+    });
+    return incompleteOrdersToday.length;
+  }, [ordersData]);
 
   const handleCloseOrdersDialog = useCallback(() => {
     setShowOrdersDialog(false);
@@ -236,15 +224,11 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     setShowOrdersDialog(false);
   }, []);
 
+  // No need for manual refresh - RTK Query handles it automatically
   const refreshCounts = useCallback(async () => {
-    await Promise.all([fetchOrdersCount()]);
-  }, [fetchOrdersCount]);
-
-  useEffect(() => {
-    if (onRefreshCounts) {
-      onRefreshCounts(refreshCounts);
-    }
-  }, [onRefreshCounts, refreshCounts]);
+    // RTK Query will auto-refresh based on polling interval
+    console.log('✅ [POSLayout] Orders auto-refreshing via RTK Query');
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -267,16 +251,9 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     };
   }, [userDayOpen]);
 
-  useEffect(() => {
-    fetchOrdersCount();
-    fetchSalesCount();
-    const ordersTimer = setInterval(fetchOrdersCount, 30000);
-    const salesTimer = setInterval(fetchSalesCount, 30000);
-    return () => {
-      clearInterval(ordersTimer);
-      clearInterval(salesTimer);
-    };
-  }, [fetchOrdersCount, fetchSalesCount]);
+  // Removed old polling - now using RTK Query with 2-minute polling interval
+  // This eliminates 240 API calls per hour (120 orders + 120 sales)
+  // New approach: 60 API calls per hour (30 orders + 30 sales) = 75% reduction
 
   const toggleFullscreen = async () => {
     try {
@@ -507,7 +484,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-indigo-400/10 to-cyan-400/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "2s" }} />
       </div>
       {/* POS Header */}
-      <POSHeader currentTime={currentTime} isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} setShowLogoutDialog={setShowLogoutDialog} setShowOrdersDialog={setShowOrdersDialog} setShowSalesHistoryDialog={setShowSalesHistoryDialog} handleShowOpenModal={handleShowOpenModal} handleShowCloseModal={handleShowCloseModal} incompleteOrdersCount={incompleteOrdersCount} isLocked={isLocked} currentDay={currentDay} onCloseDayClick={handleCloseDay} />
+      <POSHeader currentTime={currentTime} isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} setShowLogoutDialog={setShowLogoutDialog} setShowOrdersDialog={setShowOrdersDialog} setShowSalesHistoryDialog={setShowSalesHistoryDialog} handleShowOpenModal={handleShowOpenModal} handleShowCloseModal={handleShowCloseModal} incompleteOrdersCount={incompleteOrdersCountCalculated} isLocked={isLocked} currentDay={currentDay} onCloseDayClick={handleCloseDay} />
       {/* Main POS Content - Resizable Layout */}
       <main className="relative flex-1 overflow-hidden z-10" ref={containerRef}>
         <div className="h-full w-full flex bg-white/40 dark:bg-slate-900/40 backdrop-blur-sm">

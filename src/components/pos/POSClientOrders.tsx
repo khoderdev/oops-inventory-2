@@ -1,4 +1,5 @@
 import { ordersAPI } from "@/api/orders.api";
+import { useGetOrdersQuery, useGetOrderQuery } from "@/store/api/posApi";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,14 +22,13 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   const renderCount = useRef(0);
   renderCount.current += 1;
   const { user, hasRole } = useAuth();
-  const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isLoadingOrderDetails, setIsLoadingOrderDetails] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [localLoading, setLocalLoading] = useState(false);
   
   // Add throttling for onOrderStatusChange
   const lastStatusChangeRef = useRef<number>(0);
@@ -55,60 +55,45 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   stableOnClose.current = onClose;
   stableOnOrderSelect.current = onOrderSelect;
 
-  // Fetch orders with stable implementation
-  const fetchOrders = useCallback(async () => {
-    if (isOpen !== undefined && !isOpen) {
-      return;
+  // Use RTK Query for orders with automatic caching and deduplication
+  const { 
+    data: ordersData = [], 
+    isLoading: ordersLoading,
+    error: ordersError,
+    refetch: refetchOrders
+  } = useGetOrdersQuery(
+    { 
+      limit: 100, 
+      offset: 0,
+      ...(filters.orderType && filters.orderType !== "employees" ? { orderType: filters.orderType } : {})
+    },
+    {
+      skip: isOpen !== undefined && !isOpen, // Skip if dialog is closed
+      pollingInterval: 0, // No automatic polling in this component
+      refetchOnMountOrArgChange: true,
     }
-    if (!componentMountedRef.current) {
-      return;
-    }
+  );
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const params: Record<string, string | number> = {
-        limit: 100,
-        offset: 0
-      };
-
-      if (filters.orderType && filters.orderType !== "employees") {
-        params.orderType = filters.orderType;
+  // Filter orders client-side (memoized)
+  const orders = useMemo(() => {
+    const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready", "paid"];
+    let filtered = ordersData.filter(order => {
+      if (order.orderType === "employees") return false;
+      if (!incompleteStatuses.includes(order.status)) return false;
+      if (filters.searchTerm) {
+        const searchLower = filters.searchTerm.toLowerCase();
+        return order.orderNumber.toLowerCase().includes(searchLower) || 
+               order.customerName?.toLowerCase().includes(searchLower) || 
+               String(order.id).toLowerCase().includes(searchLower);
       }
-      const response = await ordersAPI.getOrders(params);
+      return true;
+    });
+    return filtered;
+  }, [ordersData, filters.searchTerm]);
 
-      if (!componentMountedRef.current) {
-        return;
-      }
-
-      const responseData = response.data as { data?: OrderSummary[] } | OrderSummary[];
-      let fetchedOrders = Array.isArray(responseData) ? responseData : responseData?.data || [];
-
-      const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready", "paid"];
-      fetchedOrders = fetchedOrders.filter(order => {
-        if (order.orderType === "employees") return false;
-        if (!incompleteStatuses.includes(order.status)) return false;
-        if (filters.searchTerm) {
-          const searchLower = filters.searchTerm.toLowerCase();
-          return order.orderNumber.toLowerCase().includes(searchLower) || order.customerName?.toLowerCase().includes(searchLower) || String(order.id).toLowerCase().includes(searchLower);
-        }
-        return true;
-      });
-
-      setOrders(fetchedOrders);
-    } catch (error) {
-      if (!componentMountedRef.current) {
-        return;
-      }
-      const errorMessage = `Failed to load orders: ${error instanceof Error ? error.message : "Unknown error"}`;
-      setError(errorMessage);
-    } finally {
-      if (componentMountedRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, [isOpen, filters]);
+  // Set loading and error states from RTK Query
+  const isLoading = ordersLoading || localLoading;
+  const error = localError || (ordersError ? `Failed to load orders: ${ordersError}` : null);
 
   // Stable callbacks to prevent re-renders from inline functions
   const handleCloseOrderDetails = useCallback(() => {
@@ -124,79 +109,44 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   // Handle order updates from OrderDetailsDialog
   const handleOrderUpdate = useCallback(
     (updatedOrder: Order) => {
-      // Check if the updated order is still incomplete
-      const incompleteStatuses: OrderStatus[] = ["draft", "confirmed", "preparing", "ready"];
-      const isStillIncomplete = incompleteStatuses.includes(updatedOrder.status);
+      // Update the selected order if it's the same one
+      setSelectedOrder(updatedOrder);
 
-      if (isStillIncomplete) {
-        // Update the orders list with the new order data
-        setOrders(prevOrders => {
-          return prevOrders.map(order => {
-            if (order.id === updatedOrder.id) {
-              // Update only the properties that exist in OrderSummary
-              const updatedOrderSummary: OrderSummary = {
-                ...order,
-                status: updatedOrder.status,
-                total: updatedOrder.total,
-                itemCount: updatedOrder.items?.length || order.itemCount || 0,
-                customerName: updatedOrder.customerName || order.customerName,
-                discountAmount: updatedOrder.discountAmount || 0
-              };
-              return updatedOrderSummary;
-            }
-            return order;
-          });
-        });
-      } else {
-        // Order is now completed, remove it from the incomplete orders list
-        setOrders(prevOrders => {
-          return prevOrders.filter(order => order.id !== updatedOrder.id);
-        });
-      }
+      // Refetch orders to get the latest data from the server
+      // RTK Query will handle caching and deduplication automatically
+      refetchOrders();
 
-      // DISABLED: Temporarily disabled automatic order status change calls to prevent excessive rendering
-      // This was causing too many re-renders and console logs
-      /*
+      // Optionally notify parent component of status change
       if (onOrderStatusChange) {
         const now = Date.now();
         if (now - lastStatusChangeRef.current > throttleInterval) {
-          console.log("✅ Calling onOrderStatusChange - enough time has passed");
           lastStatusChangeRef.current = now;
           onOrderStatusChange();
-        } else {
-          console.log("🛑 Throttled onOrderStatusChange - too soon");
         }
       }
-      */
-
-      // Update the selected order if it's the same one
-      setSelectedOrder(updatedOrder);
     },
-    [] // Removed onOrderStatusChange dependency since we're not using it
+    [refetchOrders, onOrderStatusChange]
   );
 
-  // Fetch orders when component opens or filters change
-  useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+  // Removed old fetchOrders useEffect - RTK Query handles it automatically
 
   // Clear error after 10 seconds
   useEffect(() => {
-    if (error) {
+    if (localError) {
       const timeout = setTimeout(() => {
-        setError(null);
+        setLocalError(null);
       }, 1500);
 
       return () => {
         clearTimeout(timeout);
       };
     }
-  }, [error]);
+  }, [localError]);
 
   // Handle view order details
   const handleViewOrderDetails = useCallback(async (orderSummary: OrderSummary) => {
     setIsLoadingOrderDetails(true);
-    setError(null);
+    setLocalError(null);
     setShowOrderDetails(true);
 
     try {
@@ -213,7 +163,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       setSelectedOrder(orderData as Order);
     } catch (error) {
       console.error("Failed to fetch order details:", error);
-      setError("Failed to load order details. Please try again.");
+      setLocalError("Failed to load order details. Please try again.");
     } finally {
       setIsLoadingOrderDetails(false);
     }
@@ -222,8 +172,8 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
   // Handle print order receipt
   const handlePrintOrderReceipt = useCallback(
     async (orderSummary: OrderSummary) => {
-      setIsLoading(true);
-      setError(null);
+      setLocalLoading(true);
+      setLocalError(null);
 
       try {
         const response = await ordersAPI.getOrder(orderSummary.id);
@@ -270,9 +220,9 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
         setShowOrderDetails(false);
       } catch (error) {
         console.error("Failed to prepare receipt:", error);
-        setError("Failed to prepare receipt. Please try again.");
+        setLocalError("Failed to prepare receipt. Please try again.");
       } finally {
-        setIsLoading(false);
+        setLocalLoading(false);
       }
     },
     [user]
@@ -347,15 +297,15 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
     }
   }, []);
 
-  // Manual refresh
+  // Manual refresh using RTK Query
   const handleRefresh = useCallback(async () => {
     if (refreshing || isLoading) {
       return;
     }
     setRefreshing(true);
-    await fetchOrders();
+    await refetchOrders();
     setRefreshing(false);
-  }, [fetchOrders, refreshing, isLoading]);
+  }, [refetchOrders, refreshing, isLoading]);
 
   // Handle sorting
   const handleSort = useCallback((field: "date" | "total" | "status") => {
@@ -523,7 +473,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="flex items-center justify-between">
                     <span>{error}</span>
-                    <Button variant="ghost" size="sm" onClick={() => setError(null)} className="h-6 w-6 p-0 hover:bg-red-100">
+                    <Button variant="ghost" size="sm" onClick={() => setLocalError(null)} className="h-6 w-6 p-0 hover:bg-red-100">
                       ×
                     </Button>
                   </AlertDescription>
