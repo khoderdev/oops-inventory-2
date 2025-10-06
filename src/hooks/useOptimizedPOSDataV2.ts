@@ -156,7 +156,8 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
     setActiveCategory(category);
   }, []);
 
-  const isLoading = foodLoading || beverageLoading || menuCategoriesLoading || beverageCategoriesLoading;
+  // DESKTOP APP SPEED: Never show loading if we have cached data
+  const isLoading = posItemsRef.current.length === 0 && (foodLoading || beverageLoading || menuCategoriesLoading || beverageCategoriesLoading);
 
   return {
     posItems,
