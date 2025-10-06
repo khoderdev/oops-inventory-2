@@ -251,7 +251,7 @@ const SidebarSeparator = React.forwardRef<React.ElementRef<typeof Separator>, Re
 SidebarSeparator.displayName = "SidebarSeparator";
 
 const SidebarContent = React.forwardRef<HTMLDivElement, React.ComponentProps<"div">>(({ className, ...props }, ref) => {
-  return <div ref={ref} data-sidebar="content" className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-auto hide-scrollbar group-data-[collapsible=icon]:overflow-hidden transition-all duration-300 ease-in-out bg-white", className)} {...props} />;
+  return <div ref={ref} data-sidebar="content" className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-auto scrollbar-hide group-data-[collapsible=icon]:overflow-hidden transition-all duration-300 ease-in-out bg-white", className)} {...props} />;
 });
 SidebarContent.displayName = "SidebarContent";
 

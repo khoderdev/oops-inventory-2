@@ -1150,6 +1150,60 @@ const dayOperationsController = {
         console.warn("[DayOps][closeDay] Failed to create closing activity log:", actErr.message);
       }
 
+      // CRITICAL FIX: Save user stats to relational table
+      try {
+        if (reportData.userOrderStats && Array.isArray(reportData.userOrderStats)) {
+          console.log(`[DayOps][closeDay] Saving ${reportData.userOrderStats.length} user stats to relational table`);
+          
+          for (const userStat of reportData.userOrderStats) {
+            // Check if user stats already exist
+            const existingUserStat = await DayOperationUserStats.findOne({
+              where: { dayOperationId: dayOperation.id, userId: userStat.userId },
+              transaction
+            });
+
+            if (existingUserStat) {
+              // Update existing user stats
+              await existingUserStat.update({
+                orderCount: userStat.orderCount || 0,
+                totalAmount: parseFloat(userStat.totalAmount || 0),
+                cashSales: parseFloat(userStat.cashSales || 0),
+                cardSales: parseFloat(userStat.cardSales || 0),
+                openingCash: parseFloat(userStat.openingCash || 0),
+                closingCash: userStat.closingCash !== null && userStat.closingCash !== undefined ? parseFloat(userStat.closingCash) : null,
+                openingTime: userStat.openingTime ? new Date(userStat.openingTime) : null,
+                closingTime: userStat.closingTime ? new Date(userStat.closingTime) : null,
+                notes: userStat.notes || ""
+              }, { transaction });
+              console.log(`[DayOps][closeDay] Updated user stats for userId ${userStat.userId}`);
+            } else {
+              // Create new user stats
+              await DayOperationUserStats.create({
+                dayOperationId: dayOperation.id,
+                userId: userStat.userId,
+                orderCount: userStat.orderCount || 0,
+                totalAmount: parseFloat(userStat.totalAmount || 0),
+                cashSales: parseFloat(userStat.cashSales || 0),
+                cardSales: parseFloat(userStat.cardSales || 0),
+                openingCash: parseFloat(userStat.openingCash || 0),
+                closingCash: userStat.closingCash !== null && userStat.closingCash !== undefined ? parseFloat(userStat.closingCash) : null,
+                openingTime: userStat.openingTime ? new Date(userStat.openingTime) : null,
+                closingTime: userStat.closingTime ? new Date(userStat.closingTime) : null,
+                notes: userStat.notes || ""
+              }, { transaction });
+              console.log(`[DayOps][closeDay] Created user stats for userId ${userStat.userId}`);
+            }
+          }
+          
+          console.log("[DayOps][closeDay] Successfully saved all user stats to relational table");
+        } else {
+          console.log("[DayOps][closeDay] No user stats found in reportData to save");
+        }
+      } catch (userStatsErr) {
+        console.error("[DayOps][closeDay] Failed to save user stats to relational table:", userStatsErr);
+        // Don't fail the entire operation if user stats save fails
+      }
+
       // Reload the updated day operation
       await dayOperation.reload({ transaction });
       const closedDayOperation = dayOperation;

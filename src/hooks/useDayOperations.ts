@@ -39,7 +39,7 @@ import {
   selectIsDayOpen,
   selectIsDayClosed,
   selectHasActiveDay
-} from "@/store/dayOperationsSlice";
+} from "@/store/slices/dayOperationsSlice";
 import { OpenDayRequest, CloseDayRequest } from "@/types/inventory";
 import { AppDispatch } from "@/store/";
 

@@ -20,7 +20,7 @@ import Sales from "../sales/Sales";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { selectShowLeftPanel, selectIsResizing, selectLeftPanelWidth, selectShowLockOverlay, selectUserDayOpen, selectCurrentDay, selectIsLocked } from "@/store/slices/posSelectors";
 import { setShowLeftPanel, setIsResizing, setLeftPanelWidth, setShowLockOverlay, setUserDayOpen } from "@/store/slices/uiSlice";
-import { closeDay, fetchCurrentDayOperation } from "@/store/dayOperationsSlice";
+import { closeDay, fetchCurrentDayOperation } from "@/store/slices/dayOperationsSlice";
 
 // Use centralized day operations hook for Redux state sharing and caching
 
@@ -444,12 +444,18 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   useEffect(() => {
     if (!showCloseModal) return;
+    
+    // Call once immediately
     refreshExpectedAndStats();
+    
+    // Set up interval for periodic refresh
     const id = window.setInterval(() => {
       refreshExpectedAndStats();
     }, 10000);
+    
     return () => window.clearInterval(id);
-  }, [showCloseModal, refreshExpectedAndStats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCloseModal]); // Only depend on showCloseModal, not refreshExpectedAndStats
 
   useEffect(() => {
     if (isCheckingDayStatus) {

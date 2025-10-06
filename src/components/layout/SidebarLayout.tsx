@@ -103,7 +103,7 @@ function SidebarLayoutContent({ children, showSearch = true, showNotifications =
     <>
       {/* Desktop sidebar */}
       <div
-        className="fixed inset-y-0 left-0 z-50 hidden md:block"
+        className="fixed inset-y-0 left-0 z-50 hidden md:block scrollbar-hide"
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
         style={{

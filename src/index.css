@@ -470,7 +470,37 @@ All colors MUST be HSL.
   }
 }
 
-/* Hide scrollbars on mobile for cleaner look */
+/* Custom scrollbar utility classes */
+
+/* Hide scrollbar completely - with maximum specificity */
+.scrollbar-hide,
+.scrollbar-hide.overflow-auto,
+.scrollbar-hide.overflow-y-auto,
+[data-sidebar="content"].scrollbar-hide {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar,
+.scrollbar-hide.overflow-auto::-webkit-scrollbar,
+.scrollbar-hide.overflow-y-auto::-webkit-scrollbar,
+[data-sidebar="content"].scrollbar-hide::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Opera */
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.scrollbar-hide::-webkit-scrollbar-track,
+[data-sidebar="content"].scrollbar-hide::-webkit-scrollbar-track {
+  display: none !important;
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb,
+[data-sidebar="content"].scrollbar-hide::-webkit-scrollbar-thumb {
+  display: none !important;
+}
+
+/* Legacy class name - kept for backwards compatibility */
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -478,6 +508,56 @@ All colors MUST be HSL.
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Thin scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin; /* Firefox */
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+/* Custom styled scrollbar */
+.scrollbar-custom::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-track {
+  background: hsl(var(--card));
+  border-radius: 8px;
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border-radius: 8px;
+  border: 2px solid hsl(var(--card));
+}
+
+.scrollbar-custom::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary) / 0.8);
+}
+
+/* Minimal scrollbar - barely visible */
+.scrollbar-minimal::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-minimal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-minimal::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+.scrollbar-minimal::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
 }
 
 /* High DPI display optimizations */

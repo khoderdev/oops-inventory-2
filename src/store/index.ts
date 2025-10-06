@@ -1,6 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit";
 import posReducer from "./slices/posSlice";
-import dayOperationsReducer from "./dayOperationsSlice";
+import dayOperationsReducer from "./slices/dayOperationsSlice";
 import uiReducer from "./slices/uiSlice";
 import ordersReducer from "./slices/ordersSlice";
 import tablesReducer from "./slices/tablesSlice";

@@ -378,6 +378,113 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     loadSelectedOrder();
   }, [selectedOrderForPOS, loadOrder, dispatch, showSuccess, showError]);
 
+  // Handle selectedSaleForEdit from Sales component - load sale for editing
+  useEffect(() => {
+    if (!selectedSaleForEdit || !editingSaleId) return;
+    
+    // Prevent processing the same sale multiple times
+    if (processedSaleIdRef.current === editingSaleId) {
+      console.log("🚫 [POSClient] Sale already processed:", editingSaleId);
+      return;
+    }
+    
+    console.log("📥 [POSClient] selectedSaleForEdit changed:", { selectedSaleForEdit, editingSaleId });
+    processedSaleIdRef.current = editingSaleId;
+    
+    const loadSaleForEdit = async () => {
+      try {
+        // Load the full order using the orderId from the sale
+        const fullOrderResponse = await loadOrder(editingSaleId);
+        console.log("📄 [POSClient] Loaded sale order response:", fullOrderResponse);
+        
+        // Extract the actual order data (handle nested data structure)
+        const fullOrder = (fullOrderResponse as any)?.data || fullOrderResponse;
+        console.log("📄 [POSClient] Extracted sale order data:", fullOrder);
+        
+        // Convert order items to cart items
+        const cartItems: POSCartItem[] = fullOrder.items.map(item => {
+          const unitPrice = typeof item.unitPrice === 'string' ? parseFloat(item.unitPrice) : item.unitPrice;
+          const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
+          
+          const originalItem = item.menuItem || item.material || {
+            id: item.menuItemId || item.materialId || item.id,
+            name: item.name,
+            price: unitPrice
+          };
+          
+          return {
+            id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
+            menuItemId: item.menuItemId?.toString() || undefined,
+            materialId: item.materialId?.toString() || undefined,
+            name: item.name,
+            price: unitPrice,
+            quantity: quantity,
+            type: item.type as "menu_item" | "stock_entry" | "material",
+            notes: item.notes || undefined,
+            originalItem: originalItem as any,
+            orderItemId: item.id?.toString(),
+            variant: item.selectedVariant ? {
+              id: item.selectedVariant.name,
+              name: item.selectedVariant.name,
+              volume: item.selectedVariant.volume,
+              unit: item.selectedVariant.unit,
+              price: typeof item.selectedVariant.price === 'string' 
+                ? parseFloat(item.selectedVariant.price) 
+                : item.selectedVariant.price
+            } : undefined
+          };
+        });
+        
+        console.log("🛒 [POSClient] Setting cart from sale:", cartItems);
+        
+        // CRITICAL: Set the active order FIRST so updates work correctly
+        dispatch(setActiveOrder(fullOrder));
+        console.log("✅ [POSClient] Set active order from sale:", fullOrder.id, fullOrder.orderNumber);
+        
+        // Set the cart with the sale items
+        dispatch(setCart(cartItems));
+        
+        // Set order notes if any
+        if (fullOrder.notes) {
+          dispatch(setOrderNotesAction(fullOrder.notes));
+        }
+        
+        // Set discount if any
+        if (fullOrder.discountType && fullOrder.discountValue) {
+          dispatch(applyDiscountAction({
+            type: fullOrder.discountType as "percentage" | "fixed",
+            value: fullOrder.discountValue,
+            reason: fullOrder.discountReason
+          }));
+        }
+        
+        // Set table if it's a table order
+        if (fullOrder.table) {
+          dispatch(setSelectedTableAction(fullOrder.table));
+          dispatch(setOrderTypeAction("table"));
+        }
+        
+        // Set employee if it's an employee order
+        if (fullOrder.employee) {
+          dispatch(setSelectedEmployeeAction(fullOrder.employee));
+          dispatch(setOrderTypeAction("employees"));
+        }
+        
+        // Set order type based on sale data
+        if (selectedSaleForEdit.orderType) {
+          dispatch(setOrderTypeAction(selectedSaleForEdit.orderType as OrderType));
+        }
+        
+        showSuccess(`Loaded sale ${fullOrder.orderNumber} for editing`);
+      } catch (error) {
+        console.error("❌ [POSClient] Error loading sale for edit:", error);
+        showError("Failed to load sale for editing");
+      }
+    };
+    
+    loadSaleForEdit();
+  }, [selectedSaleForEdit, editingSaleId, loadOrder, dispatch, showSuccess, showError]);
+
   const updateOrder = useCallback(
     async (orderIdOrData: string | UpdateOrderData, maybeData?: UpdateOrderData): Promise<Order> => {
       let orderId: string;
@@ -386,6 +493,12 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       if (typeof orderIdOrData === "string") {
         orderId = orderIdOrData;
         data = maybeData as UpdateOrderData;
+        
+        // Validate that data is provided when orderId is a string
+        if (!data) {
+          console.error("❌ [updateOrder] Missing data parameter when orderId is provided:", orderId);
+          throw new Error("Update data is required when providing orderId");
+        }
       } else {
         if (!currentOrder) {
           throw new Error("No current order to update");
@@ -393,6 +506,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         data = orderIdOrData;
         orderId = currentOrder.id;
       }
+
+      console.log("📝 [updateOrder] Updating order:", { orderId, dataKeys: Object.keys(data) });
 
       const result = await dispatch(updateOrderThunk({ orderId, data }));
       if (updateOrderThunk.fulfilled.match(result)) {
@@ -705,14 +820,34 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         };
 
         const newOrder = await createOrder(orderData);
+        
+        // CRITICAL: Validate new order has ID
+        if (!newOrder || !newOrder.id) {
+          console.error("❌ [handlePayment] Created order has no ID:", newOrder);
+          showError("Failed to create order - no ID returned");
+          dispatch(setIsLoadingAction(false));
+          return;
+        }
+        
         orderId = newOrder.id;
+        console.log("✅ [handlePayment] Created new order:", orderId);
       } else {
         if (currentOrder.status === "paid") {
           showError(`Order ${currentOrder.orderNumber} is already completed`);
           dispatch(setIsLoadingAction(false));
           return;
         }
+        
+        // CRITICAL FIX: Validate orderId before using it
+        if (!currentOrder.id) {
+          console.error("❌ [handlePayment] Current order has no ID:", currentOrder);
+          showError("Invalid order - missing order ID");
+          dispatch(setIsLoadingAction(false));
+          return;
+        }
+        
         orderId = currentOrder.id;
+        console.log("✅ [handlePayment] Using existing order:", orderId);
       }
 
       const paymentData = {
@@ -720,6 +855,16 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         paymentAmount: parseFloat(paymentAmount) || total,
         change: Math.max(0, parseFloat(paymentAmount) - total)
       };
+
+      // CRITICAL: Final validation before API call
+      if (!orderId || orderId === 'undefined' || orderId === undefined) {
+        console.error("🚨 [handlePayment] CRITICAL: orderId is invalid before dispatch:", { orderId, currentOrder });
+        showError("Cannot complete payment - invalid order ID");
+        dispatch(setIsLoadingAction(false));
+        return;
+      }
+
+      console.log("💳 [handlePayment] Completing order:", { orderId, paymentData });
 
       const result = await dispatch(
         completeOrder({
