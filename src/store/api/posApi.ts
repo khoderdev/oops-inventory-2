@@ -29,6 +29,8 @@ export const posApi = createApi({
     },
   }),
   tagTypes: ['Orders', 'Tables', 'MenuItems', 'Categories', 'DayOperations', 'Activities', 'UserStats'],
+  // ULTRA-FAST: Keep data cached for 10 minutes (like desktop app)
+  keepUnusedDataFor: 600, // 10 minutes in seconds
   endpoints: (builder) => ({
     // ============================================================================
     // ORDERS ENDPOINTS

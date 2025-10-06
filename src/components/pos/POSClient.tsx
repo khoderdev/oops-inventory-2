@@ -103,13 +103,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
   const { currentDay, closeDay, refreshCurrentDay, actionLoading: dayActionLoading } = useDayOperations();
 
-  // Use RTK Query for tables and orders (automatic caching and deduplication)
+  // Use RTK Query for tables and orders - INSTANT from cache like desktop app
   // Skip queries if not authenticated to prevent 401 errors
   const { data: tables = [] } = useGetTablesQuery(
     { includeOrders: true },
     {
-      pollingInterval: 300000, // 5 minutes instead of constant fetching
-      refetchOnMountOrArgChange: true,
+      pollingInterval: 0, // No polling - manual refresh only
+      refetchOnMountOrArgChange: false, // Use cache instantly
+      refetchOnFocus: false, // Never refetch
       skip: !isAuthenticated
     }
   );
@@ -117,8 +118,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const { data: ordersData = [] } = useGetOrdersQuery(
     {},
     {
-      pollingInterval: 120000, // 2 minutes
-      refetchOnMountOrArgChange: true,
+      pollingInterval: 0, // No polling - manual refresh only
+      refetchOnMountOrArgChange: false, // Use cache instantly
+      refetchOnFocus: false, // Never refetch
       skip: !isAuthenticated
     }
   );
@@ -264,7 +266,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     async (data: CreateOrderData): Promise<Order> => {
       const result = await dispatch(createOrderThunk(data));
       if (createOrderThunk.fulfilled.match(result)) {
-        return result.payload;
+        // Handle nested response structure: { message, order } or direct order
+        const payload = result.payload as any;
+        const order = payload.order || payload;
+        console.log("✅ [createOrder] Order created:", order);
+        return order;
       }
       throw new Error((result.payload as string) || "Failed to create order");
     },
@@ -498,7 +504,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
       const result = await dispatch(updateOrderThunk({ orderId, data }));
       if (updateOrderThunk.fulfilled.match(result)) {
-        return result.payload;
+        // Handle nested response structure: { message, order } or direct order
+        const payload = result.payload as any;
+        const order = payload.order || payload;
+        console.log("✅ [updateOrder] Order updated:", order);
+        return order;
       }
       throw new Error((result.payload as string) || "Failed to update order");
     },

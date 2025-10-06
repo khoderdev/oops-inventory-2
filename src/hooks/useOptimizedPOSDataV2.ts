@@ -4,12 +4,13 @@
  * Replaces the old useOptimizedPOSData hook
  */
 
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { POSItem, MenuItem } from "@/types/inventory";
 import { Category } from "@/types/categories";
 import { useGetFoodMenuItemsQuery, useGetBeverageMenuItemsQuery, useGetCategoriesByTypeQuery } from "@/store/api/posApi";
 import { buildCategoriesMap, transformMenuItemsToPOSItems, extractCategories, filterPOSItemsByCategory } from "@/services/posDataService";
 import { useAuth } from "@/contexts/AuthContext";
+import { posCache } from "@/utils/posCache";
 
 export interface UseOptimizedPOSDataResult {
   posItems: POSItem[];
@@ -29,19 +30,35 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
   const categoriesMapRef = useRef<Map<number, string>>(new Map());
   const posItemsRef = useRef<POSItem[]>([]);
   const lastDataLengthRef = useRef({ food: 0, beverage: 0, menuCat: 0, bevCat: 0 });
+  const initialLoadRef = useRef(false);
 
-  // Use RTK Query hooks - automatic caching and deduplication
+  // DESKTOP APP SPEED: Load from localStorage FIRST
+  useEffect(() => {
+    if (!initialLoadRef.current && isAuthenticated) {
+      console.log("⚡ [useOptimizedPOSDataV2] Loading from localStorage cache...");
+      
+      // Try to load cached POS items
+      const cachedPosItems = posCache.get<POSItem[]>(posCache.keys.FOOD_ITEMS + '_transformed');
+      if (cachedPosItems && cachedPosItems.length > 0) {
+        posItemsRef.current = cachedPosItems;
+        console.log(`✅ [useOptimizedPOSDataV2] Loaded ${cachedPosItems.length} items from cache INSTANTLY!`);
+      }
+      
+      initialLoadRef.current = true;
+    }
+  }, [isAuthenticated]);
+
+  // Use RTK Query hooks - INSTANT from cache, update in background
   // Skip queries if not authenticated to prevent 401 errors
   const {
     data: foodMenuItems = [],
     isLoading: foodLoading,
     refetch: refetchFood
   } = useGetFoodMenuItemsQuery(true, {
-    // Refetch on mount and window focus
-    refetchOnMountOrArgChange: true,
-    refetchOnFocus: false, // Disable refetch on focus to prevent unnecessary re-renders
-    // Keep data for 5 minutes
-    pollingInterval: 0, // Disable automatic polling, we'll use smart polling
+    // DESKTOP APP SPEED: Use cache immediately, no refetch on mount
+    refetchOnMountOrArgChange: false, // Use cache instantly
+    refetchOnFocus: false, // Never refetch on focus
+    pollingInterval: 0, // No polling
     skip: !isAuthenticated // Skip if not authenticated
   });
 
@@ -50,22 +67,22 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
     isLoading: beverageLoading,
     refetch: refetchBeverages
   } = useGetBeverageMenuItemsQuery(true, {
-    refetchOnMountOrArgChange: true,
-    refetchOnFocus: false, // Disable refetch on focus
+    refetchOnMountOrArgChange: false, // Use cache instantly
+    refetchOnFocus: false,
     pollingInterval: 0,
     skip: !isAuthenticated
   });
 
   const { data: menuItemCategories = [], isLoading: menuCategoriesLoading } = useGetCategoriesByTypeQuery("menu_items", {
-    refetchOnMountOrArgChange: true,
-    refetchOnFocus: false, // Disable refetch on focus
+    refetchOnMountOrArgChange: false, // Use cache instantly
+    refetchOnFocus: false,
     pollingInterval: 0,
     skip: !isAuthenticated
   });
 
   const { data: beverageCategories = [], isLoading: beverageCategoriesLoading } = useGetCategoriesByTypeQuery("beverages", {
-    refetchOnMountOrArgChange: true,
-    refetchOnFocus: false, // Disable refetch on focus
+    refetchOnMountOrArgChange: false, // Use cache instantly
+    refetchOnFocus: false,
     pollingInterval: 0,
     skip: !isAuthenticated
   });
@@ -91,13 +108,19 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
     }
 
     if (foodMenuItems.length === 0 && beverageMenuItems.length === 0) {
-      return [];
+      // Return cached items if available
+      return posItemsRef.current;
     }
 
     // Build once when data is available
     if (posItemsRef.current.length === 0 && (foodMenuItems.length > 0 || beverageMenuItems.length > 0)) {
       console.log("🔄 [useOptimizedPOSDataV2] Transforming menu items to POS items (ONCE)");
-      posItemsRef.current = transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMapRef.current);
+      const transformed = transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMapRef.current);
+      posItemsRef.current = transformed;
+      
+      // DESKTOP APP SPEED: Save to localStorage for instant load next time
+      posCache.set(posCache.keys.FOOD_ITEMS + '_transformed', transformed);
+      console.log(`💾 [useOptimizedPOSDataV2] Saved ${transformed.length} items to localStorage`);
     }
     
     return posItemsRef.current;
