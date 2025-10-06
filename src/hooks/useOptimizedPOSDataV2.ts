@@ -4,7 +4,7 @@
  * Replaces the old useOptimizedPOSData hook
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { POSItem, MenuItem } from "@/types/inventory";
 import { Category } from "@/types/categories";
 import { useGetFoodMenuItemsQuery, useGetBeverageMenuItemsQuery, useGetCategoriesByTypeQuery } from "@/store/api/posApi";
@@ -24,6 +24,11 @@ export interface UseOptimizedPOSDataResult {
 export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): UseOptimizedPOSDataResult {
   const { isAuthenticated } = useAuth();
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  
+  // Refs for stable caching
+  const categoriesMapRef = useRef<Map<number, string>>(new Map());
+  const posItemsRef = useRef<POSItem[]>([]);
+  const lastDataLengthRef = useRef({ food: 0, beverage: 0, menuCat: 0, bevCat: 0 });
 
   // Use RTK Query hooks - automatic caching and deduplication
   // Skip queries if not authenticated to prevent 401 errors
@@ -34,7 +39,7 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
   } = useGetFoodMenuItemsQuery(true, {
     // Refetch on mount and window focus
     refetchOnMountOrArgChange: true,
-    refetchOnFocus: true,
+    refetchOnFocus: false, // Disable refetch on focus to prevent unnecessary re-renders
     // Keep data for 5 minutes
     pollingInterval: 0, // Disable automatic polling, we'll use smart polling
     skip: !isAuthenticated // Skip if not authenticated
@@ -46,43 +51,79 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
     refetch: refetchBeverages
   } = useGetBeverageMenuItemsQuery(true, {
     refetchOnMountOrArgChange: true,
-    refetchOnFocus: true,
+    refetchOnFocus: false, // Disable refetch on focus
     pollingInterval: 0,
     skip: !isAuthenticated
   });
 
   const { data: menuItemCategories = [], isLoading: menuCategoriesLoading } = useGetCategoriesByTypeQuery("menu_items", {
     refetchOnMountOrArgChange: true,
+    refetchOnFocus: false, // Disable refetch on focus
     pollingInterval: 0,
     skip: !isAuthenticated
   });
 
   const { data: beverageCategories = [], isLoading: beverageCategoriesLoading } = useGetCategoriesByTypeQuery("beverages", {
     refetchOnMountOrArgChange: true,
+    refetchOnFocus: false, // Disable refetch on focus
     pollingInterval: 0,
     skip: !isAuthenticated
   });
 
-  // Build categories map (memoized with stable dependencies)
+  // Build categories map (cached with length-based change detection)
   const categoriesMap = useMemo(() => {
     if (!isAuthenticated) return new Map();
-    return buildCategoriesMap(menuItemCategories, beverageCategories);
-  }, [menuItemCategories, beverageCategories, isAuthenticated]);
+    
+    const currentLengths = {
+      menuCat: menuItemCategories.length,
+      bevCat: beverageCategories.length
+    };
+    
+    // Only rebuild if lengths changed
+    if (
+      currentLengths.menuCat !== lastDataLengthRef.current.menuCat ||
+      currentLengths.bevCat !== lastDataLengthRef.current.bevCat ||
+      categoriesMapRef.current.size === 0
+    ) {
+      console.log("🔄 [useOptimizedPOSDataV2] Rebuilding categories map");
+      categoriesMapRef.current = buildCategoriesMap(menuItemCategories, beverageCategories);
+      lastDataLengthRef.current.menuCat = currentLengths.menuCat;
+      lastDataLengthRef.current.bevCat = currentLengths.bevCat;
+    }
+    
+    return categoriesMapRef.current;
+  }, [menuItemCategories.length, beverageCategories.length, isAuthenticated]);
 
-  // Transform menu items to POS items (memoized with stable dependencies)
+  // Transform menu items to POS items (cached with length-based change detection)
   const posItems = useMemo(() => {
     if (!isAuthenticated || isPOSActionInProgress) {
-      // Return empty during POS actions or when not authenticated
-      return [];
+      // Return cached items during POS actions
+      return posItemsRef.current;
     }
 
     if (foodMenuItems.length === 0 && beverageMenuItems.length === 0) {
       return [];
     }
 
-    console.log("🔄 [useOptimizedPOSDataV2] Transforming menu items to POS items");
-    return transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMap);
-  }, [foodMenuItems, beverageMenuItems, categoriesMap, isPOSActionInProgress, isAuthenticated]);
+    const currentLengths = {
+      food: foodMenuItems.length,
+      beverage: beverageMenuItems.length
+    };
+    
+    // Only rebuild if lengths changed
+    if (
+      currentLengths.food !== lastDataLengthRef.current.food ||
+      currentLengths.beverage !== lastDataLengthRef.current.beverage ||
+      posItemsRef.current.length === 0
+    ) {
+      console.log("🔄 [useOptimizedPOSDataV2] Transforming menu items to POS items");
+      posItemsRef.current = transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMap);
+      lastDataLengthRef.current.food = currentLengths.food;
+      lastDataLengthRef.current.beverage = currentLengths.beverage;
+    }
+    
+    return posItemsRef.current;
+  }, [foodMenuItems.length, beverageMenuItems.length, categoriesMap, isPOSActionInProgress, isAuthenticated]);
 
   // Get filtered POS items (memoized)
   const filteredPosItems = useMemo(() => {

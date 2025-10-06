@@ -194,6 +194,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     showError: message => dispatch(setErrorAction(message))
   });
 
+  // Debug: Monitor cart changes
+  useEffect(() => {
+    if (cart.length > 0) {
+      console.log("✅ [POSClient] Cart updated in Redux:", cart.length, "items");
+    }
+  }, [cart.length]);
+
   // Reset showTablesLayout to false on component mount
   useEffect(() => {
     if (showTablesLayout) {
@@ -529,10 +536,12 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
   // Cart clearing functions (must be declared before handleTableSelection)
   const clearCart = useCallback(() => {
+    console.log("🗑️ [POSClient] clearCart called - Stack trace:", new Error().stack);
     dispatch(clearCartAction());
   }, [dispatch]);
 
   const clearCartWithAnimation = useCallback(() => {
+    console.log("🗑️ [POSClient] clearCartWithAnimation called");
     dispatch(clearCartWithAnimationAction());
     processedOrderRef.current = null;
   }, [dispatch]);
@@ -639,16 +648,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
               console.log("✅ [POSClient] Set active order:", fullOrder.id, fullOrder.orderNumber);
               
               // Set the cart with the order items
+              console.log("🔄 [POSClient] About to dispatch setCart with", cartItems.length, "items");
               dispatch(setCart(cartItems));
-              
-              // Verify cart was set in Redux
-              setTimeout(() => {
-                console.log("✅ [POSClient] Cart verification after dispatch - current cart from Redux:", cart);
-                console.log("✅ [POSClient] Cart length from Redux:", cart.length);
-                if (cart.length === 0) {
-                  console.error("🚨 [POSClient] CRITICAL: Cart is EMPTY in Redux after setCart dispatch!");
-                }
-              }, 100);
+              console.log("✅ [POSClient] Dispatched setCart successfully");
               
               // Set order notes if any
               if (fullOrder.notes) {
