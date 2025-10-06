@@ -27,6 +27,7 @@ import PrinterSelector from "../common/PrinterSelector";
 // Optimized hooks
 import { usePOSState } from "@/hooks/usePOSState";
 import { useOptimizedPOSDataV2 } from "@/hooks/useOptimizedPOSDataV2";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Lazy load heavy components
 const ReportGenerator = lazy(() => import("../analytics/ReportGenerator"));
@@ -88,6 +89,7 @@ const EMPTY_ARRAY: any[] = [];
 const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
   const dispatch = useAppDispatch();
   const [isPending, startTransition] = useTransition();
+  const { isAuthenticated } = useAuth();
 
   // Consolidated Redux state (1 selector instead of 30+)
   const posState = usePOSState();
@@ -102,11 +104,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const { currentDay, closeDay, refreshCurrentDay, actionLoading: dayActionLoading } = useDayOperations();
 
   // Use RTK Query for tables and orders (automatic caching and deduplication)
+  // Skip queries if not authenticated to prevent 401 errors
   const { data: tables = [] } = useGetTablesQuery(
     { includeOrders: true },
     {
       pollingInterval: 300000, // 5 minutes instead of constant fetching
       refetchOnMountOrArgChange: true,
+      skip: !isAuthenticated
     }
   );
 
@@ -115,6 +119,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     {
       pollingInterval: 120000, // 2 minutes
       refetchOnMountOrArgChange: true,
+      skip: !isAuthenticated
     }
   );
 

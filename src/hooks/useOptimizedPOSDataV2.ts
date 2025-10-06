@@ -9,6 +9,7 @@ import { POSItem, MenuItem } from "@/types/inventory";
 import { Category } from "@/types/categories";
 import { useGetFoodMenuItemsQuery, useGetBeverageMenuItemsQuery, useGetCategoriesByTypeQuery } from "@/store/api/posApi";
 import { buildCategoriesMap, transformMenuItemsToPOSItems, extractCategories, filterPOSItemsByCategory } from "@/services/posDataService";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface UseOptimizedPOSDataResult {
   posItems: POSItem[];
@@ -21,9 +22,11 @@ export interface UseOptimizedPOSDataResult {
 }
 
 export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): UseOptimizedPOSDataResult {
+  const { isAuthenticated } = useAuth();
   const [activeCategory, setActiveCategory] = useState<string>("all");
 
   // Use RTK Query hooks - automatic caching and deduplication
+  // Skip queries if not authenticated to prevent 401 errors
   const {
     data: foodMenuItems = [],
     isLoading: foodLoading,
@@ -33,7 +36,8 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
     // Keep data for 5 minutes
-    pollingInterval: 0 // Disable automatic polling, we'll use smart polling
+    pollingInterval: 0, // Disable automatic polling, we'll use smart polling
+    skip: !isAuthenticated // Skip if not authenticated
   });
 
   const {
@@ -43,28 +47,32 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
   } = useGetBeverageMenuItemsQuery(true, {
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
-    pollingInterval: 0
+    pollingInterval: 0,
+    skip: !isAuthenticated
   });
 
   const { data: menuItemCategories = [], isLoading: menuCategoriesLoading } = useGetCategoriesByTypeQuery("menu_items", {
     refetchOnMountOrArgChange: true,
-    pollingInterval: 0
+    pollingInterval: 0,
+    skip: !isAuthenticated
   });
 
   const { data: beverageCategories = [], isLoading: beverageCategoriesLoading } = useGetCategoriesByTypeQuery("beverages", {
     refetchOnMountOrArgChange: true,
-    pollingInterval: 0
+    pollingInterval: 0,
+    skip: !isAuthenticated
   });
 
-  // Build categories map (memoized)
+  // Build categories map (memoized with stable dependencies)
   const categoriesMap = useMemo(() => {
+    if (!isAuthenticated) return new Map();
     return buildCategoriesMap(menuItemCategories, beverageCategories);
-  }, [menuItemCategories, beverageCategories]);
+  }, [menuItemCategories, beverageCategories, isAuthenticated]);
 
-  // Transform menu items to POS items (memoized)
+  // Transform menu items to POS items (memoized with stable dependencies)
   const posItems = useMemo(() => {
-    if (isPOSActionInProgress) {
-      // Return empty during POS actions to prevent grid refresh
+    if (!isAuthenticated || isPOSActionInProgress) {
+      // Return empty during POS actions or when not authenticated
       return [];
     }
 
@@ -74,7 +82,7 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
 
     console.log("🔄 [useOptimizedPOSDataV2] Transforming menu items to POS items");
     return transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMap);
-  }, [foodMenuItems, beverageMenuItems, categoriesMap, isPOSActionInProgress]);
+  }, [foodMenuItems, beverageMenuItems, categoriesMap, isPOSActionInProgress, isAuthenticated]);
 
   // Get filtered POS items (memoized)
   const filteredPosItems = useMemo(() => {

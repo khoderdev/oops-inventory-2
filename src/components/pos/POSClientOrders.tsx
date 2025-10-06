@@ -21,7 +21,7 @@ import { ReceiptPrinter } from "./ReceiptPrinter";
 const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onClose, onOrderSelect, onOrderStatusChange }) => {
   const renderCount = useRef(0);
   renderCount.current += 1;
-  const { user, hasRole } = useAuth();
+  const { user, hasRole, isAuthenticated } = useAuth();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showReceiptDialog, setShowReceiptDialog] = useState(false);
@@ -68,7 +68,7 @@ const POSClientOrdersComponent: React.FC<POSClientOrdersProps> = ({ isOpen, onCl
       ...(filters.orderType && filters.orderType !== "employees" ? { orderType: filters.orderType } : {})
     },
     {
-      skip: isOpen !== undefined && !isOpen, // Skip if dialog is closed
+      skip: !isAuthenticated || (isOpen !== undefined && !isOpen), // Skip if not authenticated or dialog is closed
       pollingInterval: 0, // No automatic polling in this component
       refetchOnMountOrArgChange: true,
     }

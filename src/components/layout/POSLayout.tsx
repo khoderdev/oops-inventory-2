@@ -4,7 +4,7 @@ import { useDayOperations } from "@/hooks/useDayOperations";
 import { useGetOrdersQuery, useGetTablesQuery } from "@/store/api/posApi";
 import { POSClientOrders } from "@/components/pos/POSClientOrders";
 import { POSHeader } from "@/components/pos/POSHeader";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DayOperationsModal from "@/components/DayOperationsModal/DayOperationsModal";
 import PinInput from "@/components/ui/PinInput";
 import { useAuth } from "@/contexts/AuthContext";
@@ -512,6 +512,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       {/* Sales History Dialog */}
       <Dialog open={showSalesHistoryDialog} onOpenChange={setShowSalesHistoryDialog}>
         <DialogContent className="max-w-screen h-[100vh] shadow-2xl p-0 overflow-auto">
+          <DialogDescription className="sr-only">View sales history and reports</DialogDescription>
           <div className="h-full overflow-auto">{showSalesHistoryDialog && <Sales key={showSalesHistoryDialog ? "sales-history-open" : "sales-history-closed"} onClose={() => setShowSalesHistoryDialog(false)} />}</div>
         </DialogContent>
       </Dialog>
@@ -572,6 +573,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
               </div>
               <span className="bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent font-semibold">Confirm Logout</span>
             </DialogTitle>
+            <DialogDescription className="sr-only">Enter your PIN to confirm logout</DialogDescription>
           </DialogHeader>
 
           <div className="relative z-10 py-4 pt-6">

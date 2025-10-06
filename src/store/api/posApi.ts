@@ -19,9 +19,11 @@ export const posApi = createApi({
     baseUrl: API_BASE_URL,
     credentials: 'include',
     prepareHeaders: (headers) => {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('auth_token');
       if (token) {
         headers.set('Authorization', `Bearer ${token}`);
+      } else {
+        console.warn('⚠️ [posApi] No auth token found - API calls will fail with 401');
       }
       return headers;
     },
