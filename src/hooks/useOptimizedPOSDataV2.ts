@@ -70,31 +70,20 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
     skip: !isAuthenticated
   });
 
-  // Build categories map (cached with length-based change detection)
+  // Build categories map (SMART CACHE - build once when data arrives, then cache)
   const categoriesMap = useMemo(() => {
     if (!isAuthenticated) return new Map();
     
-    const currentLengths = {
-      menuCat: menuItemCategories.length,
-      bevCat: beverageCategories.length
-    };
-    
-    // Only rebuild if lengths changed
-    if (
-      currentLengths.menuCat !== lastDataLengthRef.current.menuCat ||
-      currentLengths.bevCat !== lastDataLengthRef.current.bevCat ||
-      categoriesMapRef.current.size === 0
-    ) {
-      console.log("🔄 [useOptimizedPOSDataV2] Rebuilding categories map");
+    // Build once when data is available
+    if (categoriesMapRef.current.size === 0 && menuItemCategories.length > 0 && beverageCategories.length > 0) {
+      console.log("🔄 [useOptimizedPOSDataV2] Building categories map (ONCE)");
       categoriesMapRef.current = buildCategoriesMap(menuItemCategories, beverageCategories);
-      lastDataLengthRef.current.menuCat = currentLengths.menuCat;
-      lastDataLengthRef.current.bevCat = currentLengths.bevCat;
     }
     
     return categoriesMapRef.current;
-  }, [menuItemCategories.length, beverageCategories.length, isAuthenticated]);
+  }, [menuItemCategories.length > 0, beverageCategories.length > 0, isAuthenticated]); // Trigger once when data arrives
 
-  // Transform menu items to POS items (cached with length-based change detection)
+  // Transform menu items to POS items (SMART CACHE - build once when data arrives, then cache)
   const posItems = useMemo(() => {
     if (!isAuthenticated || isPOSActionInProgress) {
       // Return cached items during POS actions
@@ -105,25 +94,14 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
       return [];
     }
 
-    const currentLengths = {
-      food: foodMenuItems.length,
-      beverage: beverageMenuItems.length
-    };
-    
-    // Only rebuild if lengths changed
-    if (
-      currentLengths.food !== lastDataLengthRef.current.food ||
-      currentLengths.beverage !== lastDataLengthRef.current.beverage ||
-      posItemsRef.current.length === 0
-    ) {
-      console.log("🔄 [useOptimizedPOSDataV2] Transforming menu items to POS items");
-      posItemsRef.current = transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMap);
-      lastDataLengthRef.current.food = currentLengths.food;
-      lastDataLengthRef.current.beverage = currentLengths.beverage;
+    // Build once when data is available
+    if (posItemsRef.current.length === 0 && (foodMenuItems.length > 0 || beverageMenuItems.length > 0)) {
+      console.log("🔄 [useOptimizedPOSDataV2] Transforming menu items to POS items (ONCE)");
+      posItemsRef.current = transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMapRef.current);
     }
     
     return posItemsRef.current;
-  }, [foodMenuItems.length, beverageMenuItems.length, categoriesMap, isPOSActionInProgress, isAuthenticated]);
+  }, [foodMenuItems.length > 0, beverageMenuItems.length > 0, categoriesMapRef.current.size > 0, isPOSActionInProgress, isAuthenticated]); // Trigger once when data arrives
 
   // Get filtered POS items (memoized)
   const filteredPosItems = useMemo(() => {
@@ -138,9 +116,14 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
     return extractCategories(posItems);
   }, [posItems]);
 
-  // Refetch all data
+  // Refetch all data (clears cache and rebuilds)
   const refetch = useCallback(() => {
-    console.log("🔄 [useOptimizedPOSDataV2] Refetching all data");
+    console.log("🔄 [useOptimizedPOSDataV2] Refetching all data - clearing cache");
+    // Clear cache to force rebuild
+    categoriesMapRef.current = new Map();
+    posItemsRef.current = [];
+    lastDataLengthRef.current = { food: 0, beverage: 0, menuCat: 0, bevCat: 0 };
+    // Refetch from API
     refetchFood();
     refetchBeverages();
   }, [refetchFood, refetchBeverages]);
