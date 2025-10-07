@@ -40,8 +40,15 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
       // Try to load cached POS items
       const cachedPosItems = posCache.get<POSItem[]>(posCache.keys.FOOD_ITEMS + '_transformed');
       if (cachedPosItems && cachedPosItems.length > 0) {
-        posItemsRef.current = cachedPosItems;
-        console.log(`✅ [useOptimizedPOSDataV2] Loaded ${cachedPosItems.length} items from cache INSTANTLY!`);
+        // Validate cached data has required properties
+        const validItems = cachedPosItems.filter(item => item && item.id && item.name);
+        if (validItems.length > 0) {
+          posItemsRef.current = validItems;
+          console.log(`✅ [useOptimizedPOSDataV2] Loaded ${validItems.length} items from cache INSTANTLY!`);
+        } else {
+          console.warn("⚠️ [useOptimizedPOSDataV2] Cached items are invalid, clearing cache");
+          posCache.remove(posCache.keys.FOOD_ITEMS + '_transformed');
+        }
       }
       
       initialLoadRef.current = true;
@@ -116,11 +123,20 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
     if (posItemsRef.current.length === 0 && (foodMenuItems.length > 0 || beverageMenuItems.length > 0)) {
       console.log("🔄 [useOptimizedPOSDataV2] Transforming menu items to POS items (ONCE)");
       const transformed = transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMapRef.current);
-      posItemsRef.current = transformed;
+      
+      // Validate transformed data before caching
+      const validItems = transformed.filter(item => item && item.id && item.name);
+      if (validItems.length !== transformed.length) {
+        console.warn(`⚠️ [useOptimizedPOSDataV2] Filtered out ${transformed.length - validItems.length} invalid items`);
+      }
+      
+      posItemsRef.current = validItems;
       
       // DESKTOP APP SPEED: Save to localStorage for instant load next time
-      posCache.set(posCache.keys.FOOD_ITEMS + '_transformed', transformed);
-      console.log(`💾 [useOptimizedPOSDataV2] Saved ${transformed.length} items to localStorage`);
+      if (validItems.length > 0) {
+        posCache.set(posCache.keys.FOOD_ITEMS + '_transformed', validItems);
+        console.log(`💾 [useOptimizedPOSDataV2] Saved ${validItems.length} valid items to localStorage`);
+      }
     }
     
     return posItemsRef.current;
