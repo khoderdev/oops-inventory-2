@@ -213,6 +213,9 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
     return filtered;
   }, [posItems, activeCategory]);
 
+  // Add a ref for categories to maintain stable references
+  const categoriesRef = useRef<string[]>([]);
+
   // Extract categories (memoized with stable reference)
   const categories = useMemo(() => {
     // Use cached categories if available and posItems hasn't changed
@@ -224,9 +227,6 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
     categoriesRef.current = extractedCategories;
     return extractedCategories;
   }, [posItems]);
-
-  // Add a ref for categories to maintain stable references
-  const categoriesRef = useRef<string[]>([]);
 
   // Refetch all data (clears cache and rebuilds)
   const refetch = useCallback(() => {
