@@ -4,6 +4,10 @@ import { useGetFoodMenuItemsQuery, useGetBeverageMenuItemsQuery, useGetCategorie
 import { buildCategoriesMap, transformMenuItemsToPOSItems, extractCategories, filterPOSItemsByCategory } from "@/services/posDataService";
 import { useAuth } from "@/contexts/AuthContext";
 import { posCache } from "@/utils/posCache";
+import { useAppSelector } from "@/store/hooks";
+import { useDispatch } from "react-redux";
+import { isOnline } from "@/utils/offlineDetection";
+import { useOfflineDetection } from "./useOfflineDetection";
 
 export interface UseOptimizedPOSDataResult {
   posItems: POSItem[];
@@ -17,18 +21,21 @@ export interface UseOptimizedPOSDataResult {
 
 export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimizedPOSDataResult {
   const { isAuthenticated } = useAuth();
+  const dispatch = useDispatch();
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const { offline } = useOfflineDetection();
 
   // Refs for stable caching
   const categoriesMapRef = useRef<Map<number, string>>(new Map());
   const posItemsRef = useRef<POSItem[]>([]);
   const lastDataLengthRef = useRef({ food: 0, beverage: 0, menuCat: 0, bevCat: 0 });
   const initialLoadRef = useRef(false);
+  const offlineLoadedRef = useRef(false);
 
-  // DESKTOP APP SPEED: Load from localStorage FIRST
+  // ULTRA-FAST: Load from localStorage FIRST before any API calls
   useEffect(() => {
     if (!initialLoadRef.current && isAuthenticated) {
-      console.log("⚡ [useOptimizedPOSDataV2] Loading from localStorage cache...");
+      console.log("⚡ [usePOSData] Loading from localStorage cache...");
 
       // Try to load cached POS items
       const cachedPosItems = posCache.get<POSItem[]>(posCache.keys.FOOD_ITEMS + "_transformed");
@@ -37,28 +44,47 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
         const validItems = cachedPosItems.filter(item => item && item.id && item.name);
         if (validItems.length > 0) {
           posItemsRef.current = validItems;
-          console.log(`✅ [useOptimizedPOSDataV2] Loaded ${validItems.length} items from cache INSTANTLY!`);
+          offlineLoadedRef.current = true;
+          console.log(`✅ [usePOSData] Loaded ${validItems.length} items from cache INSTANTLY!`);
         } else {
-          console.warn("⚠️ [useOptimizedPOSDataV2] Cached items are invalid, clearing cache");
+          console.warn("⚠️ [usePOSData] Cached items are invalid, clearing cache");
           posCache.remove(posCache.keys.FOOD_ITEMS + "_transformed");
         }
+      }
+
+      // Try to load cached categories map
+      try {
+        const cachedMenuCategories = localStorage.getItem('pos_cache_menu_items_categories');
+        const cachedBeverageCategories = localStorage.getItem('pos_cache_beverages_categories');
+        
+        if (cachedMenuCategories && cachedBeverageCategories) {
+          const menuCats = JSON.parse(cachedMenuCategories).data || [];
+          const bevCats = JSON.parse(cachedBeverageCategories).data || [];
+          
+          if (menuCats.length > 0 && bevCats.length > 0) {
+            categoriesMapRef.current = buildCategoriesMap(menuCats, bevCats);
+            console.log(`✅ [usePOSData] Built categories map from cache with ${categoriesMapRef.current.size} categories`);
+          }
+        }
+      } catch (e) {
+        console.warn("⚠️ [usePOSData] Error loading cached categories:", e);
       }
 
       initialLoadRef.current = true;
     }
   }, [isAuthenticated]);
 
-  // Use RTK Query hooks - INSTANT from cache, update in background
+  // Use RTK Query hooks with optimized caching strategy
   // Skip queries if not authenticated to prevent 401 errors
   const {
     data: foodMenuItems = [],
     isLoading: foodLoading,
     refetch: refetchFood
   } = useGetFoodMenuItemsQuery(true, {
-    // DESKTOP APP SPEED: Use cache immediately, no refetch on mount
-    refetchOnMountOrArgChange: false, // Use cache instantly
+    // ULTRA-FAST: Use cache immediately, update in background
+    refetchOnMountOrArgChange: !offline, // Only update in background when online
     refetchOnFocus: false, // Never refetch on focus
-    pollingInterval: 0, // No polling
+    pollingInterval: offline ? 0 : 60 * 60 * 1000, // Only poll when online
     skip: !isAuthenticated // Skip if not authenticated
   });
 
@@ -67,23 +93,23 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
     isLoading: beverageLoading,
     refetch: refetchBeverages
   } = useGetBeverageMenuItemsQuery(true, {
-    refetchOnMountOrArgChange: false, // Use cache instantly
+    refetchOnMountOrArgChange: !offline, // Only update in background when online
     refetchOnFocus: false,
-    pollingInterval: 0,
+    pollingInterval: offline ? 0 : 60 * 60 * 1000, // Only poll when online
     skip: !isAuthenticated
   });
 
   const { data: menuItemCategories = [], isLoading: menuCategoriesLoading } = useGetCategoriesByTypeQuery("menu_items", {
-    refetchOnMountOrArgChange: false, // Use cache instantly
+    refetchOnMountOrArgChange: !offline, // Only update in background when online
     refetchOnFocus: false,
-    pollingInterval: 0,
+    pollingInterval: offline ? 0 : 60 * 60 * 1000, // Only poll when online
     skip: !isAuthenticated
   });
 
   const { data: beverageCategories = [], isLoading: beverageCategoriesLoading } = useGetCategoriesByTypeQuery("beverages", {
-    refetchOnMountOrArgChange: false, // Use cache instantly
+    refetchOnMountOrArgChange: !offline, // Only update in background when online
     refetchOnFocus: false,
-    pollingInterval: 0,
+    pollingInterval: offline ? 0 : 60 * 60 * 1000, // Only poll when online
     skip: !isAuthenticated
   });
 
@@ -93,8 +119,20 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
 
     // Build once when data is available
     if (categoriesMapRef.current.size === 0 && menuItemCategories.length > 0 && beverageCategories.length > 0) {
-      console.log("🔄 [useOptimizedPOSDataV2] Building categories map (ONCE)");
+      console.log("🔄 [usePOSData] Building categories map (ONCE)");
       categoriesMapRef.current = buildCategoriesMap(menuItemCategories, beverageCategories);
+      
+      // Save to localStorage for ultra-fast loading next time
+      try {
+        localStorage.setItem('pos_categories_map', JSON.stringify({
+          timestamp: Date.now(),
+          size: categoriesMapRef.current.size,
+          // Convert Map to array for serialization
+          entries: Array.from(categoriesMapRef.current.entries())
+        }));
+      } catch (e) {
+        console.warn("⚠️ [usePOSData] Failed to cache categories map:", e);
+      }
     }
 
     return categoriesMapRef.current;
@@ -107,33 +145,56 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
       return posItemsRef.current;
     }
 
-    if (foodMenuItems.length === 0 && beverageMenuItems.length === 0) {
+    // If we have offline data and no new data yet, use offline data
+    if ((foodMenuItems.length === 0 && beverageMenuItems.length === 0) && offlineLoadedRef.current) {
       // Return cached items if available
       return posItemsRef.current;
     }
 
     // Build once when data is available
-    if (posItemsRef.current.length === 0 && (foodMenuItems.length > 0 || beverageMenuItems.length > 0)) {
-      console.log("🔄 [useOptimizedPOSDataV2] Transforming menu items to POS items (ONCE)");
-      const transformed = transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMapRef.current);
+    if ((posItemsRef.current.length === 0 || foodMenuItems.length > 0 || beverageMenuItems.length > 0) && 
+        categoriesMapRef.current.size > 0) {
+      
+      // Check if data has changed before rebuilding
+      const foodChanged = foodMenuItems.length !== lastDataLengthRef.current.food;
+      const beverageChanged = beverageMenuItems.length !== lastDataLengthRef.current.beverage;
+      
+      if (foodChanged || beverageChanged || posItemsRef.current.length === 0) {
+        console.log("🔄 [usePOSData] Transforming menu items to POS items");
+        const transformed = transformMenuItemsToPOSItems(
+          foodMenuItems as MenuItem[], 
+          beverageMenuItems as MenuItem[], 
+          categoriesMapRef.current
+        );
 
-      // Validate transformed data before caching
-      const validItems = transformed.filter(item => item && item.id && item.name);
-      if (validItems.length !== transformed.length) {
-        console.warn(`⚠️ [useOptimizedPOSDataV2] Filtered out ${transformed.length - validItems.length} invalid items`);
-      }
+        // Validate transformed data before caching
+        const validItems = transformed.filter(item => item && item.id && item.name);
+        if (validItems.length !== transformed.length) {
+          console.warn(`⚠️ [usePOSData] Filtered out ${transformed.length - validItems.length} invalid items`);
+        }
 
-      posItemsRef.current = validItems;
+        posItemsRef.current = validItems;
+        
+        // Update data length references
+        lastDataLengthRef.current = {
+          food: foodMenuItems.length,
+          beverage: beverageMenuItems.length,
+          menuCat: menuItemCategories.length,
+          bevCat: beverageCategories.length
+        };
 
-      // DESKTOP APP SPEED: Save to localStorage for instant load next time
-      if (validItems.length > 0) {
-        posCache.set(posCache.keys.FOOD_ITEMS + "_transformed", validItems);
-        console.log(`💾 [useOptimizedPOSDataV2] Saved ${validItems.length} valid items to localStorage`);
+        // ULTRA-FAST: Save to localStorage for instant load next time
+        if (validItems.length > 0) {
+          posCache.set(posCache.keys.FOOD_ITEMS + "_transformed", validItems);
+          console.log(`💾 [usePOSData] Saved ${validItems.length} valid items to localStorage`);
+        }
+      } else {
+        console.log("⚡ [usePOSData] Using cached POS items - no data changes detected");
       }
     }
 
     return posItemsRef.current;
-  }, [foodMenuItems.length > 0, beverageMenuItems.length > 0, categoriesMapRef.current.size > 0, isPOSActionInProgress, isAuthenticated]); // Trigger once when data arrives
+  }, [foodMenuItems, beverageMenuItems, categoriesMap, isPOSActionInProgress, isAuthenticated]); // Improved dependency array
 
   // Get filtered POS items (memoized)
   const filteredPosItems = useMemo(() => {
@@ -150,23 +211,38 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
 
   // Refetch all data (clears cache and rebuilds)
   const refetch = useCallback(() => {
-    console.log("🔄 [useOptimizedPOSDataV2] Refetching all data - clearing cache");
+    console.log("🔄 [usePOSData] Refetching all data - clearing cache");
     // Clear cache to force rebuild
     categoriesMapRef.current = new Map();
     posItemsRef.current = [];
     lastDataLengthRef.current = { food: 0, beverage: 0, menuCat: 0, bevCat: 0 };
-    // Refetch from API
-    refetchFood();
-    refetchBeverages();
-  }, [refetchFood, refetchBeverages]);
+    offlineLoadedRef.current = false;
+    
+    // Clear localStorage cache
+    posCache.remove(posCache.keys.FOOD_ITEMS + "_transformed");
+    localStorage.removeItem('pos_categories_map');
+    localStorage.removeItem('pos_cache_food_items');
+    localStorage.removeItem('pos_cache_beverage_items');
+    localStorage.removeItem('pos_cache_menu_items_categories');
+    localStorage.removeItem('pos_cache_beverages_categories');
+    
+    // Only refetch from API if online
+    if (!offline) {
+      refetchFood();
+      refetchBeverages();
+    } else {
+      console.log("⚠️ [usePOSData] Offline mode - cannot refetch data");
+    }
+  }, [refetchFood, refetchBeverages, offline]);
 
   // Stable setActiveCategory
   const handleSetActiveCategory = useCallback((category: string) => {
     setActiveCategory(category);
   }, []);
 
-  // DESKTOP APP SPEED: Never show loading if we have cached data
-  const isLoading = posItemsRef.current.length === 0 && (foodLoading || beverageLoading || menuCategoriesLoading || beverageCategoriesLoading);
+  // ULTRA-FAST: Never show loading if we have cached data
+  const isLoading = posItemsRef.current.length === 0 && !offlineLoadedRef.current && 
+    (foodLoading || beverageLoading || menuCategoriesLoading || beverageCategoriesLoading);
 
   return {
     posItems,

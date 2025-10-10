@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { POSReduxProvider } from "./providers/POSReduxProvider";
 import { useInventoryStore } from "@/hooks/useInventoryStore";
+import { useOfflineDetection } from "@/hooks/useOfflineDetection";
 import { employeeFormModeAtom, employeeFormOpenAtom, employeesAtom, selectedEmployeeAtom } from "@/store/employeeAtoms";
 import { PERMISSIONS } from "@/types/auth";
 import { InventoryManagementPanelProps } from "@/types/inventory";
@@ -49,6 +50,9 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
   const [, setFormOpen] = useAtom(employeeFormOpenAtom);
   const [, setFormMode] = useAtom(employeeFormModeAtom);
   const [, setSelectedEmployee] = useAtom(selectedEmployeeAtom);
+  
+  // Initialize offline detection
+  const { offline } = useOfflineDetection();
 
   const handleCreateMenuItem = onCreateMenuItem || storeCreateMenuItem;
   const handleUpdateMenuItem = onUpdateMenuItem || storeUpdateMenuItem;
@@ -82,6 +86,11 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
+          {offline && (
+            <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-1 z-50">
+              Offline Mode - Using Cached Data
+            </div>
+          )}
           {/* <Sonner /> */}
           <BrowserRouter
             future={{

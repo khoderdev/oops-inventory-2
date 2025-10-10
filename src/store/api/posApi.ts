@@ -1,6 +1,7 @@
 /**
  * RTK Query API for POS Data
  * Centralized API with automatic caching, deduplication, and polling
+ * Enhanced with persistent caching for offline-first experience
  */
 
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
@@ -13,24 +14,53 @@ import { UserOrderStats } from '@/types/dayOperations';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
+// Enhanced cache configuration
+const CACHE_CONFIG = {
+  // Extended cache durations for better offline experience
+  MENU_ITEMS: 24 * 60 * 60, // 24 hours for menu items
+  CATEGORIES: 24 * 60 * 60, // 24 hours for categories
+  TABLES: 30 * 60, // 30 minutes for tables
+  ORDERS: 15 * 60, // 15 minutes for orders
+  DAY_OPERATIONS: 60 * 60, // 1 hour for day operations
+  ACTIVITIES: 15 * 60, // 15 minutes for activities
+};
+
+// Create custom error handler for offline support
+const customFetchBaseQuery = fetchBaseQuery({
+  baseUrl: API_BASE_URL,
+  credentials: 'include',
+  prepareHeaders: (headers) => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    } else {
+      console.warn('⚠️ [posApi] No auth token found - API calls will fail with 401');
+    }
+    return headers;
+  },
+});
+
+// Enhanced base query with offline support
+const baseQueryWithOfflineSupport = async (args: any, api: any, extraOptions: any) => {
+  try {
+    // Try the normal query first
+    const result = await customFetchBaseQuery(args, api, extraOptions);
+    return result;
+  } catch (error) {
+    console.warn('⚠️ [posApi] Network error - using cached data', error);
+    // Return a custom error that our components can handle
+    return {
+      error: { status: 'OFFLINE', data: error },
+    };
+  }
+};
+
 export const posApi = createApi({
   reducerPath: 'posApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: API_BASE_URL,
-    credentials: 'include',
-    prepareHeaders: (headers) => {
-      const token = localStorage.getItem('auth_token');
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      } else {
-        console.warn('⚠️ [posApi] No auth token found - API calls will fail with 401');
-      }
-      return headers;
-    },
-  }),
+  baseQuery: baseQueryWithOfflineSupport,
   tagTypes: ['Orders', 'Tables', 'MenuItems', 'Categories', 'DayOperations', 'Activities', 'UserStats'],
-  // ULTRA-FAST: Keep data cached for 10 minutes (like desktop app)
-  keepUnusedDataFor: 600, // 10 minutes in seconds
+  // ULTRA-FAST: Keep data cached for 24 hours by default (like desktop app)
+  keepUnusedDataFor: 24 * 60 * 60, // 24 hours in seconds
   endpoints: (builder) => ({
     // ============================================================================
     // ORDERS ENDPOINTS
@@ -52,8 +82,27 @@ export const posApi = createApi({
               { type: 'Orders', id: 'LIST' },
             ]
           : [{ type: 'Orders', id: 'LIST' }],
-      // Keep fresh for 30 seconds
-      keepUnusedDataFor: 30,
+      // Keep for 15 minutes
+      keepUnusedDataFor: CACHE_CONFIG.ORDERS,
+      // Add stale-while-revalidate behavior
+      onCacheEntryAdded: async (arg, { cacheDataLoaded, cacheEntryRemoved, updateCachedData }) => {
+        try {
+          // Wait for the initial query to resolve
+          const initialData = await cacheDataLoaded;
+          const orders = initialData as unknown as OrderSummary[];
+          
+          // Save to localStorage for ultra-fast loading
+          localStorage.setItem('pos_cache_orders', JSON.stringify({
+            data: orders,
+            timestamp: Date.now(),
+            params: arg
+          }));
+          
+          console.log(`💾 [posApi] Saved ${orders.length} orders to localStorage`);
+        } catch (e) {
+          console.error('Error in onCacheEntryAdded for orders:', e);
+        }
+      }
     }),
 
     getOrder: builder.query<Order, string>({
@@ -131,7 +180,26 @@ export const posApi = createApi({
               { type: 'Tables', id: 'LIST' },
             ]
           : [{ type: 'Tables', id: 'LIST' }],
-      keepUnusedDataFor: 120, // 2 minutes
+      keepUnusedDataFor: CACHE_CONFIG.TABLES, // 30 minutes
+      // Add stale-while-revalidate behavior
+      onCacheEntryAdded: async (arg, { cacheDataLoaded, cacheEntryRemoved, updateCachedData }) => {
+        try {
+          // Wait for the initial query to resolve
+          const initialData = await cacheDataLoaded;
+          const tables = initialData as unknown as Table[];
+          
+          // Save to localStorage for ultra-fast loading
+          localStorage.setItem('pos_cache_tables', JSON.stringify({
+            data: tables,
+            timestamp: Date.now(),
+            params: arg
+          }));
+          
+          console.log(`💾 [posApi] Saved ${tables.length} tables to localStorage`);
+        } catch (e) {
+          console.error('Error in onCacheEntryAdded for tables:', e);
+        }
+      }
     }),
 
     // ============================================================================
@@ -146,7 +214,25 @@ export const posApi = createApi({
         return response?.data || response || [];
       },
       providesTags: [{ type: 'MenuItems', id: 'FOOD' }],
-      keepUnusedDataFor: 300, // 5 minutes
+      keepUnusedDataFor: CACHE_CONFIG.MENU_ITEMS, // 24 hours
+      // Add stale-while-revalidate behavior
+      onCacheEntryAdded: async (arg, { cacheDataLoaded, cacheEntryRemoved, updateCachedData }) => {
+        try {
+          // Wait for the initial query to resolve
+          const initialData = await cacheDataLoaded;
+          const foodItems = initialData as unknown as MenuItem[];
+          
+          // Save to localStorage for ultra-fast loading
+          localStorage.setItem('pos_cache_food_items', JSON.stringify({
+            data: foodItems,
+            timestamp: Date.now()
+          }));
+          
+          console.log(`💾 [posApi] Saved ${foodItems.length} food menu items to localStorage`);
+        } catch (e) {
+          console.error('Error in onCacheEntryAdded for food menu items:', e);
+        }
+      }
     }),
 
     getBeverageMenuItems: builder.query<MenuItem[], boolean>({
@@ -158,7 +244,25 @@ export const posApi = createApi({
         return response?.data || response || [];
       },
       providesTags: [{ type: 'MenuItems', id: 'BEVERAGES' }],
-      keepUnusedDataFor: 300, // 5 minutes
+      keepUnusedDataFor: CACHE_CONFIG.MENU_ITEMS, // 24 hours
+      // Add stale-while-revalidate behavior
+      onCacheEntryAdded: async (arg, { cacheDataLoaded, cacheEntryRemoved, updateCachedData }) => {
+        try {
+          // Wait for the initial query to resolve
+          const initialData = await cacheDataLoaded;
+          const beverageItems = initialData as unknown as MenuItem[];
+          
+          // Save to localStorage for ultra-fast loading
+          localStorage.setItem('pos_cache_beverage_items', JSON.stringify({
+            data: beverageItems,
+            timestamp: Date.now()
+          }));
+          
+          console.log(`💾 [posApi] Saved ${beverageItems.length} beverage menu items to localStorage`);
+        } catch (e) {
+          console.error('Error in onCacheEntryAdded for beverage menu items:', e);
+        }
+      }
     }),
 
     // ============================================================================
@@ -170,7 +274,25 @@ export const posApi = createApi({
         return response?.totalItems || response?.data || response || [];
       },
       providesTags: (result, error, type) => [{ type: 'Categories', id: type }],
-      keepUnusedDataFor: 600, // 10 minutes
+      keepUnusedDataFor: CACHE_CONFIG.CATEGORIES, // 24 hours
+      // Add stale-while-revalidate behavior
+      onCacheEntryAdded: async (arg, { cacheDataLoaded, cacheEntryRemoved, updateCachedData }) => {
+        try {
+          // Wait for the initial query to resolve
+          const initialData = await cacheDataLoaded;
+          const categories = initialData as unknown as Category[];
+          
+          // Save to localStorage for ultra-fast loading
+          localStorage.setItem(`pos_cache_${arg}_categories`, JSON.stringify({
+            data: categories,
+            timestamp: Date.now()
+          }));
+          
+          console.log(`💾 [posApi] Saved ${categories.length} ${arg} categories to localStorage`);
+        } catch (e) {
+          console.error(`Error in onCacheEntryAdded for ${arg} categories:`, e);
+        }
+      }
     }),
 
     // ============================================================================
