@@ -12,7 +12,6 @@ import { PERMISSIONS } from "@/types/auth";
 import { POSLayoutProps, OpenDayRequest, CloseDayRequest } from "@/types/inventory";
 import { AlertCircle, CheckCircle, GripVertical, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import DailyReports from "@/components/analytics/DailyReports";
 import { useDailyReports } from "@/hooks/useDailyReports";
 import Sales from "../sales/Sales";
@@ -24,7 +23,7 @@ import { closeDay } from "@/store/slices/dayOperationsSlice";
 // Use centralized day operations hook for Redux state sharing and caching
 const POSLayout: React.FC<POSLayoutProps> = ({ children, onLogout, onOrderSelect }) => {
   const { user, logout } = useAuth();
-  const { hasPermission, hasRole } = usePermissions();
+  const { hasPermission } = usePermissions();
   const canAccessPOS = hasPermission(PERMISSIONS.POS_ACCESS);
   const canOpenDay = hasPermission(PERMISSIONS.DAY_OPERATIONS_CREATE);
   const canCloseDayPerm = hasPermission(PERMISSIONS.DAY_OPERATIONS_CLOSE);
@@ -52,32 +51,21 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, onLogout, onOrderSelect
   const [isCheckingDayStatus, setIsCheckingDayStatus] = useState(true);
   const [dayError, setDayError] = useState<string | null>(null);
   const [daySuccess, setDaySuccess] = useState<string | null>(null);
-  const [openDayForm, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
+  const [, setOpenDayForm] = useState<OpenDayRequest>({ openingCash: 0, openedBy: user?.fullName || "", notes: "" });
   const [closeDayForm, setCloseDayForm] = useState<CloseDayRequest>({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [, setLoading] = useState(true);
   const [, setError] = useState<string | null>(null);
-  const [, setSuccess] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
-
-  // 🚀 PERFORMANCE FIX: Use centralized Redux state to eliminate duplicate API calls
+  const [, setActionLoading] = useState(false);
+  const { showReportModal, setShowReportModal, selectedReport, error: reportError, setError: setReportError } = useDailyReports();
   const { currentDay: reduxCurrentDay, userOrderStats, refreshCurrentDay, refreshActivities, refreshUserStats } = useDayOperations(false);
 
   useEffect(() => {
     if (user) {
       if (user.fullName) {
-        setOpenDayForm(prev => ({
-          ...prev,
-          openedBy: user.fullName
-        }));
-        setCloseDayForm(prev => ({
-          ...prev,
-          closedBy: user.fullName
-        }));
+        setOpenDayForm(prev => ({ ...prev, openedBy: user.fullName }));
+        setCloseDayForm(prev => ({ ...prev, closedBy: user.fullName }));
       }
       setOpenDayForm(prev => ({
         ...prev,
@@ -90,34 +78,19 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, onLogout, onOrderSelect
     }
   }, [user]);
 
-  // 🚀 PERFORMANCE FIX: Use Redux state instead of duplicate API calls
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      console.log("📊 [POSLayout] Loading data from Redux (cached)...");
-
-      // Fetch current day operation (will use cache if valid)
       await refreshCurrentDay();
-
-      // Use Redux state instead of making duplicate API calls
       if (reduxCurrentDay) {
         dispatch(setUserDayOpen(reduxCurrentDay.status === "opened"));
-
-        // Hide lock overlay immediately if day is open
         if (reduxCurrentDay.status === "opened") {
           dispatch(setShowLockOverlay(false));
-
-          // Only fetch activities and stats if day is open (will use cache if valid)
-          console.log("📊 [POSLayout] Day is open, fetching activities and stats from cache...");
           await Promise.all([refreshActivities(), refreshUserStats()]);
         }
       }
-
-      console.log("✅ [POSLayout] Data loaded successfully from Redux");
     } catch (err) {
-      console.error("❌ [POSLayout] Error loading data:", err);
       setError(err instanceof Error ? err.message : "Failed to load day operations");
     } finally {
       setLoading(false);
@@ -175,16 +148,13 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, onLogout, onOrderSelect
     return () => window.removeEventListener("resize", handleResize);
   }, [leftPanelWidth, showLeftPanel, dispatch]);
 
-  // Use RTK Query for orders with smart polling (2 minutes instead of 30 seconds)
   const { data: ordersData = [] } = useGetOrdersQuery(
     { limit: 1000, offset: 0 },
     {
-      pollingInterval: 120000, // 2 minutes instead of 30 seconds
+      pollingInterval: 120000,
       refetchOnMountOrArgChange: true
     }
   );
-
-  // Calculate incomplete orders count from RTK Query data
   const incompleteOrdersCountCalculated = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
     const incompleteOrdersToday = ordersData.filter(order => {
@@ -321,15 +291,9 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, onLogout, onOrderSelect
     setShowDayOperationsModal(true);
   };
 
-  // 🚀 PERFORMANCE FIX: Use Redux state instead of duplicate API calls
   const refreshExpectedAndStats = useCallback(async () => {
     try {
-      console.log("🔄 [POSLayout] Refreshing expected cash and stats from Redux...");
-
-      // Force refresh from server (bypass cache) - pass true to force
       await Promise.all([refreshCurrentDay(true), refreshUserStats(true)]);
-
-      // Use Redux state (already updated by the refresh calls above)
       const latestExpected = reduxCurrentDay?.expectedCash ?? 0;
       setCloseDayForm(prev => ({
         ...prev,
@@ -337,8 +301,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, onLogout, onOrderSelect
         closedBy: user?.fullName || prev.closedBy || "",
         userId: (user?.id as any) ?? prev.userId
       }));
-
-      console.log("✅ [POSLayout] Expected cash and stats refreshed:", { latestExpected, statsCount: userOrderStats.length });
     } catch (e) {
       console.warn("⚠️ [POSLayout] Failed to refresh expected cash or user stats:", e);
     }
@@ -357,25 +319,18 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, onLogout, onOrderSelect
 
   useEffect(() => {
     if (!showCloseModal) return;
-
-    // Call once immediately
     refreshExpectedAndStats();
-
-    // Set up interval for periodic refresh
     const id = window.setInterval(() => {
       refreshExpectedAndStats();
     }, 10000);
 
     return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showCloseModal]); // Only depend on showCloseModal, not refreshExpectedAndStats
+  }, [showCloseModal]);
 
   useEffect(() => {
     if (isCheckingDayStatus) {
-      // Don't show overlay while checking - wait for actual status
       return;
     }
-    // Only show overlay if day is explicitly closed (not unknown)
     dispatch(setShowLockOverlay(isLocked));
   }, [isLocked, isCheckingDayStatus, dispatch]);
 
@@ -386,14 +341,11 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, onLogout, onOrderSelect
       setActionLoading(true);
       setError(null);
       const resultAction = await dispatch(closeDay({ ...closeDayForm, userId: user?.id as any }));
-
-      // Unwrap the result to get the actual response
       if (closeDay.fulfilled.match(resultAction)) {
         const response = resultAction.payload;
         if (response.dayOperation) {
           const isDayOpen = response.dayOperation.status === "opened";
           dispatch(setUserDayOpen(isDayOpen));
-          // Show lock overlay immediately when day closes
           if (!isDayOpen) {
             dispatch(setShowLockOverlay(true));
           }
