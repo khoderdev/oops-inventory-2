@@ -1,12 +1,5 @@
-/**
- * Optimized POS Data Hook V2
- * Uses RTK Query for automatic caching, deduplication, and polling
- * Replaces the old useOptimizedPOSData hook
- */
-
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { POSItem, MenuItem } from "@/types/inventory";
-import { Category } from "@/types/categories";
 import { useGetFoodMenuItemsQuery, useGetBeverageMenuItemsQuery, useGetCategoriesByTypeQuery } from "@/store/api/posApi";
 import { buildCategoriesMap, transformMenuItemsToPOSItems, extractCategories, filterPOSItemsByCategory } from "@/services/posDataService";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,10 +15,10 @@ export interface UseOptimizedPOSDataResult {
   refetch: () => void;
 }
 
-export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): UseOptimizedPOSDataResult {
+export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimizedPOSDataResult {
   const { isAuthenticated } = useAuth();
   const [activeCategory, setActiveCategory] = useState<string>("all");
-  
+
   // Refs for stable caching
   const categoriesMapRef = useRef<Map<number, string>>(new Map());
   const posItemsRef = useRef<POSItem[]>([]);
@@ -36,9 +29,9 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
   useEffect(() => {
     if (!initialLoadRef.current && isAuthenticated) {
       console.log("⚡ [useOptimizedPOSDataV2] Loading from localStorage cache...");
-      
+
       // Try to load cached POS items
-      const cachedPosItems = posCache.get<POSItem[]>(posCache.keys.FOOD_ITEMS + '_transformed');
+      const cachedPosItems = posCache.get<POSItem[]>(posCache.keys.FOOD_ITEMS + "_transformed");
       if (cachedPosItems && cachedPosItems.length > 0) {
         // Validate cached data has required properties
         const validItems = cachedPosItems.filter(item => item && item.id && item.name);
@@ -47,10 +40,10 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
           console.log(`✅ [useOptimizedPOSDataV2] Loaded ${validItems.length} items from cache INSTANTLY!`);
         } else {
           console.warn("⚠️ [useOptimizedPOSDataV2] Cached items are invalid, clearing cache");
-          posCache.remove(posCache.keys.FOOD_ITEMS + '_transformed');
+          posCache.remove(posCache.keys.FOOD_ITEMS + "_transformed");
         }
       }
-      
+
       initialLoadRef.current = true;
     }
   }, [isAuthenticated]);
@@ -97,13 +90,13 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
   // Build categories map (SMART CACHE - build once when data arrives, then cache)
   const categoriesMap = useMemo(() => {
     if (!isAuthenticated) return new Map();
-    
+
     // Build once when data is available
     if (categoriesMapRef.current.size === 0 && menuItemCategories.length > 0 && beverageCategories.length > 0) {
       console.log("🔄 [useOptimizedPOSDataV2] Building categories map (ONCE)");
       categoriesMapRef.current = buildCategoriesMap(menuItemCategories, beverageCategories);
     }
-    
+
     return categoriesMapRef.current;
   }, [menuItemCategories.length > 0, beverageCategories.length > 0, isAuthenticated]); // Trigger once when data arrives
 
@@ -123,22 +116,22 @@ export function useOptimizedPOSDataV2(isPOSActionInProgress: boolean = false): U
     if (posItemsRef.current.length === 0 && (foodMenuItems.length > 0 || beverageMenuItems.length > 0)) {
       console.log("🔄 [useOptimizedPOSDataV2] Transforming menu items to POS items (ONCE)");
       const transformed = transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMapRef.current);
-      
+
       // Validate transformed data before caching
       const validItems = transformed.filter(item => item && item.id && item.name);
       if (validItems.length !== transformed.length) {
         console.warn(`⚠️ [useOptimizedPOSDataV2] Filtered out ${transformed.length - validItems.length} invalid items`);
       }
-      
+
       posItemsRef.current = validItems;
-      
+
       // DESKTOP APP SPEED: Save to localStorage for instant load next time
       if (validItems.length > 0) {
-        posCache.set(posCache.keys.FOOD_ITEMS + '_transformed', validItems);
+        posCache.set(posCache.keys.FOOD_ITEMS + "_transformed", validItems);
         console.log(`💾 [useOptimizedPOSDataV2] Saved ${validItems.length} valid items to localStorage`);
       }
     }
-    
+
     return posItemsRef.current;
   }, [foodMenuItems.length > 0, beverageMenuItems.length > 0, categoriesMapRef.current.size > 0, isPOSActionInProgress, isAuthenticated]); // Trigger once when data arrives
 

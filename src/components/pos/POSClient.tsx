@@ -26,7 +26,7 @@ import PrinterSelector from "../common/PrinterSelector";
 
 // Optimized hooks
 import { usePOSState } from "@/hooks/usePOSState";
-import { useOptimizedPOSDataV2 } from "@/hooks/useOptimizedPOSDataV2";
+import { usePOSData } from "@/hooks/usePOSData";
 import { useAuth } from "@/contexts/AuthContext";
 
 // Lazy load heavy components
@@ -97,7 +97,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     posState;
 
   // Optimized POS data hook V2 (uses RTK Query with automatic caching)
-  const { posItems, filteredPosItems, categories, isLoading: posDataLoading, activeCategory, setActiveCategory } = useOptimizedPOSDataV2(isPOSActionInProgress);
+  const { posItems, filteredPosItems, categories, isLoading: posDataLoading, activeCategory, setActiveCategory } = usePOSData(isPOSActionInProgress);
 
   // Day operations
   const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
