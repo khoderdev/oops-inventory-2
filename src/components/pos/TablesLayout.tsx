@@ -23,7 +23,6 @@ import {
   setDragState,
   setTempPosition,
   clearTempPosition,
-  setIsUpdatingPosition,
   setShowRenameModal,
   setShowTransferModal,
   setShowInactiveTablesModal,
@@ -39,7 +38,8 @@ import {
   deleteTable,
   clearTableReservation,
   createTable,
-  fetchTableOrder
+  fetchTableOrder,
+  resetTablesUIState
 } from "@/store/slices/tablesSlice";
 import {
   selectTables,
@@ -114,6 +114,14 @@ export const TablesLayout: React.FC<TablesLayoutProps> = ({ onTableSelect, onClo
   useEffect(() => {
     dispatch(fetchTables({ includeOrders: true }));
     dispatch(fetchInactiveTables());
+  }, [dispatch]);
+
+  // Cleanup ephemeral UI state on unmount
+  useEffect(() => {
+    return () => {
+      console.log("🧹 [TablesLayout] Cleaning up ephemeral UI state on unmount");
+      dispatch(resetTablesUIState());
+    };
   }, [dispatch]);
 
   const refreshTablesData = useCallback(async () => {

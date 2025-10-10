@@ -4,8 +4,7 @@ import { salesAPI } from "@/api/sales.api.ts.tsx";
 import { POSCartItem, SaleRecord, ReceiptData, Table, NegativeStockWarning } from "@/types/inventory";
 import { Order, OrderStatus, OrderType, CreateOrderData, UpdateOrderData } from "@/types/orders";
 import { Employee } from "@/types/employee";
-import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
-import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
+import { posApi } from "@/store/api/posApi";
 
 // Define the state structure
 interface POSState {
@@ -61,6 +60,17 @@ interface POSState {
   // Flags
   isTableManuallySelected: boolean;
   isPOSActionInProgress: boolean;
+
+  // Payment dialog state
+  paymentAmount: string;
+
+  // Day close dialog state
+  showDayCloseDialog: boolean;
+  closingCash: string;
+  dayCloseNotes: string;
+
+  // Printer selection state
+  printerSelectionContext: "payment" | "manual_print" | null;
 
   // Sales history state
   salesHistory: SaleRecord[];
@@ -160,6 +170,17 @@ const initialState: POSState = {
   isTableManuallySelected: false,
   isPOSActionInProgress: false,
 
+  // Payment dialog state
+  paymentAmount: "",
+
+  // Day close dialog state
+  showDayCloseDialog: false,
+  closingCash: "",
+  dayCloseNotes: "",
+
+  // Printer selection state
+  printerSelectionContext: null,
+
   // Sales history state
   salesHistory: [],
   selectedSaleForEdit: null,
@@ -251,8 +272,13 @@ export const updateOrder = createAsyncThunk("pos/updateOrder", async ({ orderId,
 export const completeOrder = createAsyncThunk("pos/completeOrder", async ({ orderId, paymentData }: { orderId: string; paymentData: { paymentMethod: string; paymentAmount: number; change?: number } }, { rejectWithValue, dispatch }) => {
   try {
     const response = await ordersAPI.completeOrder(orderId, paymentData);
+    
+    // Invalidate RTK Query cache for orders and tables
+    dispatch(posApi.util.invalidateTags(['Orders', 'Tables']));
+    
     // Immediately refresh sales history so UI updates instantly
     dispatch(fetchSalesHistory());
+    
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || "Failed to complete order");
@@ -268,26 +294,39 @@ export const voidOrder = createAsyncThunk("pos/voidOrder", async ({ orderId, rea
     const responseData = response.data as { order?: any; stockRestorations?: any[] } | any;
     const voidedOrder = responseData.order || responseData;
     const stockRestorations = responseData.stockRestorations;
+    
+    // Invalidate RTK Query cache for orders and tables
+    dispatch(posApi.util.invalidateTags(['Orders', 'Tables']));
+    
     // Refresh sales history after voiding to reflect changes instantly
     dispatch(fetchSalesHistory());
+    
     return { order: voidedOrder, stockRestorations };
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || "Failed to void order");
   }
 });
 
-export const addOrderItems = createAsyncThunk("pos/addOrderItems", async ({ orderId, items }: { orderId: string; items: Omit<any, "id">[] }, { rejectWithValue }) => {
+export const addOrderItems = createAsyncThunk("pos/addOrderItems", async ({ orderId, items }: { orderId: string; items: Omit<any, "id">[] }, { rejectWithValue, dispatch }) => {
   try {
     const response = await ordersAPI.addOrderItems(orderId, items);
+    
+    // Invalidate orders cache when items are added
+    dispatch(posApi.util.invalidateTags(['Orders']));
+    
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || "Failed to add items to order");
   }
 });
 
-export const removeOrderItems = createAsyncThunk("pos/removeOrderItems", async ({ orderId, itemIds }: { orderId: string; itemIds: string[] }, { rejectWithValue }) => {
+export const removeOrderItems = createAsyncThunk("pos/removeOrderItems", async ({ orderId, itemIds }: { orderId: string; itemIds: string[] }, { rejectWithValue, dispatch }) => {
   try {
     const response = await ordersAPI.removeOrderItems(orderId, itemIds);
+    
+    // Invalidate orders cache when items are removed
+    dispatch(posApi.util.invalidateTags(['Orders']));
+    
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || "Failed to remove items from order");
@@ -503,6 +542,27 @@ const posSlice = createSlice({
       state.isPOSActionInProgress = action.payload;
     },
 
+    // Payment dialog actions
+    setPaymentAmount: (state, action: PayloadAction<string>) => {
+      state.paymentAmount = action.payload;
+    },
+
+    // Day close dialog actions
+    setShowDayCloseDialog: (state, action: PayloadAction<boolean>) => {
+      state.showDayCloseDialog = action.payload;
+    },
+    setClosingCash: (state, action: PayloadAction<string>) => {
+      state.closingCash = action.payload;
+    },
+    setDayCloseNotes: (state, action: PayloadAction<string>) => {
+      state.dayCloseNotes = action.payload;
+    },
+
+    // Printer selection actions
+    setPrinterSelectionContext: (state, action: PayloadAction<"payment" | "manual_print" | null>) => {
+      state.printerSelectionContext = action.payload;
+    },
+
     setIsTableManuallySelected: (state, action: PayloadAction<boolean>) => {
       state.isTableManuallySelected = action.payload;
     },
@@ -654,6 +714,86 @@ const posSlice = createSlice({
     // Unsaved changes action
     setHasUnsavedChanges: (state, action: PayloadAction<boolean>) => {
       state.hasUnsavedChanges = action.payload;
+    },
+
+    // ============================================
+    // CLEANUP ACTIONS - Reset ephemeral state
+    // ============================================
+
+    // Reset all dialog state on unmount/close
+    resetDialogsState: state => {
+      state.showPaymentDialog = false;
+      state.showReceiptDialog = false;
+      state.showTablesLayout = false;
+      state.showDiscountDialog = false;
+      state.showNotesDialog = false;
+      state.showItemNotesDialog = false;
+      state.showVoidDialog = false;
+      state.showOrdersDialog = false;
+      state.showReportsDialog = false;
+      state.showPrinterSelector = false;
+      state.selectedItemForNotes = null;
+    },
+
+    // Reset ephemeral UI state
+    resetEphemeralState: state => {
+      state.error = null;
+      state.successMessage = null;
+      state.showSuccessCheckmark = false;
+      state.isPOSActionInProgress = false;
+      state.isTableManuallySelected = false;
+    },
+
+    // Reset payment dialog state
+    resetPaymentState: state => {
+      state.showPaymentDialog = false;
+      state.paymentAmount = "";
+    },
+
+    // Reset day close dialog state
+    resetDayCloseState: state => {
+      state.showDayCloseDialog = false;
+      state.closingCash = "";
+      state.dayCloseNotes = "";
+    },
+
+    // Reset printer selection state
+    resetPrinterSelectionState: state => {
+      state.showPrinterSelector = false;
+      state.printerSelectionContext = null;
+    },
+
+    // Reset sales history filters (when closing reports)
+    resetSalesHistoryFilters: state => {
+      state.selectedItemFilter = "all";
+      state.selectedSectionFilter = "all";
+      state.dateFilter = "";
+      state.dateFrom = null;
+      state.dateTo = null;
+      state.selectedItemIds = [];
+    },
+
+    // Reset sales operations state
+    resetSalesOperationsState: state => {
+      state.isDeleting = false;
+      state.isReverting = false;
+      state.revertSuccess = null;
+      state.deleteSuccess = null;
+      state.isBulkDeleting = false;
+      state.isBulkReverting = false;
+      state.revertDialogOpen = false;
+      state.deleteDialogOpen = false;
+      state.bulkDeleteSuccess = null;
+      state.bulkRevertSuccess = null;
+      state.bulkRevertDialogOpen = false;
+      state.bulkDeleteDialogOpen = false;
+      state.selectedSaleForRevert = null;
+      state.selectedSaleForDelete = null;
+      state.stockRestorationReport = [];
+      state.stockRestorationModalOpen = false;
+      state.bulkStockRestorationReport = [];
+      state.deleteConfirmationModalOpen = false;
+      state.selectedItemForDelete = null;
     },
 
     // Sales operations actions
@@ -989,6 +1129,14 @@ export const {
   setIsPaymentCompleted,
   setLastSaleData,
   generateReceiptData,
+  // Payment dialog actions
+  setPaymentAmount,
+  // Day close dialog actions
+  setShowDayCloseDialog,
+  setClosingCash,
+  setDayCloseNotes,
+  // Printer selection actions
+  setPrinterSelectionContext,
   setSelectedSaleForEdit,
   setEditingSaleId,
   clearEditingSaleId,
@@ -1031,7 +1179,15 @@ export const {
   setBulkStockRestorationReport,
   setDeleteConfirmationModalOpen,
   setSelectedItemForDelete,
-  setHasUnsavedChanges
+  setHasUnsavedChanges,
+  // Cleanup actions
+  resetDialogsState,
+  resetEphemeralState,
+  resetPaymentState,
+  resetDayCloseState,
+  resetPrinterSelectionState,
+  resetSalesHistoryFilters,
+  resetSalesOperationsState
 } = posSlice.actions;
 
 // Export reducer

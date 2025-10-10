@@ -70,7 +70,19 @@ import {
   setOrderType as setOrderTypeAction,
   setSelectedTable as setSelectedTableAction,
   applyDiscount as applyDiscountAction,
-  completeOrder
+  completeOrder,
+  // Cleanup actions
+  resetDialogsState,
+  resetEphemeralState,
+  resetPaymentState,
+  resetDayCloseState,
+  resetPrinterSelectionState,
+  // New state actions
+  setPaymentAmount as setPaymentAmountAction,
+  setShowDayCloseDialog as setShowDayCloseDialogAction,
+  setClosingCash as setClosingCashAction,
+  setDayCloseNotes as setDayCloseNotesAction,
+  setPrinterSelectionContext as setPrinterSelectionContextAction
 } from "@/store/slices/posSlice";
 
 const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedOrderForPOS, isDayOpen = true }) => {
@@ -80,7 +92,15 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
 
   // Consolidated Redux state (1 selector instead of 30+)
   const posState = usePOSState();
-  const { cart, orderType, selectedTable, selectedEmployee, hasUnsavedChanges, isLoading, error, successMessage, showSuccessCheckmark, showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showPrinterSelector, selectedItemForNotes, orderNotes, appliedDiscount, lastSaleData, editingSaleId, selectedSaleForEdit, isPOSActionInProgress } = posState;
+  const { 
+    cart, orderType, selectedTable, selectedEmployee, hasUnsavedChanges, isLoading, error, successMessage, 
+    showSuccessCheckmark, showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, 
+    showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showPrinterSelector, 
+    selectedItemForNotes, orderNotes, appliedDiscount, lastSaleData, editingSaleId, selectedSaleForEdit, 
+    isPOSActionInProgress,
+    // New Redux state fields (previously local)
+    paymentAmount, showDayCloseDialog, closingCash, dayCloseNotes, printerSelectionContext
+  } = posState;
 
   const { filteredPosItems, categories, isLoading: posDataLoading, activeCategory, setActiveCategory } = usePOSData(isPOSActionInProgress);
   const { currentDay, closeDay, refreshCurrentDay, actionLoading: dayActionLoading } = useDayOperations();
@@ -108,16 +128,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
     };
   }, [ordersData]);
 
-  // Local state (minimal)
-  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  // Local state (minimal - only ephemeral UI layout state)
   const [leftPanelWidth, setLeftPanelWidth] = useState(33.33);
   const [rightPanelPixelWidth, setRightPanelPixelWidth] = useState(0);
   const [isResizing, setIsResizing] = useState(false);
   const resizeRafRef = useRef<number | null>(null);
-  const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
-  const [showDayCloseDialog, setShowDayCloseDialog] = useState(false);
-  const [closingCash, setClosingCash] = useState<string>("");
-  const [dayCloseNotes, setDayCloseNotes] = useState<string>("");
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const processedOrderRef = useRef<string | null>(null);
@@ -134,7 +149,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
     }
   }, []);
 
-  // Cleanup RAF on unmount
   useEffect(() => {
     return () => {
       if (resizeRafRef.current) {
@@ -142,6 +156,34 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       }
     };
   }, []);
+
+  useEffect(() => {
+    return () => {
+      console.log("🧹 [POSClient] Cleaning up ephemeral state on unmount");
+      dispatch(resetEphemeralState());
+    };
+  }, [dispatch]);
+
+  // Reset payment state when payment dialog closes
+  useEffect(() => {
+    if (!showPaymentDialog) {
+      dispatch(resetPaymentState());
+    }
+  }, [showPaymentDialog, dispatch]);
+
+  // Reset day close state when dialog closes
+  useEffect(() => {
+    if (!showDayCloseDialog) {
+      dispatch(resetDayCloseState());
+    }
+  }, [showDayCloseDialog, dispatch]);
+
+  // Reset printer selection state when dialog closes
+  useEffect(() => {
+    if (!showPrinterSelector) {
+      dispatch(resetPrinterSelectionState());
+    }
+  }, [showPrinterSelector, dispatch]);
 
   const showError = useCallback(
     (message: string) => {
@@ -717,13 +759,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       return;
     }
 
-    setPrinterSelectionContext("manual_print");
+    dispatch(setPrinterSelectionContextAction("manual_print"));
     dispatch(setShowPrinterSelectorAction(true));
   }, [cart, dispatch, showError]);
 
   // Printer settings handler
   const handleShowPrinterSettings = useCallback(() => {
-    setPrinterSelectionContext("manual_print");
+    dispatch(setPrinterSelectionContextAction("manual_print"));
     dispatch(setShowPrinterSelectorAction(true));
   }, [dispatch]);
 
@@ -768,8 +810,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
 
   // Close day handler
   const handleCloseDayClick = useCallback(() => {
-    setShowDayCloseDialog(true);
-  }, []);
+    dispatch(setShowDayCloseDialogAction(true));
+  }, [dispatch]);
 
   // Confirm close day handler
   const handleConfirmCloseDay = useCallback(async () => {
@@ -784,9 +826,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
         notes: dayCloseNotes
       });
 
-      setShowDayCloseDialog(false);
-      setClosingCash("");
-      setDayCloseNotes("");
+      dispatch(resetDayCloseState());
       showSuccess("Day closed successfully");
       // Refresh current day
       await refreshCurrentDay();
@@ -960,7 +1000,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
                       showError(`Order ${currentOrder.orderNumber} is already completed`);
                       return;
                     }
-                    setPaymentAmount(total.toString());
+                    dispatch(setPaymentAmountAction(total.toString()));
                     dispatch(setShowPaymentDialogAction(true));
                   }}
                   onSaveClick={handleManualSave}
@@ -1081,7 +1121,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
 
       {/* Dialogs */}
       <Suspense fallback={null}>
-        {showPaymentDialog && <PaymentDialog isOpen={showPaymentDialog} onClose={() => dispatch(setShowPaymentDialogAction(false))} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={setPaymentAmount} onPayment={handlePayment} isLoading={isLoading} />}
+        {showPaymentDialog && <PaymentDialog isOpen={showPaymentDialog} onClose={() => dispatch(setShowPaymentDialogAction(false))} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={(amount) => dispatch(setPaymentAmountAction(amount))} onPayment={handlePayment} isLoading={isLoading} />}
 
         {showReceiptDialog && lastSaleData && <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => dispatch(setShowReceiptDialogAction(false))} receiptData={lastSaleData} autoPrint={false} />}
 
@@ -1196,7 +1236,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
         )}
 
         {showDayCloseDialog && (
-          <Dialog open={showDayCloseDialog} onOpenChange={setShowDayCloseDialog}>
+          <Dialog open={showDayCloseDialog} onOpenChange={(open) => dispatch(setShowDayCloseDialogAction(open))}>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Close Day</DialogTitle>
@@ -1205,15 +1245,15 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Closing Cash Amount</label>
-                  <input type="number" value={closingCash} onChange={e => setClosingCash(e.target.value)} className="w-full px-3 py-2 border rounded-md" placeholder="Enter closing cash amount" />
+                  <input type="number" value={closingCash} onChange={e => dispatch(setClosingCashAction(e.target.value))} className="w-full px-3 py-2 border rounded-md" placeholder="Enter closing cash amount" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Notes (Optional)</label>
-                  <textarea value={dayCloseNotes} onChange={e => setDayCloseNotes(e.target.value)} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="Add any notes about the day" />
+                  <textarea value={dayCloseNotes} onChange={e => dispatch(setDayCloseNotesAction(e.target.value))} className="w-full px-3 py-2 border rounded-md" rows={3} placeholder="Add any notes about the day" />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowDayCloseDialog(false)}>
+                <Button variant="outline" onClick={() => dispatch(setShowDayCloseDialogAction(false))}>
                   Cancel
                 </Button>
                 <Button onClick={handleConfirmCloseDay} disabled={!closingCash || dayActionLoading}>

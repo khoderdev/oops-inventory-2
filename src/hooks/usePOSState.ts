@@ -44,6 +44,17 @@ export interface POSState {
   editingSaleId: string | null;
   selectedSaleForEdit: any;
   isPOSActionInProgress: boolean;
+
+  // Payment dialog state
+  paymentAmount: string;
+
+  // Day close dialog state
+  showDayCloseDialog: boolean;
+  closingCash: string;
+  dayCloseNotes: string;
+
+  // Printer selection state
+  printerSelectionContext: "payment" | "manual_print" | null;
 }
 
 /**
@@ -84,7 +95,18 @@ const selectPOSState = (state: RootState): POSState => ({
   isTableManuallySelected: state.pos.isTableManuallySelected,
   editingSaleId: state.pos.editingSaleId,
   selectedSaleForEdit: state.pos.selectedSaleForEdit,
-  isPOSActionInProgress: state.pos.isPOSActionInProgress
+  isPOSActionInProgress: state.pos.isPOSActionInProgress,
+
+  // Payment dialog state
+  paymentAmount: state.pos.paymentAmount,
+
+  // Day close dialog state
+  showDayCloseDialog: state.pos.showDayCloseDialog,
+  closingCash: state.pos.closingCash,
+  dayCloseNotes: state.pos.dayCloseNotes,
+
+  // Printer selection state
+  printerSelectionContext: state.pos.printerSelectionContext
 });
 
 /**

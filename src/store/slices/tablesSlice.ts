@@ -122,19 +122,7 @@ interface TablesState {
 
   // Last operation metadata
   lastOperation: {
-    type:
-      | "create"
-      | "update"
-      | "delete"
-      | "reserve"
-      | "clear"
-      | "transfer"
-      | "bulkCreate"
-      | "duplicate"
-      | "rename"
-      | "activate"
-      | "deactivate"
-      | null;
+    type: "create" | "update" | "delete" | "reserve" | "clear" | "transfer" | "bulkCreate" | "duplicate" | "rename" | "activate" | "deactivate" | null;
     tableId: string | null;
     timestamp: number | null;
   };
@@ -161,7 +149,7 @@ const initialState: TablesState = {
     available: [],
     opened: [],
     reserved: [],
-    cleaning: [],
+    cleaning: []
   },
   selectedTable: null,
   selectedTableId: null,
@@ -202,7 +190,7 @@ const initialState: TablesState = {
   duplicateSuccess: null,
   filters: {
     includeOrders: true,
-    isActive: true,
+    isActive: true
   },
   isArrangeMode: false,
   isDragMode: false,
@@ -230,12 +218,12 @@ const initialState: TablesState = {
   lastOperation: {
     type: null,
     tableId: null,
-    timestamp: null,
+    timestamp: null
   },
   nextTableNumber: 1,
   suggestedTableName: "Table 1",
   selectedTableIds: [],
-  bulkOperationInProgress: false,
+  bulkOperationInProgress: false
 };
 
 // ============================================================================
@@ -258,24 +246,24 @@ export const fetchTables = createAsyncThunk(
   ) => {
     try {
       const response = await tablesAPI.getTables(params);
-      
+
       // Handle various response structures
       let tables: any[] = [];
       if (Array.isArray(response)) {
         tables = response;
-      } else if (response && typeof response === 'object' && 'data' in response) {
+      } else if (response && typeof response === "object" && "data" in response) {
         const responseData = (response as any).data;
         if (Array.isArray(responseData)) {
           tables = responseData;
-        } else if (responseData && typeof responseData === 'object') {
-          if ('data' in responseData && Array.isArray(responseData.data)) {
+        } else if (responseData && typeof responseData === "object") {
+          if ("data" in responseData && Array.isArray(responseData.data)) {
             tables = responseData.data;
-          } else if ('tables' in responseData && Array.isArray(responseData.tables)) {
+          } else if ("tables" in responseData && Array.isArray(responseData.tables)) {
             tables = responseData.tables;
           }
         }
       }
-      
+
       console.log("📊 [fetchTables] Processed tables:", tables.length);
       return tables;
     } catch (error: any) {
@@ -287,68 +275,59 @@ export const fetchTables = createAsyncThunk(
 /**
  * Fetch inactive tables
  */
-export const fetchInactiveTables = createAsyncThunk(
-  "tables/fetchInactiveTables",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await tablesAPI.getTables({ isActive: false });
-      
-      // Handle various response structures
-      let tables: any[] = [];
-      if (Array.isArray(response)) {
-        tables = response;
-      } else if (response && typeof response === 'object' && 'data' in response) {
-        const responseData = (response as any).data;
-        if (Array.isArray(responseData)) {
-          tables = responseData;
-        } else if (responseData && typeof responseData === 'object') {
-          if ('data' in responseData && Array.isArray(responseData.data)) {
-            tables = responseData.data;
-          } else if ('tables' in responseData && Array.isArray(responseData.tables)) {
-            tables = responseData.tables;
-          }
+export const fetchInactiveTables = createAsyncThunk("tables/fetchInactiveTables", async (_, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.getTables({ isActive: false });
+
+    // Handle various response structures
+    let tables: any[] = [];
+    if (Array.isArray(response)) {
+      tables = response;
+    } else if (response && typeof response === "object" && "data" in response) {
+      const responseData = (response as any).data;
+      if (Array.isArray(responseData)) {
+        tables = responseData;
+      } else if (responseData && typeof responseData === "object") {
+        if ("data" in responseData && Array.isArray(responseData.data)) {
+          tables = responseData.data;
+        } else if ("tables" in responseData && Array.isArray(responseData.tables)) {
+          tables = responseData.tables;
         }
       }
-      
-      console.log("📊 [fetchInactiveTables] Processed tables:", tables.length);
-      return tables;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch inactive tables");
     }
+
+    console.log("📊 [fetchInactiveTables] Processed tables:", tables.length);
+    return tables;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to fetch inactive tables");
   }
-);
+});
 
 /**
  * Fetch single table by ID
  */
-export const fetchTableById = createAsyncThunk(
-  "tables/fetchTableById",
-  async (tableId: string, { rejectWithValue }) => {
-    try {
-      const response = await tablesAPI.getTable(tableId);
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch table");
-    }
+export const fetchTableById = createAsyncThunk("tables/fetchTableById", async (tableId: string, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.getTable(tableId);
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to fetch table");
   }
-);
+});
 
 /**
  * Create new table
  */
-export const createTable = createAsyncThunk(
-  "tables/createTable",
-  async (data: CreateTableData, { rejectWithValue }) => {
-    try {
-      const response = await tablesAPI.createTable(data);
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to create table");
-    }
+export const createTable = createAsyncThunk("tables/createTable", async (data: CreateTableData, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.createTable(data);
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to create table");
   }
-);
+});
 
 /**
  * Quick create table with smart defaults
@@ -400,7 +379,7 @@ export const bulkCreateTables = createAsyncThunk(
         tables: response.data?.tables || [],
         created: response.data?.created || 0,
         errors: response.data?.errors || 0,
-        errorDetails: response.data?.errorDetails || [],
+        errorDetails: response.data?.errorDetails || []
       };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || "Failed to bulk create tables");
@@ -411,202 +390,148 @@ export const bulkCreateTables = createAsyncThunk(
 /**
  * Update table
  */
-export const updateTable = createAsyncThunk(
-  "tables/updateTable",
-  async (
-    { tableId, data }: { tableId: string; data: UpdateTableData },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await tablesAPI.updateTable(tableId, data);
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to update table");
-    }
+export const updateTable = createAsyncThunk("tables/updateTable", async ({ tableId, data }: { tableId: string; data: UpdateTableData }, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.updateTable(tableId, data);
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to update table");
   }
-);
+});
 
 /**
  * Update table position
  */
-export const updateTablePosition = createAsyncThunk(
-  "tables/updateTablePosition",
-  async (
-    { tableId, position }: { tableId: string; position: { x: number; y: number } },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await tablesAPI.updateTable(tableId, { position });
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to update table position");
-    }
+export const updateTablePosition = createAsyncThunk("tables/updateTablePosition", async ({ tableId, position }: { tableId: string; position: { x: number; y: number } }, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.updateTable(tableId, { position });
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to update table position");
   }
-);
+});
 
 /**
  * Rename table
  */
-export const renameTable = createAsyncThunk(
-  "tables/renameTable",
-  async (
-    { tableId, data }: { tableId: string; data: { name?: string; number?: number } },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await tablesAPI.renameTable(tableId, data);
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to rename table");
-    }
+export const renameTable = createAsyncThunk("tables/renameTable", async ({ tableId, data }: { tableId: string; data: { name?: string; number?: number } }, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.renameTable(tableId, data);
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to rename table");
   }
-);
+});
 
 /**
  * Duplicate table
  */
-export const duplicateTable = createAsyncThunk(
-  "tables/duplicateTable",
-  async (
-    {
-      tableId,
-      data,
-    }: { tableId: string; data?: { customName?: string; customNumber?: number } },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await tablesAPI.duplicateTable(tableId, data);
-      const table = response.data?.duplicateTable || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to duplicate table");
-    }
+export const duplicateTable = createAsyncThunk("tables/duplicateTable", async ({ tableId, data }: { tableId: string; data?: { customName?: string; customNumber?: number } }, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.duplicateTable(tableId, data);
+    const table = response.data?.duplicateTable || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to duplicate table");
   }
-);
+});
 
 /**
  * Delete table
  */
-export const deleteTable = createAsyncThunk(
-  "tables/deleteTable",
-  async (tableId: string, { rejectWithValue }) => {
-    try {
-      await tablesAPI.deleteTable(tableId);
-      return tableId;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to delete table");
-    }
+export const deleteTable = createAsyncThunk("tables/deleteTable", async (tableId: string, { rejectWithValue }) => {
+  try {
+    await tablesAPI.deleteTable(tableId);
+    return tableId;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to delete table");
   }
-);
+});
 
 /**
  * Reserve table
  */
-export const reserveTable = createAsyncThunk(
-  "tables/reserveTable",
-  async (
-    { tableId, data }: { tableId: string; data: ReserveTableData },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await tablesAPI.reserveTable(tableId, data);
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to reserve table");
-    }
+export const reserveTable = createAsyncThunk("tables/reserveTable", async ({ tableId, data }: { tableId: string; data: ReserveTableData }, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.reserveTable(tableId, data);
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to reserve table");
   }
-);
+});
 
 /**
  * Clear table reservation
  */
-export const clearTableReservation = createAsyncThunk(
-  "tables/clearTableReservation",
-  async (tableId: string, { rejectWithValue }) => {
-    try {
-      const response = await tablesAPI.clearReservation(tableId);
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to clear reservation");
-    }
+export const clearTableReservation = createAsyncThunk("tables/clearTableReservation", async (tableId: string, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.clearReservation(tableId);
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to clear reservation");
   }
-);
+});
 
 /**
  * Clear table (reset status and remove orders)
  */
-export const clearTable = createAsyncThunk(
-  "tables/clearTable",
-  async (tableId: string, { rejectWithValue }) => {
-    try {
-      const response = await tablesAPI.clearTable(tableId);
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to clear table");
-    }
+export const clearTable = createAsyncThunk("tables/clearTable", async (tableId: string, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.clearTable(tableId);
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to clear table");
   }
-);
+});
 
 /**
  * Mark table for cleaning
  */
-export const markTableForCleaning = createAsyncThunk(
-  "tables/markTableForCleaning",
-  async (tableId: string, { rejectWithValue }) => {
-    try {
-      const response = await tablesAPI.markForCleaning(tableId);
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to mark table for cleaning");
-    }
+export const markTableForCleaning = createAsyncThunk("tables/markTableForCleaning", async (tableId: string, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.markForCleaning(tableId);
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to mark table for cleaning");
   }
-);
+});
 
 /**
  * Mark table as clean
  */
-export const markTableAsClean = createAsyncThunk(
-  "tables/markTableAsClean",
-  async (tableId: string, { rejectWithValue }) => {
-    try {
-      const response = await tablesAPI.markAsClean(tableId);
-      const table = response.data?.table || response.data || response;
-      return table;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to mark table as clean");
-    }
+export const markTableAsClean = createAsyncThunk("tables/markTableAsClean", async (tableId: string, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.markAsClean(tableId);
+    const table = response.data?.table || response.data || response;
+    return table;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to mark table as clean");
   }
-);
+});
 
 /**
  * Transfer entire order from one table to another
  */
-export const transferOrder = createAsyncThunk(
-  "tables/transferOrder",
-  async (
-    data: { fromTableId: string; toTableId: string; orderId: string },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response = await tablesAPI.transferOrder(data);
-      return {
-        message: response.data?.message || "Order transferred successfully",
-        order: response.data?.order,
-        fromTableId: data.fromTableId,
-        toTableId: data.toTableId,
-      };
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to transfer order");
-    }
+export const transferOrder = createAsyncThunk("tables/transferOrder", async (data: { fromTableId: string; toTableId: string; orderId: string }, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.transferOrder(data);
+    return {
+      message: response.data?.message || "Order transferred successfully",
+      order: response.data?.order,
+      fromTableId: data.fromTableId,
+      toTableId: data.toTableId
+    };
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to transfer order");
   }
-);
+});
 
 /**
  * Transfer specific items from one table to another
@@ -628,7 +553,7 @@ export const transferItems = createAsyncThunk(
         message: response.data?.message || "Items transferred successfully",
         transfer: response.data?.transfer,
         fromTableId: data.fromTableId,
-        toTableId: data.toTableId,
+        toTableId: data.toTableId
       };
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || "Failed to transfer items");
@@ -639,55 +564,44 @@ export const transferItems = createAsyncThunk(
 /**
  * Fetch table sections
  */
-export const fetchTableSections = createAsyncThunk(
-  "tables/fetchTableSections",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await tablesAPI.getTableSections();
-      const sections = Array.isArray(response) ? response : response.data || [];
-      return sections;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch table sections");
-    }
+export const fetchTableSections = createAsyncThunk("tables/fetchTableSections", async (_, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.getTableSections();
+    const sections = Array.isArray(response) ? response : response.data || [];
+    return sections;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to fetch table sections");
   }
-);
+});
 
 /**
  * Get next available table number
  */
-export const fetchNextTableNumber = createAsyncThunk(
-  "tables/fetchNextTableNumber",
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await tablesAPI.getNextTableNumber();
-      return {
-        nextNumber: response.data?.nextNumber || 1,
-        suggestedName: response.data?.suggestedName || "Table 1",
-      };
-    } catch (error: any) {
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to fetch next table number"
-      );
-    }
+export const fetchNextTableNumber = createAsyncThunk("tables/fetchNextTableNumber", async (_, { rejectWithValue }) => {
+  try {
+    const response = await tablesAPI.getNextTableNumber();
+    return {
+      nextNumber: response.data?.nextNumber || 1,
+      suggestedName: response.data?.suggestedName || "Table 1"
+    };
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to fetch next table number");
   }
-);
+});
 
 /**
  * Fetch order for a specific table
  */
-export const fetchTableOrder = createAsyncThunk(
-  "tables/fetchTableOrder",
-  async (orderId: string, { rejectWithValue }) => {
-    try {
-      const response = await ordersAPI.getOrder(orderId);
-      const responseData = response.data as { data?: any } | any;
-      const order = responseData?.data || responseData || response;
-      return order;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || "Failed to fetch table order");
-    }
+export const fetchTableOrder = createAsyncThunk("tables/fetchTableOrder", async (orderId: string, { rejectWithValue }) => {
+  try {
+    const response = await ordersAPI.getOrder(orderId);
+    const responseData = response.data as { data?: any } | any;
+    const order = responseData?.data || responseData || response;
+    return order;
+  } catch (error: any) {
+    return rejectWithValue(error.response?.data?.message || "Failed to fetch table order");
   }
-);
+});
 
 // ============================================================================
 // SLICE
@@ -730,10 +644,10 @@ const tablesSlice = createSlice({
       state.filters = { ...state.filters, ...action.payload };
     },
 
-    clearFilters: (state) => {
+    clearFilters: state => {
       state.filters = {
         includeOrders: true,
-        isActive: true,
+        isActive: true
       };
     },
 
@@ -758,10 +672,7 @@ const tablesSlice = createSlice({
       }
     },
 
-    setSelectedTool: (
-      state,
-      action: PayloadAction<"select" | "round-table" | "square-table" | "rectangular-table">
-    ) => {
+    setSelectedTool: (state, action: PayloadAction<"select" | "round-table" | "square-table" | "rectangular-table">) => {
       state.selectedTool = action.payload;
     },
 
@@ -781,10 +692,7 @@ const tablesSlice = createSlice({
       state.dragState = action.payload;
     },
 
-    setTempPosition: (
-      state,
-      action: PayloadAction<{ tableId: string; position: { x: number; y: number } }>
-    ) => {
+    setTempPosition: (state, action: PayloadAction<{ tableId: string; position: { x: number; y: number } }>) => {
       state.tempPositions[action.payload.tableId] = action.payload.position;
     },
 
@@ -792,7 +700,7 @@ const tablesSlice = createSlice({
       delete state.tempPositions[action.payload];
     },
 
-    clearAllTempPositions: (state) => {
+    clearAllTempPositions: state => {
       state.tempPositions = {};
     },
 
@@ -877,7 +785,7 @@ const tablesSlice = createSlice({
       state.transferDestinationTable = action.payload;
     },
 
-    clearTransferState: (state) => {
+    clearTransferState: state => {
       state.transferSourceTable = null;
       state.transferSourceOrder = null;
       state.transferDestinationTable = null;
@@ -891,10 +799,7 @@ const tablesSlice = createSlice({
       state.tableOrders = action.payload;
     },
 
-    updateTableOrderCount: (
-      state,
-      action: PayloadAction<{ tableId: string; count: number }>
-    ) => {
+    updateTableOrderCount: (state, action: PayloadAction<{ tableId: string; count: number }>) => {
       state.tableOrders[action.payload.tableId] = action.payload.count;
     },
 
@@ -917,10 +822,10 @@ const tablesSlice = createSlice({
     },
 
     removePrintedTable: (state, action: PayloadAction<string>) => {
-      state.printedTables = state.printedTables.filter((id) => id !== action.payload);
+      state.printedTables = state.printedTables.filter(id => id !== action.payload);
     },
 
-    clearPrintedTables: (state) => {
+    clearPrintedTables: state => {
       state.printedTables = [];
     },
 
@@ -940,11 +845,11 @@ const tablesSlice = createSlice({
       }
     },
 
-    selectAllTables: (state) => {
-      state.selectedTableIds = state.tables.map((t) => t.id);
+    selectAllTables: state => {
+      state.selectedTableIds = state.tables.map(t => t.id);
     },
 
-    clearTableSelection: (state) => {
+    clearTableSelection: state => {
       state.selectedTableIds = [];
     },
 
@@ -952,7 +857,7 @@ const tablesSlice = createSlice({
     // ERROR & SUCCESS MESSAGE ACTIONS
     // ========================================================================
 
-    clearError: (state) => {
+    clearError: state => {
       state.error = null;
       state.detailsError = null;
       state.createError = null;
@@ -965,7 +870,7 @@ const tablesSlice = createSlice({
       state.duplicateError = null;
     },
 
-    clearSuccessMessage: (state) => {
+    clearSuccessMessage: state => {
       state.successMessage = null;
       state.createSuccess = null;
       state.updateSuccess = null;
@@ -982,7 +887,7 @@ const tablesSlice = createSlice({
     // ========================================================================
 
     updateTableInState: (state, action: PayloadAction<TableWithOrder>) => {
-      const index = state.tables.findIndex((t) => t.id === action.payload.id);
+      const index = state.tables.findIndex(t => t.id === action.payload.id);
       if (index !== -1) {
         state.tables[index] = action.payload;
       }
@@ -995,7 +900,7 @@ const tablesSlice = createSlice({
     },
 
     removeTableFromState: (state, action: PayloadAction<string>) => {
-      state.tables = state.tables.filter((t) => t.id !== action.payload);
+      state.tables = state.tables.filter(t => t.id !== action.payload);
       delete state.tableDetails[action.payload];
       if (state.selectedTable?.id === action.payload) {
         state.selectedTable = null;
@@ -1013,14 +918,39 @@ const tablesSlice = createSlice({
     // ========================================================================
 
     resetTablesState: () => initialState,
+
+    // Reset only ephemeral UI state (on unmount/close)
+    resetTablesUIState: state => {
+      state.hoveredTable = null;
+      state.popupPosition = null;
+      state.isArrangeMode = false;
+      state.isDragMode = false;
+      state.selectedTool = "select";
+      state.dragState = null;
+      state.tempPositions = {};
+      state.isContextMenuOpen = false;
+      state.isUpdatingPosition = null;
+      // Reset all modal flags
+      state.showRenameModal = false;
+      state.showTransferModal = false;
+      state.showInactiveTablesModal = false;
+      state.showDeleteModal = false;
+      state.showClearModal = false;
+      state.showReservationModal = false;
+      // Clear action targets
+      state.selectedTableForAction = null;
+      state.tableToClear = null;
+      state.tableToDelete = null;
+      state.tableToRename = null;
+    }
   },
 
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     // ========================================================================
     // FETCH TABLES
     // ========================================================================
     builder
-      .addCase(fetchTables.pending, (state) => {
+      .addCase(fetchTables.pending, state => {
         state.isLoading = true;
         state.error = null;
       })
@@ -1031,7 +961,7 @@ const tablesSlice = createSlice({
 
         // Group tables by section
         const groupedBySection: Record<string, TableWithOrder[]> = {};
-        action.payload.forEach((table) => {
+        action.payload.forEach(table => {
           const section = table.section || "default";
           if (!groupedBySection[section]) {
             groupedBySection[section] = [];
@@ -1042,20 +972,18 @@ const tablesSlice = createSlice({
 
         // Group tables by status
         state.tablesByStatus = {
-          available: action.payload.filter((t) => t.status === "available"),
-          opened: action.payload.filter((t) => t.status === "opened"),
-          reserved: action.payload.filter((t) => t.status === "reserved"),
-          cleaning: action.payload.filter((t) => t.status === "cleaning"),
+          available: action.payload.filter(t => t.status === "available"),
+          opened: action.payload.filter(t => t.status === "opened"),
+          reserved: action.payload.filter(t => t.status === "reserved"),
+          cleaning: action.payload.filter(t => t.status === "cleaning")
         };
 
         // Extract unique sections
-        state.sections = Array.from(
-          new Set(action.payload.map((t) => t.section).filter(Boolean))
-        ) as string[];
+        state.sections = Array.from(new Set(action.payload.map(t => t.section).filter(Boolean))) as string[];
 
         // Update table orders mapping
         const ordersMapping: Record<string, number> = {};
-        action.payload.forEach((table) => {
+        action.payload.forEach(table => {
           if (table.currentOrder) {
             ordersMapping[table.id] = table.currentOrder.itemCount || 0;
             ordersMapping[table.number.toString()] = table.currentOrder.itemCount || 0;
@@ -1072,7 +1000,7 @@ const tablesSlice = createSlice({
     // FETCH INACTIVE TABLES
     // ========================================================================
     builder
-      .addCase(fetchInactiveTables.pending, (state) => {
+      .addCase(fetchInactiveTables.pending, state => {
         state.isLoadingInactive = true;
         state.error = null;
       })
@@ -1091,7 +1019,7 @@ const tablesSlice = createSlice({
     // FETCH TABLE BY ID
     // ========================================================================
     builder
-      .addCase(fetchTableById.pending, (state) => {
+      .addCase(fetchTableById.pending, state => {
         state.isLoadingDetails = true;
         state.detailsError = null;
       })
@@ -1110,7 +1038,7 @@ const tablesSlice = createSlice({
     // CREATE TABLE
     // ========================================================================
     builder
-      .addCase(createTable.pending, (state) => {
+      .addCase(createTable.pending, state => {
         state.isCreating = true;
         state.createError = null;
       })
@@ -1123,7 +1051,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "create",
           tableId: table.id,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(createTable.rejected, (state, action) => {
@@ -1135,7 +1063,7 @@ const tablesSlice = createSlice({
     // QUICK CREATE TABLE
     // ========================================================================
     builder
-      .addCase(quickCreateTable.pending, (state) => {
+      .addCase(quickCreateTable.pending, state => {
         state.isCreating = true;
         state.createError = null;
       })
@@ -1148,7 +1076,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "create",
           tableId: table.id,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(quickCreateTable.rejected, (state, action) => {
@@ -1160,7 +1088,7 @@ const tablesSlice = createSlice({
     // BULK CREATE TABLES
     // ========================================================================
     builder
-      .addCase(bulkCreateTables.pending, (state) => {
+      .addCase(bulkCreateTables.pending, state => {
         state.isBulkCreating = true;
         state.bulkCreateError = null;
         state.bulkOperationInProgress = true;
@@ -1170,7 +1098,7 @@ const tablesSlice = createSlice({
         state.bulkOperationInProgress = false;
         const tables = action.payload.tables as TableWithOrder[];
         state.tables.push(...tables);
-        tables.forEach((table) => {
+        tables.forEach(table => {
           state.tableDetails[table.id] = table;
         });
         state.bulkCreateSuccess = `${action.payload.created} tables created successfully`;
@@ -1180,7 +1108,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "bulkCreate",
           tableId: null,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(bulkCreateTables.rejected, (state, action) => {
@@ -1193,14 +1121,14 @@ const tablesSlice = createSlice({
     // UPDATE TABLE
     // ========================================================================
     builder
-      .addCase(updateTable.pending, (state) => {
+      .addCase(updateTable.pending, state => {
         state.isUpdating = true;
         state.updateError = null;
       })
       .addCase(updateTable.fulfilled, (state, action) => {
         state.isUpdating = false;
         const table = action.payload as TableWithOrder;
-        const index = state.tables.findIndex((t) => t.id === table.id);
+        const index = state.tables.findIndex(t => t.id === table.id);
         if (index !== -1) {
           state.tables[index] = table;
         }
@@ -1212,7 +1140,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "update",
           tableId: table.id,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(updateTable.rejected, (state, action) => {
@@ -1230,7 +1158,7 @@ const tablesSlice = createSlice({
       .addCase(updateTablePosition.fulfilled, (state, action) => {
         state.isUpdatingPosition = null;
         const table = action.payload as TableWithOrder;
-        const index = state.tables.findIndex((t) => t.id === table.id);
+        const index = state.tables.findIndex(t => t.id === table.id);
         if (index !== -1) {
           state.tables[index] = table;
         }
@@ -1254,14 +1182,14 @@ const tablesSlice = createSlice({
     // RENAME TABLE
     // ========================================================================
     builder
-      .addCase(renameTable.pending, (state) => {
+      .addCase(renameTable.pending, state => {
         state.isUpdating = true;
         state.updateError = null;
       })
       .addCase(renameTable.fulfilled, (state, action) => {
         state.isUpdating = false;
         const table = action.payload as TableWithOrder;
-        const index = state.tables.findIndex((t) => t.id === table.id);
+        const index = state.tables.findIndex(t => t.id === table.id);
         if (index !== -1) {
           state.tables[index] = table;
         }
@@ -1273,7 +1201,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "rename",
           tableId: table.id,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(renameTable.rejected, (state, action) => {
@@ -1285,7 +1213,7 @@ const tablesSlice = createSlice({
     // DUPLICATE TABLE
     // ========================================================================
     builder
-      .addCase(duplicateTable.pending, (state) => {
+      .addCase(duplicateTable.pending, state => {
         state.isDuplicating = true;
         state.duplicateError = null;
       })
@@ -1298,7 +1226,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "duplicate",
           tableId: table.id,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(duplicateTable.rejected, (state, action) => {
@@ -1310,13 +1238,13 @@ const tablesSlice = createSlice({
     // DELETE TABLE
     // ========================================================================
     builder
-      .addCase(deleteTable.pending, (state) => {
+      .addCase(deleteTable.pending, state => {
         state.isDeleting = true;
         state.deleteError = null;
       })
       .addCase(deleteTable.fulfilled, (state, action) => {
         state.isDeleting = false;
-        state.tables = state.tables.filter((t) => t.id !== action.payload);
+        state.tables = state.tables.filter(t => t.id !== action.payload);
         delete state.tableDetails[action.payload];
         if (state.selectedTable?.id === action.payload) {
           state.selectedTable = null;
@@ -1326,7 +1254,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "delete",
           tableId: action.payload,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(deleteTable.rejected, (state, action) => {
@@ -1338,14 +1266,14 @@ const tablesSlice = createSlice({
     // RESERVE TABLE
     // ========================================================================
     builder
-      .addCase(reserveTable.pending, (state) => {
+      .addCase(reserveTable.pending, state => {
         state.isReserving = true;
         state.reserveError = null;
       })
       .addCase(reserveTable.fulfilled, (state, action) => {
         state.isReserving = false;
         const table = action.payload as TableWithOrder;
-        const index = state.tables.findIndex((t) => t.id === table.id);
+        const index = state.tables.findIndex(t => t.id === table.id);
         if (index !== -1) {
           state.tables[index] = table;
         }
@@ -1357,7 +1285,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "reserve",
           tableId: table.id,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(reserveTable.rejected, (state, action) => {
@@ -1369,14 +1297,14 @@ const tablesSlice = createSlice({
     // CLEAR TABLE RESERVATION
     // ========================================================================
     builder
-      .addCase(clearTableReservation.pending, (state) => {
+      .addCase(clearTableReservation.pending, state => {
         state.isClearing = true;
         state.clearError = null;
       })
       .addCase(clearTableReservation.fulfilled, (state, action) => {
         state.isClearing = false;
         const table = action.payload as TableWithOrder;
-        const index = state.tables.findIndex((t) => t.id === table.id);
+        const index = state.tables.findIndex(t => t.id === table.id);
         if (index !== -1) {
           state.tables[index] = table;
         }
@@ -1388,7 +1316,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "clear",
           tableId: table.id,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(clearTableReservation.rejected, (state, action) => {
@@ -1400,14 +1328,14 @@ const tablesSlice = createSlice({
     // CLEAR TABLE
     // ========================================================================
     builder
-      .addCase(clearTable.pending, (state) => {
+      .addCase(clearTable.pending, state => {
         state.isClearing = true;
         state.clearError = null;
       })
       .addCase(clearTable.fulfilled, (state, action) => {
         state.isClearing = false;
         const table = action.payload as TableWithOrder;
-        const index = state.tables.findIndex((t) => t.id === table.id);
+        const index = state.tables.findIndex(t => t.id === table.id);
         if (index !== -1) {
           state.tables[index] = table;
         }
@@ -1422,7 +1350,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "clear",
           tableId: table.id,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(clearTable.rejected, (state, action) => {
@@ -1434,13 +1362,13 @@ const tablesSlice = createSlice({
     // MARK TABLE FOR CLEANING
     // ========================================================================
     builder
-      .addCase(markTableForCleaning.pending, (state) => {
+      .addCase(markTableForCleaning.pending, state => {
         state.isUpdating = true;
       })
       .addCase(markTableForCleaning.fulfilled, (state, action) => {
         state.isUpdating = false;
         const table = action.payload as TableWithOrder;
-        const index = state.tables.findIndex((t) => t.id === table.id);
+        const index = state.tables.findIndex(t => t.id === table.id);
         if (index !== -1) {
           state.tables[index] = table;
         }
@@ -1459,13 +1387,13 @@ const tablesSlice = createSlice({
     // MARK TABLE AS CLEAN
     // ========================================================================
     builder
-      .addCase(markTableAsClean.pending, (state) => {
+      .addCase(markTableAsClean.pending, state => {
         state.isUpdating = true;
       })
       .addCase(markTableAsClean.fulfilled, (state, action) => {
         state.isUpdating = false;
         const table = action.payload as TableWithOrder;
-        const index = state.tables.findIndex((t) => t.id === table.id);
+        const index = state.tables.findIndex(t => t.id === table.id);
         if (index !== -1) {
           state.tables[index] = table;
         }
@@ -1484,7 +1412,7 @@ const tablesSlice = createSlice({
     // TRANSFER ORDER
     // ========================================================================
     builder
-      .addCase(transferOrder.pending, (state) => {
+      .addCase(transferOrder.pending, state => {
         state.isTransferring = true;
         state.transferError = null;
       })
@@ -1494,7 +1422,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "transfer",
           tableId: action.payload.toTableId,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
         // Clear transfer state
         state.transferSourceTable = null;
@@ -1510,7 +1438,7 @@ const tablesSlice = createSlice({
     // TRANSFER ITEMS
     // ========================================================================
     builder
-      .addCase(transferItems.pending, (state) => {
+      .addCase(transferItems.pending, state => {
         state.isTransferring = true;
         state.transferError = null;
       })
@@ -1520,7 +1448,7 @@ const tablesSlice = createSlice({
         state.lastOperation = {
           type: "transfer",
           tableId: action.payload.toTableId,
-          timestamp: Date.now(),
+          timestamp: Date.now()
         };
       })
       .addCase(transferItems.rejected, (state, action) => {
@@ -1532,7 +1460,7 @@ const tablesSlice = createSlice({
     // FETCH TABLE SECTIONS
     // ========================================================================
     builder
-      .addCase(fetchTableSections.pending, (state) => {
+      .addCase(fetchTableSections.pending, state => {
         state.isLoading = true;
       })
       .addCase(fetchTableSections.fulfilled, (state, action) => {
@@ -1548,7 +1476,7 @@ const tablesSlice = createSlice({
     // FETCH NEXT TABLE NUMBER
     // ========================================================================
     builder
-      .addCase(fetchNextTableNumber.pending, (state) => {
+      .addCase(fetchNextTableNumber.pending, state => {
         state.isLoading = true;
       })
       .addCase(fetchNextTableNumber.fulfilled, (state, action) => {
@@ -1565,7 +1493,7 @@ const tablesSlice = createSlice({
     // FETCH TABLE ORDER
     // ========================================================================
     builder
-      .addCase(fetchTableOrder.pending, (state) => {
+      .addCase(fetchTableOrder.pending, state => {
         state.isLoadingDetails = true;
       })
       .addCase(fetchTableOrder.fulfilled, (state, action) => {
@@ -1577,7 +1505,7 @@ const tablesSlice = createSlice({
         state.isLoadingDetails = false;
         state.detailsError = action.payload as string;
       });
-  },
+  }
 });
 
 // ============================================================================
@@ -1654,6 +1582,7 @@ export const {
 
   // Reset
   resetTablesState,
+  resetTablesUIState
 } = tablesSlice.actions;
 
 export default tablesSlice.reducer;
