@@ -5,10 +5,13 @@ import { OrderItemsListProps, POSCartItem } from "@/types/inventory";
 import { OrderType } from "@/types/orders";
 import { formatCurrency } from "@/utils/conversionLogic";
 import { FileText, Minus, Plus } from "lucide-react";
-import React from "react";
+import React, { Suspense } from "react";
 import { EmployeeSelector } from "../employees/EmployeeSelector";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { updateCartQuantity as updateCartQuantityAction, setOrderType, setSelectedEmployee, setSelectedItemForNotes, setShowItemNotesDialog } from "@/store/slices/posSlice";
+import { updateCartQuantity as updateCartQuantityAction, setOrderType, setSelectedEmployee, setSelectedItemForNotes, setShowItemNotesDialog, setItemNotes } from "@/store/slices/posSlice";
+
+// Lazy load ItemNotesDialog for better performance
+const ItemNotesDialog = React.lazy(() => import("./ItemNotesDialog"));
 
 // We keep props for backward compatibility while using Redux internally
 const OrderItemsListBase: React.FC<OrderItemsListProps> = ({ cart: propCart, updateCartQuantity: propUpdateCartQuantity, orderType: propOrderType, selectedTable: propSelectedTable, selectedEmployee: propSelectedEmployee, onOrderTypeChange, onTableSelect, onEmployeeSelect, incompleteTableOrdersCount, orderStatus: propOrderStatus, isOrderCompleted = false, discountReason: propDiscountReason, leftPanelPixelWidth = 0, onShowItemNotes }) => {
@@ -25,6 +28,7 @@ const OrderItemsListBase: React.FC<OrderItemsListProps> = ({ cart: propCart, upd
   const orderStatus = reduxState.currentOrder?.status || propOrderStatus;
   const discountReason = reduxState.appliedDiscount?.reason || propDiscountReason;
   const selectedItemForNotesObj = reduxState.selectedItemForNotes;
+  const showItemNotesDialog = reduxState.showItemNotesDialog;
   const isCompleted = isOrderCompleted || orderStatus === "paid" || orderStatus === "served";
   const shouldShowLabels = leftPanelPixelWidth > 430;
 
@@ -98,7 +102,7 @@ const OrderItemsListBase: React.FC<OrderItemsListProps> = ({ cart: propCart, upd
       if (isCompleted) {
         return;
       }
-      // Update Redux state
+      // Update Redux state to show dialog for this specific item
       dispatch(setSelectedItemForNotes(item));
       dispatch(setShowItemNotesDialog(true));
 
@@ -109,6 +113,22 @@ const OrderItemsListBase: React.FC<OrderItemsListProps> = ({ cart: propCart, upd
     },
     [isCompleted, dispatch, onShowItemNotes]
   );
+
+  // Handle notes change - integrates with Redux
+  const handleNotesChange = React.useCallback(
+    (itemId: string, notes: string) => {
+      // Update the item notes in Redux cart
+      dispatch(setItemNotes({ itemId, notes }));
+      // Close the dialog
+      dispatch(setShowItemNotesDialog(false));
+    },
+    [dispatch]
+  );
+
+  // Handle dialog close
+  const handleCloseNotesDialog = React.useCallback(() => {
+    dispatch(setShowItemNotesDialog(false));
+  }, [dispatch]);
 
   // Create ref outside of useEffect to track previous cart length
   const prevLengthRef = React.useRef<number | null>(null);
@@ -133,7 +153,7 @@ const OrderItemsListBase: React.FC<OrderItemsListProps> = ({ cart: propCart, upd
           console.log("🔍 [OrderItemsList] TABLE BUTTON CLICKED");
           console.log("🔍 [OrderItemsList] onTableSelect exists?", !!onTableSelect);
           console.log("🔍 [OrderItemsList] incompleteTableOrdersCount:", incompleteTableOrdersCount);
-          
+
           if (onTableSelect) {
             console.log("🔍 [OrderItemsList] Calling onTableSelect()");
             onTableSelect();
@@ -257,6 +277,18 @@ const OrderItemsListBase: React.FC<OrderItemsListProps> = ({ cart: propCart, upd
 
       {/* Employee Selector Dropdown */}
       {orderType === "employees" && <EmployeeSelector selectedEmployeeId={selectedEmployee?.id || null} onEmployeeSelect={handleEmployeeSelected} placeholder="Choose an employee" showAvatar={false} compact={true} className="w-full" />}
+
+      {/* Item Notes Dialog - Integrated with Redux */}
+      {showItemNotesDialog && selectedItemForNotesObj && (
+        <Suspense fallback={null}>
+          <ItemNotesDialog
+            isOpen={showItemNotesDialog}
+            onClose={handleCloseNotesDialog}
+            item={selectedItemForNotesObj}
+            onNotesChange={handleNotesChange}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
