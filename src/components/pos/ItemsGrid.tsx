@@ -22,6 +22,7 @@ const itemsGridPropsAreEqual = (prevProps: ProductGridProps, nextProps: ProductG
     return true;
   }
 
+  // If loading state changed, only re-render if it's a meaningful change
   if (prevProps.isLoading !== nextProps.isLoading) {
     if (prevProps.isLoading === true && nextProps.isLoading === false) {
       logDevOnly("ItemsGrid re-render: loading finished");
@@ -35,9 +36,9 @@ const itemsGridPropsAreEqual = (prevProps: ProductGridProps, nextProps: ProductG
     }
   }
 
-  // Only check width if it changed significantly (round to nearest 100px for even more stability)
-  const prevWidth = Math.round(prevProps.rightPanelPixelWidth / 100) * 100;
-  const nextWidth = Math.round(nextProps.rightPanelPixelWidth / 100) * 100;
+  // Only check width if it changed significantly (round to nearest 200px for even more stability)
+  const prevWidth = Math.round(prevProps.rightPanelPixelWidth / 200) * 200;
+  const nextWidth = Math.round(nextProps.rightPanelPixelWidth / 200) * 200;
   if (prevWidth !== nextWidth) {
     logDevOnly("ItemsGrid re-render: panel width changed significantly");
     return false;
@@ -51,12 +52,24 @@ const itemsGridPropsAreEqual = (prevProps: ProductGridProps, nextProps: ProductG
   }
 
   if (prevProps.posItems === nextProps.posItems) {
+    logDevOnly("ItemsGrid props equality check: same array reference");
+    return true;
+  }
+
+  // If array is empty in both cases, consider equal
+  if ((prevProps.posItems?.length === 0 && nextProps.posItems?.length === 0) || 
+      (!prevProps.posItems && !nextProps.posItems)) {
+    logDevOnly("ItemsGrid props equality check: both arrays empty");
     return true;
   }
 
   if (prevProps.posItems?.length > 0) {
-    if (prevProps.posItems[0]?.id !== nextProps.posItems[0]?.id || prevProps.posItems[prevProps.posItems.length - 1]?.id !== nextProps.posItems[nextProps.posItems.length - 1]?.id) {
-      logDevOnly("ItemsGrid re-render: first or last item changed");
+    // Sample check: Check first, middle and last items for ID equality
+    const midIndex = Math.floor(prevProps.posItems.length / 2);
+    if (prevProps.posItems[0]?.id !== nextProps.posItems[0]?.id || 
+        prevProps.posItems[midIndex]?.id !== nextProps.posItems[midIndex]?.id || 
+        prevProps.posItems[prevProps.posItems.length - 1]?.id !== nextProps.posItems[nextProps.posItems.length - 1]?.id) {
+      logDevOnly("ItemsGrid re-render: sampled items changed");
       return false;
     }
 
@@ -260,10 +273,10 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = EM
     [stableOnAddToCart]
   );
 
-  // Calculate derived values
-  const roundedWidth = Math.round(rightPanelPixelWidth / 10) * 10;
+  // Calculate derived values - round to nearest 50px for more stability
+  const roundedWidth = Math.round(rightPanelPixelWidth / 50) * 50;
 
-  // Define all memo hooks
+  // Define all memo hooks with stable references
   const gridConfig = useMemo(() => {
     const columns = getColumnsCount(roundedWidth);
     const itemHeight = 160;
@@ -317,18 +330,37 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = EM
     return xxlargeConfig;
   }, [roundedWidth]);
 
+  // Cache the previous posItems reference to avoid unnecessary recalculations
+  const posItemsRef = useRef(posItems);
+  const prevGridColumnsRef = useRef(gridConfig.columns);
+  const virtualRowsRef = useRef<POSItem[][]>([]);
+  
   // These hooks must always be called, even when loading or empty
   const virtualRows = useMemo(() => {
+    // Use cached value if inputs haven't changed
+    if (posItemsRef.current === posItems && prevGridColumnsRef.current === gridConfig.columns && virtualRowsRef.current.length > 0) {
+      return virtualRowsRef.current;
+    }
+    
     // Always return an array, even if empty
     if (!posItems || posItems.length === 0) {
+      virtualRowsRef.current = [];
       return [];
     }
+    
     const rows = Math.ceil(posItems.length / gridConfig.columns);
-    return Array.from({ length: rows }, (_, rowIndex) => {
+    const newVirtualRows = Array.from({ length: rows }, (_, rowIndex) => {
       const startIndex = rowIndex * gridConfig.columns;
       const endIndex = Math.min(startIndex + gridConfig.columns, posItems.length);
       return posItems.slice(startIndex, endIndex);
     });
+    
+    // Update refs
+    posItemsRef.current = posItems;
+    prevGridColumnsRef.current = gridConfig.columns;
+    virtualRowsRef.current = newVirtualRows;
+    
+    return newVirtualRows;
   }, [posItems, gridConfig.columns]);
 
   // Ultra-optimized virtualizer with hyper-tuned parameters for maximum performance
@@ -364,25 +396,47 @@ export const ItemsGrid: React.FC<ProductGridProps> = React.memo(({ posItems = EM
     }
   });
 
-  // Always create virtualItems with same dependencies
+  // Cache grid columns class to avoid recalculating it on each render
+  const gridColsClassRef = useRef<string>("");
+  
+  // Get grid columns class with caching
+  const getGridColsClass = useCallback((columns: number) => {
+    if (gridColsClassRef.current && prevGridColumnsRef.current === columns) {
+      return gridColsClassRef.current;
+    }
+    
+    const newGridColsClass = columns === 1 ? "grid-cols-1" : 
+                           columns === 2 ? "grid-cols-2" : 
+                           columns === 3 ? "grid-cols-3" : 
+                           columns === 4 ? "grid-cols-4" : 
+                           columns === 5 ? "grid-cols-5" : 
+                           columns === 6 ? "grid-cols-6" : "grid-cols-7";
+    
+    gridColsClassRef.current = newGridColsClass;
+    prevGridColumnsRef.current = columns;
+    return newGridColsClass;
+  }, []);
+  
+  // Always create virtualItems with same dependencies and stable references
   const virtualItems = useMemo(() => {
     // Always return an array, even if empty
     if (virtualRows.length === 0) {
       return [];
     }
-    // Performance optimization: removed console log
+    
+    // Get grid columns class once
+    const gridColsClass = getGridColsClass(gridConfig.columns);
+    
     return virtualizer.getVirtualItems().map(virtualRow => {
       const rowItems = virtualRows[virtualRow.index];
-      // Determine grid columns class once
-      const gridColsClass = gridConfig.columns === 1 ? "grid-cols-1" : gridConfig.columns === 2 ? "grid-cols-2" : gridConfig.columns === 3 ? "grid-cols-3" : gridConfig.columns === 4 ? "grid-cols-4" : gridConfig.columns === 5 ? "grid-cols-5" : gridConfig.columns === 6 ? "grid-cols-6" : "grid-cols-7";
-
+      
       return {
         virtualRow,
         rowItems,
         gridColsClass
       };
     });
-  }, [virtualizer.getVirtualItems(), virtualRows, gridConfig.columns]);
+  }, [virtualizer.getVirtualItems(), virtualRows, gridConfig.columns, getGridColsClass]);
 
   // Render loading state
   if (isLoading) {

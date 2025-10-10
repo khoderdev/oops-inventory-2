@@ -1,7 +1,6 @@
-import { ordersAPI } from "@/api/orders.api";
 import { authAPI } from "@/api/auth";
 import { useDayOperations } from "@/hooks/useDayOperations";
-import { useGetOrdersQuery, useGetTablesQuery } from "@/store/api/posApi";
+import { useGetOrdersQuery } from "@/store/api/posApi";
 import { POSClientOrders } from "@/components/pos/POSClientOrders";
 import { POSHeader } from "@/components/pos/POSHeader";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,8 +9,7 @@ import PinInput from "@/components/ui/PinInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PERMISSIONS } from "@/types/auth";
-import { POSLayoutProps, OpenDayRequest, CloseDayRequest, DayOperation, ActivityLog } from "@/types/inventory";
-import { DayOperationsFormData, UserOrderStats } from "@/types/dayOperations";
+import { POSLayoutProps, OpenDayRequest, CloseDayRequest } from "@/types/inventory";
 import { AlertCircle, CheckCircle, GripVertical, XCircle } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -21,11 +19,10 @@ import Sales from "../sales/Sales";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { selectShowLeftPanel, selectIsResizing, selectLeftPanelWidth, selectShowLockOverlay, selectUserDayOpen, selectCurrentDay, selectIsLocked } from "@/store/slices/posSelectors";
 import { setShowLeftPanel, setIsResizing, setLeftPanelWidth, setShowLockOverlay, setUserDayOpen } from "@/store/slices/uiSlice";
-import { closeDay, fetchCurrentDayOperation } from "@/store/slices/dayOperationsSlice";
+import { closeDay } from "@/store/slices/dayOperationsSlice";
 
 // Use centralized day operations hook for Redux state sharing and caching
-
-const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount = 0, onLogout, onOrderSelect, onRefreshCounts }) => {
+const POSLayout: React.FC<POSLayoutProps> = ({ children, onLogout, onOrderSelect }) => {
   const { user, logout } = useAuth();
   const { hasPermission, hasRole } = usePermissions();
   const canAccessPOS = hasPermission(PERMISSIONS.POS_ACCESS);
@@ -52,7 +49,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [showSalesHistoryDialog, setShowSalesHistoryDialog] = useState(false);
   const [, setShowDayOperationsModal] = useState(false);
   const [, setDayOperationType] = useState<"open" | "close">("open");
-  // Removed: userOrderStats now comes from Redux via useDayOperations hook
   const [isCheckingDayStatus, setIsCheckingDayStatus] = useState(true);
   const [dayError, setDayError] = useState<string | null>(null);
   const [daySuccess, setDaySuccess] = useState<string | null>(null);
@@ -64,22 +60,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
   const [, setError] = useState<string | null>(null);
   const [, setSuccess] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [, setRecentDays] = useState<DayOperation[]>([]);
-  const [, setActivities] = useState<ActivityLog[]>([]);
   const navigate = useNavigate();
 
   const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
 
   // 🚀 PERFORMANCE FIX: Use centralized Redux state to eliminate duplicate API calls
-  const {
-    currentDay: reduxCurrentDay,
-    userOrderStats,
-    refreshCurrentDay,
-    refreshActivities,
-    refreshUserStats,
-    currentDayLoading,
-    userOrderStatsLoading
-  } = useDayOperations(false); // Don't auto-refresh, we'll control it manually
+  const { currentDay: reduxCurrentDay, userOrderStats, refreshCurrentDay, refreshActivities, refreshUserStats } = useDayOperations(false);
 
   useEffect(() => {
     if (user) {
@@ -109,12 +95,12 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     try {
       setLoading(true);
       setError(null);
-      
+
       console.log("📊 [POSLayout] Loading data from Redux (cached)...");
-      
+
       // Fetch current day operation (will use cache if valid)
       await refreshCurrentDay();
-      
+
       // Use Redux state instead of making duplicate API calls
       if (reduxCurrentDay) {
         dispatch(setUserDayOpen(reduxCurrentDay.status === "opened"));
@@ -122,16 +108,13 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         // Hide lock overlay immediately if day is open
         if (reduxCurrentDay.status === "opened") {
           dispatch(setShowLockOverlay(false));
-          
+
           // Only fetch activities and stats if day is open (will use cache if valid)
           console.log("📊 [POSLayout] Day is open, fetching activities and stats from cache...");
-          await Promise.all([
-            refreshActivities(),
-            refreshUserStats()
-          ]);
+          await Promise.all([refreshActivities(), refreshUserStats()]);
         }
       }
-      
+
       console.log("✅ [POSLayout] Data loaded successfully from Redux");
     } catch (err) {
       console.error("❌ [POSLayout] Error loading data:", err);
@@ -197,7 +180,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     { limit: 1000, offset: 0 },
     {
       pollingInterval: 120000, // 2 minutes instead of 30 seconds
-      refetchOnMountOrArgChange: true,
+      refetchOnMountOrArgChange: true
     }
   );
 
@@ -224,12 +207,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     setShowOrdersDialog(false);
   }, []);
 
-  // No need for manual refresh - RTK Query handles it automatically
-  const refreshCounts = useCallback(async () => {
-    // RTK Query will auto-refresh based on polling interval
-    console.log('✅ [POSLayout] Orders auto-refreshing via RTK Query');
-  }, []);
-
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -250,10 +227,6 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [userDayOpen]);
-
-  // Removed old polling - now using RTK Query with 2-minute polling interval
-  // This eliminates 240 API calls per hour (120 orders + 120 sales)
-  // New approach: 60 API calls per hour (30 orders + 30 sales) = 75% reduction
 
   const toggleFullscreen = async () => {
     try {
@@ -348,51 +321,14 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
     setShowDayOperationsModal(true);
   };
 
-  const convertToModalFormData = (type: "open" | "close"): DayOperationsFormData => {
-    if (type === "open") {
-      return {
-        openingCash: openDayForm.openingCash,
-        openedBy: openDayForm.openedBy,
-        notes: openDayForm.notes
-      };
-    } else {
-      return {
-        closingCash: closeDayForm.closingCash,
-        closedBy: closeDayForm.closedBy,
-        notes: closeDayForm.notes
-      };
-    }
-  };
-
-  const handleModalFormChange = (type: "open" | "close", data: DayOperationsFormData) => {
-    if (type === "open") {
-      setOpenDayForm({
-        openingCash: data.openingCash || 0,
-        openedBy: data.openedBy || "",
-        notes: data.notes || "",
-        userId: user?.id
-      });
-    } else {
-      setCloseDayForm({
-        closingCash: data.closingCash || 0,
-        closedBy: data.closedBy || "",
-        notes: data.notes || "",
-        userId: user?.id
-      });
-    }
-  };
-
   // 🚀 PERFORMANCE FIX: Use Redux state instead of duplicate API calls
   const refreshExpectedAndStats = useCallback(async () => {
     try {
       console.log("🔄 [POSLayout] Refreshing expected cash and stats from Redux...");
-      
+
       // Force refresh from server (bypass cache) - pass true to force
-      await Promise.all([
-        refreshCurrentDay(true),
-        refreshUserStats(true)
-      ]);
-      
+      await Promise.all([refreshCurrentDay(true), refreshUserStats(true)]);
+
       // Use Redux state (already updated by the refresh calls above)
       const latestExpected = reduxCurrentDay?.expectedCash ?? 0;
       setCloseDayForm(prev => ({
@@ -401,7 +337,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
         closedBy: user?.fullName || prev.closedBy || "",
         userId: (user?.id as any) ?? prev.userId
       }));
-      
+
       console.log("✅ [POSLayout] Expected cash and stats refreshed:", { latestExpected, statsCount: userOrderStats.length });
     } catch (e) {
       console.warn("⚠️ [POSLayout] Failed to refresh expected cash or user stats:", e);
@@ -421,15 +357,15 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
 
   useEffect(() => {
     if (!showCloseModal) return;
-    
+
     // Call once immediately
     refreshExpectedAndStats();
-    
+
     // Set up interval for periodic refresh
     const id = window.setInterval(() => {
       refreshExpectedAndStats();
     }, 10000);
-    
+
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showCloseModal]); // Only depend on showCloseModal, not refreshExpectedAndStats
@@ -450,7 +386,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
       setActionLoading(true);
       setError(null);
       const resultAction = await dispatch(closeDay({ ...closeDayForm, userId: user?.id as any }));
-      
+
       // Unwrap the result to get the actual response
       if (closeDay.fulfilled.match(resultAction)) {
         const response = resultAction.payload;
@@ -463,7 +399,7 @@ const POSLayout: React.FC<POSLayoutProps> = ({ children, incompleteOrdersCount =
           }
         }
       }
-      
+
       setShowCloseModal(false);
       setCloseDayForm({ closingCash: 0, closedBy: user?.fullName || "", notes: "", userId: user?.id as any });
       setTimeout(async () => {

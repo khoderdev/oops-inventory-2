@@ -1,6 +1,7 @@
-import { configureStore, combineReducers } from "@reduxjs/toolkit";
+import { configureStore, combineReducers, Middleware } from "@reduxjs/toolkit";
 import { persistStore, persistReducer, FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
+import { debugReduxAction, findNonSerializablePaths } from '@/utils/debugHelpers';
 import posReducer from "./slices/posSlice";
 import dayOperationsReducer from "./slices/dayOperationsSlice";
 import uiReducer from "./slices/uiSlice";
@@ -45,6 +46,30 @@ const rootReducer = combineReducers({
   [posApi.reducerPath]: posApi.reducer
 });
 
+// Create a debug middleware to catch serialization issues
+const debugMiddleware: Middleware = store => next => (action: any) => {
+  // Only log in development
+  if (process.env.NODE_ENV === 'development') {
+    // Check for specific actions that might cause issues
+    if (typeof action === 'object' && action !== null && action.type === 'orders/updateOrder/pending') {
+      console.group('🔍 Debug updateOrder action');
+      console.log('Action:', action);
+      
+      // Check if payload is serializable
+      if (action.meta && typeof action.meta === 'object' && action.meta.arg) {
+        console.log('Payload:', action.meta.arg);
+        const nonSerializablePaths = findNonSerializablePaths(action.meta.arg);
+        if (nonSerializablePaths.length > 0) {
+          console.warn('⚠️ Non-serializable paths in updateOrder:', nonSerializablePaths);
+        }
+      }
+      console.groupEnd();
+    }
+  }
+  
+  return next(action);
+};
+
 // Create store with persisted reducer
 export const store = configureStore({
   reducer: rootReducer,
@@ -62,7 +87,7 @@ export const store = configureStore({
       },
       // Disable immutability check for better performance (only in production)
       immutableCheck: process.env.NODE_ENV === 'development' ? { warnAfter: 128 } : false,
-    }).concat(posApi.middleware)
+    }).concat(posApi.middleware, debugMiddleware)
 });
 
 // Create persistor

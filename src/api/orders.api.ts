@@ -15,7 +15,15 @@ export const ordersAPI = {
   getOrder: (orderId: string) => api.get<Order>(`/orders/${orderId}`),
 
   // Update an existing order
-  updateOrder: (orderId: string, data: UpdateOrderData) => api.put<Order, UpdateOrderData>(`/orders/${orderId}`, data),
+  updateOrder: (orderId: string, data: UpdateOrderData) => {
+    // Ensure data is properly formatted as JSON
+    if (typeof data !== 'object' || data === null) {
+      throw new Error('UpdateOrderData must be an object');
+    }
+    
+    // Make sure we're sending a proper object, not just the orderId
+    return api.put<Order, UpdateOrderData>(`/orders/${orderId}`, data);
+  },
 
   // Add items to an existing order
   addOrderItems: (orderId: string, items: Omit<OrderItem, "id">[]) => api.post<Order, { items: Omit<OrderItem, "id">[] }>(`/orders/${orderId}/items`, { items }),

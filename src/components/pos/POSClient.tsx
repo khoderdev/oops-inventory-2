@@ -2,35 +2,28 @@ import { logDevOnly } from "@/utils/logDevOnly";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { createOrder as createOrderThunk, fetchOrderById, updateOrder as updateOrderThunk, voidOrder as voidOrderThunk, setActiveOrder, clearStockRestorations } from "@/store/slices/ordersSlice";
-import { selectActiveOrder, selectIsCreating, selectIsUpdating, selectIsVoiding, selectIsAnyLoading, selectLastStockRestorations } from "@/store/slices/ordersSelectors";
+import { selectActiveOrder, selectIsAnyLoading } from "@/store/slices/ordersSelectors";
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
-import { Employee } from "@/types/employee";
-import { MenuItem, NegativeStockWarning, POSCartItem, POSClientProps, POSItem, ReceiptData, SaleResponse, StockEntryWithMaterial, Table } from "@/types/inventory";
-import { CreateOrderData, Order, OrderSummary as OrderSummaryType, OrderType, UpdateOrderData } from "@/types/orders";
+import { MenuItem, POSCartItem, POSClientProps, POSItem, ReceiptData, StockEntryWithMaterial, Table } from "@/types/inventory";
+import { CreateOrderData, Order, OrderType, UpdateOrderData } from "@/types/orders";
 import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
-import { OrderPersistence } from "@/utils/orderPersistence";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
-import { useVoidPrinter } from "./VoidPrinter";
-import { AlertCircle, AlertTriangle, Check, CheckCircle, DollarSign, FileText, GripVertical, Settings, Trash2 } from "lucide-react";
-import { useDailyReports } from "@/hooks/useDailyReports";
+import { AlertCircle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
 import { useDayOperations } from "@/hooks/useDayOperations";
-import DailyReports from "@/components/analytics/DailyReports";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { tablesAPI } from "@/api/tables.api";
 import { ordersAPI } from "@/api/orders.api";
 import printerAPI from "@/api/printer.api";
-import { useGetTablesQuery, useGetOrdersQuery } from "@/store/api/posApi";
+import { useGetOrdersQuery } from "@/store/api/posApi";
 import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
 import PrinterSelector from "../common/PrinterSelector";
-
-// Optimized hooks
 import { usePOSState } from "@/hooks/usePOSState";
 import { usePOSData } from "@/hooks/usePOSData";
 import { useAuth } from "@/contexts/AuthContext";
+import { Modal } from "./Modal";
+import NotesDialog from "./NotesDialog";
+import OrderSummary from "./OrderSummary";
 
-// Lazy load heavy components
-const ReportGenerator = lazy(() => import("../analytics/ReportGenerator"));
 const ActionBar = lazy(() => import("./ActionBar"));
 const CategoryTabs = lazy(() => import("./CategoryTabs"));
 const DiscountDialog = lazy(() => import("./DiscountDialog"));
@@ -79,66 +72,27 @@ import {
   applyDiscount as applyDiscountAction,
   completeOrder
 } from "@/store/slices/posSlice";
-import NotesDialog from "./NotesDialog";
-import OrderSummary from "./OrderSummary";
 
-import { Modal } from "./Modal";
-
-const EMPTY_ARRAY: any[] = [];
-
-const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSaleComplete, onOrderSelect, selectedOrderForPOS, onOrderProcessed, refreshCountsRef, isDayOpen = true }) => {
+const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedOrderForPOS, isDayOpen = true }) => {
   const dispatch = useAppDispatch();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const { isAuthenticated } = useAuth();
 
   // Consolidated Redux state (1 selector instead of 30+)
   const posState = usePOSState();
-  const { cart, orderType, selectedTable, selectedEmployee, posCurrentOrder, hasUnsavedChanges, isLoading, error, successMessage, showSuccessCheckmark, showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showReportsDialog, showPrinterSelector, selectedItemForNotes, orderNotes, appliedDiscount, lastSaleData, isTableManuallySelected, editingSaleId, selectedSaleForEdit, isPOSActionInProgress } =
-    posState;
+  const { cart, orderType, selectedTable, selectedEmployee, hasUnsavedChanges, isLoading, error, successMessage, showSuccessCheckmark, showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showPrinterSelector, selectedItemForNotes, orderNotes, appliedDiscount, lastSaleData, editingSaleId, selectedSaleForEdit, isPOSActionInProgress } = posState;
 
-  // Optimized POS data hook V2 (uses RTK Query with automatic caching)
-  const { posItems, filteredPosItems, categories, isLoading: posDataLoading, activeCategory, setActiveCategory } = usePOSData(isPOSActionInProgress);
-
-  // Day operations
-  const { handleViewReport, showReportModal, setShowReportModal, selectedReport, loading: reportLoading, error: reportError, setError: setReportError } = useDailyReports();
+  const { filteredPosItems, categories, isLoading: posDataLoading, activeCategory, setActiveCategory } = usePOSData(isPOSActionInProgress);
   const { currentDay, closeDay, refreshCurrentDay, actionLoading: dayActionLoading } = useDayOperations();
-
-  // Use RTK Query for tables and orders - INSTANT from cache like desktop app
-  // Skip queries if not authenticated to prevent 401 errors
-  const { data: tables = [] } = useGetTablesQuery(
-    { includeOrders: true },
-    {
-      pollingInterval: 0, // No polling - manual refresh only
-      refetchOnMountOrArgChange: false, // Use cache instantly
-      refetchOnFocus: false, // Never refetch
-      skip: !isAuthenticated
-    }
-  );
-
-  const { data: ordersData = [] } = useGetOrdersQuery(
-    {},
-    {
-      pollingInterval: 0, // No polling - manual refresh only
-      refetchOnMountOrArgChange: false, // Use cache instantly
-      refetchOnFocus: false, // Never refetch
-      skip: !isAuthenticated
-    }
-  );
+  const { data: ordersData = [] } = useGetOrdersQuery({}, { pollingInterval: 0, refetchOnMountOrArgChange: false, refetchOnFocus: false, skip: !isAuthenticated });
 
   // Calculate orders counts from RTK Query data (memoized)
   const { incompleteOrdersCount, tableOrders, incompleteTableOrdersCount, incompleteDeliveryTakeawayCount } = useMemo(() => {
     const incompleteStatuses = ["draft", "confirmed", "preparing", "ready"];
     const incompleteOrders = ordersData.filter(order => incompleteStatuses.includes(order.status));
-    
     const deliveryCount = incompleteOrders.filter(order => order.orderType === "delivery").length;
     const takeawayCount = incompleteOrders.filter(order => order.orderType === "takeaway").length;
-    
-    const uniqueTablesWithOrders = new Set(
-      incompleteOrders
-        .filter(order => order.orderType === "table" && order.tableNumber)
-        .map(order => order.tableNumber)
-    );
-    
+    const uniqueTablesWithOrders = new Set(incompleteOrders.filter(order => order.orderType === "table" && order.tableNumber).map(order => order.tableNumber));
     const tableOrdersMap: { [tableId: string]: number } = {};
     incompleteOrders.forEach(order => {
       if (order.tableNumber) {
@@ -146,62 +100,32 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         tableOrdersMap[tableKey] = (tableOrdersMap[tableKey] || 0) + 1;
       }
     });
-    
     return {
       incompleteOrdersCount: incompleteOrders.length,
       tableOrders: tableOrdersMap,
       incompleteTableOrdersCount: uniqueTablesWithOrders.size,
-      incompleteDeliveryTakeawayCount: deliveryCount + takeawayCount,
+      incompleteDeliveryTakeawayCount: deliveryCount + takeawayCount
     };
   }, [ordersData]);
 
   // Local state (minimal)
-  const [negativeStockWarnings] = useState<NegativeStockWarning[]>([]);
-  const [showNegativeStockDialog, setShowNegativeStockDialog] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState<string>("");
-  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-  const [printedTables, setPrintedTables] = useState<string[]>([]);
   const [leftPanelWidth, setLeftPanelWidth] = useState(33.33);
   const [rightPanelPixelWidth, setRightPanelPixelWidth] = useState(0);
   const [isResizing, setIsResizing] = useState(false);
   const resizeRafRef = useRef<number | null>(null);
   const [printerSelectionContext, setPrinterSelectionContext] = useState<"payment" | "manual_print" | null>(null);
-  const [activeView, setActiveView] = useState<"cart" | "products">("products");
   const [showDayCloseDialog, setShowDayCloseDialog] = useState(false);
   const [closingCash, setClosingCash] = useState<string>("");
   const [dayCloseNotes, setDayCloseNotes] = useState<string>("");
-
-  // Refs
   const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const processedOrderRef = useRef<string | null>(null);
-  const justSavedRef = useRef<boolean>(false);
-  const completedOrdersRef = useRef<Set<string>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
-  const routerStateProcessedRef = useRef(false);
-  const dayReportShownRef = useRef<boolean>(false);
   const processedSaleIdRef = useRef<string | null>(null);
-
-  // Redux orders state
   const currentOrder = useAppSelector(selectActiveOrder);
-  const isCreatingOrder = useAppSelector(selectIsCreating);
-  const isUpdatingOrder = useAppSelector(selectIsUpdating);
-  const isVoidingOrder = useAppSelector(selectIsVoiding);
   const orderLoading = useAppSelector(selectIsAnyLoading);
-  const lastStockRestorations = useAppSelector(selectLastStockRestorations);
-
   const { selectedPrinter, selectPrinter, clearSelection, hasSavedPrinter, getSavedPrinter } = usePrinterSelector();
-  const { printVoidReceiptsForRemovedItems } = useVoidPrinter({
-    showSuccess: message => dispatch(setSuccessMessageAction(message)),
-    showError: message => dispatch(setErrorAction(message))
-  });
-
-  // Debug: Monitor cart changes
-  useEffect(() => {
-    if (cart.length > 0) {
-      console.log("✅ [POSClient] Cart updated in Redux:", cart.length, "items");
-    }
-  }, [cart.length]);
 
   // Reset showTablesLayout to false on component mount
   useEffect(() => {
@@ -219,12 +143,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     };
   }, []);
 
-  // Removed old data fetching - now using RTK Query with automatic polling
-  // Old approach: Manual fetching every 5 minutes
-  // New approach: RTK Query handles it automatically with smart caching
-  // Result: 75% reduction in API calls + automatic deduplication
-
-  // Utility functions
   const showError = useCallback(
     (message: string) => {
       console.error("❌ Error:", message);
@@ -258,15 +176,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const discountAmountCalculated = appliedDiscount ? appliedDiscount.amount : 0;
   const total = Math.max(0, subtotal - discountAmountCalculated);
 
-  // Removed old data fetching functions - now using RTK Query hooks above
-  // fetchTablesData and fetchIncompleteOrdersCount are replaced by useGetTablesQuery and useGetOrdersQuery
-
   // Order management functions
   const createOrder = useCallback(
     async (data: CreateOrderData): Promise<Order> => {
       const result = await dispatch(createOrderThunk(data));
       if (createOrderThunk.fulfilled.match(result)) {
-        // Handle nested response structure: { message, order } or direct order
         const payload = result.payload as any;
         const order = payload.order || payload;
         console.log("✅ [createOrder] Order created:", order);
@@ -288,33 +202,23 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     [dispatch]
   );
 
-  // Handle selectedOrderForPOS prop - load order when passed from parent
   useEffect(() => {
     if (!selectedOrderForPOS) return;
-    
-    console.log("📥 [POSClient] selectedOrderForPOS changed:", selectedOrderForPOS);
-    
     const loadSelectedOrder = async () => {
       try {
-        // Load the full order
         const fullOrderResponse = await loadOrder(selectedOrderForPOS.id);
-        console.log("📄 [POSClient] Loaded selectedOrderForPOS response:", fullOrderResponse);
-        
-        // Extract the actual order data (handle nested data structure)
         const fullOrder = (fullOrderResponse as any)?.data || fullOrderResponse;
-        console.log("📄 [POSClient] Extracted selectedOrderForPOS data:", fullOrder);
-        
-        // Convert order items to cart items (same logic as handleTableSelection)
         const cartItems: POSCartItem[] = fullOrder.items.map(item => {
-          const unitPrice = typeof item.unitPrice === 'string' ? parseFloat(item.unitPrice) : item.unitPrice;
-          const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
-          
-          const originalItem = item.menuItem || item.material || {
-            id: item.menuItemId || item.materialId || item.id,
-            name: item.name,
-            price: unitPrice
-          };
-          
+          const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice;
+          const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+
+          const originalItem = item.menuItem ||
+            item.material || {
+              id: item.menuItemId || item.materialId || item.id,
+              name: item.name,
+              price: unitPrice
+            };
+
           return {
             id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
             menuItemId: item.menuItemId?.toString() || undefined,
@@ -326,85 +230,72 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             notes: item.notes || undefined,
             originalItem: originalItem as any,
             orderItemId: item.id?.toString(),
-            variant: item.selectedVariant ? {
-              id: item.selectedVariant.name,
-              name: item.selectedVariant.name,
-              volume: item.selectedVariant.volume,
-              unit: item.selectedVariant.unit,
-              price: typeof item.selectedVariant.price === 'string' 
-                ? parseFloat(item.selectedVariant.price) 
-                : item.selectedVariant.price
-            } : undefined
+            variant: item.selectedVariant
+              ? {
+                  id: item.selectedVariant.name,
+                  name: item.selectedVariant.name,
+                  volume: item.selectedVariant.volume,
+                  unit: item.selectedVariant.unit,
+                  price: typeof item.selectedVariant.price === "string" ? parseFloat(item.selectedVariant.price) : item.selectedVariant.price
+                }
+              : undefined
           };
         });
-        
-        console.log("🛒 [POSClient] Setting cart from selectedOrderForPOS:", cartItems);
+
         dispatch(setCart(cartItems));
-        
-        // Set order notes if any
+
         if (fullOrder.notes) {
           dispatch(setOrderNotesAction(fullOrder.notes));
         }
-        
-        // Set discount if any
+
         if (fullOrder.discountType && fullOrder.discountValue) {
-          dispatch(applyDiscountAction({
-            type: fullOrder.discountType as "percentage" | "fixed",
-            value: fullOrder.discountValue,
-            reason: fullOrder.discountReason
-          }));
+          dispatch(
+            applyDiscountAction({
+              type: fullOrder.discountType as "percentage" | "fixed",
+              value: fullOrder.discountValue,
+              reason: fullOrder.discountReason
+            })
+          );
         }
-        
-        // Set table if it's a table order
+
         if (fullOrder.table) {
           dispatch(setSelectedTableAction(fullOrder.table));
           dispatch(setOrderTypeAction("table"));
         }
-        
+
         showSuccess(`Loaded order ${fullOrder.orderNumber}`);
       } catch (error) {
         console.error("❌ [POSClient] Error loading selectedOrderForPOS:", error);
         showError("Failed to load order");
       }
     };
-    
+
     loadSelectedOrder();
   }, [selectedOrderForPOS, loadOrder, dispatch, showSuccess, showError]);
 
   // Handle selectedSaleForEdit from Sales component - load sale for editing
   useEffect(() => {
     if (!selectedSaleForEdit || !editingSaleId) return;
-    
-    // Prevent processing the same sale multiple times
     if (processedSaleIdRef.current === editingSaleId) {
-      console.log("🚫 [POSClient] Sale already processed:", editingSaleId);
       return;
     }
-    
-    console.log("📥 [POSClient] selectedSaleForEdit changed:", { selectedSaleForEdit, editingSaleId });
     processedSaleIdRef.current = editingSaleId;
-    
     const loadSaleForEdit = async () => {
       try {
-        // Load the full order using the orderId from the sale
         const fullOrderResponse = await loadOrder(editingSaleId);
-        console.log("📄 [POSClient] Loaded sale order response:", fullOrderResponse);
-        
-        // Extract the actual order data (handle nested data structure)
         const fullOrder = (fullOrderResponse as any)?.data || fullOrderResponse;
-        console.log("📄 [POSClient] Extracted sale order data:", fullOrder);
-        
         // Convert order items to cart items
         const cartItems: POSCartItem[] = fullOrder.items.map(item => {
-          const unitPrice = typeof item.unitPrice === 'string' ? parseFloat(item.unitPrice) : item.unitPrice;
-          const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
-          
-          const originalItem = item.menuItem || item.material || {
-            id: item.menuItemId || item.materialId || item.id,
-            name: item.name,
-            price: unitPrice
-          };
-          
+          const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice;
+          const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+
+          const originalItem = item.menuItem ||
+            item.material || {
+              id: item.menuItemId || item.materialId || item.id,
+              name: item.name,
+              price: unitPrice
+            };
+
           return {
             id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
             menuItemId: item.menuItemId?.toString() || undefined,
@@ -416,78 +307,62 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             notes: item.notes || undefined,
             originalItem: originalItem as any,
             orderItemId: item.id?.toString(),
-            variant: item.selectedVariant ? {
-              id: item.selectedVariant.name,
-              name: item.selectedVariant.name,
-              volume: item.selectedVariant.volume,
-              unit: item.selectedVariant.unit,
-              price: typeof item.selectedVariant.price === 'string' 
-                ? parseFloat(item.selectedVariant.price) 
-                : item.selectedVariant.price
-            } : undefined
+            variant: item.selectedVariant
+              ? {
+                  id: item.selectedVariant.name,
+                  name: item.selectedVariant.name,
+                  volume: item.selectedVariant.volume,
+                  unit: item.selectedVariant.unit,
+                  price: typeof item.selectedVariant.price === "string" ? parseFloat(item.selectedVariant.price) : item.selectedVariant.price
+                }
+              : undefined
           };
         });
-        
-        console.log("🛒 [POSClient] Setting cart from sale:", cartItems);
-        
-        // CRITICAL: Set the active order FIRST so updates work correctly
+
         dispatch(setActiveOrder(fullOrder));
-        console.log("✅ [POSClient] Set active order from sale:", fullOrder.id, fullOrder.orderNumber);
-        
-        // Set the cart with the sale items
         dispatch(setCart(cartItems));
-        
-        // Set order notes if any
         if (fullOrder.notes) {
           dispatch(setOrderNotesAction(fullOrder.notes));
         }
-        
-        // Set discount if any
         if (fullOrder.discountType && fullOrder.discountValue) {
-          dispatch(applyDiscountAction({
-            type: fullOrder.discountType as "percentage" | "fixed",
-            value: fullOrder.discountValue,
-            reason: fullOrder.discountReason
-          }));
+          dispatch(
+            applyDiscountAction({
+              type: fullOrder.discountType as "percentage" | "fixed",
+              value: fullOrder.discountValue,
+              reason: fullOrder.discountReason
+            })
+          );
         }
-        
-        // Set table if it's a table order
         if (fullOrder.table) {
           dispatch(setSelectedTableAction(fullOrder.table));
           dispatch(setOrderTypeAction("table"));
         }
-        
-        // Set employee if it's an employee order
         if (fullOrder.employee) {
           dispatch(setSelectedEmployeeAction(fullOrder.employee));
           dispatch(setOrderTypeAction("employees"));
         }
-        
-        // Set order type based on sale data
         if (selectedSaleForEdit.orderType) {
           dispatch(setOrderTypeAction(selectedSaleForEdit.orderType as OrderType));
         }
-        
+
         showSuccess(`Loaded sale ${fullOrder.orderNumber} for editing`);
       } catch (error) {
         console.error("❌ [POSClient] Error loading sale for edit:", error);
         showError("Failed to load sale for editing");
       }
     };
-    
+
     loadSaleForEdit();
   }, [selectedSaleForEdit, editingSaleId, loadOrder, dispatch, showSuccess, showError]);
 
   const updateOrder = useCallback(
-    async (orderIdOrData: string | UpdateOrderData, maybeData?: UpdateOrderData): Promise<Order> => {
+    async (orderIdOrData: string | UpdateOrderData, maybeData?: UpdateOrderData) => {
       let orderId: string;
       let data: UpdateOrderData;
 
       if (typeof orderIdOrData === "string") {
         orderId = orderIdOrData;
         data = maybeData as UpdateOrderData;
-        
-        // Validate that data is provided when orderId is a string
         if (!data) {
           console.error("❌ [updateOrder] Missing data parameter when orderId is provided:", orderId);
           throw new Error("Update data is required when providing orderId");
@@ -500,15 +375,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         orderId = currentOrder.id;
       }
 
-      console.log("📝 [updateOrder] Updating order:", { orderId, dataKeys: Object.keys(data) });
-
       const result = await dispatch(updateOrderThunk({ orderId, data }));
       if (updateOrderThunk.fulfilled.match(result)) {
-        // Handle nested response structure: { message, order } or direct order
-        const payload = result.payload as any;
-        const order = payload.order || payload;
-        console.log("✅ [updateOrder] Order updated:", order);
-        return order;
+        return result;
       }
       throw new Error((result.payload as string) || "Failed to update order");
     },
@@ -532,7 +401,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       );
 
       if (voidOrderThunk.fulfilled.match(result)) {
-        return result.payload;
+        return result;
       }
       throw new Error((result.payload as string) || "Failed to void order");
     },
@@ -544,64 +413,34 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
     dispatch(clearStockRestorations());
   }, [dispatch]);
 
-  // Cart clearing functions (must be declared before handleTableSelection)
   const clearCart = useCallback(() => {
-    console.log("🗑️ [POSClient] clearCart called - Stack trace:", new Error().stack);
     dispatch(clearCartAction());
   }, [dispatch]);
 
   const clearCartWithAnimation = useCallback(() => {
-    console.log("🗑️ [POSClient] clearCartWithAnimation called");
     dispatch(clearCartWithAnimationAction());
     processedOrderRef.current = null;
   }, [dispatch]);
-
-  // Table selection handler
   const handleTableSelection = useCallback(
     async (table: Table) => {
       try {
-        console.log("🎯 [POSClient] handleTableSelection called:", { tableId: table.id, tableNumber: table.number, status: table.status });
-        
         dispatch(setIsTableManuallySelectedAction(true));
         dispatch(setSelectedTableAction(table));
         dispatch(setOrderTypeAction("table"));
         dispatch(setShowTablesLayoutAction(false));
-
-        // Check if this table has an existing order
         const tableKey = table.number?.toString() || table.id?.toString();
         const hasExistingOrder = tableOrders[tableKey] && tableOrders[tableKey] > 0;
-        
-        console.log("🔍 [POSClient] Table order check:", { tableKey, hasExistingOrder, tableOrders });
-
         if (hasExistingOrder && table.status === "opened") {
-          // Table has an existing order - fetch and load it
-          console.log("📋 [POSClient] Loading existing order for table", table.number);
-          
           try {
-            // Fetch draft orders to find the order for this table
-            const response = await ordersAPI.getOrders({ 
+            const response = await ordersAPI.getOrders({
               status: "draft",
-              tableNumber: table.number 
+              tableNumber: table.number
             });
-            
-            console.log("📦 [POSClient] Orders response:", response);
-            
-            // Handle nested data structure: response.data.data
             const orders = (response.data as any)?.data || response.data;
-            
             if (orders && Array.isArray(orders) && orders.length > 0) {
-              const tableOrder = orders[0]; // Get the first draft order for this table
-              console.log("✅ [POSClient] Found order for table:", tableOrder);
-              
-              // Load the order
+              const tableOrder = orders[0];
               const fullOrderResponse = await loadOrder(tableOrder.id);
-              console.log("📄 [POSClient] Loaded full order response:", fullOrderResponse);
-              
-              // Extract the actual order data (handle nested data structure)
               const fullOrder = (fullOrderResponse as any)?.data || fullOrderResponse;
-              console.log("📄 [POSClient] Extracted order data:", fullOrder);
-              console.log("📄 [POSClient] Order items:", fullOrder.items);
-              
               // Convert order items to cart items
               const cartItems: POSCartItem[] = fullOrder.items.map(item => {
                 console.log("🔄 [POSClient] Converting order item:", {
@@ -612,18 +451,16 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                   hasMenuItem: !!item.menuItem,
                   hasMaterial: !!item.material
                 });
-                
-                // Parse numeric values from strings
-                const unitPrice = typeof item.unitPrice === 'string' ? parseFloat(item.unitPrice) : item.unitPrice;
-                const quantity = typeof item.quantity === 'string' ? parseFloat(item.quantity) : item.quantity;
-                
+                const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice;
+                const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
                 // Use the full menuItem or material object if available, otherwise create minimal object
-                const originalItem = item.menuItem || item.material || {
-                  id: item.menuItemId || item.materialId || item.id,
-                  name: item.name,
-                  price: unitPrice
-                };
-                
+                const originalItem = item.menuItem ||
+                  item.material || {
+                    id: item.menuItemId || item.materialId || item.id,
+                    name: item.name,
+                    price: unitPrice
+                  };
+
                 return {
                   id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
                   menuItemId: item.menuItemId?.toString() || undefined,
@@ -634,66 +471,49 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                   type: item.type as "menu_item" | "stock_entry" | "material",
                   notes: item.notes || undefined,
                   originalItem: originalItem as any,
-                  // Store the backend order item ID for updates
                   orderItemId: item.id?.toString(),
-                  // Map selectedVariant from OrderItem to variant in POSCartItem
-                  variant: item.selectedVariant ? {
-                    id: item.selectedVariant.name,
-                    name: item.selectedVariant.name,
-                    volume: item.selectedVariant.volume,
-                    unit: item.selectedVariant.unit,
-                    price: typeof item.selectedVariant.price === 'string' 
-                      ? parseFloat(item.selectedVariant.price) 
-                      : item.selectedVariant.price
-                  } : undefined
+                  variant: item.selectedVariant
+                    ? {
+                        id: item.selectedVariant.name,
+                        name: item.selectedVariant.name,
+                        volume: item.selectedVariant.volume,
+                        unit: item.selectedVariant.unit,
+                        price: typeof item.selectedVariant.price === "string" ? parseFloat(item.selectedVariant.price) : item.selectedVariant.price
+                      }
+                    : undefined
                 };
               });
-              
-              console.log("🛒 [POSClient] Setting cart items:", cartItems);
-              console.log("🛒 [POSClient] Cart items count:", cartItems.length);
-              console.log("🛒 [POSClient] First cart item:", cartItems[0]);
-              
-              // CRITICAL FIX: Set the active order FIRST so handleManualSave knows to UPDATE instead of CREATE
+
               dispatch(setActiveOrder(fullOrder));
-              console.log("✅ [POSClient] Set active order:", fullOrder.id, fullOrder.orderNumber);
-              
-              // Set the cart with the order items
-              console.log("🔄 [POSClient] About to dispatch setCart with", cartItems.length, "items");
               dispatch(setCart(cartItems));
-              console.log("✅ [POSClient] Dispatched setCart successfully");
-              
-              // Set order notes if any
+
               if (fullOrder.notes) {
                 dispatch(setOrderNotesAction(fullOrder.notes));
               }
-              
-              // Set discount if any
+
               if (fullOrder.discountType && fullOrder.discountValue) {
-                dispatch(applyDiscountAction({
-                  type: fullOrder.discountType as "percentage" | "fixed",
-                  value: fullOrder.discountValue,
-                  reason: fullOrder.discountReason
-                }));
+                dispatch(
+                  applyDiscountAction({
+                    type: fullOrder.discountType as "percentage" | "fixed",
+                    value: fullOrder.discountValue,
+                    reason: fullOrder.discountReason
+                  })
+                );
               }
-              
+
               showSuccess(`Loaded order for Table ${table.number}`);
             } else {
-              console.log("⚠️ [POSClient] No incomplete orders found for table", table.number);
-              // Clear cart for new order
               clearOrder();
               clearCart();
               showSuccess(`Table ${table.number} selected - Start new order`);
             }
           } catch (error) {
             console.error("❌ [POSClient] Error loading table order:", error);
-            // Clear cart on error
             clearOrder();
             clearCart();
             showError("Failed to load table order");
           }
         } else {
-          // No existing order - clear cart for new order
-          console.log("🆕 [POSClient] No existing order - starting fresh");
           clearOrder();
           clearCart();
           showSuccess(`Table ${table.number} selected`);
@@ -741,31 +561,20 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         discountValue: appliedDiscount?.value,
         discountReason: appliedDiscount?.reason
       };
-
-      console.log("💾 [handleManualSave] Saving order:", {
-        hasCurrentOrder: !!currentOrder,
-        currentOrderId: currentOrder?.id,
-        cartLength: cart.length,
-        orderType
-      });
-
       let savedOrder: Order;
       if (currentOrder?.id) {
-        // Update existing order - ensure we have a valid order ID
-        console.log("📝 [handleManualSave] Updating existing order:", currentOrder.id);
-        savedOrder = await updateOrder(currentOrder.id, orderData as UpdateOrderData);
+        const updateOrderResult = await updateOrder(currentOrder.id.toString(), orderData as UpdateOrderData);
+        const payload = updateOrderResult.payload as any;
+        savedOrder = payload.order || payload;
         showSuccess(`Order ${savedOrder.orderNumber} updated successfully`);
       } else {
-        // Create new order
-        console.log("✨ [handleManualSave] Creating new order");
-        savedOrder = await createOrder(orderData as CreateOrderData);
-        // CRITICAL FIX: Set the newly created order as active order
+        const createOrderResult = await createOrder(orderData as CreateOrderData);
+        savedOrder = createOrderResult;
         dispatch(setActiveOrder(savedOrder));
         showSuccess(`Order ${savedOrder.orderNumber} saved successfully`);
       }
 
       dispatch(setHasUnsavedChangesAction(false));
-      // RTK Query will auto-refresh data based on polling interval
     } catch (error: any) {
       console.error("❌ [handleManualSave] Error saving order:", error);
       showError(error.message || "Failed to save order");
@@ -780,14 +589,10 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       showError("Cannot complete payment with empty cart");
       return;
     }
-
     try {
       dispatch(setIsLoadingAction(true));
       dispatch(setShowPaymentDialogAction(false));
-
       let orderId: string;
-
-      // If no current order, create one first
       if (!currentOrder) {
         const orderData: CreateOrderData = {
           orderType,
@@ -804,41 +609,35 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             notes: item.notes
           })),
           notes: orderNotes,
-          // Flatten discount fields instead of nested object
           discountType: appliedDiscount?.type,
           discountValue: appliedDiscount?.value,
           discountReason: appliedDiscount?.reason
         };
 
         const newOrder = await createOrder(orderData);
-        
-        // CRITICAL: Validate new order has ID
+
         if (!newOrder || !newOrder.id) {
           console.error("❌ [handlePayment] Created order has no ID:", newOrder);
           showError("Failed to create order - no ID returned");
           dispatch(setIsLoadingAction(false));
           return;
         }
-        
+
         orderId = newOrder.id;
-        console.log("✅ [handlePayment] Created new order:", orderId);
       } else {
         if (currentOrder.status === "paid") {
           showError(`Order ${currentOrder.orderNumber} is already completed`);
           dispatch(setIsLoadingAction(false));
           return;
         }
-        
-        // CRITICAL FIX: Validate orderId before using it
+
         if (!currentOrder.id) {
           console.error("❌ [handlePayment] Current order has no ID:", currentOrder);
           showError("Invalid order - missing order ID");
           dispatch(setIsLoadingAction(false));
           return;
         }
-        
         orderId = currentOrder.id;
-        console.log("✅ [handlePayment] Using existing order:", orderId);
       }
 
       const paymentData = {
@@ -847,15 +646,12 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         change: Math.max(0, parseFloat(paymentAmount) - total)
       };
 
-      // CRITICAL: Final validation before API call
-      if (!orderId || orderId === 'undefined' || orderId === undefined) {
+      if (!orderId || orderId === "undefined" || orderId === undefined) {
         console.error("🚨 [handlePayment] CRITICAL: orderId is invalid before dispatch:", { orderId, currentOrder });
         showError("Cannot complete payment - invalid order ID");
         dispatch(setIsLoadingAction(false));
         return;
       }
-
-      console.log("💳 [handlePayment] Completing order:", { orderId, paymentData });
 
       const result = await dispatch(
         completeOrder({
@@ -867,8 +663,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       if (completeOrder.fulfilled.match(result)) {
         const responseData = result.payload as any;
         const completedOrder = responseData.order || responseData;
-
-        // Generate receipt data
         const now = new Date();
         const receiptData: ReceiptData = {
           id: completedOrder.orderNumber || generatePreviewOrderNumber(),
@@ -899,7 +693,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
         dispatch(setLastSaleDataAction(receiptData));
         dispatch(setShowSuccessCheckmarkAction(true));
-
         // Show success animation
         setTimeout(() => {
           dispatch(setShowSuccessCheckmarkAction(false));
@@ -907,10 +700,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
           clearCartWithAnimation();
           clearOrder();
         }, 1500);
-
         showSuccess(`Order ${completedOrder.orderNumber} completed successfully!`);
-
-        // RTK Query will auto-refresh data based on polling interval
       }
     } catch (error: any) {
       console.error("Error completing order:", error);
@@ -998,7 +788,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
       setClosingCash("");
       setDayCloseNotes("");
       showSuccess("Day closed successfully");
-
       // Refresh current day
       await refreshCurrentDay();
     } catch (error: any) {
@@ -1011,10 +800,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   const addToCart = useCallback(
     (posItem: POSItem) => {
       dispatch(setIsPOSActionInProgressAction(true));
-
       const variantId = posItem.selectedVariant ? `-variant-${posItem.selectedVariant.name}-${posItem.selectedVariant.volume}${posItem.selectedVariant.unit}` : "";
       const cartId = `pos-${posItem.id}${variantId}`;
-
       const cartItem: POSCartItem = {
         id: cartId,
         name: posItem.name,
@@ -1030,14 +817,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
         assignedPrinter: posItem.assignedPrinter,
         variant: posItem.selectedVariant
       };
-
       dispatch(addToCartAction(cartItem));
-
-      // Use transition for non-urgent state update
       startTransition(() => {
-        setTimeout(() => {
-          dispatch(setIsPOSActionInProgressAction(false));
-        }, 0);
+        setTimeout(() => dispatch(setIsPOSActionInProgressAction(false)), 0);
       });
     },
     [dispatch, startTransition]
@@ -1066,7 +848,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
   // Category change handler (debounced via hook)
   const handleCategoryChange = useCallback(
     (category: string) => {
-      logDevOnly(`🔄 Category changed to: ${category}`);
       setActiveCategory(category);
     },
     [setActiveCategory]
@@ -1342,9 +1123,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
 
         {showItemNotesDialog && selectedItemForNotes && <ItemNotesDialog isOpen={showItemNotesDialog} onClose={() => dispatch(setShowItemNotesDialogAction(false))} item={selectedItemForNotes} onNotesChange={(itemId, notes) => dispatch(setItemNotesAction({ itemId, notes }))} />}
 
-        <Modal 
-          isOpen={showTablesLayout} 
-          onClose={() => dispatch(setShowTablesLayoutAction(false))} 
+        <Modal
+          isOpen={showTablesLayout}
+          onClose={() => dispatch(setShowTablesLayoutAction(false))}
           showCloseButton={false}
           width="w-screen"
           height="h-screen"
@@ -1376,11 +1157,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
                   Cancel
                 </Button>
                 {selectedTable && (
-                  <Button 
-                    onClick={() => selectedTable && handleTableSelection(selectedTable)} 
-                    disabled={!selectedTable || selectedTable.status === "cleaning"} 
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
+                  <Button onClick={() => selectedTable && handleTableSelection(selectedTable)} disabled={!selectedTable || selectedTable.status === "cleaning"} className="bg-blue-600 hover:bg-blue-700">
                     {selectedTable?.status === "opened" ? "Continue Order" : "Start Order"}
                   </Button>
                 )}
@@ -1388,11 +1165,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ sectionAssignments, onSa
             </div>
           }
         >
-          <TablesLayout 
-            onTableSelect={handleTableSelection} 
-            onClose={() => dispatch(setShowTablesLayoutAction(false))} 
-            hideHeaderFooter={false}
-          />
+          <TablesLayout onTableSelect={handleTableSelection} onClose={() => dispatch(setShowTablesLayoutAction(false))} hideHeaderFooter={false} />
         </Modal>
 
         {showPrinterSelector && (

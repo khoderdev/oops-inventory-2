@@ -4,9 +4,7 @@ import { useGetFoodMenuItemsQuery, useGetBeverageMenuItemsQuery, useGetCategorie
 import { buildCategoriesMap, transformMenuItemsToPOSItems, extractCategories, filterPOSItemsByCategory } from "@/services/posDataService";
 import { useAuth } from "@/contexts/AuthContext";
 import { posCache } from "@/utils/posCache";
-import { useAppSelector } from "@/store/hooks";
 import { useDispatch } from "react-redux";
-import { isOnline } from "@/utils/offlineDetection";
 import { useOfflineDetection } from "./useOfflineDetection";
 
 export interface UseOptimizedPOSDataResult {
@@ -54,13 +52,13 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
 
       // Try to load cached categories map
       try {
-        const cachedMenuCategories = localStorage.getItem('pos_cache_menu_items_categories');
-        const cachedBeverageCategories = localStorage.getItem('pos_cache_beverages_categories');
-        
+        const cachedMenuCategories = localStorage.getItem("pos_cache_menu_items_categories");
+        const cachedBeverageCategories = localStorage.getItem("pos_cache_beverages_categories");
+
         if (cachedMenuCategories && cachedBeverageCategories) {
           const menuCats = JSON.parse(cachedMenuCategories).data || [];
           const bevCats = JSON.parse(cachedBeverageCategories).data || [];
-          
+
           if (menuCats.length > 0 && bevCats.length > 0) {
             categoriesMapRef.current = buildCategoriesMap(menuCats, bevCats);
             console.log(`✅ [usePOSData] Built categories map from cache with ${categoriesMapRef.current.size} categories`);
@@ -121,15 +119,18 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
     if (categoriesMapRef.current.size === 0 && menuItemCategories.length > 0 && beverageCategories.length > 0) {
       console.log("🔄 [usePOSData] Building categories map (ONCE)");
       categoriesMapRef.current = buildCategoriesMap(menuItemCategories, beverageCategories);
-      
+
       // Save to localStorage for ultra-fast loading next time
       try {
-        localStorage.setItem('pos_categories_map', JSON.stringify({
-          timestamp: Date.now(),
-          size: categoriesMapRef.current.size,
-          // Convert Map to array for serialization
-          entries: Array.from(categoriesMapRef.current.entries())
-        }));
+        localStorage.setItem(
+          "pos_categories_map",
+          JSON.stringify({
+            timestamp: Date.now(),
+            size: categoriesMapRef.current.size,
+            // Convert Map to array for serialization
+            entries: Array.from(categoriesMapRef.current.entries())
+          })
+        );
       } catch (e) {
         console.warn("⚠️ [usePOSData] Failed to cache categories map:", e);
       }
@@ -146,26 +147,20 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
     }
 
     // If we have offline data and no new data yet, use offline data
-    if ((foodMenuItems.length === 0 && beverageMenuItems.length === 0) && offlineLoadedRef.current) {
+    if (foodMenuItems.length === 0 && beverageMenuItems.length === 0 && offlineLoadedRef.current) {
       // Return cached items if available
       return posItemsRef.current;
     }
 
     // Build once when data is available
-    if ((posItemsRef.current.length === 0 || foodMenuItems.length > 0 || beverageMenuItems.length > 0) && 
-        categoriesMapRef.current.size > 0) {
-      
+    if ((posItemsRef.current.length === 0 || foodMenuItems.length > 0 || beverageMenuItems.length > 0) && categoriesMapRef.current.size > 0) {
       // Check if data has changed before rebuilding
       const foodChanged = foodMenuItems.length !== lastDataLengthRef.current.food;
       const beverageChanged = beverageMenuItems.length !== lastDataLengthRef.current.beverage;
-      
+
       if (foodChanged || beverageChanged || posItemsRef.current.length === 0) {
         console.log("🔄 [usePOSData] Transforming menu items to POS items");
-        const transformed = transformMenuItemsToPOSItems(
-          foodMenuItems as MenuItem[], 
-          beverageMenuItems as MenuItem[], 
-          categoriesMapRef.current
-        );
+        const transformed = transformMenuItemsToPOSItems(foodMenuItems as MenuItem[], beverageMenuItems as MenuItem[], categoriesMapRef.current);
 
         // Validate transformed data before caching
         const validItems = transformed.filter(item => item && item.id && item.name);
@@ -174,7 +169,7 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
         }
 
         posItemsRef.current = validItems;
-        
+
         // Update data length references
         lastDataLengthRef.current = {
           food: foodMenuItems.length,
@@ -194,20 +189,44 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
     }
 
     return posItemsRef.current;
-  }, [foodMenuItems, beverageMenuItems, categoriesMap, isPOSActionInProgress, isAuthenticated]); // Improved dependency array
+    // Use stable references to prevent unnecessary re-renders
+  }, [
+    isAuthenticated,
+    isPOSActionInProgress,
+    offlineLoadedRef.current,
+    // Only check array lengths, not the entire arrays
+    foodMenuItems?.length,
+    beverageMenuItems?.length,
+    categoriesMapRef.current.size
+  ]);
 
-  // Get filtered POS items (memoized)
+  // Get filtered POS items (memoized with stable reference)
   const filteredPosItems = useMemo(() => {
     if (activeCategory === "all") {
       return posItems;
     }
-    return filterPOSItemsByCategory(posItems, activeCategory);
+    const filtered = filterPOSItemsByCategory(posItems, activeCategory);
+    // Return same reference if nothing changed
+    if (filtered.length === 0 && posItemsRef.current.length === 0) {
+      return posItems; // Return stable reference
+    }
+    return filtered;
   }, [posItems, activeCategory]);
 
-  // Extract categories (memoized)
+  // Extract categories (memoized with stable reference)
   const categories = useMemo(() => {
-    return extractCategories(posItems);
+    // Use cached categories if available and posItems hasn't changed
+    if (posItemsRef.current === posItems && categoriesRef.current?.length > 0) {
+      return categoriesRef.current;
+    }
+    const extractedCategories = extractCategories(posItems);
+    // Cache the categories
+    categoriesRef.current = extractedCategories;
+    return extractedCategories;
   }, [posItems]);
+
+  // Add a ref for categories to maintain stable references
+  const categoriesRef = useRef<string[]>([]);
 
   // Refetch all data (clears cache and rebuilds)
   const refetch = useCallback(() => {
@@ -217,15 +236,15 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
     posItemsRef.current = [];
     lastDataLengthRef.current = { food: 0, beverage: 0, menuCat: 0, bevCat: 0 };
     offlineLoadedRef.current = false;
-    
+
     // Clear localStorage cache
     posCache.remove(posCache.keys.FOOD_ITEMS + "_transformed");
-    localStorage.removeItem('pos_categories_map');
-    localStorage.removeItem('pos_cache_food_items');
-    localStorage.removeItem('pos_cache_beverage_items');
-    localStorage.removeItem('pos_cache_menu_items_categories');
-    localStorage.removeItem('pos_cache_beverages_categories');
-    
+    localStorage.removeItem("pos_categories_map");
+    localStorage.removeItem("pos_cache_food_items");
+    localStorage.removeItem("pos_cache_beverage_items");
+    localStorage.removeItem("pos_cache_menu_items_categories");
+    localStorage.removeItem("pos_cache_beverages_categories");
+
     // Only refetch from API if online
     if (!offline) {
       refetchFood();
@@ -241,8 +260,7 @@ export function usePOSData(isPOSActionInProgress: boolean = false): UseOptimized
   }, []);
 
   // ULTRA-FAST: Never show loading if we have cached data
-  const isLoading = posItemsRef.current.length === 0 && !offlineLoadedRef.current && 
-    (foodLoading || beverageLoading || menuCategoriesLoading || beverageCategoriesLoading);
+  const isLoading = posItemsRef.current.length === 0 && !offlineLoadedRef.current && (foodLoading || beverageLoading || menuCategoriesLoading || beverageCategoriesLoading);
 
   return {
     posItems,

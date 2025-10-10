@@ -234,9 +234,23 @@ export const createOrder = createAsyncThunk("orders/createOrder", async (data: C
 // Update an existing order
 export const updateOrder = createAsyncThunk("orders/updateOrder", async ({ orderId, data }: { orderId: string; data: UpdateOrderData }, { rejectWithValue }) => {
   try {
+    // Ensure data is a valid object before sending
+    if (!data || typeof data !== 'object') {
+      return rejectWithValue('Invalid order data format');
+    }
+    
+    // Ensure orderId is a string
+    if (!orderId || typeof orderId !== 'string') {
+      return rejectWithValue('Invalid order ID');
+    }
+    
+    // Log the data being sent for debugging
+    console.log(`📤 [updateOrder] Sending update for order ${orderId}:`, JSON.stringify(data));
+    
     const response = await ordersAPI.updateOrder(orderId, data);
     return response.data;
   } catch (error: any) {
+    console.error(`❌ [updateOrder] Error updating order ${orderId}:`, error);
     return rejectWithValue(error.message || "Failed to update order");
   }
 });
