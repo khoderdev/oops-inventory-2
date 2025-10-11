@@ -469,6 +469,12 @@ const ordersSlice = createSlice({
     // Reset orders state
     resetOrdersState: () => initialState,
 
+    // Clear active order (useful for clearing stale wrapped orders)
+    clearActiveOrder: state => {
+      state.activeOrder = null;
+      state.activeOrderId = null;
+    },
+
     // Update order in cache
     updateOrderInCache: (state, action: PayloadAction<Order>) => {
       const order = action.payload;
@@ -912,6 +918,6 @@ const ordersSlice = createSlice({
 // EXPORTS
 // ============================================================================
 
-export const { setActiveOrder, setFilters, clearFilters, setPagination, toggleOrderSelection, selectAllOrders, clearOrderSelection, toggleOrderExpansion, clearErrors, clearSuccessMessages, clearError, clearSuccessMessage, resetOrdersState, updateOrderInCache, removeOrderFromCache, clearStockRestorations } = ordersSlice.actions;
+export const { setActiveOrder, setFilters, clearFilters, setPagination, toggleOrderSelection, selectAllOrders, clearOrderSelection, toggleOrderExpansion, clearErrors, clearSuccessMessages, clearError, clearSuccessMessage, resetOrdersState, clearActiveOrder, updateOrderInCache, removeOrderFromCache, clearStockRestorations } = ordersSlice.actions;
 
 export default ordersSlice.reducer;
