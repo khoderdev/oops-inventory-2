@@ -34,7 +34,6 @@ const DayOperationsPage = lazy(() => import("./pages/DayOperationsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const POSClientOrders = lazy(() => import("./components/pos/POSClientOrders").then(m => ({ default: m.POSClientOrders })));
 const POSClientPage = lazy(() => import("./pages/POSClientPage"));
-const SalesHistoryPage = lazy(() => import("./pages/SalesHistoryPage").then(m => ({ default: m.SalesHistoryPage })));
 const SystemLogsGenerator = lazy(() => import("./components/system/system-logs/SystemLogsGenerator").then(m => ({ default: m.SystemLogsGenerator })));
 const EmployeeSettlements = lazy(() => import("./components/employees/EmployeeSettlements").then(m => ({ default: m.EmployeeSettlements })));
 const EmployeeTable = lazy(() => import("./components/employees/EmployeeTable").then(m => ({ default: m.EmployeeTable })));
@@ -86,12 +85,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <Toaster />
-          {offline && (
-            <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-1 z-50">
-              Offline Mode - Using Cached Data 
-            </div>
-          )}
-          {/* <Sonner /> */}
+          {/* Offline detection runs silently in background - no UI notification */}
           <BrowserRouter
             future={{
               v7_startTransition: true,
