@@ -83,6 +83,15 @@ export interface Order {
   userId: string;
   userRole: string;
   fromSalesHistory?: boolean; // Flag to indicate if the order is from sales history page
+  // Populated relationships from backend (when included in query)
+  table?: Table;
+  employee?: {
+    id: number;
+    user?: {
+      firstName: string;
+      lastName: string;
+    };
+  };
 }
 
 export interface CreateOrderData {

@@ -13,6 +13,7 @@ import { useDayOperations } from "@/hooks/useDayOperations";
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ordersAPI } from "@/api/orders.api";
 import printerAPI from "@/api/printer.api";
+import { employeeAPI } from "@/api/employee.api";
 import { useGetOrdersQuery } from "@/store/api/posApi";
 import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -95,14 +96,39 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
 
   // Consolidated Redux state (1 selector instead of 30+)
   const posState = usePOSState();
-  const { 
-    cart, orderType, selectedTable, selectedEmployee, hasUnsavedChanges, isLoading, error, successMessage, 
-    showSuccessCheckmark, showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, 
-    showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showPrinterSelector, 
-    selectedItemForNotes, orderNotes, appliedDiscount, lastSaleData, editingSaleId, selectedSaleForEdit, 
-    isPOSActionInProgress, previewOrderNumber,
+  const {
+    cart,
+    orderType,
+    selectedTable,
+    selectedEmployee,
+    hasUnsavedChanges,
+    isLoading,
+    error,
+    successMessage,
+    showSuccessCheckmark,
+    showPaymentDialog,
+    showReceiptDialog,
+    showTablesLayout,
+    showDiscountDialog,
+    showNotesDialog,
+    showItemNotesDialog,
+    showVoidDialog,
+    showOrdersDialog,
+    showPrinterSelector,
+    selectedItemForNotes,
+    orderNotes,
+    appliedDiscount,
+    lastSaleData,
+    editingSaleId,
+    selectedSaleForEdit,
+    isPOSActionInProgress,
+    previewOrderNumber,
     // New Redux state fields (previously local)
-    paymentAmount, showDayCloseDialog, closingCash, dayCloseNotes, printerSelectionContext
+    paymentAmount,
+    showDayCloseDialog,
+    closingCash,
+    dayCloseNotes,
+    printerSelectionContext
   } = posState;
 
   const { filteredPosItems, categories, isLoading: posDataLoading, activeCategory, setActiveCategory } = usePOSData(isPOSActionInProgress);
@@ -191,7 +217,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
   // Fetch preview order number when starting new order or changing order type
   useEffect(() => {
     const fetchOrderNumber = async () => {
-      console.log('🔍 Checking if we need to fetch order number...', {
+      console.log("🔍 Checking if we need to fetch order number...", {
         currentOrder,
         currentOrderId: currentOrder?.id,
         orderType,
@@ -201,17 +227,17 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
 
       // Only fetch if we don't have a current order (new order scenario)
       if (!currentOrder) {
-        console.log('📞 Fetching next order number from backend...');
+        console.log("📞 Fetching next order number from backend...");
         const nextNumber = await fetchNextOrderNumber();
-        console.log('✅ Preview order number fetched:', nextNumber);
+        console.log("✅ Preview order number fetched:", nextNumber);
         dispatch(setPreviewOrderNumberAction(nextNumber));
       } else {
-        console.log('ℹ️ Current order exists, using order number:', currentOrder.orderNumber);
+        console.log("ℹ️ Current order exists, using order number:", currentOrder.orderNumber);
       }
     };
 
     fetchOrderNumber().catch(error => {
-      console.error('❌ Failed to fetch preview order number:', error);
+      console.error("❌ Failed to fetch preview order number:", error);
       // Keep the default "ORD-XXXX" placeholder
     });
   }, [currentOrder, orderType, dispatch, cart.length, previewOrderNumber]);
@@ -270,7 +296,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       if (fetchOrderById.fulfilled.match(result)) {
         return result.payload;
       }
-      throw new Error((result.payload as string) || "Failed to load order");
+      // Enhanced error with order ID for better debugging
+      const errorMessage = (result.payload as string) || "Failed to load order";
+      throw new Error(`${errorMessage} (Order ID: ${orderId})`);
     },
     [dispatch]
   );
@@ -280,40 +308,56 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
     const loadSelectedOrder = async () => {
       try {
         const fullOrderResponse = await loadOrder(selectedOrderForPOS.id);
-        const fullOrder = (fullOrderResponse as any)?.data || fullOrderResponse;
-        const cartItems: POSCartItem[] = fullOrder.items.map(item => {
-          const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice;
-          const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+        console.log("🔍 [loadSelectedOrder] Full order response:", fullOrderResponse);
 
-          const originalItem = item.menuItem ||
-            item.material || {
-              id: item.menuItemId || item.materialId || item.id,
+        // loadOrder already returns unwrapped Order, no need for double unwrapping
+        const fullOrder = fullOrderResponse;
+
+        if (!fullOrder || !fullOrder.items) {
+          throw new Error("Order data is missing or invalid");
+        }
+
+        console.log("🔍 [loadSelectedOrder] Processing order:", fullOrder.orderNumber, "with", fullOrder.items.length, "items");
+
+        // Convert order items to cart items - filter out any invalid items
+        const validItems = fullOrder.items.filter(item => item && item.name);
+        if (validItems.length < fullOrder.items.length) {
+          console.warn(`⚠️ [loadSelectedOrder] Filtered out ${fullOrder.items.length - validItems.length} invalid items from order ${fullOrder.orderNumber}`);
+        }
+        const cartItems: POSCartItem[] = validItems
+          .map(item => {
+            const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice;
+            const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+
+            const originalItem = item.menuItem ||
+              item.material || {
+                id: item.menuItemId || item.materialId || item.id,
+                name: item.name,
+                price: unitPrice
+              };
+
+            return {
+              id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
+              menuItemId: item.menuItemId?.toString() || undefined,
+              materialId: item.materialId?.toString() || undefined,
               name: item.name,
-              price: unitPrice
+              price: unitPrice,
+              quantity: quantity,
+              type: item.type as "menu_item" | "stock_entry" | "material",
+              notes: item.notes || undefined,
+              originalItem: originalItem as any,
+              orderItemId: item.id?.toString(),
+              variant: item.selectedVariant?.name
+                ? {
+                    id: item.selectedVariant.name,
+                    name: item.selectedVariant.name,
+                    volume: item.selectedVariant.volume,
+                    unit: item.selectedVariant.unit,
+                    price: typeof item.selectedVariant.price === "string" ? parseFloat(item.selectedVariant.price) : item.selectedVariant.price
+                  }
+                : undefined
             };
-
-          return {
-            id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
-            menuItemId: item.menuItemId?.toString() || undefined,
-            materialId: item.materialId?.toString() || undefined,
-            name: item.name,
-            price: unitPrice,
-            quantity: quantity,
-            type: item.type as "menu_item" | "stock_entry" | "material",
-            notes: item.notes || undefined,
-            originalItem: originalItem as any,
-            orderItemId: item.id?.toString(),
-            variant: item.selectedVariant?.name
-              ? {
-                  id: item.selectedVariant.name,
-                  name: item.selectedVariant.name,
-                  volume: item.selectedVariant.volume,
-                  unit: item.selectedVariant.unit,
-                  price: typeof item.selectedVariant.price === "string" ? parseFloat(item.selectedVariant.price) : item.selectedVariant.price
-                }
-              : undefined
-          };
-        });
+          });
 
         dispatch(setCart(cartItems));
 
@@ -356,41 +400,56 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
     const loadSaleForEdit = async () => {
       try {
         const fullOrderResponse = await loadOrder(editingSaleId);
-        const fullOrder = (fullOrderResponse as any)?.data || fullOrderResponse;
-        // Convert order items to cart items
-        const cartItems: POSCartItem[] = fullOrder.items.map(item => {
-          const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice;
-          const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+        console.log("🔍 [loadSaleForEdit] Full order response:", fullOrderResponse);
 
-          const originalItem = item.menuItem ||
-            item.material || {
-              id: item.menuItemId || item.materialId || item.id,
+        // loadOrder already returns unwrapped Order, no need for double unwrapping
+        const fullOrder = fullOrderResponse;
+
+        if (!fullOrder || !fullOrder.items) {
+          throw new Error("Order data is missing or invalid");
+        }
+
+        console.log("🔍 [loadSaleForEdit] Processing order:", fullOrder.orderNumber, "with", fullOrder.items.length, "items");
+
+        // Convert order items to cart items - filter out any invalid items
+        const validItems = fullOrder.items.filter(item => item && item.name);
+        if (validItems.length < fullOrder.items.length) {
+          console.warn(`⚠️ [loadSaleForEdit] Filtered out ${fullOrder.items.length - validItems.length} invalid items from order ${fullOrder.orderNumber}`);
+        }
+        const cartItems: POSCartItem[] = validItems
+          .map(item => {
+            const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice;
+            const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+
+            const originalItem = item.menuItem ||
+              item.material || {
+                id: item.menuItemId || item.materialId || item.id,
+                name: item.name,
+                price: unitPrice
+              };
+
+            return {
+              id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
+              menuItemId: item.menuItemId?.toString() || undefined,
+              materialId: item.materialId?.toString() || undefined,
               name: item.name,
-              price: unitPrice
+              price: unitPrice,
+              quantity: quantity,
+              type: item.type as "menu_item" | "stock_entry" | "material",
+              notes: item.notes || undefined,
+              originalItem: originalItem as any,
+              orderItemId: item.id?.toString(),
+              variant: item.selectedVariant?.name
+                ? {
+                    id: item.selectedVariant.name,
+                    name: item.selectedVariant.name,
+                    volume: item.selectedVariant.volume,
+                    unit: item.selectedVariant.unit,
+                    price: typeof item.selectedVariant.price === "string" ? parseFloat(item.selectedVariant.price) : item.selectedVariant.price
+                  }
+                : undefined
             };
-
-          return {
-            id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
-            menuItemId: item.menuItemId?.toString() || undefined,
-            materialId: item.materialId?.toString() || undefined,
-            name: item.name,
-            price: unitPrice,
-            quantity: quantity,
-            type: item.type as "menu_item" | "stock_entry" | "material",
-            notes: item.notes || undefined,
-            originalItem: originalItem as any,
-            orderItemId: item.id?.toString(),
-            variant: item.selectedVariant?.name
-              ? {
-                  id: item.selectedVariant.name,
-                  name: item.selectedVariant.name,
-                  volume: item.selectedVariant.volume,
-                  unit: item.selectedVariant.unit,
-                  price: typeof item.selectedVariant.price === "string" ? parseFloat(item.selectedVariant.price) : item.selectedVariant.price
-                }
-              : undefined
-          };
-        });
+          });
 
         dispatch(setActiveOrder(fullOrder));
         dispatch(setCart(cartItems));
@@ -411,17 +470,37 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
           dispatch(setOrderTypeAction("table"));
         }
         if (fullOrder.employee) {
-          dispatch(setSelectedEmployeeAction(fullOrder.employee));
-          dispatch(setOrderTypeAction("employees"));
+          // Fetch full employee data since order only contains partial employee info
+          try {
+            const employeeResponse = await employeeAPI.getEmployee(fullOrder.employee.id);
+            if (employeeResponse?.data) {
+              dispatch(setSelectedEmployeeAction(employeeResponse.data));
+              dispatch(setOrderTypeAction("employees"));
+            }
+          } catch (error) {
+            console.error("❌ [POSClient] Error loading employee data:", error);
+            // Continue without employee selection if fetch fails
+          }
         }
         if (selectedSaleForEdit.orderType) {
           dispatch(setOrderTypeAction(selectedSaleForEdit.orderType as OrderType));
         }
 
         showSuccess(`Loaded sale ${fullOrder.orderNumber} for editing`);
-      } catch (error) {
+      } catch (error: any) {
         console.error("❌ [POSClient] Error loading sale for edit:", error);
-        showError("Failed to load sale for editing");
+        
+        // Provide specific error message based on error type
+        if (error?.message?.includes("404") || error?.response?.status === 404) {
+          showError(`Sale #${editingSaleId} not found. It may have been deleted.`);
+        } else if (error?.message) {
+          showError(`Failed to load sale: ${error.message}`);
+        } else {
+          showError("Failed to load sale for editing");
+        }
+        
+        // Reset the processed sale ID so user can try again
+        processedSaleIdRef.current = null;
       }
     };
 
@@ -514,48 +593,53 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
               const tableOrder = orders[0];
               const fullOrderResponse = await loadOrder(tableOrder.id);
               const fullOrder = (fullOrderResponse as any)?.data || fullOrderResponse;
-              // Convert order items to cart items
-              const cartItems: POSCartItem[] = fullOrder.items.map(item => {
-                console.log("🔄 [POSClient] Converting order item:", {
-                  id: item.id,
-                  name: item.name,
-                  type: item.type,
-                  unitPrice: item.unitPrice,
-                  hasMenuItem: !!item.menuItem,
-                  hasMaterial: !!item.material
-                });
-                const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice;
-                const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
-                // Use the full menuItem or material object if available, otherwise create minimal object
-                const originalItem = item.menuItem ||
-                  item.material || {
-                    id: item.menuItemId || item.materialId || item.id,
+              // Convert order items to cart items - filter out any invalid items
+              const validItems = fullOrder.items.filter(item => item && item.name);
+              if (validItems.length < fullOrder.items.length) {
+                console.warn(`⚠️ [handleTableSelection] Filtered out ${fullOrder.items.length - validItems.length} invalid items from order ${fullOrder.orderNumber}`);
+              }
+              const cartItems: POSCartItem[] = validItems
+                .map(item => {
+                  console.log("🔄 [POSClient] Converting order item:", {
+                    id: item.id,
                     name: item.name,
-                    price: unitPrice
-                  };
+                    type: item.type,
+                    unitPrice: item.unitPrice,
+                    hasMenuItem: !!item.menuItem,
+                    hasMaterial: !!item.material
+                  });
+                  const unitPrice = typeof item.unitPrice === "string" ? parseFloat(item.unitPrice) : item.unitPrice;
+                  const quantity = typeof item.quantity === "string" ? parseFloat(item.quantity) : item.quantity;
+                  // Use the full menuItem or material object if available, otherwise create minimal object
+                  const originalItem = item.menuItem ||
+                    item.material || {
+                      id: item.menuItemId || item.materialId || item.id,
+                      name: item.name,
+                      price: unitPrice
+                    };
 
-                return {
-                  id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
-                  menuItemId: item.menuItemId?.toString() || undefined,
-                  materialId: item.materialId?.toString() || undefined,
-                  name: item.name,
-                  price: unitPrice,
-                  quantity: quantity,
-                  type: item.type as "menu_item" | "stock_entry" | "material",
-                  notes: item.notes || undefined,
-                  originalItem: originalItem as any,
-                  orderItemId: item.id?.toString(),
-                  variant: item.selectedVariant?.name
-                    ? {
-                        id: item.selectedVariant.name,
-                        name: item.selectedVariant.name,
-                        volume: item.selectedVariant.volume,
-                        unit: item.selectedVariant.unit,
-                        price: typeof item.selectedVariant.price === "string" ? parseFloat(item.selectedVariant.price) : item.selectedVariant.price
-                      }
-                    : undefined
-                };
-              });
+                  return {
+                    id: item.id?.toString() || `${item.menuItemId || item.materialId}-${Date.now()}`,
+                    menuItemId: item.menuItemId?.toString() || undefined,
+                    materialId: item.materialId?.toString() || undefined,
+                    name: item.name,
+                    price: unitPrice,
+                    quantity: quantity,
+                    type: item.type as "menu_item" | "stock_entry" | "material",
+                    notes: item.notes || undefined,
+                    originalItem: originalItem as any,
+                    orderItemId: item.id?.toString(),
+                    variant: item.selectedVariant?.name
+                      ? {
+                          id: item.selectedVariant.name,
+                          name: item.selectedVariant.name,
+                          volume: item.selectedVariant.volume,
+                          unit: item.selectedVariant.unit,
+                          price: typeof item.selectedVariant.price === "string" ? parseFloat(item.selectedVariant.price) : item.selectedVariant.price
+                        }
+                      : undefined
+                  };
+                });
 
               dispatch(setActiveOrder(fullOrder));
               dispatch(setCart(cartItems));
@@ -662,31 +746,37 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
         }
 
         dispatch(setHasUnsavedChangesAction(false));
-        
+
         // Save to localStorage for resilience
         try {
-          localStorage.setItem('pos_last_saved_order', JSON.stringify({
-            orderId: savedOrder.id,
-            orderNumber: savedOrder.orderNumber,
-            timestamp: Date.now()
-          }));
+          localStorage.setItem(
+            "pos_last_saved_order",
+            JSON.stringify({
+              orderId: savedOrder.id,
+              orderNumber: savedOrder.orderNumber,
+              timestamp: Date.now()
+            })
+          );
         } catch (e) {
           console.warn("Failed to save to localStorage:", e);
         }
       } catch (error: any) {
         console.error("❌ [handleManualSave] Background error:", error);
-        
+
         // 🔄 ROLLBACK - Restore cart on error
         dispatch(restoreCartFromBackupAction());
         showError(error.message || "Failed to save order - cart restored");
-        
+
         // Try to save to localStorage as backup
         try {
-          localStorage.setItem('pos_failed_order', JSON.stringify({
-            orderData,
-            error: error.message,
-            timestamp: Date.now()
-          }));
+          localStorage.setItem(
+            "pos_failed_order",
+            JSON.stringify({
+              orderData,
+              error: error.message,
+              timestamp: Date.now()
+            })
+          );
           console.log("💾 Failed order saved to localStorage for recovery");
         } catch (e) {
           console.warn("Failed to save failed order to localStorage:", e);
@@ -745,14 +835,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
 
     // Capture current order BEFORE clearing it (needed for background processing)
     const capturedCurrentOrder = currentOrder;
-    
+
     // Close payment dialog and show instant success
     dispatch(setShowPaymentDialogAction(false));
     dispatch(setLastSaleDataAction(optimisticReceipt));
     dispatch(optimisticClearCartAction());
     dispatch(setShowSuccessCheckmarkAction(true));
     showSuccess(`Payment completed! 💰`);
-    
+
     // Clear order state immediately to prevent duplicate payment attempts
     clearOrder();
 
@@ -770,7 +860,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
     (async () => {
       try {
         let orderId: string;
-        
+
         // Create order if needed (use captured order, not currentOrder which is now null)
         if (!capturedCurrentOrder) {
           const orderData: CreateOrderData = {
@@ -816,7 +906,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
         if (completeOrder.fulfilled.match(result)) {
           const responseData = result.payload as any;
           const completedOrder = responseData.order || responseData;
-          
+
           // Update receipt with actual order number if different
           if (completedOrder.orderNumber !== optimisticOrderNumber) {
             const updatedReceipt = { ...optimisticReceipt, id: completedOrder.orderNumber };
@@ -824,35 +914,41 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
           }
 
           console.log("✅ Payment completed in background:", completedOrder.orderNumber);
-          
+
           // Save to localStorage for resilience
           try {
-            localStorage.setItem('pos_last_payment', JSON.stringify({
-              orderId: completedOrder.id,
-              orderNumber: completedOrder.orderNumber,
-              total,
-              timestamp: Date.now()
-            }));
+            localStorage.setItem(
+              "pos_last_payment",
+              JSON.stringify({
+                orderId: completedOrder.id,
+                orderNumber: completedOrder.orderNumber,
+                total,
+                timestamp: Date.now()
+              })
+            );
           } catch (e) {
             console.warn("Failed to save to localStorage:", e);
           }
         }
       } catch (error: any) {
         console.error("❌ [handlePayment] Background error:", error);
-        
+
         // 🔄 ROLLBACK - Restore cart and close receipt on error
         dispatch(restoreCartFromBackupAction());
         dispatch(setShowReceiptDialogAction(false));
         showError(error.message || "Payment failed - cart restored");
-        
+
         // Save failed payment to localStorage
         try {
-          localStorage.setItem('pos_failed_payment', JSON.stringify({
-            cart: cart.map(item => ({ name: item.name, quantity: item.quantity, price: item.price })),
-            total,
-            error: error.message,
-            timestamp: Date.now()
-          }));
+          localStorage.setItem(
+            "pos_failed_payment",
+            JSON.stringify({
+              cart: cart.map(item => ({ name: item.name, quantity: item.quantity, price: item.price })),
+              total,
+              error: error.message,
+              timestamp: Date.now()
+            })
+          );
           console.log("💾 Failed payment saved to localStorage for recovery");
         } catch (e) {
           console.warn("Failed to save failed payment to localStorage:", e);
@@ -1230,7 +1326,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
 
       {/* Dialogs */}
       <Suspense fallback={null}>
-        {showPaymentDialog && <PaymentDialog isOpen={showPaymentDialog} onClose={() => dispatch(setShowPaymentDialogAction(false))} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={(amount) => dispatch(setPaymentAmountAction(amount))} onPayment={handlePayment} isLoading={isLoading} />}
+        {showPaymentDialog && <PaymentDialog isOpen={showPaymentDialog} onClose={() => dispatch(setShowPaymentDialogAction(false))} total={total} paymentAmount={paymentAmount} onPaymentAmountChange={amount => dispatch(setPaymentAmountAction(amount))} onPayment={handlePayment} isLoading={isLoading} />}
 
         {showReceiptDialog && lastSaleData && <ReceiptPrinter isOpen={showReceiptDialog} onClose={() => dispatch(setShowReceiptDialogAction(false))} receiptData={lastSaleData} autoPrint={false} />}
 
@@ -1345,7 +1441,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
         )}
 
         {showDayCloseDialog && (
-          <Dialog open={showDayCloseDialog} onOpenChange={(open) => dispatch(setShowDayCloseDialogAction(open))}>
+          <Dialog open={showDayCloseDialog} onOpenChange={open => dispatch(setShowDayCloseDialogAction(open))}>
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Close Day</DialogTitle>

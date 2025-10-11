@@ -197,7 +197,12 @@ export const fetchOrderById = createAsyncThunk("orders/fetchOrderById", async (o
     const response = await ordersAPI.getOrder(orderId);
     return response.data;
   } catch (error: any) {
-    return rejectWithValue(error.message || "Failed to fetch order details");
+    // Include HTTP status for better error handling
+    const status = error.response?.status;
+    const message = status === 404 
+      ? `Order not found (404)` 
+      : error.message || "Failed to fetch order details";
+    return rejectWithValue(message);
   }
 });
 
