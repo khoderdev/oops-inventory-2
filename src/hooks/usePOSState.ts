@@ -15,6 +15,7 @@ export interface POSState {
   selectedTable: any;
   selectedEmployee: any;
   posCurrentOrder: any;
+  previewOrderNumber: string;
 
   // UI state
   hasUnsavedChanges: boolean;
@@ -67,6 +68,7 @@ const selectPOSState = (state: RootState): POSState => ({
   selectedTable: state.pos.selectedTable,
   selectedEmployee: state.pos.selectedEmployee,
   posCurrentOrder: state.pos.currentOrder,
+  previewOrderNumber: state.pos.previewOrderNumber,
 
   // UI state
   hasUnsavedChanges: state.pos.hasUnsavedChanges,

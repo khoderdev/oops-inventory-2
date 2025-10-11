@@ -66,8 +66,8 @@ interface OrdersState {
   };
 
   // UI state
-  selectedOrderIds: string[];
-  expandedOrderIds: string[];
+  selectedOrderIds: Set<string>;
+  expandedOrderIds: Set<string>;
 
   // Last operation metadata
   lastOperation: {
@@ -128,8 +128,8 @@ const initialState: OrdersState = {
     total: 0,
     hasMore: false
   },
-  selectedOrderIds: [],
-  expandedOrderIds: [],
+  selectedOrderIds: new Set<string>(),
+  expandedOrderIds: new Set<string>(),
   lastOperation: {
     type: null,
     orderId: null,
@@ -225,7 +225,15 @@ export const fetchDraftOrders = createAsyncThunk("orders/fetchDraftOrders", asyn
 export const createOrder = createAsyncThunk("orders/createOrder", async (data: CreateOrderData, { rejectWithValue }) => {
   try {
     const response = await ordersAPI.createOrder(data);
-    return response.data;
+    console.log("🔍 createOrder response:", response);
+    
+    // Backend returns { message, order } wrapped in ApiResponse { data: {...} }
+    // So response.data = { message, order }
+    const responseData = response.data as any;
+    const orderData = responseData?.order || responseData?.data || responseData;
+    
+    console.log("🔍 Unwrapped order data:", orderData);
+    return orderData as Order;
   } catch (error: any) {
     return rejectWithValue(error.message || "Failed to create order");
   }
@@ -248,7 +256,13 @@ export const updateOrder = createAsyncThunk("orders/updateOrder", async ({ order
     console.log(`📤 [updateOrder] Sending update for order ${orderId}:`, JSON.stringify(data));
     
     const response = await ordersAPI.updateOrder(orderId, data);
-    return response.data;
+    
+    // Backend returns { message, order } wrapped in ApiResponse { data: {...} }
+    const responseData = response.data as any;
+    const orderData = responseData?.order || responseData?.data || responseData;
+    
+    console.log("🔍 updateOrder unwrapped data:", orderData);
+    return orderData as Order;
   } catch (error: any) {
     console.error(`❌ [updateOrder] Error updating order ${orderId}:`, error);
     return rejectWithValue(error.message || "Failed to update order");
@@ -259,7 +273,10 @@ export const updateOrder = createAsyncThunk("orders/updateOrder", async ({ order
 export const addOrderItems = createAsyncThunk("orders/addOrderItems", async ({ orderId, items }: { orderId: string; items: Omit<OrderItem, "id">[] }, { rejectWithValue }) => {
   try {
     const response = await ordersAPI.addOrderItems(orderId, items);
-    return response.data;
+    // Backend returns { message, order }
+    const responseData = response.data as any;
+    const orderData = responseData?.order || responseData?.data || responseData;
+    return orderData as Order;
   } catch (error: any) {
     return rejectWithValue(error.message || "Failed to add items to order");
   }
@@ -269,7 +286,10 @@ export const addOrderItems = createAsyncThunk("orders/addOrderItems", async ({ o
 export const removeOrderItems = createAsyncThunk("orders/removeOrderItems", async ({ orderId, itemIds }: { orderId: string; itemIds: string[] }, { rejectWithValue }) => {
   try {
     const response = await ordersAPI.removeOrderItems(orderId, itemIds);
-    return response.data;
+    // Backend returns { message, order }
+    const responseData = response.data as any;
+    const orderData = responseData?.order || responseData?.data || responseData;
+    return orderData as Order;
   } catch (error: any) {
     return rejectWithValue(error.message || "Failed to remove items from order");
   }
@@ -279,7 +299,10 @@ export const removeOrderItems = createAsyncThunk("orders/removeOrderItems", asyn
 export const updateOrderStatus = createAsyncThunk("orders/updateOrderStatus", async ({ orderId, status }: { orderId: string; status: OrderStatus }, { rejectWithValue }) => {
   try {
     const response = await ordersAPI.updateOrderStatus(orderId, status);
-    return response.data;
+    // Backend returns { message, order }
+    const responseData = response.data as any;
+    const orderData = responseData?.order || responseData?.data || responseData;
+    return orderData as Order;
   } catch (error: any) {
     return rejectWithValue(error.message || "Failed to update order status");
   }
@@ -369,47 +392,45 @@ const ordersSlice = createSlice({
     // Toggle order selection
     toggleOrderSelection: (state, action: PayloadAction<string>) => {
       const orderId = action.payload;
-      const index = state.selectedOrderIds.indexOf(orderId);
-      if (index > -1) {
+      if (state.selectedOrderIds.has(orderId)) {
         // Remove if exists
-        state.selectedOrderIds = state.selectedOrderIds.filter(id => id !== orderId);
+        state.selectedOrderIds.delete(orderId);
       } else {
         // Add if doesn't exist
-        state.selectedOrderIds = [...state.selectedOrderIds, orderId];
+        state.selectedOrderIds.add(orderId);
       }
     },
 
     // Select all orders
     selectAllOrders: state => {
-      state.selectedOrderIds = state.orders.map(order => order.id);
+      state.selectedOrderIds = new Set(state.orders.map(order => order.id));
     },
 
     // Clear order selection
     clearOrderSelection: state => {
-      state.selectedOrderIds = [];
+      state.selectedOrderIds = new Set<string>();
     },
 
     // Toggle order expansion
     toggleOrderExpansion: (state, action: PayloadAction<string>) => {
       const orderId = action.payload;
-      const index = state.expandedOrderIds.indexOf(orderId);
-      if (index > -1) {
+      if (state.expandedOrderIds.has(orderId)) {
         // Remove if exists
-        state.expandedOrderIds = state.expandedOrderIds.filter(id => id !== orderId);
+        state.expandedOrderIds.delete(orderId);
       } else {
         // Add if doesn't exist
-        state.expandedOrderIds = [...state.expandedOrderIds, orderId];
+        state.expandedOrderIds.add(orderId);
       }
     },
 
     // Expand all orders
     expandAllOrders: state => {
-      state.expandedOrderIds = state.orders.map(order => order.id);
+      state.expandedOrderIds = new Set(state.orders.map(order => order.id));
     },
 
     // Collapse all orders
     collapseAllOrders: state => {
-      state.expandedOrderIds = [];
+      state.expandedOrderIds = new Set<string>();
     },
 
     // Clear all errors

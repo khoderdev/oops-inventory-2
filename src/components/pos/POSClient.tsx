@@ -6,7 +6,7 @@ import { selectActiveOrder, selectIsAnyLoading } from "@/store/slices/ordersSele
 import { usePrinterSelector } from "@/hooks/usePrinterSelector";
 import { MenuItem, POSCartItem, POSClientProps, POSItem, ReceiptData, StockEntryWithMaterial, Table } from "@/types/inventory";
 import { CreateOrderData, Order, OrderType, UpdateOrderData } from "@/types/orders";
-import { generatePreviewOrderNumber } from "@/utils/orderNumberGenerator";
+import { fetchNextOrderNumber } from "@/utils/orderNumberGenerator";
 import { formatItemsForPrinter } from "@/utils/thermalPrinterFormatter";
 import { AlertCircle, Check, CheckCircle, DollarSign, FileText, GripVertical, Trash2 } from "lucide-react";
 import { useDayOperations } from "@/hooks/useDayOperations";
@@ -72,6 +72,7 @@ import {
   setHasUnsavedChanges as setHasUnsavedChangesAction,
   setOrderType as setOrderTypeAction,
   setSelectedTable as setSelectedTableAction,
+  setPreviewOrderNumber as setPreviewOrderNumberAction,
   applyDiscount as applyDiscountAction,
   completeOrder,
   // Cleanup actions
@@ -99,7 +100,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
     showSuccessCheckmark, showPaymentDialog, showReceiptDialog, showTablesLayout, showDiscountDialog, 
     showNotesDialog, showItemNotesDialog, showVoidDialog, showOrdersDialog, showPrinterSelector, 
     selectedItemForNotes, orderNotes, appliedDiscount, lastSaleData, editingSaleId, selectedSaleForEdit, 
-    isPOSActionInProgress,
+    isPOSActionInProgress, previewOrderNumber,
     // New Redux state fields (previously local)
     paymentAmount, showDayCloseDialog, closingCash, dayCloseNotes, printerSelectionContext
   } = posState;
@@ -186,6 +187,34 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       dispatch(resetPrinterSelectionState());
     }
   }, [showPrinterSelector, dispatch]);
+
+  // Fetch preview order number when starting new order or changing order type
+  useEffect(() => {
+    const fetchOrderNumber = async () => {
+      console.log('🔍 Checking if we need to fetch order number...', {
+        currentOrder,
+        currentOrderId: currentOrder?.id,
+        orderType,
+        cartLength: cart.length,
+        previewOrderNumber
+      });
+
+      // Only fetch if we don't have a current order (new order scenario)
+      if (!currentOrder) {
+        console.log('📞 Fetching next order number from backend...');
+        const nextNumber = await fetchNextOrderNumber();
+        console.log('✅ Preview order number fetched:', nextNumber);
+        dispatch(setPreviewOrderNumberAction(nextNumber));
+      } else {
+        console.log('ℹ️ Current order exists, using order number:', currentOrder.orderNumber);
+      }
+    };
+
+    fetchOrderNumber().catch(error => {
+      console.error('❌ Failed to fetch preview order number:', error);
+      // Keep the default "ORD-XXXX" placeholder
+    });
+  }, [currentOrder, orderType, dispatch, cart.length, previewOrderNumber]);
 
   const showError = useCallback(
     (message: string) => {
@@ -584,7 +613,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
 
     // 🚀 INSTANT UI UPDATE - Clear cart and show success immediately
     dispatch(optimisticClearCartAction());
-    const optimisticOrderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
+    const optimisticOrderNumber = currentOrder?.orderNumber || previewOrderNumber;
     showSuccess(`Order ${optimisticOrderNumber} saved successfully! ✓`);
 
     // Hide success animation after 2 seconds
@@ -680,7 +709,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
 
     // 🚀 INSTANT UI UPDATE - Generate optimistic receipt and clear cart immediately
     const now = new Date();
-    const optimisticOrderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
+    const optimisticOrderNumber = currentOrder?.orderNumber || previewOrderNumber;
     const paymentData = {
       paymentMethod: "cash",
       paymentAmount: parseFloat(paymentAmount) || total,
@@ -866,7 +895,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
           orderType,
           selectedTable: selectedTable || null,
           selectedEmployee: selectedEmployee || null,
-          generatePreviewOrderNumber
+          previewOrderNumber
         });
 
         await printerAPI.createPrintJob({
@@ -1002,7 +1031,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
                         <span className={`text-xs font-medium ${currentOrder.status === "draft" ? "text-orange-600" : currentOrder.status === "paid" ? "text-green-600" : "text-gray-600"}`}>({currentOrder.status})</span>
                       </div>
                     ) : (
-                      <span>{generatePreviewOrderNumber()}</span>
+                      <span>{previewOrderNumber}</span>
                     )}
                   </span>
                 )}

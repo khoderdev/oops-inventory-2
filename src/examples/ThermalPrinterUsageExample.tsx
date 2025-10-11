@@ -61,20 +61,18 @@ const ThermalPrinterUsageExample: React.FC = () => {
 
   const orderType: OrderType = 'dine-in';
 
-  // Generate preview order number
-  const generatePreviewOrderNumber = (): string => {
-    return `PREV-${Date.now().toString().slice(-6)}`;
-  };
+  // Preview order number
+  const previewOrderNumber = `PREV-${Date.now().toString().slice(-6)}`;
 
-  // Generate the formatted content for preview
-  const getFormattedContent = () => {
-    return formatItemsForPrinter({
+  // Example: Format items for printer
+  const handlePrintOrder = () => {
+    const formattedReceipt = formatItemsForPrinter({
       items: cartItems,
       currentOrder: null,
       orderType,
       selectedTable,
       selectedEmployee,
-      generatePreviewOrderNumber
+      previewOrderNumber
     });
   };
 

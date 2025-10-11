@@ -74,19 +74,16 @@ const ThermalPrinterDemo: React.FC = () => {
   const [includeTable, setIncludeTable] = useState(true);
   const [includeEmployee, setIncludeEmployee] = useState(true);
 
-  // Generate preview order number
-  const generatePreviewOrderNumber = (): string => {
-    return `PREV-${Date.now().toString().slice(-6)}`;
-  };
+  // Preview order number
+  const previewOrderNumber = `PREV-${Date.now().toString().slice(-6)}`;
 
-  // Generate the formatted content
   const formattedContent = formatItemsForPrinter({
     items: sampleItems,
     currentOrder: null,
     orderType,
     selectedTable: includeTable ? sampleTable : null,
     selectedEmployee: includeEmployee ? sampleEmployee : null,
-    generatePreviewOrderNumber
+    previewOrderNumber
   });
 
   return (

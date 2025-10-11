@@ -9,12 +9,40 @@ import { OrderStatus, OrderType } from "@/types/orders";
 export const selectOrdersState = (state: RootState) => state.orders;
 
 export const selectOrders = (state: RootState) => state.orders.orders;
-export const selectOrderDetails = (state: RootState) => state.orders.orderDetails;
+// Unwrap orderDetails if any are in the old wrapped format { message, order }
+export const selectOrderDetails = (state: RootState) => {
+  const orderDetails = state.orders.orderDetails;
+  const unwrappedDetails: Record<string, any> = {};
+  
+  for (const [id, order] of Object.entries(orderDetails)) {
+    // Check if it's wrapped in old format { message, order }
+    if ((order as any).message && (order as any).order) {
+      unwrappedDetails[id] = (order as any).order;
+    } else {
+      unwrappedDetails[id] = order;
+    }
+  }
+  
+  return unwrappedDetails;
+};
 export const selectDraftOrders = (state: RootState) => state.orders.draftOrders;
 export const selectStaffOrders = (state: RootState) => state.orders.staffOrders;
 export const selectTableOrders = (state: RootState) => state.orders.tableOrders;
 
-export const selectActiveOrder = (state: RootState) => state.orders.activeOrder;
+// Unwrap activeOrder if it's in the old wrapped format { message, order }
+export const selectActiveOrder = (state: RootState) => {
+  const activeOrder = state.orders.activeOrder;
+  if (!activeOrder) return null;
+  
+  // Check if it's wrapped in old format { message, order }
+  if ((activeOrder as any).message && (activeOrder as any).order) {
+    console.log("🔧 Unwrapping old format activeOrder");
+    return (activeOrder as any).order;
+  }
+  
+  return activeOrder;
+};
+
 export const selectActiveOrderId = (state: RootState) => state.orders.activeOrderId;
 
 export const selectFilters = (state: RootState) => state.orders.filters;

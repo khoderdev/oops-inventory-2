@@ -17,6 +17,7 @@ interface POSState {
 
   // Order details
   currentOrder: Order | null; // Current order being edited/created
+  previewOrderNumber: string; // Preview order number for new orders
   orderType: OrderType;
   selectedTable: Table | null;
   selectedEmployee: Employee | null;
@@ -132,6 +133,7 @@ const initialState: POSState = {
 
   // Order details
   currentOrder: null,
+  previewOrderNumber: "ORD-XXXX",
   orderType: "takeaway",
   selectedTable: null,
   selectedEmployee: null,
@@ -461,6 +463,11 @@ const posSlice = createSlice({
           };
         }
       }
+    },
+
+    // Preview order number action
+    setPreviewOrderNumber: (state, action: PayloadAction<string>) => {
+      state.previewOrderNumber = action.payload;
     },
 
     // Discount actions
@@ -1134,6 +1141,7 @@ export const {
   setOrderType,
   setSelectedEmployee,
   setSelectedTable,
+  setPreviewOrderNumber,
   applyDiscount,
   removeDiscount,
   setOrderNotes,
