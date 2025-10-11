@@ -359,6 +359,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
             };
           });
 
+        // CRITICAL FIX: Set the active order so the system knows we're editing an existing order
+        dispatch(setActiveOrder(fullOrder));
         dispatch(setCart(cartItems));
 
         if (fullOrder.notes) {
