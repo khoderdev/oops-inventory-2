@@ -75,7 +75,6 @@ import {
   applyDiscount as applyDiscountAction,
   completeOrder,
   // Cleanup actions
-  resetDialogsState,
   resetEphemeralState,
   resetPaymentState,
   resetDayCloseState,
@@ -591,6 +590,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
     // Hide success animation after 2 seconds
     setTimeout(() => {
       dispatch(confirmCartClearAction());
+      // Reset table selection to original state
+      dispatch(setSelectedTableAction(null));
+      dispatch(setOrderTypeAction("takeaway"));
     }, 2000);
 
     // 🔄 BACKGROUND PROCESSING - Handle actual save
@@ -724,6 +726,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       dispatch(setShowSuccessCheckmarkAction(false));
       dispatch(setShowReceiptDialogAction(true));
       dispatch(confirmCartClearAction());
+      // Reset table selection to original state
+      dispatch(setSelectedTableAction(null));
+      dispatch(setOrderTypeAction("takeaway"));
     }, 1500);
 
     // 🔄 BACKGROUND PROCESSING - Handle actual payment
@@ -912,7 +917,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
   const addToCart = useCallback(
     (posItem: POSItem) => {
       dispatch(setIsPOSActionInProgressAction(true));
-      const variantId = posItem.selectedVariant ? `-variant-${posItem.selectedVariant.name}-${posItem.selectedVariant.volume}${posItem.selectedVariant.unit}` : "";
+      const variantId = posItem.selectedVariant?.name ? `-variant-${posItem.selectedVariant.name}-${posItem.selectedVariant.volume}${posItem.selectedVariant.unit}` : "";
       const cartId = `pos-${posItem.id}${variantId}`;
       const cartItem: POSCartItem = {
         id: cartId,
