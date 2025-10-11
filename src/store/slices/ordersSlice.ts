@@ -195,9 +195,8 @@ export const fetchStaffOrders = createAsyncThunk(
 export const fetchOrderById = createAsyncThunk("orders/fetchOrderById", async (orderId: string, { rejectWithValue }) => {
   try {
     const response = await ordersAPI.getOrder(orderId);
-    // Backend returns { data: order }, so we need to unwrap it
-    const orderData = response.data?.data || response.data;
-    return orderData;
+    // ApiResponse already unwraps to { data: Order }
+    return response.data;
   } catch (error: any) {
     console.error(`❌ [fetchOrderById] Error fetching order ${orderId}:`, error);
     console.error(`❌ [fetchOrderById] Error response:`, error.response?.data);
