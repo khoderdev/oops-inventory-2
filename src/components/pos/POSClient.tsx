@@ -43,6 +43,9 @@ import {
   updateCartQuantity as updateCartQuantityAction,
   clearCart as clearCartAction,
   clearCartWithAnimation as clearCartWithAnimationAction,
+  optimisticClearCart as optimisticClearCartAction,
+  restoreCartFromBackup as restoreCartFromBackupAction,
+  confirmCartClear as confirmCartClearAction,
   setSelectedEmployee as setSelectedEmployeeAction,
   removeDiscount as removeDiscountAction,
   setOrderNotes as setOrderNotesAction,
@@ -568,7 +571,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
     [dispatch, clearOrder, clearCart, showSuccess, showError, tableOrders, loadOrder]
   );
 
-  // Save order handler
+  // Save order handler with optimistic UI
   const handleManualSave = useCallback(async () => {
     if (cart.length === 0) {
       showError("Cannot save empty order");
@@ -580,177 +583,246 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       return;
     }
 
-    try {
-      dispatch(setIsLoadingAction(true));
+    // 🚀 INSTANT UI UPDATE - Clear cart and show success immediately
+    dispatch(optimisticClearCartAction());
+    const optimisticOrderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
+    showSuccess(`Order ${optimisticOrderNumber} saved successfully! ✓`);
 
-      const orderData = {
-        orderType,
-        tableId: selectedTable?.id ? String(selectedTable.id) : undefined,
-        employeeId: selectedEmployee?.id,
-        items: cart.map(item => ({
-          type: item.type,
-          menuItemId: item.menuItemId ? String(item.menuItemId) : undefined,
-          materialId: item.materialId ? String(item.materialId) : undefined,
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.price,
-          totalPrice: item.price * item.quantity,
-          notes: item.notes
-        })),
-        notes: orderNotes,
-        // Flatten discount fields instead of nested object
-        discountType: appliedDiscount?.type,
-        discountValue: appliedDiscount?.value,
-        discountReason: appliedDiscount?.reason
-      };
-      let savedOrder: Order;
-      if (currentOrder?.id) {
-        const updateOrderResult = await updateOrder(currentOrder.id.toString(), orderData as UpdateOrderData);
-        const payload = updateOrderResult.payload as any;
-        savedOrder = payload.order || payload;
-        showSuccess(`Order ${savedOrder.orderNumber} updated successfully`);
-      } else {
-        const createOrderResult = await createOrder(orderData as CreateOrderData);
-        savedOrder = createOrderResult;
-        dispatch(setActiveOrder(savedOrder));
-        showSuccess(`Order ${savedOrder.orderNumber} saved successfully`);
+    // Hide success animation after 2 seconds
+    setTimeout(() => {
+      dispatch(confirmCartClearAction());
+    }, 2000);
+
+    // 🔄 BACKGROUND PROCESSING - Handle actual save
+    const orderData = {
+      orderType,
+      tableId: selectedTable?.id ? String(selectedTable.id) : undefined,
+      employeeId: selectedEmployee?.id,
+      items: cart.map(item => ({
+        type: item.type,
+        menuItemId: item.menuItemId ? String(item.menuItemId) : undefined,
+        materialId: item.materialId ? String(item.materialId) : undefined,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        totalPrice: item.price * item.quantity,
+        notes: item.notes
+      })),
+      notes: orderNotes,
+      discountType: appliedDiscount?.type,
+      discountValue: appliedDiscount?.value,
+      discountReason: appliedDiscount?.reason
+    };
+
+    // Process in background without blocking UI
+    (async () => {
+      try {
+        let savedOrder: Order;
+        if (currentOrder?.id) {
+          const updateOrderResult = await updateOrder(currentOrder.id.toString(), orderData as UpdateOrderData);
+          const payload = updateOrderResult.payload as any;
+          savedOrder = payload.order || payload;
+          console.log("✅ Order updated in background:", savedOrder.orderNumber);
+        } else {
+          const createOrderResult = await createOrder(orderData as CreateOrderData);
+          savedOrder = createOrderResult;
+          dispatch(setActiveOrder(savedOrder));
+          console.log("✅ Order created in background:", savedOrder.orderNumber);
+        }
+
+        dispatch(setHasUnsavedChangesAction(false));
+        
+        // Save to localStorage for resilience
+        try {
+          localStorage.setItem('pos_last_saved_order', JSON.stringify({
+            orderId: savedOrder.id,
+            orderNumber: savedOrder.orderNumber,
+            timestamp: Date.now()
+          }));
+        } catch (e) {
+          console.warn("Failed to save to localStorage:", e);
+        }
+      } catch (error: any) {
+        console.error("❌ [handleManualSave] Background error:", error);
+        
+        // 🔄 ROLLBACK - Restore cart on error
+        dispatch(restoreCartFromBackupAction());
+        showError(error.message || "Failed to save order - cart restored");
+        
+        // Try to save to localStorage as backup
+        try {
+          localStorage.setItem('pos_failed_order', JSON.stringify({
+            orderData,
+            error: error.message,
+            timestamp: Date.now()
+          }));
+          console.log("💾 Failed order saved to localStorage for recovery");
+        } catch (e) {
+          console.warn("Failed to save failed order to localStorage:", e);
+        }
       }
-
-      dispatch(setHasUnsavedChangesAction(false));
-    } catch (error: any) {
-      console.error("❌ [handleManualSave] Error saving order:", error);
-      showError(error.message || "Failed to save order");
-    } finally {
-      dispatch(setIsLoadingAction(false));
-    }
+    })();
   }, [cart, currentOrder, orderType, selectedTable, selectedEmployee, orderNotes, appliedDiscount, dispatch, createOrder, updateOrder, showSuccess, showError]);
 
-  // Payment handler
+  // Payment handler with optimistic UI
   const handlePayment = useCallback(async () => {
     if (cart.length === 0) {
       showError("Cannot complete payment with empty cart");
       return;
     }
-    try {
-      dispatch(setIsLoadingAction(true));
-      dispatch(setShowPaymentDialogAction(false));
-      let orderId: string;
-      if (!currentOrder) {
-        const orderData: CreateOrderData = {
-          orderType,
-          tableId: selectedTable?.id || undefined,
-          employeeId: selectedEmployee?.id || null,
-          items: cart.map(item => ({
-            type: item.type,
-            menuItemId: item.menuItemId ? String(item.menuItemId) : undefined,
-            materialId: item.materialId ? String(item.materialId) : undefined,
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.price * item.quantity,
-            notes: item.notes
-          })),
-          notes: orderNotes,
-          discountType: appliedDiscount?.type,
-          discountValue: appliedDiscount?.value,
-          discountReason: appliedDiscount?.reason
-        };
 
-        const newOrder = await createOrder(orderData);
-
-        if (!newOrder || !newOrder.id) {
-          console.error("❌ [handlePayment] Created order has no ID:", newOrder);
-          showError("Failed to create order - no ID returned");
-          dispatch(setIsLoadingAction(false));
-          return;
-        }
-
-        orderId = newOrder.id;
-      } else {
-        if (currentOrder.status === "paid") {
-          showError(`Order ${currentOrder.orderNumber} is already completed`);
-          dispatch(setIsLoadingAction(false));
-          return;
-        }
-
-        if (!currentOrder.id) {
-          console.error("❌ [handlePayment] Current order has no ID:", currentOrder);
-          showError("Invalid order - missing order ID");
-          dispatch(setIsLoadingAction(false));
-          return;
-        }
-        orderId = currentOrder.id;
-      }
-
-      const paymentData = {
-        paymentMethod: "cash",
-        paymentAmount: parseFloat(paymentAmount) || total,
-        change: Math.max(0, parseFloat(paymentAmount) - total)
-      };
-
-      if (!orderId || orderId === "undefined" || orderId === undefined) {
-        console.error("🚨 [handlePayment] CRITICAL: orderId is invalid before dispatch:", { orderId, currentOrder });
-        showError("Cannot complete payment - invalid order ID");
-        dispatch(setIsLoadingAction(false));
-        return;
-      }
-
-      const result = await dispatch(
-        completeOrder({
-          orderId,
-          paymentData
-        })
-      );
-
-      if (completeOrder.fulfilled.match(result)) {
-        const responseData = result.payload as any;
-        const completedOrder = responseData.order || responseData;
-        const now = new Date();
-        const receiptData: ReceiptData = {
-          id: completedOrder.orderNumber || generatePreviewOrderNumber(),
-          date: now.toLocaleDateString(),
-          time: now.toLocaleTimeString(),
-          items: cart.map(item => ({
-            name: item.name,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            totalPrice: item.price * item.quantity,
-            type: item.type
-          })),
-          subtotal,
-          discountType: appliedDiscount?.type || null,
-          discountValue: appliedDiscount?.value || null,
-          discountAmount: appliedDiscount?.amount || null,
-          discountReason: appliedDiscount?.reason || null,
-          tax,
-          total,
-          paymentMethod: paymentData.paymentMethod,
-          paymentAmount: paymentData.paymentAmount,
-          change: paymentData.change,
-          orderType,
-          tableNumber: selectedTable?.number || null,
-          employeeName: selectedEmployee ? `${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName}` : null,
-          cashier: "POS User"
-        };
-
-        dispatch(setLastSaleDataAction(receiptData));
-        dispatch(setShowSuccessCheckmarkAction(true));
-        // Show success animation
-        setTimeout(() => {
-          dispatch(setShowSuccessCheckmarkAction(false));
-          dispatch(setShowReceiptDialogAction(true));
-          clearCartWithAnimation();
-          clearOrder();
-        }, 1500);
-        showSuccess(`Order ${completedOrder.orderNumber} completed successfully!`);
-      }
-    } catch (error: any) {
-      console.error("Error completing order:", error);
-      showError(error.message || "Failed to complete order");
-    } finally {
-      dispatch(setIsLoadingAction(false));
+    if (currentOrder?.status === "paid") {
+      showError(`Order ${currentOrder.orderNumber} is already completed`);
+      return;
     }
-  }, [currentOrder, cart, paymentAmount, total, subtotal, tax, appliedDiscount, orderType, selectedTable, selectedEmployee, orderNotes, dispatch, createOrder, showSuccess, showError, clearCartWithAnimation, clearOrder]);
+
+    // 🚀 INSTANT UI UPDATE - Generate optimistic receipt and clear cart immediately
+    const now = new Date();
+    const optimisticOrderNumber = currentOrder?.orderNumber || generatePreviewOrderNumber();
+    const paymentData = {
+      paymentMethod: "cash",
+      paymentAmount: parseFloat(paymentAmount) || total,
+      change: Math.max(0, parseFloat(paymentAmount) - total)
+    };
+
+    const optimisticReceipt: ReceiptData = {
+      id: optimisticOrderNumber,
+      date: now.toLocaleDateString(),
+      time: now.toLocaleTimeString(),
+      items: cart.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        totalPrice: item.price * item.quantity,
+        type: item.type
+      })),
+      subtotal,
+      discountType: appliedDiscount?.type || null,
+      discountValue: appliedDiscount?.value || null,
+      discountAmount: appliedDiscount?.amount || null,
+      discountReason: appliedDiscount?.reason || null,
+      tax,
+      total,
+      paymentMethod: paymentData.paymentMethod,
+      paymentAmount: paymentData.paymentAmount,
+      change: paymentData.change,
+      orderType,
+      tableNumber: selectedTable?.number || null,
+      employeeName: selectedEmployee ? `${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName}` : null,
+      cashier: "POS User"
+    };
+
+    // Close payment dialog and show instant success
+    dispatch(setShowPaymentDialogAction(false));
+    dispatch(setLastSaleDataAction(optimisticReceipt));
+    dispatch(optimisticClearCartAction());
+    dispatch(setShowSuccessCheckmarkAction(true));
+    showSuccess(`Payment completed! 💰`);
+
+    // Show receipt after brief animation
+    setTimeout(() => {
+      dispatch(setShowSuccessCheckmarkAction(false));
+      dispatch(setShowReceiptDialogAction(true));
+      dispatch(confirmCartClearAction());
+    }, 1500);
+
+    // 🔄 BACKGROUND PROCESSING - Handle actual payment
+    (async () => {
+      try {
+        let orderId: string;
+        
+        // Create order if needed
+        if (!currentOrder) {
+          const orderData: CreateOrderData = {
+            orderType,
+            tableId: selectedTable?.id || undefined,
+            employeeId: selectedEmployee?.id || null,
+            items: cart.map(item => ({
+              type: item.type,
+              menuItemId: item.menuItemId ? String(item.menuItemId) : undefined,
+              materialId: item.materialId ? String(item.materialId) : undefined,
+              name: item.name,
+              quantity: item.quantity,
+              unitPrice: item.price,
+              totalPrice: item.price * item.quantity,
+              notes: item.notes
+            })),
+            notes: orderNotes,
+            discountType: appliedDiscount?.type,
+            discountValue: appliedDiscount?.value,
+            discountReason: appliedDiscount?.reason
+          };
+
+          const newOrder = await createOrder(orderData);
+          if (!newOrder || !newOrder.id) {
+            throw new Error("Failed to create order - no ID returned");
+          }
+          orderId = newOrder.id;
+        } else {
+          if (!currentOrder.id) {
+            throw new Error("Invalid order - missing order ID");
+          }
+          orderId = currentOrder.id;
+        }
+
+        // Complete payment
+        const result = await dispatch(
+          completeOrder({
+            orderId,
+            paymentData
+          })
+        );
+
+        if (completeOrder.fulfilled.match(result)) {
+          const responseData = result.payload as any;
+          const completedOrder = responseData.order || responseData;
+          
+          // Update receipt with actual order number if different
+          if (completedOrder.orderNumber !== optimisticOrderNumber) {
+            const updatedReceipt = { ...optimisticReceipt, id: completedOrder.orderNumber };
+            dispatch(setLastSaleDataAction(updatedReceipt));
+          }
+
+          console.log("✅ Payment completed in background:", completedOrder.orderNumber);
+          
+          // Clear order state
+          clearOrder();
+          
+          // Save to localStorage for resilience
+          try {
+            localStorage.setItem('pos_last_payment', JSON.stringify({
+              orderId: completedOrder.id,
+              orderNumber: completedOrder.orderNumber,
+              total,
+              timestamp: Date.now()
+            }));
+          } catch (e) {
+            console.warn("Failed to save to localStorage:", e);
+          }
+        }
+      } catch (error: any) {
+        console.error("❌ [handlePayment] Background error:", error);
+        
+        // 🔄 ROLLBACK - Restore cart and close receipt on error
+        dispatch(restoreCartFromBackupAction());
+        dispatch(setShowReceiptDialogAction(false));
+        showError(error.message || "Payment failed - cart restored");
+        
+        // Save failed payment to localStorage
+        try {
+          localStorage.setItem('pos_failed_payment', JSON.stringify({
+            cart: cart.map(item => ({ name: item.name, quantity: item.quantity, price: item.price })),
+            total,
+            error: error.message,
+            timestamp: Date.now()
+          }));
+          console.log("💾 Failed payment saved to localStorage for recovery");
+        } catch (e) {
+          console.warn("Failed to save failed payment to localStorage:", e);
+        }
+      }
+    })();
+  }, [currentOrder, cart, paymentAmount, total, subtotal, tax, appliedDiscount, orderType, selectedTable, selectedEmployee, orderNotes, dispatch, createOrder, showSuccess, showError, clearOrder]);
 
   // Manual print handler
   const handleManualPrint = useCallback(() => {

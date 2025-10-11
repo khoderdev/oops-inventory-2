@@ -10,12 +10,13 @@ import { posApi } from "@/store/api/posApi";
 interface POSState {
   // Cart state
   cart: POSCartItem[];
+  cartBackup: POSCartItem[] | null; // Backup for rollback on error
   hasUnsavedChanges: boolean;
   isPaymentCompleted: boolean;
   editingSaleId: string | null; // Track the ID of the sale being edited
 
   // Order details
-  currentOrder: Order | null;
+  currentOrder: Order | null; // Current order being edited/created
   orderType: OrderType;
   selectedTable: Table | null;
   selectedEmployee: Employee | null;
@@ -124,6 +125,7 @@ interface POSState {
 const initialState: POSState = {
   // Cart state
   cart: [],
+  cartBackup: null,
   hasUnsavedChanges: false,
   isPaymentCompleted: false,
   editingSaleId: null,
@@ -272,13 +274,13 @@ export const updateOrder = createAsyncThunk("pos/updateOrder", async ({ orderId,
 export const completeOrder = createAsyncThunk("pos/completeOrder", async ({ orderId, paymentData }: { orderId: string; paymentData: { paymentMethod: string; paymentAmount: number; change?: number } }, { rejectWithValue, dispatch }) => {
   try {
     const response = await ordersAPI.completeOrder(orderId, paymentData);
-    
+
     // Invalidate RTK Query cache for orders and tables
-    dispatch(posApi.util.invalidateTags(['Orders', 'Tables']));
-    
+    dispatch(posApi.util.invalidateTags(["Orders", "Tables"]));
+
     // Immediately refresh sales history so UI updates instantly
     dispatch(fetchSalesHistory());
-    
+
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || "Failed to complete order");
@@ -294,13 +296,13 @@ export const voidOrder = createAsyncThunk("pos/voidOrder", async ({ orderId, rea
     const responseData = response.data as { order?: any; stockRestorations?: any[] } | any;
     const voidedOrder = responseData.order || responseData;
     const stockRestorations = responseData.stockRestorations;
-    
+
     // Invalidate RTK Query cache for orders and tables
-    dispatch(posApi.util.invalidateTags(['Orders', 'Tables']));
-    
+    dispatch(posApi.util.invalidateTags(["Orders", "Tables"]));
+
     // Refresh sales history after voiding to reflect changes instantly
     dispatch(fetchSalesHistory());
-    
+
     return { order: voidedOrder, stockRestorations };
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || "Failed to void order");
@@ -310,10 +312,10 @@ export const voidOrder = createAsyncThunk("pos/voidOrder", async ({ orderId, rea
 export const addOrderItems = createAsyncThunk("pos/addOrderItems", async ({ orderId, items }: { orderId: string; items: Omit<any, "id">[] }, { rejectWithValue, dispatch }) => {
   try {
     const response = await ordersAPI.addOrderItems(orderId, items);
-    
+
     // Invalidate orders cache when items are added
-    dispatch(posApi.util.invalidateTags(['Orders']));
-    
+    dispatch(posApi.util.invalidateTags(["Orders"]));
+
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || "Failed to add items to order");
@@ -323,10 +325,10 @@ export const addOrderItems = createAsyncThunk("pos/addOrderItems", async ({ orde
 export const removeOrderItems = createAsyncThunk("pos/removeOrderItems", async ({ orderId, itemIds }: { orderId: string; itemIds: string[] }, { rejectWithValue, dispatch }) => {
   try {
     const response = await ordersAPI.removeOrderItems(orderId, itemIds);
-    
+
     // Invalidate orders cache when items are removed
-    dispatch(posApi.util.invalidateTags(['Orders']));
-    
+    dispatch(posApi.util.invalidateTags(["Orders"]));
+
     return response.data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || "Failed to remove items from order");
@@ -397,9 +399,33 @@ const posSlice = createSlice({
 
     clearCartWithAnimation: state => {
       state.cart = [];
+      state.cartBackup = null;
       state.hasUnsavedChanges = false;
       state.isPaymentCompleted = false;
       state.isTableManuallySelected = false;
+    },
+
+    // Optimistic cart clear with backup for rollback
+    optimisticClearCart: state => {
+      state.cartBackup = [...state.cart];
+      state.cart = [];
+      state.hasUnsavedChanges = false;
+      state.showSuccessCheckmark = true;
+    },
+
+    // Restore cart from backup on error
+    restoreCartFromBackup: state => {
+      if (state.cartBackup && state.cartBackup.length > 0) {
+        state.cart = [...state.cartBackup];
+        state.hasUnsavedChanges = true;
+        state.cartBackup = null;
+      }
+    },
+
+    // Confirm cart clear (remove backup)
+    confirmCartClear: state => {
+      state.cartBackup = null;
+      state.showSuccessCheckmark = false;
     },
 
     // Order type actions
@@ -1102,9 +1128,12 @@ export const {
   removeFromCart,
   clearCart,
   clearCartWithAnimation,
+  optimisticClearCart,
+  restoreCartFromBackup,
+  confirmCartClear,
   setOrderType,
-  setSelectedTable,
   setSelectedEmployee,
+  setSelectedTable,
   applyDiscount,
   removeDiscount,
   setOrderNotes,
