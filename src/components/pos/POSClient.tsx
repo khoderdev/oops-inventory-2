@@ -381,9 +381,10 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
         }
 
         showSuccess(`Loaded order ${fullOrder.orderNumber}`);
-      } catch (error) {
+      } catch (error: any) {
         console.error("❌ [POSClient] Error loading selectedOrderForPOS:", error);
-        showError("Failed to load order");
+        const errorMessage = error?.message || "Failed to load order";
+        showError(errorMessage);
       }
     };
 
@@ -399,7 +400,15 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
     processedSaleIdRef.current = editingSaleId;
     const loadSaleForEdit = async () => {
       try {
-        const fullOrderResponse = await loadOrder(editingSaleId);
+        // Use the order ID from the sale, not the sale ID itself
+        const orderIdToLoad = selectedSaleForEdit.orderId || selectedSaleForEdit.order?.id;
+        
+        if (!orderIdToLoad) {
+          throw new Error(`Sale #${editingSaleId} does not have an associated order ID`);
+        }
+        
+        console.log(`🔍 [loadSaleForEdit] Loading order ${orderIdToLoad} for sale ${editingSaleId}`);
+        const fullOrderResponse = await loadOrder(orderIdToLoad);
         console.log("🔍 [loadSaleForEdit] Full order response:", fullOrderResponse);
 
         // loadOrder already returns unwrapped Order, no need for double unwrapping
@@ -492,7 +501,14 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
         
         // Provide specific error message based on error type
         if (error?.message?.includes("404") || error?.response?.status === 404) {
-          showError(`Sale #${editingSaleId} not found. It may have been deleted.`);
+          // Check if it's an order not found error (data integrity issue)
+          if (error?.message?.includes("Order not found") || error?.message?.includes("Order ID:")) {
+            showError(`Cannot edit this sale - the associated order has been deleted. Sale #${editingSaleId} cannot be modified.`);
+          } else {
+            showError(`Sale #${editingSaleId} not found. It may have been deleted.`);
+          }
+        } else if (error?.message?.includes("does not have an associated order ID")) {
+          showError(`Sale #${editingSaleId} has no associated order and cannot be edited.`);
         } else if (error?.message) {
           showError(`Failed to load sale: ${error.message}`);
         } else {
@@ -664,11 +680,12 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
               clearCart();
               showSuccess(`Table ${table.number} selected - Start new order`);
             }
-          } catch (error) {
+          } catch (error: any) {
             console.error("❌ [POSClient] Error loading table order:", error);
             clearOrder();
             clearCart();
-            showError("Failed to load table order");
+            const errorMessage = error?.message || "Failed to load table order";
+            showError(errorMessage);
           }
         } else {
           clearOrder();
@@ -792,9 +809,25 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       return;
     }
 
-    if (currentOrder?.status === "paid") {
+    // Check if order is already completed
+    if (currentOrder?.status === "paid" || currentOrder?.status === "completed") {
       showError(`Order ${currentOrder.orderNumber} is already completed`);
       return;
+    }
+
+    // If we have a current order, verify its status is still valid before proceeding
+    if (currentOrder?.id) {
+      try {
+        const freshOrder = await loadOrder(currentOrder.id);
+        if (freshOrder.status === "paid" || freshOrder.status === "completed") {
+          showError(`Order ${freshOrder.orderNumber} has already been completed`);
+          clearOrder(); // Clear the stale order from state
+          return;
+        }
+      } catch (error) {
+        console.warn("⚠️ Could not verify order status before payment:", error);
+        // Continue with payment attempt - backend will validate
+      }
     }
 
     // 🚀 INSTANT UI UPDATE - Generate optimistic receipt and clear cart immediately
@@ -829,7 +862,9 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       change: paymentData.change,
       orderType,
       tableNumber: selectedTable?.number || null,
-      employeeName: selectedEmployee ? `${selectedEmployee.user?.firstName} ${selectedEmployee.user?.lastName}` : null,
+      employeeName: selectedEmployee 
+        ? `${selectedEmployee.user?.firstName || selectedEmployee.firstName || ''} ${selectedEmployee.user?.lastName || selectedEmployee.lastName || ''}`.trim() || null
+        : null,
       cashier: "POS User"
     };
 
@@ -929,6 +964,11 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
           } catch (e) {
             console.warn("Failed to save to localStorage:", e);
           }
+        } else {
+          // Payment failed - extract error message
+          const errorMessage = (result.payload as string) || "Payment failed";
+          console.error("❌ [handlePayment] Payment completion failed:", errorMessage);
+          throw new Error(errorMessage);
         }
       } catch (error: any) {
         console.error("❌ [handlePayment] Background error:", error);
@@ -955,7 +995,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
         }
       }
     })();
-  }, [currentOrder, cart, paymentAmount, total, subtotal, tax, appliedDiscount, orderType, selectedTable, selectedEmployee, orderNotes, dispatch, createOrder, showSuccess, showError, clearOrder]);
+  }, [currentOrder, cart, paymentAmount, total, subtotal, tax, appliedDiscount, orderType, selectedTable, selectedEmployee, orderNotes, dispatch, createOrder, showSuccess, showError, clearOrder, loadOrder, previewOrderNumber]);
 
   // Manual print handler
   const handleManualPrint = useCallback(() => {
@@ -1005,7 +1045,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
           }
         });
 
-        showSuccess(`Receipt sent to ${selectedPrinter.name}`);
+        showSuccess(`Receipt sent to ${selectedPrinter?.name || 'printer'}`);
       } catch (error: any) {
         console.error("Error printing receipt:", error);
         showError(error.message || "Failed to print receipt");
@@ -1044,6 +1084,13 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
   // Cart operations
   const addToCart = useCallback(
     (posItem: POSItem) => {
+      // Validate posItem has required properties
+      if (!posItem || !posItem.name) {
+        console.error("❌ [addToCart] Invalid posItem:", posItem);
+        showError("Cannot add item - invalid item data");
+        return;
+      }
+
       dispatch(setIsPOSActionInProgressAction(true));
       const variantId = posItem.selectedVariant?.name ? `-variant-${posItem.selectedVariant.name}-${posItem.selectedVariant.volume}${posItem.selectedVariant.unit}` : "";
       const cartId = `pos-${posItem.id}${variantId}`;
@@ -1067,7 +1114,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
         setTimeout(() => dispatch(setIsPOSActionInProgressAction(false)), 0);
       });
     },
-    [dispatch, startTransition]
+    [dispatch, startTransition, showError]
   );
 
   const handleAddToCart = useCallback(

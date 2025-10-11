@@ -95,7 +95,7 @@ const salesController = {
           {
             model: Order,
             as: "order",
-            attributes: ["orderNumber"]
+            attributes: ["id", "orderNumber", "orderType", "discountType", "discountValue", "discountAmount", "discountReason", "notes"]
           }
         ],
         order: [["saleDate", "DESC"]]
@@ -106,10 +106,11 @@ const salesController = {
         sales.map(async sale => {
           const saleData = sale.toJSON();
 
-          // Flatten the order number
+          // Keep order data for editing capability
           if (saleData.order) {
             saleData.orderNumber = saleData.order.orderNumber;
-            delete saleData.order; // Remove the nested order object
+            saleData.orderId = saleData.order.id; // Add orderId for easy access
+            // Keep the full order object for frontend use
           }
 
           // Process menu items to include names

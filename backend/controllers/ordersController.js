@@ -1,7 +1,7 @@
 import { Op } from "sequelize";
 import sequelize from "../config/database.js";
 import { auditOrderOperation } from "../middleware/auditMiddleware.js";
-import { Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, Table, PrintJob, PrinterChannel, Category } from "../models/index.js";
+import { Assignment, Material, StockEntry, MenuItem, MenuItemIngredient, MenuItemSauce, Sauce, OrderItem, Order, User, Printer, Variants, VariantIngredient, Table, PrintJob, PrinterChannel, Category, Sale } from "../models/index.js";
 import salesController from "./salesController.js";
 import { generateSequentialOrderNumber } from "../utils/orderNumberGenerator.js";
 import { convertVolumeWithMaterial } from "../utils/volumeConversionUtils.js";
@@ -1727,8 +1727,14 @@ export const ordersController = {
       res.json({ message: "Order updated successfully", order: updatedOrder });
     } catch (error) {
       await transaction.rollback();
-      console.error("Update order error:", error);
-      res.status(500).json({ message: "Failed to update order", error: error.message });
+      console.error("❌ Update order error:", error);
+      console.error("❌ Error stack:", error.stack);
+      console.error("❌ Request body:", JSON.stringify(req.body, null, 2));
+      res.status(500).json({ 
+        message: "Failed to update order", 
+        error: error.message,
+        details: error.stack?.split('\n')[0] // First line of stack trace
+      });
     }
   },
 
@@ -1911,8 +1917,28 @@ export const ordersController = {
       const { paymentData } = req.body;
       const userId = req.user?.id;
 
+      console.log(`🔄 [PAYMENT_DEBUG] Request body:`, JSON.stringify(req.body, null, 2));
       console.log(`🔄 [PAYMENT_DEBUG] Payment data received:`, JSON.stringify(paymentData, null, 2));
       console.log(`🔄 [PAYMENT_DEBUG] User ID: ${userId}`);
+
+      // Validate paymentData
+      if (!paymentData) {
+        console.error(`❌ [PAYMENT_DEBUG] Missing paymentData in request body`);
+        await transaction.rollback();
+        return res.status(400).json({ 
+          message: "Payment data is required",
+          received: req.body
+        });
+      }
+
+      if (!paymentData.paymentAmount || isNaN(paymentData.paymentAmount)) {
+        console.error(`❌ [PAYMENT_DEBUG] Invalid paymentAmount:`, paymentData.paymentAmount);
+        await transaction.rollback();
+        return res.status(400).json({ 
+          message: "Valid payment amount is required",
+          received: paymentData
+        });
+      }
 
       // Step 1: Find and validate order
       console.log(`🔍 [PAYMENT_DEBUG] Step 1: Finding order ${orderId}`);

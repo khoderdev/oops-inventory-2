@@ -197,11 +197,24 @@ export const fetchOrderById = createAsyncThunk("orders/fetchOrderById", async (o
     const response = await ordersAPI.getOrder(orderId);
     return response.data;
   } catch (error: any) {
+    console.error(`❌ [fetchOrderById] Error fetching order ${orderId}:`, error);
+    console.error(`❌ [fetchOrderById] Error response:`, error.response?.data);
+    
     // Include HTTP status for better error handling
     const status = error.response?.status;
-    const message = status === 404 
-      ? `Order not found (404)` 
-      : error.message || "Failed to fetch order details";
+    const errorData = error.response?.data;
+    
+    let message: string;
+    if (status === 404) {
+      message = `Order not found (404)`;
+    } else if (errorData?.message) {
+      message = errorData.message;
+    } else if (error.message) {
+      message = error.message;
+    } else {
+      message = "Failed to fetch order details";
+    }
+    
     return rejectWithValue(message);
   }
 });
@@ -270,7 +283,19 @@ export const updateOrder = createAsyncThunk("orders/updateOrder", async ({ order
     return orderData as Order;
   } catch (error: any) {
     console.error(`❌ [updateOrder] Error updating order ${orderId}:`, error);
-    return rejectWithValue(error.message || "Failed to update order");
+    console.error(`❌ [updateOrder] Error response:`, error.response?.data);
+    
+    // Extract detailed error message from backend
+    const errorMessage = error.response?.data?.error 
+      || error.response?.data?.message 
+      || error.message 
+      || "Failed to update order";
+    
+    const errorDetails = error.response?.data?.details 
+      ? ` - ${error.response.data.details}` 
+      : '';
+    
+    return rejectWithValue(`${errorMessage}${errorDetails}`);
   }
 });
 

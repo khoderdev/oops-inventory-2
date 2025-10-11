@@ -285,7 +285,19 @@ export const completeOrder = createAsyncThunk("pos/completeOrder", async ({ orde
 
     return response.data;
   } catch (error: any) {
-    return rejectWithValue(error.response?.data?.message || "Failed to complete order");
+    console.error("❌ [completeOrder] Error:", error);
+    console.error("❌ [completeOrder] Response data:", error.response?.data);
+    
+    // Extract detailed error information
+    const errorData = error.response?.data;
+    const errorMessage = errorData?.message || error.message || "Failed to complete order";
+    
+    // Include additional context if available
+    if (errorData?.currentStatus) {
+      return rejectWithValue(`${errorMessage} (Status: ${errorData.currentStatus})`);
+    }
+    
+    return rejectWithValue(errorMessage);
   }
 });
 
