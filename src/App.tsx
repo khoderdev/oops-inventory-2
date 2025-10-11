@@ -88,7 +88,7 @@ export default function App({ onCreateMenuItem, onUpdateMenuItem, onDeleteMenuIt
           <Toaster />
           {offline && (
             <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-white text-center py-1 z-50">
-              Offline Mode - Using Cached Data
+              Offline Mode - Using Cached Data 
             </div>
           )}
           {/* <Sonner /> */}

@@ -1304,7 +1304,10 @@ export const ordersController = {
               }
             } catch (stockError) {
               console.error(`❌ Stock deduction failed for ${item.type} ${item.name}:`, stockError);
-              // Continue with order creation but log the error
+              // CRITICAL: Rollback transaction immediately when stock deduction fails
+              // Once a PostgreSQL transaction encounters an error, all subsequent commands fail
+              await transaction.rollback();
+              throw new Error(`Stock deduction failed for ${item.name}: ${stockError.message}`);
             }
             return orderItem;
           })

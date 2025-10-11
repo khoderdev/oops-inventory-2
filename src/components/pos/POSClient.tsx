@@ -274,7 +274,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
             notes: item.notes || undefined,
             originalItem: originalItem as any,
             orderItemId: item.id?.toString(),
-            variant: item.selectedVariant
+            variant: item.selectedVariant?.name
               ? {
                   id: item.selectedVariant.name,
                   name: item.selectedVariant.name,
@@ -351,7 +351,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
             notes: item.notes || undefined,
             originalItem: originalItem as any,
             orderItemId: item.id?.toString(),
-            variant: item.selectedVariant
+            variant: item.selectedVariant?.name
               ? {
                   id: item.selectedVariant.name,
                   name: item.selectedVariant.name,
@@ -516,7 +516,7 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
                   notes: item.notes || undefined,
                   originalItem: originalItem as any,
                   orderItemId: item.id?.toString(),
-                  variant: item.selectedVariant
+                  variant: item.selectedVariant?.name
                     ? {
                         id: item.selectedVariant.name,
                         name: item.selectedVariant.name,
@@ -714,12 +714,18 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       cashier: "POS User"
     };
 
+    // Capture current order BEFORE clearing it (needed for background processing)
+    const capturedCurrentOrder = currentOrder;
+    
     // Close payment dialog and show instant success
     dispatch(setShowPaymentDialogAction(false));
     dispatch(setLastSaleDataAction(optimisticReceipt));
     dispatch(optimisticClearCartAction());
     dispatch(setShowSuccessCheckmarkAction(true));
     showSuccess(`Payment completed! 💰`);
+    
+    // Clear order state immediately to prevent duplicate payment attempts
+    clearOrder();
 
     // Show receipt after brief animation
     setTimeout(() => {
@@ -736,8 +742,8 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
       try {
         let orderId: string;
         
-        // Create order if needed
-        if (!currentOrder) {
+        // Create order if needed (use captured order, not currentOrder which is now null)
+        if (!capturedCurrentOrder) {
           const orderData: CreateOrderData = {
             orderType,
             tableId: selectedTable?.id || undefined,
@@ -764,10 +770,10 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
           }
           orderId = newOrder.id;
         } else {
-          if (!currentOrder.id) {
+          if (!capturedCurrentOrder.id) {
             throw new Error("Invalid order - missing order ID");
           }
-          orderId = currentOrder.id;
+          orderId = capturedCurrentOrder.id;
         }
 
         // Complete payment
@@ -789,9 +795,6 @@ const POSClientComponent: React.FC<POSClientProps> = ({ onOrderSelect, selectedO
           }
 
           console.log("✅ Payment completed in background:", completedOrder.orderNumber);
-          
-          // Clear order state
-          clearOrder();
           
           // Save to localStorage for resilience
           try {
